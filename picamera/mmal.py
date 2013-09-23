@@ -1637,7 +1637,7 @@ mmal_queue_destroy.restype = None
 
 class MMAL_POOL_T(ct.Structure):
     _fields_ = [
-        ('queue',       MMAL_QUEUE_T),
+        ('queue',       ct.POINTER(MMAL_QUEUE_T)),
         ('headers_num', ct.c_uint32),
         ('header',      ct.POINTER(ct.POINTER(MMAL_BUFFER_HEADER_T))),
         ]
