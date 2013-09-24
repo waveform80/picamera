@@ -510,6 +510,12 @@ class PiCamera(object):
             self.stop_preview()
         self._destroy_camera()
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_tb):
+        self.close()
+
     def start_preview(self):
         """
         Starts a preview session over the current display.
