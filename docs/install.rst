@@ -32,6 +32,17 @@ virtual Python environment::
     (sandbox) $ cd picamera
     (sandbox) $ make develop
 
+For anybody wishing to hack on the project please understand that although it
+is technically written in pure Python, heavy use of ``ctypes`` is involved so
+the code really doesn't look much like Python - more a sort of horrid mish-mash
+of C and Python. The project currently consists of a class (:class:`PiCamera`)
+which is a crude re-implementation of useful bits of the ``raspistill`` and
+``raspivid`` commands using the ``ctypes`` based ``libmmal`` header conversion.
+
+Even if you don't feel up to hacking on the code, I'd love to hear suggestions
+from people of what you'd like the API to look like (even if the code itself
+isn't particularly pythonic, the interface should be)!
+
 
 .. _PyPI: https://pypi.python.org/pypi/picamera/
 
