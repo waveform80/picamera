@@ -27,6 +27,29 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+"""
+This module primarily provides the :class:`PiCamera` class which is a pure
+Python interface to the Raspberry Pi's camera module.
+
+
+Classes
+=======
+
+.. autoclass:: PiCamera()
+    :members:
+
+
+Exceptions
+==========
+
+.. autoexception:: PiCameraError
+
+.. autoexception:: PiCameraValueError
+
+.. autoexception:: PiCameraRuntimeError
+
+"""
+
 from __future__ import (
     unicode_literals,
     print_function,
@@ -42,10 +65,10 @@ import picamera.mmal as mmal
 import picamera.bcm_host as bcm_host
 
 __all__ = [
+    'PiCamera',
     'PiCameraError',
     'PiCameraRuntimeError',
     'PiCameraValueError',
-    'PiCamera',
     ]
 
 
@@ -152,6 +175,43 @@ _still_buffer_callback = mmal.MMAL_PORT_BH_CB_T(_still_buffer_callback)
 
 
 class PiCamera(object):
+    """
+    Provides a pure Python interface to the Raspberry Pi's camera module.
+
+    Upon construction, this class initializes the camera. As there is only a
+    single camera supported by the Raspberry Pi, this means that only a single
+    instance of this class can exist at any given time (it is effectively a
+    singleton class although it is not implemented as such).
+
+    No preview or recording is started automatically upon construction.  Use
+    the :meth:`capture` method to capture image, the :meth:`start_recording`
+    method to begin recording video (TODO), or the :meth:`start_preview` method
+    to start live display of the camera's input.
+
+    Several attributes are provided to adjust the camera's configuration. Some
+    of these can be adjusted while a preview or recording is running, like
+    :attr:`brightness`. Others, like :attr:`preview_resolution` can only be
+    adjusted when the camera is idle.
+
+    When you are finished with the camera, you should ensure you call the
+    :meth:`close` method to release the camera resources (failure to do this
+    leads to GPU memory leaks)::
+
+        camera = PiCamera()
+        try:
+            # do something with the camera
+        finally:
+            camera.close()
+
+    The class supports the context manager protocol to make this particularly
+    easy (upon exiting the ``with`` statement, the :meth:`close` method is
+    automatically called)::
+
+        with PiCamera() as camera:
+            # do something with the camera
+
+    """
+
     MMAL_CAMERA_PREVIEW_PORT = 0
     MMAL_CAMERA_VIDEO_PORT = 1
     MMAL_CAMERA_CAPTURE_PORT = 2
@@ -521,8 +581,8 @@ class PiCamera(object):
         Starts a preview session over the current display.
 
         This method starts a new preview running at the configured resolution
-        (see :prop:`preview_resolution`). Most camera properties can be
-        modified "live" while the preview is running (e.g. :prop:`brightness`).
+        (see :attr:`preview_resolution`). Most camera properties can be
+        modified "live" while the preview is running (e.g. :attr:`brightness`).
         The preview typically overrides whatever is currently visible on the
         display. To stop the preview and reveal the display again, call
         :meth:`stop_preview`. The preview can be started and stopped multiple
@@ -742,7 +802,7 @@ class PiCamera(object):
         _get_stills_resolution, _set_stills_resolution, doc="""
         Retrieves or sets the resolution at which still images will be captured.
 
-        When queried, the :prop:`stills_resolution` property returns the
+        When queried, the :attr:`stills_resolution` property returns the
         resolution at which the :meth:`capture` method will produce images as
         a tuple of ``(width, height)`` measured in pixels.
 
@@ -800,7 +860,7 @@ class PiCamera(object):
         _get_preview_resolution, _set_preview_resolution, doc="""
         Retrieves or sets the resolution at which a preview will be displayed.
 
-        When queried, the :prop:`preview_resolution` property returns the
+        When queried, the :attr:`preview_resolution` property returns the
         resolution at which a preview (as started by :meth:`start_preview`)
         will run, as a tuple of ``(width, height)`` measured in pixels.
 
@@ -847,7 +907,7 @@ class PiCamera(object):
     saturation = property(_get_saturation, _set_saturation, doc="""
         Retrieves or sets the saturation setting of the camera.
 
-        When queried, the :prop:`saturation` property returns the color
+        When queried, the :attr:`saturation` property returns the color
         saturation of the camera as an integer between -100 and 100. When set,
         the property adjusts the saturation of the camera. Saturation can be
         adjusted while previews or recordings are in progress. The default
@@ -882,7 +942,7 @@ class PiCamera(object):
     sharpness = property(_get_sharpness, _set_sharpness, doc="""
         Retrieves or sets the sharpness setting of the camera.
 
-        When queried, the :prop:`sharpness` property returns the sharpness
+        When queried, the :attr:`sharpness` property returns the sharpness
         level of the camera (a measure of the amount of post-processing to
         reduce or increase image sharpness) as an integer between -100 and 100.
         When set, the property adjusts the sharpness of the camera. Sharpness
@@ -918,7 +978,7 @@ class PiCamera(object):
     contrast = property(_get_contrast, _set_contrast, doc="""
         Retrieves or sets the contrast setting of the camera.
 
-        When queried, the :prop:`contrast` property returns the contrast level
+        When queried, the :attr:`contrast` property returns the contrast level
         of the camera as an integer between -100 and 100.  When set, the
         property adjusts the contrast of the camera. Contrast can be adjusted
         while previews or recordings are in progress. The default value is 0.
@@ -952,7 +1012,7 @@ class PiCamera(object):
     brightness = property(_get_brightness, _set_brightness, doc="""
         Retrieves or sets the brightness setting of the camera.
 
-        When queried, the :prop:`brightness` property returns the brightness
+        When queried, the :attr:`brightness` property returns the brightness
         level of the camera as an integer between 0 and 100.  When set, the
         property adjusts the brightness of the camera. Brightness can be
         adjusted while previews or recordings are in progress. The default

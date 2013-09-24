@@ -54,6 +54,10 @@ pygments_style = 'sphinx'
 #modindex_common_prefix = []
 #keep_warnings = False
 
+# -- Autodoc configuration ------------------------------------------------
+
+autodoc_member_order = 'groupwise'
+
 # -- Options for HTML output ----------------------------------------------
 
 html_theme = 'default'
