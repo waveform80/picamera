@@ -46,6 +46,8 @@ Major things that still need work:
 
 * Documentation, examples, tests, etc. etc.
 
+* Future work - text overlay on preview (GLES?)
+
 .. _Raspberry Pi: http://www.raspberrypi.org/
 .. _camera: http://www.raspberrypi.org/camera
 .. _homepage: https://pypi.python.org/pypi/picamera/
