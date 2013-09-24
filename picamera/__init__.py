@@ -120,7 +120,6 @@ def _check(status, prefix=""):
             }.get(status, "Unknown status error")))
 
 def _camera_control_callback(port, buf):
-    print("_camera_control_callback")
     if buf[0].cmd != mmal.MMAL_EVENT_PARAMETER_CHANGED:
         raise PiCameraRuntimeError(
             "Received unexpected camera control callback event, 0x%08x" % buf[0].cmd)
@@ -128,7 +127,6 @@ def _camera_control_callback(port, buf):
 _camera_control_callback = mmal.MMAL_PORT_BH_CB_T(_camera_control_callback)
 
 def _video_buffer_callback(port, buf):
-    print("_video_buffer_callback")
     mmal.mmal_buffer_header_release(buf)
     if port[0].is_enabled:
         new_buf = ct.cast(port[0].userdata, ct.POINTER(mmal.MMAL_POOL_T))[0].queue
@@ -141,9 +139,8 @@ def _video_buffer_callback(port, buf):
 _video_buffer_callback = mmal.MMAL_PORT_BH_CB_T(_video_buffer_callback)
 
 def _still_buffer_callback(port, buf):
-    print("_still_buffer_callback")
     complete = False
-    userdata = ct.cast(port[0].userdata, ct.POINTER(ct.py_object))[0].value
+    userdata = ct.cast(port[0].userdata, ct.POINTER(ct.py_object))[0]
     output, event, pool, _ = userdata
     try:
         if buf[0].length and output:
@@ -156,16 +153,20 @@ def _still_buffer_callback(port, buf):
                         "Unable to write buffer to file - aborting")
             finally:
                 mmal.mmal_buffer_header_mem_unlock(buf)
-            if buf[0].flags & (mmal.MMAL_BUFFER_HEADER_FLAG_FRAME_END | mmal.MMAL_BUFFER_HEADER_FLAG_TRANSMISSION_FAILED):
-                complete = True
-        mmal.mmal_buffer_header_release(buf)
-        new_buf = mmal.mmal_queue_get(pool[0].queue)
-        if not new_buf:
-            raise PiCameraError(
-                "Unable to get a buffer to return to the encoder port")
-        _check(
-            mmal.mmal_port_send_buffer(port, new_buf),
-            prefix="Unable to return a buffer to the encoder port")
+            complete = bool(
+                buf[0].flags & (
+                    mmal.MMAL_BUFFER_HEADER_FLAG_FRAME_END |
+                    mmal.MMAL_BUFFER_HEADER_FLAG_TRANSMISSION_FAILED)
+                )
+        if port[0].is_enabled:
+            mmal.mmal_buffer_header_release(buf)
+            new_buf = mmal.mmal_queue_get(pool[0].queue)
+            if not new_buf:
+                raise PiCameraError(
+                    "Unable to get a buffer to return to the encoder port")
+            _check(
+                mmal.mmal_port_send_buffer(port, new_buf),
+                prefix="Unable to return a buffer to the encoder port")
     except Exception as e:
         complete = True
         userdata[3] = e
@@ -434,6 +435,15 @@ class PiCamera(object):
                 prefix="Failed to set JPEG quality")
 
             # TODO Configure thumbnail settings
+            mp = mmal.MMAL_PARAMETER_THUMBNAIL_CONFIG_T(
+                mmal.MMAL_PARAMETER_HEADER_T(
+                    mmal.MMAL_PARAMETER_THUMBNAIL_CONFIGURATION,
+                    ct.sizeof(mmal.MMAL_PARAMETER_THUMBNAIL_CONFIG_T)
+                    ),
+                1, 64, 48, 35)
+            _check(
+                mmal.mmal_port_parameter_set(self._still_encoder[0].control, mp.hdr),
+                prefix="Failed to set thumbnail configuration")
 
             _check(
                 mmal.mmal_component_enable(self._still_encoder),
@@ -683,7 +693,8 @@ class PiCamera(object):
         no other methods will be called).
         """
         self._check_camera_open()
-        if isinstance(output, (bytes, str)):
+        opened = isinstance(output, (bytes, str))
+        if opened:
             output = io.open(output, 'wb')
         self._create_still_encoder()
         try:
@@ -706,7 +717,7 @@ class PiCamera(object):
                 None,              # placeholder for any exceptions that occur
                 ]
             self._still_encoder[0].output[0][0].userdata = ct.cast(
-                ct.byref(ct.py_object(callback_data)),
+                ct.pointer(ct.py_object(callback_data)),
                 ct.c_void_p)
             _check(
                 mmal.mmal_port_enable(
@@ -730,13 +741,23 @@ class PiCamera(object):
                     mmal.MMAL_TRUE),
                 prefix="Failed to start capture")
 
+            # Wait for the callback to set the event indicating the end of
+            # image capture
             callback_data[1].wait()
 
             _check(
                 mmal.mmal_port_disable(self._still_encoder[0].output[0]),
                 prefix="Failed to disable encoder output port")
+
+            # Check whether the callback set an exception
+            if callback_data[3]:
+                raise callback_data[3]
         finally:
+            if self._still_encoder[0].output[0][0].is_enabled:
+                mmal.mmal_port_disable(self._still_encoder[0].output[0])
             self._destroy_still_encoder()
+            if opened:
+                output.close()
 
     @property
     def closed(self):
