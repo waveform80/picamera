@@ -43,6 +43,7 @@ else:
 
 HERE = os.path.abspath(os.path.dirname(__file__))
 
+__project__      = 'picamera'
 __version__      = '0.1'
 __author__       = 'Dave Hughes'
 __author_email__ = 'dave@waveform.org.uk'
@@ -82,9 +83,6 @@ if sys.version_info == (3, 2):
         ])
 
 __entry_points__ = {
-    'console_scripts': [
-        'picroscopy = picroscopy.terminal:main',
-        ],
     }
 
 
@@ -93,7 +91,7 @@ class PyTest(TestCommand):
     def finalize_options(self):
         TestCommand.finalize_options(self)
         self.test_args = [
-            '--cov', picroscopy.__name__,
+            '--cov', __project__,
             '--cov-report', 'term-missing',
             '--cov-report', 'html',
             '--cov-config', 'coverage.cfg',
@@ -111,7 +109,7 @@ def main():
     import io
     with io.open(os.path.join(HERE, 'README.rst'), 'r') as readme:
         setup(
-            name                 = __name__,
+            name                 = __project__,
             version              = __version__,
             description          = __doc__,
             long_description     = readme.read(),
