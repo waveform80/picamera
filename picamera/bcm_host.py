@@ -40,7 +40,20 @@ from __future__ import (
 
 import ctypes as ct
 
-_lib = ct.CDLL('libbcm_host.so')
+try:
+    _lib = ct.CDLL('libbcm_host.so')
+except OSError:
+    print("""
+WARNING: Unable to locate libbcm_host.so; using a mock object instead. This
+functionality only exists to support building the package documentation on
+non-Raspberry Pi systems. If you see this message on the Raspberry Pi then
+you are missing a required library and the package will not function.""")
+    class _Mock(object):
+        def __getattr__(self, attr):
+            return self
+        def __call__(self, *args, **kwargs):
+            return self
+    _lib = _Mock()
 
 # bcm_host.h #################################################################
 

@@ -38,8 +38,8 @@ import io
 import threading
 import ctypes as ct
 
-import picroscopy.mmal as mmal
-import picroscopy.bcm_host as bcm_host
+import picamera.mmal as mmal
+import picamera.bcm_host as bcm_host
 
 __all__ = [
     'PiCameraError',

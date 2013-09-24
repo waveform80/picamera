@@ -5,3 +5,4 @@ API Reference
 =============
 
 .. automodule:: picamera
+

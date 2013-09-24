@@ -30,7 +30,7 @@
 import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-import setup
+import setup as _setup
 
 # -- General configuration ------------------------------------------------
 
@@ -39,10 +39,10 @@ templates_path = ['_templates']
 source_suffix = '.rst'
 #source_encoding = 'utf-8-sig'
 master_doc = 'index'
-project = setup.__project__.title()
-copyright = '2013, %s' % setup.__author__
-version = setup.__version__
-release = setup.__version__
+project = _setup.__project__.title()
+copyright = '2013, %s' % _setup.__author__
+version = _setup.__version__
+release = _setup.__version__
 #language = None
 #today_fmt = '%B %d, %Y'
 exclude_patterns = ['_build']
@@ -77,7 +77,7 @@ html_static_path = ['_static']
 #html_show_copyright = True
 #html_use_opensearch = ''
 #html_file_suffix = None
-htmlhelp_basename = '%sdoc' % setup.__project__
+htmlhelp_basename = '%sdoc' % _setup.__project__
 
 # -- Options for LaTeX output ---------------------------------------------
 
@@ -89,11 +89,11 @@ latex_elements = {
 
 latex_documents = [
     (
-        'index',                      # source start file
-        '%s.tex' % setup.__project__, # target filename
-        '%s Documentation' % project, # title
-        setup.__author__,             # author
-        'manual',                     # documentclass
+        'index',                       # source start file
+        '%s.tex' % _setup.__project__, # target filename
+        '%s Documentation' % project,  # title
+        _setup.__author__,             # author
+        'manual',                      # documentclass
         ),
 ]
 
