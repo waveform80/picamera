@@ -89,7 +89,6 @@ release: $(PY_SOURCES) $(DOC_SOURCES)
 	# ensure there are no current uncommitted changes
 	test -z "$(shell git status --porcelain)"
 	# commit the changes and add a new tag
-	git commit debian/changelog -m "Updated changelog for release $(VER)"
 	git tag -s release-$(VER) -m "Release $(VER)"
 
 upload: $(PY_SOURCES) $(DOC_SOURCES)
