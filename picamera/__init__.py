@@ -623,7 +623,7 @@ class PiCamera(object):
         no other methods will be called).
         """
         self._check_camera_open()
-        if isinstance(output, str):
+        if isinstance(output, (bytes, str)):
             output = io.open(output, 'wb')
         self._create_still_encoder()
         try:
