@@ -616,7 +616,7 @@ class PiCamera(object):
             self.saturation = 0
             self.ISO = 400
             self.video_stabilization = False
-            self.exposure_compensation = False
+            self.exposure_compensation = 0
             self.exposure_mode = 'auto'
             self.meter_mode = 'average'
             self.awb_mode = 'auto'
@@ -1066,15 +1066,15 @@ class PiCamera(object):
 
     def _get_ISO(self):
         self._check_camera_open()
-        mp = mmal.MMAL_RATIONAL_T()
+        mp = ct.POINTER(ct.c_uint32)()
         _check(
-            mmal.mmal_port_parameter_get_rational(
+            mmal.mmal_port_parameter_get_uint32(
                 self._camera[0].control,
                 mmal.MMAL_PARAMETER_ISO,
                 mp
                 ),
             prefix="Failed to get ISO")
-        return mp.num
+        return mp[0]
     def _set_ISO(self, value):
         self._check_camera_open()
         # XXX Valid values?
@@ -1085,7 +1085,27 @@ class PiCamera(object):
                 value
                 ),
             prefix="Failed to set ISO")
-    ISO = property(_get_ISO, _set_ISO)
+    ISO = property(_get_ISO, _set_ISO, doc="""
+        Retrieves or sets the apparent ISO setting of the camera.
+
+        When queried, the :attr:`ISO` property returns the ISO setting of the
+        camera, a value which represents the `sensitivity of the camera to
+        light`_. Lower ISO speeds (e.g. 100) imply less sensitivity than higher
+        ISO speeds (e.g. 400 or 800). Lower sensitivities tend to produce less
+        "noisy" (smoother) images, but operate poorly in low light conditions.
+
+        When set, the property adjusts the sensitivity of the camera. The valid
+        limits are currently undocumented, but a range of 100 to 1600 would
+        seem reasonable. ISO can be adjusted while previews or recordings are
+        in progress. The default value is 400.
+
+        .. note::
+            Currently, adjusting this value doesn't seem to do anything. The
+            author has tried assigning values of 0 to 100,000 with no apparent
+            effect (nor any error occurring).
+
+        .. _sensitivity of the camera to light: http://en.wikipedia.org/wiki/Film_speed#Digital
+        """)
 
     def _get_meter_mode(self):
         self._check_camera_open()
@@ -1113,7 +1133,35 @@ class PiCamera(object):
                 prefix="Failed to set meter mode")
         except KeyError:
             raise PiCameraValueError("Invalid metering mode: %s" % value)
-    meter_mode = property(_get_meter_mode, _set_meter_mode)
+    meter_mode = property(_get_meter_mode, _set_meter_mode, doc="""
+        Retrieves or sets the metering mode of the camera.
+
+        When queried, the :attr:`meter_mode` property returns the method by
+        which the camera `determines the exposure`_ as one of the following
+        strings:
+
+        +---------------+---------------------------------------------------+
+        | value         | description                                       |
+        +===============+===================================================+
+        | ``'average'`` | The camera measures the average of the entire     |
+        |               | scene.                                            |
+        +---------------+---------------------------------------------------+
+        | ``'spot'``    | The camera measures the center of the scene.      |
+        +---------------+---------------------------------------------------+
+        | ``'backlit'`` | The camera measures a larger central area,        |
+        |               | ignoring the edges of the scene.                  |
+        +---------------+---------------------------------------------------+
+        | ``'matrix'``  | The camera measures several points within the     |
+        |               | scene.                                            |
+        +---------------+---------------------------------------------------+
+
+        When set, the property adjusts the camera's metering mode. The property
+        can be set while recordings or previews are in progress. The default
+        value is ``'average'``. All possible values for the attribute can be
+        obtained from the ``PiCamera.METER_MODES`` attribute.
+
+        .. _determines the exposure: http://en.wikipedia.org/wiki/Metering_mode
+        """)
 
     def _get_video_stabilization(self):
         self._check_camera_open()
@@ -1141,35 +1189,62 @@ class PiCamera(object):
                 prefix="Failed to set video stabilization")
         except KeyError:
             raise PiCameraValueError("Invalid video stabilization boolean value: %s" % value)
-    video_stabilization = property(_get_video_stabilization, _set_video_stabilization)
+    video_stabilization = property(
+        _get_video_stabilization, _set_video_stabilization, doc="""
+        Retrieves or sets the video stabilization mode of the camera.
+
+        When queried, the :attr:`video_stabilization` property returns a
+        boolean value indicating whether or not the camera attempts to
+        compensate for motion.
+
+        When set, the property activates or deactivates video stabilization.
+        The property can be set while recordings or previews are in progress.
+        The default value is ``False``.
+
+        .. warning::
+            The built-in video stabilization only accounts for `vertical and
+            horizontal motion`_, not rotation.
+
+        .. _vertical and horizontal motion: http://www.raspberrypi.org/phpBB3/viewtopic.php?p=342667&sid=ec7d95e887ab74a90ffaab87888c48cd#p342667
+        """)
 
     def _get_exposure_compensation(self):
         self._check_camera_open()
-        mp = mmal.MMAL_BOOL_T()
+        mp = ct.POINTER(ct.c_uint32)()
         _check(
-            mmal.mmal_port_parameter_get_boolean(
+            mmal.mmal_port_parameter_get_uint32(
                 self._camera[0].control,
                 mmal.MMAL_PARAMETER_EXPOSURE_COMP,
                 mp
                 ),
             prefix="Failed to get exposure compensation")
-        return mp == mmal.MMAL_TRUE
+        return mp[0]
     def _set_exposure_compensation(self, value):
         self._check_camera_open()
         try:
-            _check(
-                mmal.mmal_port_parameter_set_boolean(
-                    self._camera[0].control,
-                    mmal.MMAL_PARAMETER_EXPOSURE_COMP,
-                    {
-                        False: mmal.MMAL_FALSE,
-                        True:  mmal.MMAL_TRUE,
-                        }[value]
-                    ),
-                prefix="Failed to set exposure compensation")
-        except KeyError:
-            raise PiCameraValueError("Invalid exposure compensation boolean value: %s" % value)
-    exposure_compensation = property(_get_exposure_compensation, _set_exposure_compensation)
+            if not (-10 <= value <= 10):
+                raise PiCameraValueError("Invalid exposure compensation value: %d (valid range -10..10)" % value)
+        except TypeError:
+            raise PiCameraValueError("Invalid exposure compensation value: %s" % value)
+        _check(
+            mmal.mmal_port_parameter_set_int32(
+                self._camera[0].control,
+                mmal.MMAL_PARAMETER_EXPOSURE_COMP,
+                value
+                ),
+            prefix="Failed to set exposure compensation")
+    exposure_compensation = property(
+        _get_exposure_compensation, _set_exposure_compensation, doc="""
+        Retrieves or sets the exposure compensation level of the camera.
+
+        When queried, the :attr:`exposure_compensation` property returns an
+        integer value between -10 and 10 indicating the exposure level of the
+        camera. Larger values result in brighter images.
+
+        When set, the property adjusts the camera's exposure compensation
+        level. The property can be set while recordings or previews are in
+        progress. The default value is ``0``.
+        """)
 
     def _get_exposure_mode(self):
         self._check_camera_open()
@@ -1197,7 +1272,17 @@ class PiCamera(object):
                 prefix="Failed to set exposure mode")
         except KeyError:
             raise PiCameraValueError("Invalid exposure mode: %s" % value)
-    exposure_mode = property(_get_exposure_mode, _set_exposure_mode)
+    exposure_mode = property(_get_exposure_mode, _set_exposure_mode, doc="""
+        Retrieves or sets the exposure mode of the camera.
+
+        When queried, the :attr:`exposure_mode` property returns a string
+        representing the exposure setting of the camera. The possible values
+        can be obtained from the ``PiCamera.EXPOSURE_MODES`` attribute.
+
+        When set, the property adjusts the camera's exposure mode.  The
+        property can be set while recordings or previews are in progress. The
+        default value is ``'auto'``.
+        """)
 
     def _get_awb_mode(self):
         self._check_camera_open()
@@ -1225,7 +1310,17 @@ class PiCamera(object):
                 prefix="Failed to set auto-white-balance mode")
         except KeyError:
             raise PiCameraValueError("Invalid auto-white-balance mode: %s" % value)
-    awb_mode = property(_get_awb_mode, _set_awb_mode)
+    awb_mode = property(_get_awb_mode, _set_awb_mode, doc="""
+        Retrieves or sets the auto-white-balance mode of the camera.
+
+        When queried, the :attr:`awb_mode` property returns a string
+        representing the auto-white-balance setting of the camera. The possible
+        values can be obtained from the ``PiCamera.AWB_MODES`` attribute.
+
+        When set, the property adjusts the camera's auto-white-balance mode.
+        The property can be set while recordings or previews are in progress.
+        The default value is ``'auto'``.
+        """)
 
     def _get_image_effect(self):
         self._check_camera_open()
@@ -1253,7 +1348,18 @@ class PiCamera(object):
                 prefix="Failed to set image effect")
         except KeyError:
             raise PiCameraValueError("Invalid image effect: %s" % value)
-    image_effect = property(_get_image_effect, _set_image_effect)
+    image_effect = property(_get_image_effect, _set_image_effect, doc="""
+        Retrieves or sets the current image effect applied by the camera.
+
+        When queried, the :attr:`image_effect` property returns a string
+        representing the effect the camera will apply to captured video. The
+        possible values can be obtained from the ``PiCamera.IMAGE_EFFECTS``
+        attribute.
+
+        When set, the property changes the effect applied by the camera.  The
+        property can be set while recordings or previews are in progress.  The
+        default value is ``'none'``.
+        """)
 
     def _get_color_effects(self):
         self._check_camera_open()
@@ -1291,7 +1397,18 @@ class PiCamera(object):
         _check(
             mmal.mmal_port_parameter_set(self._camera[0].control, mp.hdr),
             prefix="Failed to set color effects")
-    color_effects = property(_get_color_effects, _set_color_effects)
+    color_effects = property(_get_color_effects, _set_color_effects, doc="""
+        Retrieves or sets the current color effect applied by the camera.
+
+        When queried, the :attr:`color_effect` property either returns ``None``
+        which indicates that the camera is using the default color settings,
+        or a ``(u, v)`` tuple where ``u`` and ``v`` are integer values between
+        0 and 255.
+
+        When set, the property changes the color effect applied by the camera.
+        The property can be set while recordings or previews are in progress.
+        The default value is ``None``.
+        """)
 
     def _get_rotation(self):
         self._check_camera_open()
@@ -1318,7 +1435,16 @@ class PiCamera(object):
                     value
                     ),
                 prefix="Failed to set rotation")
-    rotation = property(_get_rotation, _set_rotation)
+    rotation = property(_get_rotation, _set_rotation, doc="""
+        Retrieves or sets the current rotation of the camera's image.
+
+        When queried, the :attr:`rotation` property returns the rotation
+        applied to the image. Valid values are 0, 90, 180, and 270.
+
+        When set, the property changes the color effect applied by the camera.
+        The property can be set while recordings or previews are in progress.
+        The default value is ``0``.
+        """)
 
     def _get_vflip(self):
         self._check_camera_open()
@@ -1350,7 +1476,14 @@ class PiCamera(object):
             _check(
                 mmal.mmal_port_parameter_set(self._camera[0].output[p], mp.hdr),
                 prefix="Failed to set vertical flip")
-    vflip = property(_get_vflip, _set_vflip)
+    vflip = property(_get_vflip, _set_vflip, doc="""
+        Retrieves or sets whether the camera's output is vertically flipped.
+
+        When queried, the :attr:`vflip` property returns a boolean indicating
+        whether or not the camera's output is vertically flipped. The property
+        can be set while recordings or previews are in progress. The default
+        value is ``False``.
+        """)
 
     def _get_hflip(self):
         self._check_camera_open()
@@ -1382,7 +1515,14 @@ class PiCamera(object):
             _check(
                 mmal.mmal_port_parameter_set(self._camera[0].output[p], mp.hdr),
                 prefix="Failed to set horizontal flip")
-    hflip = property(_get_hflip, _set_hflip)
+    hflip = property(_get_hflip, _set_hflip, doc="""
+        Retrieves or sets whether the camera's output is horizontally flipped.
+
+        When queried, the :attr:`hflip` property returns a boolean indicating
+        whether or not the camera's output is horizontally flipped. The
+        property can be set while recordings or previews are in progress. The
+        default value is ``False``.
+        """)
 
     def _get_crop(self):
         self._check_camera_open()
@@ -1421,7 +1561,16 @@ class PiCamera(object):
         _check(
             mmal.mmal_port_parameter_set(self._camera[0].control, mp.hdr),
             prefix="Failed to set crop")
-    crop = property(_get_crop, _set_crop)
+    crop = property(_get_crop, _set_crop, doc="""
+        Retrieves or sets the crop applied to the camera's output.
+
+        When queried, the :attr:`crop` property returns a ``(x, y, w, h)``
+        tuple of floating point values ranging from 0.0 to 1.0, indicating the
+        proportion of the image to include in the output. The default value is
+        ``(0.0, 0.0, 1.0, 1.0)`` which indicates that everything should be
+        output. The property can be set while recordings or previews are in
+        progress.
+        """)
 
 
 bcm_host.bcm_host_init()
