@@ -519,15 +519,15 @@ class PiCamera(object):
         'hatch':         mmal.MMAL_PARAM_IMAGEFX_HATCH,
         'gpen':          mmal.MMAL_PARAM_IMAGEFX_GPEN,
         'pastel':        mmal.MMAL_PARAM_IMAGEFX_PASTEL,
-        'watercolour':   mmal.MMAL_PARAM_IMAGEFX_WATERCOLOUR,
+        'watercolor':    mmal.MMAL_PARAM_IMAGEFX_WATERCOLOUR,
         'film':          mmal.MMAL_PARAM_IMAGEFX_FILM,
         'blur':          mmal.MMAL_PARAM_IMAGEFX_BLUR,
         'saturation':    mmal.MMAL_PARAM_IMAGEFX_SATURATION,
-        'colourswap':    mmal.MMAL_PARAM_IMAGEFX_COLOURSWAP,
+        'colorswap':     mmal.MMAL_PARAM_IMAGEFX_COLOURSWAP,
         'washedout':     mmal.MMAL_PARAM_IMAGEFX_WASHEDOUT,
         'posterise':     mmal.MMAL_PARAM_IMAGEFX_POSTERISE,
-        'colourpoint':   mmal.MMAL_PARAM_IMAGEFX_COLOURPOINT,
-        'colourbalance': mmal.MMAL_PARAM_IMAGEFX_COLOURBALANCE,
+        'colorpoint':    mmal.MMAL_PARAM_IMAGEFX_COLOURPOINT,
+        'colorbalance':  mmal.MMAL_PARAM_IMAGEFX_COLOURBALANCE,
         'cartoon':       mmal.MMAL_PARAM_IMAGEFX_CARTOON,
         }
 
@@ -1562,13 +1562,13 @@ class PiCamera(object):
             mmal.mmal_port_parameter_set(self._camera[0].control, mp.hdr),
             prefix="Failed to set crop")
     crop = property(_get_crop, _set_crop, doc="""
-        Retrieves or sets the crop applied to the camera's output.
+        Retrieves or sets the crop applied to the camera's input.
 
         When queried, the :attr:`crop` property returns a ``(x, y, w, h)``
         tuple of floating point values ranging from 0.0 to 1.0, indicating the
         proportion of the image to include in the output. The default value is
         ``(0.0, 0.0, 1.0, 1.0)`` which indicates that everything should be
-        output. The property can be set while recordings or previews are in
+        included. The property can be set while recordings or previews are in
         progress.
         """)
 
