@@ -1066,7 +1066,7 @@ class PiCamera(object):
 
     def _get_ISO(self):
         self._check_camera_open()
-        mp = ct.POINTER(ct.c_uint32)()
+        mp = ct.c_uint32()
         _check(
             mmal.mmal_port_parameter_get_uint32(
                 self._camera[0].control,
@@ -1074,7 +1074,7 @@ class PiCamera(object):
                 mp
                 ),
             prefix="Failed to get ISO")
-        return mp[0]
+        return int(mp)
     def _set_ISO(self, value):
         self._check_camera_open()
         # XXX Valid values?
@@ -1210,15 +1210,15 @@ class PiCamera(object):
 
     def _get_exposure_compensation(self):
         self._check_camera_open()
-        mp = ct.POINTER(ct.c_uint32)()
+        mp = ct.c_int32()
         _check(
-            mmal.mmal_port_parameter_get_uint32(
+            mmal.mmal_port_parameter_get_int32(
                 self._camera[0].control,
                 mmal.MMAL_PARAMETER_EXPOSURE_COMP,
                 mp
                 ),
             prefix="Failed to get exposure compensation")
-        return mp[0]
+        return int(mp)
     def _set_exposure_compensation(self, value):
         self._check_camera_open()
         try:
