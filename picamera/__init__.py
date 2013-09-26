@@ -1357,8 +1357,9 @@ class PiCamera(object):
         attribute.
 
         When set, the property changes the effect applied by the camera.  The
-        property can be set while recordings or previews are in progress.  The
-        default value is ``'none'``.
+        property can be set while recordings or previews are in progress, but
+        only certain effects work while recording video (notably ``'negative'``
+        and ``'solarize'``). The default value is ``'none'``.
         """)
 
     def _get_color_effects(self):
@@ -1401,13 +1402,14 @@ class PiCamera(object):
         Retrieves or sets the current color effect applied by the camera.
 
         When queried, the :attr:`color_effect` property either returns ``None``
-        which indicates that the camera is using the default color settings,
-        or a ``(u, v)`` tuple where ``u`` and ``v`` are integer values between
-        0 and 255.
+        which indicates that the camera is using normal color settings, or a
+        ``(u, v)`` tuple where ``u`` and ``v`` are integer values between 0 and
+        255.
 
         When set, the property changes the color effect applied by the camera.
         The property can be set while recordings or previews are in progress.
-        The default value is ``None``.
+        For example, to make the image black and white set the value to ``(128,
+        128)``. The default value is ``None``.
         """)
 
     def _get_rotation(self):
