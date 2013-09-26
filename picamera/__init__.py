@@ -119,61 +119,299 @@ def _check(status, prefix=""):
             mmal.MMAL_EFAULT:    "Bad address",
             }.get(status, "Unknown status error")))
 
-def _camera_control_callback(port, buf):
+def _control_callback(port, buf):
     if buf[0].cmd != mmal.MMAL_EVENT_PARAMETER_CHANGED:
         raise PiCameraRuntimeError(
             "Received unexpected camera control callback event, 0x%08x" % buf[0].cmd)
     mmal.mmal_buffer_header_release(buf)
-_camera_control_callback = mmal.MMAL_PORT_BH_CB_T(_camera_control_callback)
+_control_callback = mmal.MMAL_PORT_BH_CB_T(_control_callback)
 
-def _video_buffer_callback(port, buf):
-    mmal.mmal_buffer_header_release(buf)
-    if port[0].is_enabled:
-        new_buf = ct.cast(port[0].userdata, ct.POINTER(mmal.MMAL_POOL_T))[0].queue
-        if not new_buf:
-            raise PiCameraError(
-                "Unable to get a buffer to return to the encoder port")
+def _encoder_callback(port, buf):
+    encoder = ct.cast(port[0].userdata, ct.POINTER(ct.py_object))[0]
+    encoder._callback(port, buf)
+_encoder_callback = mmal.MMAL_PORT_BH_CB_T(_encoder_callback)
+
+
+class _PiEncoder(object):
+    """
+    Abstract base implemetation of an MMAL encoder for use by PiCamera
+    """
+
+    encoder_type = None
+    port = None
+
+    def __init__(self, camera):
+        self.camera = camera
+        self.encoder = None
+        self.pool = None
+        self.connection = None
+        self.opened = False
+        self.output = None
+        self.exception = None
+        self.event = threading.Event()
+        self.stopped = True
+        self.create_encoder()
+        self.create_pool()
+        self.create_connection()
+
+    def create_encoder(self):
+        """
+        Creates and configures the encoder itself
+        """
+        assert not self.encoder
+        self.encoder = ct.POINTER(mmal.MMAL_COMPONENT_T)()
         _check(
-            mmal.mmal_port_send_buffer(port, new_buf),
-            prefix="Unable to return a buffer to the encoder port")
-_video_buffer_callback = mmal.MMAL_PORT_BH_CB_T(_video_buffer_callback)
+            mmal.mmal_component_create(self.encoder_type, self.encoder),
+            prefix="Failed to create encoder component")
+        if not self.encoder[0].input_num:
+            raise PiCameraError("No input ports on encoder component")
+        if not self.encoder[0].output_num:
+            raise PiCameraError("No output ports on encoder component")
+        # Ensure output format is the same as the input
+        enc_out = self.encoder[0].output[0]
+        enc_in = self.encoder[0].input[0]
+        mmal.mmal_format_copy(enc_out[0].format, enc_in[0].format)
+        # Set buffer size and number to appropriate values
+        enc_out[0].buffer_size = max(
+            enc_out[0].buffer_size_recommended,
+            enc_out[0].buffer_size_min)
+        enc_out[0].buffer_num = max(
+            enc_out[0].buffer_num_recommended,
+            enc_out[0].buffer_num_min)
 
-def _still_buffer_callback(port, buf):
-    complete = False
-    userdata = ct.cast(port[0].userdata, ct.POINTER(ct.py_object))[0]
-    output, event, pool, _ = userdata
-    try:
-        if buf[0].length and output:
+    def create_pool(self):
+        """
+        Allocates a pool of buffers for the encoder
+        """
+        assert not self.pool
+        enc_out = self.encoder[0].output[0]
+        self.pool = mmal.mmal_port_pool_create(
+            enc_out, enc_out[0].buffer_num, enc_out[0].buffer_size)
+        if not self.pool:
+            raise PiCameraError(
+                "Failed to create buffer header pool for encoder component")
+
+    def create_connection(self):
+        """
+        Connects the camera to the encoder object
+        """
+        assert not self.connection
+        self.connection = ct.POINTER(mmal.MMAL_CONNECTION_T)()
+        _check(
+            mmal.mmal_connection_create(
+                self.connection,
+                self.camera[0].output[self.port],
+                self.encoder[0].input[0],
+                mmal.MMAL_CONNECTION_FLAG_TUNNELLING |
+                mmal.MMAL_CONNECTION_FLAG_ALLOCATION_ON_INPUT),
+            prefix="Failed to connect camera to encoder")
+        _check(
+            mmal.mmal_connection_enable(self.connection),
+            prefix="Failed to enable encoder connection")
+
+    def start(self, output):
+        """
+        Starts the encoder object writing to the specified output
+        """
+        self.event.clear()
+        self.stopped = False
+        self.opened = isinstance(output, (bytes, str))
+        if self.opened:
+            # Open files in binary mode with a *big* (1Mb) buffer
+            self.output = io.open(output, 'wb', buffering=1048576)
+        self.encoder[0].output[0][0].userdata = ct.cast(
+            ct.pointer(ct.py_object(self)),
+            ct.c_void_p)
+        _check(
+            mmal.mmal_port_enable(self.encoder[0].output[0], _encoder_callback),
+            prefix="Failed to enable encoder output port")
+
+        for q in range(mmal.mmal_queue_length(self.pool[0].queue)):
+            buf = mmal.mmal_queue_get(self.pool[0].queue)
+            if not buf:
+                raise PiCameraRuntimeError(
+                    "Unable to get a required buffer from pool queue")
+            _check(
+                mmal.mmal_port_send_buffer(self.encoder[0].output[0], buf),
+                prefix="Unable to send a buffer to encoder output port")
+
+        _check(
+            mmal.mmal_port_parameter_set_boolean(
+                self.camera[0].output[self.port],
+                mmal.MMAL_PARAMETER_CAPTURE, mmal.MMAL_TRUE),
+            prefix="Failed to start capture")
+
+    def wait(self, timeout=None):
+        """
+        Waits for the encoder to finish (successfully or otherwise)
+        """
+        result = self.event.wait(timeout)
+        if result:
+            _check(
+                mmal.mmal_port_disable(self.encoder[0].output[0]),
+                prefix="Failed to disable encoder output port")
+            # Check whether the callback set an exception
+            if self.exception:
+                raise self.exception
+        return result
+
+    def stop(self):
+        if self.encoder[0].output[0][0].is_enabled:
+            _check(
+                mmal.mmal_port_disable(self.encoder[0].output[0]),
+                prefix="Failed to disable encoder output port")
+        self.stopped = True
+        self.event.set()
+        # Closing connections may flush buffers hence file must be closed
+        # *after* closing connections
+        if self.output:
+            if self.opened:
+                self.output.close()
+            self.output = None
+            self.opened = False
+
+    def close(self):
+        """
+        Finalizes the encoder and deallocates all structures
+        """
+        self.stop()
+        if self.connection:
+            mmal.mmal_connection_destroy(self.connection)
+            self.connection = None
+        if self.pool:
+            mmal.mmal_port_pool_destroy(self.encoder[0].output[0], self.pool)
+            self.pool = None
+        if self.encoder:
+            if self.encoder[0].is_enabled:
+                mmal.mmal_component_disable(self.encoder)
+            mmal.mmal_component_destroy(self.encoder)
+            self.encoder = None
+
+    def _callback(self, port, buf):
+        """
+        The encoder's main callback function
+        """
+        stop = False
+        try:
+            try:
+                stop = not self.stopped and self._callback_write(buf)
+            finally:
+                self._callback_recycle(port, buf)
+        except Exception as e:
+            stop = True
+            self.exception = e
+        if stop:
+            self.stopped = True
+            self.event.set()
+
+    def _callback_write(self, buf):
+        """
+        Performs output writing on behalf of the encoder callback function;
+        return value determines whether writing has completed.
+        """
+        if buf[0].length:
             _check(
                 mmal.mmal_buffer_header_mem_lock(buf),
                 prefix="Unable to lock buffer header memory")
             try:
-                if output.write(ct.string_at(buf[0].data, buf[0].length)) != buf[0].length:
+                if self.output.write(
+                        ct.string_at(buf[0].data, buf[0].length)) != buf[0].length:
                     raise PiCameraError(
                         "Unable to write buffer to file - aborting")
             finally:
                 mmal.mmal_buffer_header_mem_unlock(buf)
-            complete = bool(
-                buf[0].flags & (
-                    mmal.MMAL_BUFFER_HEADER_FLAG_FRAME_END |
-                    mmal.MMAL_BUFFER_HEADER_FLAG_TRANSMISSION_FAILED)
-                )
+        return False
+
+    def _callback_recycle(self, port, buf):
+        """
+        Recycles the buffer on behalf of the encoder callback function
+        """
+        mmal.mmal_buffer_header_release(buf)
         if port[0].is_enabled:
-            mmal.mmal_buffer_header_release(buf)
-            new_buf = mmal.mmal_queue_get(pool[0].queue)
+            new_buf = mmal.mmal_queue_get(self.pool[0].queue)
             if not new_buf:
                 raise PiCameraError(
                     "Unable to get a buffer to return to the encoder port")
             _check(
                 mmal.mmal_port_send_buffer(port, new_buf),
                 prefix="Unable to return a buffer to the encoder port")
-    except Exception as e:
-        complete = True
-        userdata[3] = e
-    if complete:
-        event.set()
-_still_buffer_callback = mmal.MMAL_PORT_BH_CB_T(_still_buffer_callback)
 
+
+class _PiVideoEncoder(_PiEncoder):
+    encoder_type = mmal.MMAL_COMPONENT_DEFAULT_VIDEO_ENCODER
+    port = 1
+
+    def create_encoder(self):
+        super(_PiVideoEncoder, self).create_encoder()
+
+        # TODO Allow configuration of bitrate/encoding?
+        enc_out = self.encoder[0].output[0]
+        enc_out[0].format[0].encoding = mmal.MMAL_ENCODING_H264
+        enc_out[0].format[0].bitrate = 17000000
+        _check(
+            mmal.mmal_port_format_commit(enc_out),
+            prefix="Unable to set format on encoder output port")
+
+        # XXX Why does this fail? Is it even needed?
+        #try:
+        #    _check(
+        #        mmal.mmal_port_parameter_set_boolean(
+        #            enc_in,
+        #            mmal.MMAL_PARAMETER_VIDEO_IMMUTABLE_INPUT,
+        #            1),
+        #        prefix="Unable to set immutable flag on encoder input port")
+        #except PiCameraError as e:
+        #    print(str(e))
+        #    # Continue rather than abort...
+
+        _check(
+            mmal.mmal_component_enable(self.encoder),
+            prefix="Unable to enable video encoder component")
+
+
+class _PiStillEncoder(_PiEncoder):
+    encoder_type = mmal.MMAL_COMPONENT_DEFAULT_IMAGE_ENCODER
+    port = 2
+
+    def create_encoder(self):
+        super(_PiStillEncoder, self).create_encoder()
+
+        # TODO Allow configuration of encoding
+        enc_out = self.encoder[0].output[0]
+        enc_out[0].format[0].encoding = mmal.MMAL_ENCODING_JPEG
+        _check(
+            mmal.mmal_port_format_commit(enc_out),
+            prefix="Unable to set format on encoder output port")
+
+        # TODO Allow configuration of JPEG quality
+        _check(
+            mmal.mmal_port_parameter_set_uint32(
+                enc_out, mmal.MMAL_PARAMETER_JPEG_Q_FACTOR, 85),
+            prefix="Failed to set JPEG quality")
+
+        # TODO Configure thumbnail settings
+        mp = mmal.MMAL_PARAMETER_THUMBNAIL_CONFIG_T(
+            mmal.MMAL_PARAMETER_HEADER_T(
+                mmal.MMAL_PARAMETER_THUMBNAIL_CONFIGURATION,
+                ct.sizeof(mmal.MMAL_PARAMETER_THUMBNAIL_CONFIG_T)
+                ),
+            1, 64, 48, 35)
+        _check(
+            mmal.mmal_port_parameter_set(self.encoder[0].control, mp.hdr),
+            prefix="Failed to set thumbnail configuration")
+
+        _check(
+            mmal.mmal_component_enable(self.encoder),
+            prefix="Unable to enable encoder component")
+
+    def _callback_write(self, buf):
+        return (
+            super(_PiStillEncoder, self)._callback_write(buf)
+            ) or bool(
+            buf[0].flags & (
+                mmal.MMAL_BUFFER_HEADER_FLAG_FRAME_END |
+                mmal.MMAL_BUFFER_HEADER_FLAG_TRANSMISSION_FAILED)
+            )
 
 class PiCamera(object):
     """
@@ -213,13 +451,13 @@ class PiCamera(object):
 
     """
 
-    MMAL_CAMERA_PREVIEW_PORT = 0
-    MMAL_CAMERA_VIDEO_PORT = 1
-    MMAL_CAMERA_CAPTURE_PORT = 2
-    MMAL_CAMERA_PORTS = (
-        MMAL_CAMERA_PREVIEW_PORT,
-        MMAL_CAMERA_VIDEO_PORT,
-        MMAL_CAMERA_CAPTURE_PORT,
+    CAMERA_PREVIEW_PORT = 0
+    CAMERA_VIDEO_PORT = _PiVideoEncoder.port
+    CAMERA_CAPTURE_PORT = _PiStillEncoder.port
+    CAMERA_PORTS = (
+        CAMERA_PREVIEW_PORT,
+        CAMERA_VIDEO_PORT,
+        CAMERA_CAPTURE_PORT,
         )
     DEFAULT_STILL_RESOLUTION = (2592, 1944)
     DEFAULT_VIDEO_RESOLUTION = (1920, 1080)
@@ -304,11 +542,7 @@ class PiCamera(object):
         self._preview = None
         self._preview_connection = None
         self._video_encoder = None
-        self._video_pool = None
-        self._video_connection = None
         self._still_encoder = None
-        self._still_pool = None
-        self._still_connection = None
         self._create_camera()
 
     def _create_camera(self):
@@ -330,14 +564,14 @@ class PiCamera(object):
             _check(
                 mmal.mmal_port_enable(
                     self._camera[0].control,
-                    _camera_control_callback),
+                    _control_callback),
                 prefix="Unable to enable control port")
 
             cc = self._camera_config
             cc.max_stills_w=self.DEFAULT_STILL_RESOLUTION[0]
             cc.max_stills_h=self.DEFAULT_STILL_RESOLUTION[1]
             cc.stills_yuv422=0
-            cc.one_shot_stills=1
+            cc.one_shot_stills=0
             cc.max_preview_video_w=self.DEFAULT_VIDEO_RESOLUTION[0]
             cc.max_preview_video_h=self.DEFAULT_VIDEO_RESOLUTION[1]
             cc.num_preview_video_frames=3
@@ -348,7 +582,7 @@ class PiCamera(object):
                 mmal.mmal_port_parameter_set(self._camera[0].control, cc.hdr),
                 prefix="Camera control port couldn't be configured")
 
-            for p in self.MMAL_CAMERA_PORTS:
+            for p in self.CAMERA_PORTS:
                 port = self._camera[0].output[p]
                 fmt = port[0].format
                 fmt[0].encoding_variant = mmal.MMAL_ENCODING_I420
@@ -359,16 +593,16 @@ class PiCamera(object):
                 fmt[0].es[0].video.crop.y = 0
                 fmt[0].es[0].video.crop.width = cc.max_preview_video_w
                 fmt[0].es[0].video.crop.height = cc.max_preview_video_h
-                fmt[0].es[0].video.frame_rate.num = 1 if p == self.MMAL_CAMERA_CAPTURE_PORT else self.DEFAULT_FRAME_RATE_NUM
-                fmt[0].es[0].video.frame_rate.den = 1 if p == self.MMAL_CAMERA_CAPTURE_PORT else self.DEFAULT_FRAME_RATE_DEN
+                fmt[0].es[0].video.frame_rate.num = 1 if p == self.CAMERA_CAPTURE_PORT else self.DEFAULT_FRAME_RATE_NUM
+                fmt[0].es[0].video.frame_rate.den = 1 if p == self.CAMERA_CAPTURE_PORT else self.DEFAULT_FRAME_RATE_DEN
                 _check(
                     mmal.mmal_port_format_commit(self._camera[0].output[p]),
                     prefix="Camera %s format couldn't be set" % {
-                        self.MMAL_CAMERA_PREVIEW_PORT: "viewfinder",
-                        self.MMAL_CAMERA_VIDEO_PORT:   "video",
-                        self.MMAL_CAMERA_CAPTURE_PORT: "still",
+                        self.CAMERA_PREVIEW_PORT: "preview",
+                        self.CAMERA_VIDEO_PORT:   "video",
+                        self.CAMERA_CAPTURE_PORT: "still",
                         }[p])
-                if p != self.MMAL_CAMERA_PREVIEW_PORT:
+                if p != self.CAMERA_PREVIEW_PORT:
                     if port[0].buffer_num < self.VIDEO_OUTPUT_BUFFERS_NUM:
                         port[0].buffer_num = self.VIDEO_OUTPUT_BUFFERS_NUM
 
@@ -397,151 +631,10 @@ class PiCamera(object):
 
     def _destroy_camera(self):
         if self._camera:
-            mmal.mmal_component_disable(self._camera)
+            if self._camera[0].is_enabled:
+                mmal.mmal_component_disable(self._camera)
             mmal.mmal_component_destroy(self._camera)
             self._camera = None
-
-    def _create_still_encoder(self):
-        self._still_encoder = ct.POINTER(mmal.MMAL_COMPONENT_T)()
-        _check(
-            mmal.mmal_component_create(
-                mmal.MMAL_COMPONENT_DEFAULT_IMAGE_ENCODER, self._still_encoder),
-            prefix="Failed to create encoder component")
-        try:
-            if not self._still_encoder[0].input_num:
-                raise PiCameraError("No input ports on encoder component")
-            if not self._still_encoder[0].output_num:
-                raise PiCameraError("No output ports on encoder component")
-
-            enc_out = self._still_encoder[0].output[0]
-            enc_in = self._still_encoder[0].input[0]
-            mmal.mmal_format_copy(enc_out[0].format, enc_in[0].format)
-
-            # TODO Allow configuration of encoding
-            enc_out[0].format[0].encoding = mmal.MMAL_ENCODING_JPEG
-            enc_out[0].buffer_size = max(
-                enc_out[0].buffer_size_recommended,
-                enc_out[0].buffer_size_min)
-            enc_out[0].buffer_num = max(
-                enc_out[0].buffer_num_recommended,
-                enc_out[0].buffer_num_min)
-            _check(
-                mmal.mmal_port_format_commit(enc_out),
-                prefix="Unable to set format on encoder output port")
-
-            # TODO Allow configuration of JPEG quality
-            _check(
-                mmal.mmal_port_parameter_set_uint32(enc_out, mmal.MMAL_PARAMETER_JPEG_Q_FACTOR, 85),
-                prefix="Failed to set JPEG quality")
-
-            # TODO Configure thumbnail settings
-            mp = mmal.MMAL_PARAMETER_THUMBNAIL_CONFIG_T(
-                mmal.MMAL_PARAMETER_HEADER_T(
-                    mmal.MMAL_PARAMETER_THUMBNAIL_CONFIGURATION,
-                    ct.sizeof(mmal.MMAL_PARAMETER_THUMBNAIL_CONFIG_T)
-                    ),
-                1, 64, 48, 35)
-            _check(
-                mmal.mmal_port_parameter_set(self._still_encoder[0].control, mp.hdr),
-                prefix="Failed to set thumbnail configuration")
-
-            _check(
-                mmal.mmal_component_enable(self._still_encoder),
-                prefix="Unable to enable encoder component")
-
-            self._still_pool = mmal.mmal_port_pool_create(
-                enc_out, enc_out[0].buffer_num, enc_out[0].buffer_size)
-            if not self._still_pool:
-                raise PiCameraError(
-                    "Failed to create buffer header pool for encoder component")
-        except:
-            self._destroy_still_encoder()
-            raise
-
-    def _destroy_still_encoder(self):
-        if self._still_pool:
-            mmal.mmal_port_pool_destroy(self._still_encoder[0].output[0], self._still_pool)
-            self._still_pool = None
-        if self._still_encoder:
-            mmal.mmal_component_destroy(self._still_encoder)
-            self._still_encoder = None
-
-    def _create_video_encoder(self):
-        self._video_encoder = ct.POINTER(mmal.MMAL_COMPONENT_T)()
-        _check(
-            mmal.mmal_component_create(
-                mmal.MMAL_COMPONENT_DEFAULT_VIDEO_ENCODER, self._video_encoder),
-            prefix="Failed to create encoder component")
-        try:
-            if not self._video_encoder[0].input_num:
-                raise PiCameraError("No input ports on encoder component")
-            if not self._video_encoder[0].output_num:
-                raise PiCameraError("No output ports on encoder component")
-
-            enc_out = self._video_encoder[0].output[0]
-            enc_in = self._video_encoder[0].input[0]
-            mmal.mmal_format_copy(enc_out[0].format, enc_in[0].format)
-
-            enc_out[0].format[0].encoding = mmal.MMAL_ENCODING_H264
-            enc_out[0].format[0].bitrate = 17000000
-            enc_out[0].buffer_size = max(
-                enc_out[0].buffer_size_recommended,
-                enc_out[0].buffer_size_min)
-            enc_out[0].buffer_num = max(
-                enc_out[0].buffer_num_recommended,
-                enc_out[0].buffer_num_min)
-            _check(
-                mmal.mmal_port_format_commit(enc_out),
-                prefix="Unable to set format on encoder output port")
-
-            try:
-                _check(
-                    mmal.mmal_port_parameter_set_boolean(
-                        enc_in,
-                        mmal.MMAL_PARAMETER_VIDEO_IMMUTABLE_INPUT,
-                        1),
-                    prefix="Unable to set immutable flag on encoder input port")
-            except PiCameraError as e:
-                print(str(e))
-                # Continue rather than abort...
-
-            _check(
-                mmal.mmal_component_enable(self._video_encoder),
-                prefix="Unable to enable encoder component")
-
-            self._video_pool = mmal.mmal_port_pool_create(
-                enc_out, enc_out[0].buffer_num, enc_out[0].buffer_size)
-            if not self._video_pool:
-                raise PiCameraError(
-                    "Failed to create buffer header pool for encoder component")
-        except:
-            self._destroy_video_encoder()
-            raise
-
-    def _destroy_video_encoder(self):
-        if self._video_pool:
-            mmal.mmal_port_pool_destroy(self._video_encoder[0].output[0], self._video_pool)
-            self._video_pool = None
-        if self._video_encoder:
-            mmal.mmal_component_destroy(self._video_encoder)
-            self._video_encoder = None
-
-    def _connect_ports(self):
-        self._encoder_connection = ct.POINTER(mmal.MMAL_CONNECTION_T)()
-        _check(
-            mmal.mmal_connection_create(
-                self._encoder_connection,
-                self._camera[0].output[self.MMAL_CAMERA_VIDEO_PORT],
-                self._encoder[0].input[0],
-                mmal.MMAL_CONNECTION_FLAG_TUNNELLING | mmal.MMAL_CONNECTION_FLAG_ALLOCATION_ON_INPUT),
-            prefix="Failed to connect camera to encoder")
-        _check(
-            mmal.mmal_connection_enable(self._encoder_connection),
-            prefix="Failed to enable encoder connection")
-        self._encoder[0].output[0][0].userdata = ct.cast(self._encoder_pool, ct.c_void_p)
-        _check(
-            mmal.mmal_port_enable(self._encoder[0].output[0][0], _video_buffer_callback),
-            prefix="Failed to setup encoder output")
 
     def _check_camera_open(self):
         if self.closed:
@@ -566,14 +659,6 @@ class PiCamera(object):
         resources associated with the camera; this is necessary to prevent GPU
         memory leaks.
         """
-        #if self._video_encoder and self._video_encoder[0].output[0][0].is_enabled:
-        #    mmal.mmal_port_disable(self._video_encoder[0].output[0])
-        #if self._video_connection:
-        #    mmal.mmal_connection_destroy(self._video_connection)
-        #    self._video_connection = None
-        #if self._video_encoder:
-        #    mmal.mmal_component_disable(self._video_encoder)
-        #self._destroy_video_encoder()
         if self.recording:
             self.stop_recording()
         if self.previewing:
@@ -635,7 +720,7 @@ class PiCamera(object):
             _check(
                 mmal.mmal_connection_create(
                     self._preview_connection,
-                    self._camera[0].output[self.MMAL_CAMERA_PREVIEW_PORT],
+                    self._camera[0].output[self.CAMERA_PREVIEW_PORT],
                     self._preview[0].input[0],
                     mmal.MMAL_CONNECTION_FLAG_TUNNELLING | mmal.MMAL_CONNECTION_FLAG_ALLOCATION_ON_INPUT),
                 prefix="Failed to connect camera to preview")
@@ -660,7 +745,8 @@ class PiCamera(object):
             mmal.mmal_connection_destroy(self._preview_connection)
             self._preview_connection = None
         if self._preview:
-            mmal.mmal_component_disable(self._preview)
+            if self._preview[0].is_enabled:
+                mmal.mmal_component_disable(self._preview)
             mmal.mmal_component_destroy(self._preview)
             self._preview = None
 
@@ -676,11 +762,45 @@ class PiCamera(object):
         """
         self._check_camera_open()
         self._check_recording_stopped()
-        # TODO
+        try:
+            assert not self._video_encoder
+            self._video_encoder = _PiVideoEncoder(self._camera)
+            self._video_encoder.start(output)
+        except Exception as e:
+            self._video_encoder.close()
+            raise
+
+    def wait_recording(self, timeout=0):
+        """
+        Wait on the video encoder for timeout seconds.
+
+        It is recommended that this method is called while recording to check
+        for exceptions. If an error occurs during recording (for example out of
+        disk space), an exception will only be raised when the
+        :meth:`wait_recording` or :meth:`stop_recording` methods are called.
+
+        If ``timeout`` is 0 (the default) the function will immediately return
+        (or raise an exception if an error has occurred).
+        """
+        assert self._video_encoder
+        assert timeout is not None
+        self._video_encoder.wait(timeout)
 
     def stop_recording(self):
-        # TODO
-        pass
+        """
+        Stop recording video from the camera.
+
+        After calling this method the video encoder will be shut down and
+        output will stop being written to the file-like object specified with
+        :meth:`start_recording`. If an error occurred during recording and
+        :meth:`wait_recording` has not been called since the error then this
+        method will raise the exception.
+        """
+        try:
+            self.wait_recording(0)
+        finally:
+            self._video_encoder.close()
+            self._video_encoder = None
 
     def capture(self, output):
         """
@@ -693,71 +813,16 @@ class PiCamera(object):
         no other methods will be called).
         """
         self._check_camera_open()
-        opened = isinstance(output, (bytes, str))
-        if opened:
-            output = io.open(output, 'wb')
-        self._create_still_encoder()
         try:
-            self._still_connection = ct.POINTER(mmal.MMAL_CONNECTION_T)()
-            _check(
-                mmal.mmal_connection_create(
-                    self._still_connection,
-                    self._camera[0].output[self.MMAL_CAMERA_CAPTURE_PORT],
-                    self._still_encoder[0].input[0],
-                    mmal.MMAL_CONNECTION_FLAG_TUNNELLING | mmal.MMAL_CONNECTION_FLAG_ALLOCATION_ON_INPUT),
-                prefix="Failed to connect camera to image encoder")
-            _check(
-                mmal.mmal_connection_enable(self._still_connection),
-                prefix="Failed to enable image encoder connection")
-
-            callback_data = [
-                output,            # the file-like object for the callback to write to
-                threading.Event(), # the event for the callback to set when complete
-                self._still_pool,  # the pool of buffers the callback needs to manipulate
-                None,              # placeholder for any exceptions that occur
-                ]
-            self._still_encoder[0].output[0][0].userdata = ct.cast(
-                ct.pointer(ct.py_object(callback_data)),
-                ct.c_void_p)
-            _check(
-                mmal.mmal_port_enable(
-                    self._still_encoder[0].output[0],
-                    _still_buffer_callback),
-                prefix="Failed to enable encoder output port")
-
-            for q in range(mmal.mmal_queue_length(self._still_pool[0].queue)):
-                buf = mmal.mmal_queue_get(self._still_pool[0].queue)
-                if not buf:
-                    raise PiCameraRuntimeError(
-                        "Unable to get a required buffer from pool queue")
-                _check(
-                    mmal.mmal_port_send_buffer(self._still_encoder[0].output[0], buf),
-                    prefix="Unable to send a buffer to encoder output port")
-
-            _check(
-                mmal.mmal_port_parameter_set_boolean(
-                    self._camera[0].output[self.MMAL_CAMERA_CAPTURE_PORT],
-                    mmal.MMAL_PARAMETER_CAPTURE,
-                    mmal.MMAL_TRUE),
-                prefix="Failed to start capture")
+            assert not self._still_encoder
+            self._still_encoder = _PiStillEncoder(self._camera)
+            self._still_encoder.start(output)
 
             # Wait for the callback to set the event indicating the end of
             # image capture
-            callback_data[1].wait()
-
-            _check(
-                mmal.mmal_port_disable(self._still_encoder[0].output[0]),
-                prefix="Failed to disable encoder output port")
-
-            # Check whether the callback set an exception
-            if callback_data[3]:
-                raise callback_data[3]
+            self._still_encoder.wait()
         finally:
-            if self._still_encoder[0].output[0][0].is_enabled:
-                mmal.mmal_port_disable(self._still_encoder[0].output[0])
-            self._destroy_still_encoder()
-            if opened:
-                output.close()
+            self._still_encoder.close()
 
     @property
     def closed(self):
@@ -784,10 +849,11 @@ class PiCamera(object):
         # XXX Should probably check this is actually enabled...
         return bool(self._preview)
 
-    def _get_stills_resolution(self):
+    def _get_resolution(self):
         self._check_camera_open()
-        return (self._camera_config.max_stills_w, self._camera_config.max_stills_h)
-    def _set_stills_resolution(self, value):
+        fmt = self._camera[0].port[self.CAMERA_VIDEO_PORT][0].format[0].es[0]
+        return (fmt.video.width, fmt.video.height)
+    def _set_resolution(self, value):
         self._check_camera_open()
         self._check_preview_stopped()
         self._check_recording_stopped()
@@ -795,109 +861,67 @@ class PiCamera(object):
             w, h = value
         except (TypeError, ValueError) as e:
             raise PiCameraValueError(
-                "Invalid stills resolution (width, height) tuple: %s" % value)
+                "Invalid resolution (width, height) tuple: %s" % value)
         _check(
             mmal.mmal_component_disable(self._camera),
             prefix="Failed to disable camera")
         self._camera_config.max_stills_w = w
         self._camera_config.max_stills_h = h
-        _check(
-            mmal.mmal_port_parameter_set(self._camera[0].control, self._camera_config.hdr),
-            prefix="Failed to set stills resolution")
-        fmt = self._camera[0].output[self.MMAL_CAMERA_CAPTURE_PORT][0].format[0].es[0]
-        fmt.video.width = w
-        fmt.video.height = h
-        fmt.video.crop.x = 0
-        fmt.video.crop.y = 0
-        fmt.video.crop.width = w
-        fmt.video.crop.height = h
-        fmt.video.frame_rate.num = 1
-        fmt.video.frame_rate.den = 1
-        _check(
-            mmal.mmal_port_format_commit(self._camera[0].output[self.MMAL_CAMERA_CAPTURE_PORT]),
-            prefix="Camera preview format couldn't be set")
-        _check(
-            mmal.mmal_component_enable(self._camera),
-            prefix="Failed to enable camera")
-    stills_resolution = property(
-        _get_stills_resolution, _set_stills_resolution, doc="""
-        Retrieves or sets the resolution at which still images will be captured.
-
-        When queried, the :attr:`stills_resolution` property returns the
-        resolution at which the :meth:`capture` method will produce images as
-        a tuple of ``(width, height)`` measured in pixels.
-
-        When set, the property reconfigures the camera so that the next call to
-        :meth:`capture` will use the new resolution. The resolution must be
-        specified as a ``(width, height)`` tuple, the camera must be open, and
-        no preview or recording must be active when the property is set.
-
-        The property defaults to the maximum resolution of the camera which is
-        ``(2592, 1944)``.
-        """)
-
-    def _get_preview_resolution(self):
-        self._check_camera_open()
-        return (self._camera_config.max_preview_video_w, self._camera_config.max_preview_video_h)
-    def _set_preview_resolution(self, value):
-        self._check_camera_open()
-        self._check_preview_stopped()
-        self._check_recording_stopped()
-        try:
-            w, h = value
-        except (TypeError, ValueError) as e:
-            raise PiCameraValueError(
-                "Invalid preview resolution (width, height) tuple: %s" % value)
-        _check(
-            mmal.mmal_component_disable(self._camera),
-            prefix="Failed to disable camera")
         self._camera_config.max_preview_video_w = w
         self._camera_config.max_preview_video_h = h
         _check(
             mmal.mmal_port_parameter_set(self._camera[0].control, self._camera_config.hdr),
             prefix="Failed to set preview resolution")
-        fmt = self._camera[0].output[self.MMAL_CAMERA_PREVIEW_PORT][0].format[0].es[0]
-        fmt.video.width = w
-        fmt.video.height = h
-        fmt.video.crop.x = 0
-        fmt.video.crop.y = 0
-        fmt.video.crop.width = w
-        fmt.video.crop.height = h
-        # At resolutions higher than 1080p, drop the frame rate (GPU can only
-        # manage 15fps at full frame)
-        if (w > self.DEFAULT_VIDEO_RESOLUTION[0]) or (h > self.DEFAULT_VIDEO_RESOLUTION[1]):
-            fmt.video.frame_rate.num = self.FULL_FRAME_RATE_NUM
-            fmt.video.frame_rate.den = self.FULL_FRAME_RATE_DEN
-        else:
-            fmt.video.frame_rate.num = self.DEFAULT_FRAME_RATE_NUM
-            fmt.video.frame_rate.den = self.DEFAULT_FRAME_RATE_DEN
-        _check(
-            mmal.mmal_port_format_commit(self._camera[0].output[self.MMAL_CAMERA_PREVIEW_PORT]),
-            prefix="Camera preview format couldn't be set")
+        for port in (self.CAMERA_CAPTURE_PORT, self.CAMERA_VIDEO_PORT, self.CAMERA_PREVIEW_PORT):
+            fmt = self._camera[0].output[port][0].format[0].es[0]
+            fmt.video.width = w
+            fmt.video.height = h
+            fmt.video.crop.x = 0
+            fmt.video.crop.y = 0
+            fmt.video.crop.width = w
+            fmt.video.crop.height = h
+            # At resolutions higher than 1080p, drop the frame rate (GPU can
+            # only manage 15fps at full frame)
+            if port == self.CAMERA_CAPTURE_PORT:
+                fmt.video.frame_rate.num = 1
+                fmt.video.frame_rate.den = 1
+            elif (w > self.DEFAULT_VIDEO_RESOLUTION[0]) or (h > self.DEFAULT_VIDEO_RESOLUTION[1]):
+                fmt.video.frame_rate.num = self.FULL_FRAME_RATE_NUM
+                fmt.video.frame_rate.den = self.FULL_FRAME_RATE_DEN
+            else:
+                fmt.video.frame_rate.num = self.DEFAULT_FRAME_RATE_NUM
+                fmt.video.frame_rate.den = self.DEFAULT_FRAME_RATE_DEN
+            _check(
+                mmal.mmal_port_format_commit(self._camera[0].output[port]),
+                prefix="Camera video format couldn't be set")
         _check(
             mmal.mmal_component_enable(self._camera),
             prefix="Failed to enable camera")
-    preview_resolution = property(
-        _get_preview_resolution, _set_preview_resolution, doc="""
-        Retrieves or sets the resolution at which a preview will be displayed.
+    resolution = property(
+        _get_resolution, _set_resolution, doc="""
+        Retrieves or sets the resolution at which image captures, video
+        recordings, and previews will be captured.
 
-        When queried, the :attr:`preview_resolution` property returns the
-        resolution at which a preview (as started by :meth:`start_preview`)
-        will run, as a tuple of ``(width, height)`` measured in pixels.
+        When queried, the :attr:`resolution` property returns the resolution at
+        which the camera will operate as a tuple of ``(width, height)``
+        measured in pixels. This is the resolution that the :meth:`capture`
+        method will produce images at, the resolution that
+        :meth:`start_recording` will produce videos at, and the resolution that
+        :meth:`start_preview` will capture frames at.
 
         When set, the property reconfigures the camera so that the next call to
-        :meth:`start_preview` will use the new resolution. The resolution must
-        be specified as a ``(width, height)`` tuple, the camera must be open,
-        and no preview or recording must be active when the property is set.
+        these methods will use the new resolution.  The resolution must be
+        specified as a ``(width, height)`` tuple, the camera must not be
+        closed, and no preview or recording must be active when the property is
+        set.
 
         The property defaults to the standard 1080p resolution of ``(1920,
         1080)``.
 
         .. note::
-            Setting a resolution higher than 1080p for previews will
-            automatically cause those previews to run at a reduced frame rate
-            of 15fps (resolutions at or below 1080p use 30fps). This is due to
-            GPU processing limits.
+            Setting a resolution higher than 1080p will automatically cause
+            previews to run at a reduced frame rate of 15fps (resolutions at or
+            below 1080p use 30fps). This is due to GPU processing limits.
         """)
 
     def _get_saturation(self):
@@ -1286,7 +1310,7 @@ class PiCamera(object):
             value = ((int(value) % 360) // 90) * 90
         except ValueError:
             raise PiCameraValueError("Invalid rotation angle: %s" % value)
-        for p in self.MMAL_CAMERA_PORTS:
+        for p in self.CAMERA_PORTS:
             _check(
                 mmal.mmal_port_parameter_set_int32(
                     self._camera[0].output[p],
@@ -1310,7 +1334,7 @@ class PiCamera(object):
     def _set_vflip(self, value):
         self._check_camera_open()
         value = bool(value)
-        for p in self.MMAL_CAMERA_PORTS:
+        for p in self.CAMERA_PORTS:
             mp = mmal.MMAL_PARAMETER_MIRROR_T(
                 mmal.MMAL_PARAMETER_HEADER_T(
                     mmal.MMAL_PARAMETER_MIRROR,
@@ -1342,7 +1366,7 @@ class PiCamera(object):
     def _set_hflip(self, value):
         self._check_camera_open()
         value = bool(value)
-        for p in self.MMAL_CAMERA_PORTS:
+        for p in self.CAMERA_PORTS:
             mp = mmal.MMAL_PARAMETER_MIRROR_T(
                 mmal.MMAL_PARAMETER_HEADER_T(
                     mmal.MMAL_PARAMETER_MIRROR,
