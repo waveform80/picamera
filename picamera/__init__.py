@@ -58,6 +58,7 @@ from __future__ import (
     )
 
 import io
+import datetime
 import threading
 import ctypes as ct
 
@@ -140,8 +141,9 @@ class _PiEncoder(object):
     encoder_type = None
     port = None
 
-    def __init__(self, camera):
-        self.camera = camera
+    def __init__(self, parent):
+        self.parent = parent
+        self.camera = parent._camera
         self.encoder = None
         self.pool = None
         self.connection = None
@@ -150,11 +152,11 @@ class _PiEncoder(object):
         self.exception = None
         self.event = threading.Event()
         self.stopped = True
-        self.create_encoder()
-        self.create_pool()
-        self.create_connection()
+        self._create_encoder()
+        self._create_pool()
+        self._create_connection()
 
-    def create_encoder(self):
+    def _create_encoder(self):
         """
         Creates and configures the encoder itself
         """
@@ -179,7 +181,7 @@ class _PiEncoder(object):
             enc_out[0].buffer_num_recommended,
             enc_out[0].buffer_num_min)
 
-    def create_pool(self):
+    def _create_pool(self):
         """
         Allocates a pool of buffers for the encoder
         """
@@ -191,7 +193,7 @@ class _PiEncoder(object):
             raise PiCameraError(
                 "Failed to create buffer header pool for encoder component")
 
-    def create_connection(self):
+    def _create_connection(self):
         """
         Connects the camera to the encoder object
         """
@@ -208,6 +210,55 @@ class _PiEncoder(object):
         _check(
             mmal.mmal_connection_enable(self.connection),
             prefix="Failed to enable encoder connection")
+
+    def _callback(self, port, buf):
+        """
+        The encoder's main callback function
+        """
+        stop = False
+        try:
+            try:
+                stop = not self.stopped and self._callback_write(buf)
+            finally:
+                self._callback_recycle(port, buf)
+        except Exception as e:
+            stop = True
+            self.exception = e
+        if stop:
+            self.stopped = True
+            self.event.set()
+
+    def _callback_write(self, buf):
+        """
+        Performs output writing on behalf of the encoder callback function;
+        return value determines whether writing has completed.
+        """
+        if buf[0].length:
+            _check(
+                mmal.mmal_buffer_header_mem_lock(buf),
+                prefix="Unable to lock buffer header memory")
+            try:
+                if self.output.write(
+                        ct.string_at(buf[0].data, buf[0].length)) != buf[0].length:
+                    raise PiCameraError(
+                        "Unable to write buffer to file - aborting")
+            finally:
+                mmal.mmal_buffer_header_mem_unlock(buf)
+        return False
+
+    def _callback_recycle(self, port, buf):
+        """
+        Recycles the buffer on behalf of the encoder callback function
+        """
+        mmal.mmal_buffer_header_release(buf)
+        if port[0].is_enabled:
+            new_buf = mmal.mmal_queue_get(self.pool[0].queue)
+            if not new_buf:
+                raise PiCameraError(
+                    "Unable to get a buffer to return to the encoder port")
+            _check(
+                mmal.mmal_port_send_buffer(port, new_buf),
+                prefix="Unable to return a buffer to the encoder port")
 
     def start(self, output):
         """
@@ -287,62 +338,13 @@ class _PiEncoder(object):
             mmal.mmal_component_destroy(self.encoder)
             self.encoder = None
 
-    def _callback(self, port, buf):
-        """
-        The encoder's main callback function
-        """
-        stop = False
-        try:
-            try:
-                stop = not self.stopped and self._callback_write(buf)
-            finally:
-                self._callback_recycle(port, buf)
-        except Exception as e:
-            stop = True
-            self.exception = e
-        if stop:
-            self.stopped = True
-            self.event.set()
-
-    def _callback_write(self, buf):
-        """
-        Performs output writing on behalf of the encoder callback function;
-        return value determines whether writing has completed.
-        """
-        if buf[0].length:
-            _check(
-                mmal.mmal_buffer_header_mem_lock(buf),
-                prefix="Unable to lock buffer header memory")
-            try:
-                if self.output.write(
-                        ct.string_at(buf[0].data, buf[0].length)) != buf[0].length:
-                    raise PiCameraError(
-                        "Unable to write buffer to file - aborting")
-            finally:
-                mmal.mmal_buffer_header_mem_unlock(buf)
-        return False
-
-    def _callback_recycle(self, port, buf):
-        """
-        Recycles the buffer on behalf of the encoder callback function
-        """
-        mmal.mmal_buffer_header_release(buf)
-        if port[0].is_enabled:
-            new_buf = mmal.mmal_queue_get(self.pool[0].queue)
-            if not new_buf:
-                raise PiCameraError(
-                    "Unable to get a buffer to return to the encoder port")
-            _check(
-                mmal.mmal_port_send_buffer(port, new_buf),
-                prefix="Unable to return a buffer to the encoder port")
-
 
 class _PiVideoEncoder(_PiEncoder):
     encoder_type = mmal.MMAL_COMPONENT_DEFAULT_VIDEO_ENCODER
     port = 1
 
-    def create_encoder(self):
-        super(_PiVideoEncoder, self).create_encoder()
+    def _create_encoder(self):
+        super(_PiVideoEncoder, self)._create_encoder()
 
         # TODO Allow configuration of bitrate/encoding?
         enc_out = self.encoder[0].output[0]
@@ -372,9 +374,10 @@ class _PiVideoEncoder(_PiEncoder):
 class _PiStillEncoder(_PiEncoder):
     encoder_type = mmal.MMAL_COMPONENT_DEFAULT_IMAGE_ENCODER
     port = 2
+    exif_encoding = 'ascii'
 
-    def create_encoder(self):
-        super(_PiStillEncoder, self).create_encoder()
+    def _create_encoder(self):
+        super(_PiStillEncoder, self)._create_encoder()
 
         # TODO Allow configuration of encoding
         enc_out = self.encoder[0].output[0]
@@ -403,6 +406,51 @@ class _PiStillEncoder(_PiEncoder):
         _check(
             mmal.mmal_component_enable(self.encoder),
             prefix="Unable to enable encoder component")
+
+    def _add_exif_tag(self, tag, value):
+        # Format the tag and value into an appropriate bytes string, encoded
+        # with the Exif encoding (ASCII)
+        if isinstance(tag, str):
+            tag = tag.encode(self.exif_encoding)
+        if isinstance(value, str):
+            value = value.encode(self.exif_encoding)
+        elif isinstance(value, datetime.datetime):
+            value = value.strftime('%Y:%m:%d %H:%M:%S').encode(self.exif_encoding)
+        # MMAL_PARAMETER_EXIF_T is a variable sized structure, hence all the
+        # mucking about with string buffers here...
+        buf = ct.create_string_buffer(
+            ct.sizeof(mmal.MMAL_PARAMETER_EXIF_T) + len(tag) + len(value) + 1)
+        mp = ct.cast(buf, ct.POINTER(mmal.MMAL_PARAMETER_EXIF_T))
+        mp[0].hdr.id = mmal.MMAL_PARAMETER_EXIF
+        mp[0].hdr.size = len(buf)
+        if (b'=' in tag or b'\x00' in value):
+            data = tag + value
+            mp[0].keylen = len(tag)
+            mp[0].value_offset = len(tag)
+            mp[0].valuelen = len(value)
+        else:
+            data = tag + b'=' + value
+        ct.memmove(mp[0].data, data, len(data))
+        _check(
+            mmal.mmal_port_parameter_set(self.encoder[0].output[0], mp[0].hdr),
+            prefix="Failed to set Exif tag %s" % tag)
+
+    def start(self, output):
+        timestamp = datetime.datetime.now()
+        timestamp_tags = (
+            'EXIF.DateTimeDigitized',
+            'EXIF.DateTimeOriginal',
+            'IFD0.DateTime')
+        # Timestamp tags are always included with the value calculated above,
+        # but the user may choose to override the value in the exif_tags
+        # mapping
+        for tag in timestamp_tags:
+            self._add_exif_tag(tag, self.parent.exif_tags.get(tag, timestamp))
+        # All other tags are just copied in verbatim
+        for tag, value in self.parent.exif_tags.items():
+            if not tag in timestamp_tags:
+                self._add_exif_tag(tag, value)
+        super(_PiStillEncoder, self).start(output)
 
     def _callback_write(self, buf):
         return (
@@ -543,6 +591,10 @@ class PiCamera(object):
         self._preview_connection = None
         self._video_encoder = None
         self._still_encoder = None
+        self._exif_tags = {
+            'IFD0.Model': 'RP_OV5647',
+            'IFD0.Make': 'RaspberryPi',
+            }
         self._create_camera()
 
     def _create_camera(self):
@@ -764,9 +816,8 @@ class PiCamera(object):
         """
         self._check_camera_open()
         self._check_recording_stopped()
+        self._video_encoder = _PiVideoEncoder(self)
         try:
-            assert not self._video_encoder
-            self._video_encoder = _PiVideoEncoder(self._camera)
             self._video_encoder.start(output)
         except Exception as e:
             self._video_encoder.close()
@@ -815,16 +866,16 @@ class PiCamera(object):
         no other methods will be called).
         """
         self._check_camera_open()
+        assert not self._still_encoder
+        self._still_encoder = _PiStillEncoder(self)
         try:
-            assert not self._still_encoder
-            self._still_encoder = _PiStillEncoder(self._camera)
             self._still_encoder.start(output)
-
             # Wait for the callback to set the event indicating the end of
             # image capture
             self._still_encoder.wait()
         finally:
             self._still_encoder.close()
+            self._still_encoder = None
 
     @property
     def closed(self):
@@ -850,6 +901,84 @@ class PiCamera(object):
         """
         # XXX Should probably check this is actually enabled...
         return bool(self._preview)
+
+    @property
+    def exif_tags(self):
+        """
+        Holds a mapping of the Exif tags to apply to captured images.
+
+        By default several Exif tags are automatically applied to any images
+        taken with the :meth:`capture` method: ``IFD0.Make`` (which is set to
+        ``RaspberryPi``), ``IFD0.Model`` (which is set to ``RP_OV5647``), and
+        three timestamp tags: ``IFD0.DateTime``, ``EXIF.DateTimeOriginal``, and
+        ``EXIF.DateTimeDigitized`` which are all set to the current date and
+        time just before the picture is taken.
+
+        If you wish to set additional Exif tags, or override any of the
+        aforementioned tags, simply add entries to the exif_tags map before
+        calling :meth:`capture`. For example::
+
+            camera.exif_tags['IFD0.Copyright'] = 'Copyright (c) 2013 Foo Industries'
+
+        Please note that the Exif standard mandates ASCII encoding for all
+        textual values, hence strings containing non-ASCII characters will
+        cause an encoding error to be raised when :meth:`capture` is called.
+        If you wish to set binary values, use a :func:`bytes` value::
+
+            camera.exif_tags['EXIF.UserComment'] = b'Something containing\\x00NULL characters'
+
+        The currently supported Exif tags are:
+
+        +-------+-------------------------------------------------------------+
+        | Group | Tags                                                        |
+        +=======+=============================================================+
+        | IFD0/ | ImageWidth, ImageLength, BitsPerSample, Compression,        |
+        | IFD1  | PhotometricInterpretation, ImageDescription, Make, Model,   |
+        |       | StripOffsets, Orientation, SamplesPerPixel, RowsPerString,  |
+        |       | StripByteCounts, Xresolution, Yresolution,                  |
+        |       | PlanarConfiguration, ResolutionUnit, TransferFunction,      |
+        |       | Software, DateTime, Artist, WhitePoint,                     |
+        |       | PrimaryChromaticities, JPEGInterchangeFormat,               |
+        |       | JPEGInterchangeFormatLength, YcbCrCoefficients,             |
+        |       | YcbCrSubSampling, YcbCrPositioning, ReferenceBlackWhite,    |
+        |       | Copyright                                                   |
+        +-------+-------------------------------------------------------------+
+        | EXIF  | ExposureTime, FNumber, ExposureProgram,                     |
+        |       | SpectralSensitivity, ISOSpeedRatings, OECF, ExifVersion,    |
+        |       | DateTimeOriginal, DateTimeDigitized,                        |
+        |       | ComponentsConfiguration, CompressedBitsPerPixel,            |
+        |       | ShutterSpeedValue, ApertureValue, BrightnessValue,          |
+        |       | ExposureBiasValue, MaxApertureValue, SubjectDistance,       |
+        |       | MeteringMode, LightSource, Flash, FocalLength, SubjectArea, |
+        |       | MakerNote, UserComment, SubSecTime, SubSecTimeOriginal,     |
+        |       | SubSecTimeDigitized, FlashpixVersion, ColorSpace,           |
+        |       | PixelXDimension, PixelYDimension, RelatedSoundFile,         |
+        |       | FlashEnergy, SpacialFrequencyResponse,                      |
+        |       | FocalPlaneXResolution, FocalPlaneYResolution,               |
+        |       | FocalPlaneResolutionUnit, SubjectLocation, ExposureIndex,   |
+        |       | SensingMethod, FileSource, SceneType, CFAPattern,           |
+        |       | CustomRendered, ExposureMode, WhiteBalance,                 |
+        |       | DigitalZoomRatio, FocalLengthIn35mmFilm, SceneCaptureType,  |
+        |       | GainControl, Contrast, Saturation, Sharpness,               |
+        |       | DeviceSettingDescription, SubjectDistanceRange,             |
+        |       | ImageUniqueID                                               |
+        +-------+-------------------------------------------------------------+
+        | GPS   | GPSVersionID, GPSLatitudeRef, GPSLatitude, GPSLongitudeRef, |
+        |       | GPSLongitude, GPSAltitudeRef, GPSAltitude, GPSTimeStamp,    |
+        |       | GPSSatellites, GPSStatus, GPSMeasureMode, GPSDOP,           |
+        |       | GPSSpeedRef, GPSSpeed, GPSTrackRef, GPSTrack,               |
+        |       | GPSImgDirectionRef, GPSImgDirection, GPSMapDatum,           |
+        |       | GPSDestLatitudeRef, GPSDestLatitude, GPSDestLongitudeRef,   |
+        |       | GPSDestLongitude, GPSDestBearingRef, GPSDestBearing,        |
+        |       | GPSDestDistanceRef, GPSDestDistance, GPSProcessingMethod,   |
+        |       | GPSAreaInformation, GPSDateStamp, GPSDifferential           |
+        +-------+-------------------------------------------------------------+
+        | EINT  | InteroperabilityIndex, InteroperabilityVersion,             |
+        |       | RelatedImageFileFormat, RelatedImageWidth,                  |
+        |       | RelatedImageLength>                                         |
+        +-------+-------------------------------------------------------------+
+        """
+        return self._exif_tags
 
     def _get_resolution(self):
         self._check_camera_open()
