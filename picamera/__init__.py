@@ -59,6 +59,7 @@ from __future__ import (
 
 import io
 import datetime
+import mimetypes
 import threading
 import ctypes as ct
 
@@ -141,7 +142,7 @@ class _PiEncoder(object):
     encoder_type = None
     port = None
 
-    def __init__(self, parent):
+    def __init__(self, parent, format, **options):
         self.parent = parent
         self.camera = parent._camera
         self.encoder = None
@@ -152,11 +153,15 @@ class _PiEncoder(object):
         self.exception = None
         self.event = threading.Event()
         self.stopped = True
-        self._create_encoder()
-        self._create_pool()
-        self._create_connection()
+        try:
+            self._create_encoder(format, **options)
+            self._create_pool()
+            self._create_connection()
+        except:
+            self.close()
+            raise
 
-    def _create_encoder(self):
+    def _create_encoder(self, format, **options):
         """
         Creates and configures the encoder itself
         """
@@ -307,7 +312,7 @@ class _PiEncoder(object):
         return result
 
     def stop(self):
-        if self.encoder[0].output[0][0].is_enabled:
+        if self.encoder and self.encoder[0].output[0][0].is_enabled:
             _check(
                 mmal.mmal_port_disable(self.encoder[0].output[0]),
                 prefix="Failed to disable encoder output port")
@@ -343,8 +348,8 @@ class _PiVideoEncoder(_PiEncoder):
     encoder_type = mmal.MMAL_COMPONENT_DEFAULT_VIDEO_ENCODER
     port = 1
 
-    def _create_encoder(self):
-        super(_PiVideoEncoder, self)._create_encoder()
+    def _create_encoder(self, format, **options):
+        super(_PiVideoEncoder, self)._create_encoder(format, **options)
 
         # TODO Allow configuration of bitrate/encoding?
         enc_out = self.encoder[0].output[0]
@@ -376,32 +381,49 @@ class _PiStillEncoder(_PiEncoder):
     port = 2
     exif_encoding = 'ascii'
 
-    def _create_encoder(self):
-        super(_PiStillEncoder, self)._create_encoder()
+    def _create_encoder(self, format, **options):
+        super(_PiStillEncoder, self)._create_encoder(format, **options)
 
-        # TODO Allow configuration of encoding
         enc_out = self.encoder[0].output[0]
-        enc_out[0].format[0].encoding = mmal.MMAL_ENCODING_JPEG
+        try:
+            enc_out[0].format[0].encoding = {
+                'jpeg': mmal.MMAL_ENCODING_JPEG,
+                'png':  mmal.MMAL_ENCODING_PNG,
+                'gif':  mmal.MMAL_ENCODING_GIF,
+                'bmp':  mmal.MMAL_ENCODING_BMP,
+                }[format]
+        except KeyError:
+            raise PiCameraValueError('Unrecognized format %s' % format)
         _check(
             mmal.mmal_port_format_commit(enc_out),
             prefix="Unable to set format on encoder output port")
 
-        # TODO Allow configuration of JPEG quality
-        _check(
-            mmal.mmal_port_parameter_set_uint32(
-                enc_out, mmal.MMAL_PARAMETER_JPEG_Q_FACTOR, 85),
-            prefix="Failed to set JPEG quality")
+        if format == 'jpeg':
+            _check(
+                mmal.mmal_port_parameter_set_uint32(
+                    enc_out,
+                    mmal.MMAL_PARAMETER_JPEG_Q_FACTOR,
+                    options.get('quality', 85)),
+                prefix="Failed to set JPEG quality")
 
-        # TODO Configure thumbnail settings
-        mp = mmal.MMAL_PARAMETER_THUMBNAIL_CONFIG_T(
-            mmal.MMAL_PARAMETER_HEADER_T(
-                mmal.MMAL_PARAMETER_THUMBNAIL_CONFIGURATION,
-                ct.sizeof(mmal.MMAL_PARAMETER_THUMBNAIL_CONFIG_T)
-                ),
-            1, 64, 48, 35)
-        _check(
-            mmal.mmal_port_parameter_set(self.encoder[0].control, mp.hdr),
-            prefix="Failed to set thumbnail configuration")
+            thumbnail = options.get('thumbnail', (64, 48, 35))
+            if thumbnail is None:
+                mp = mmal.MMAL_PARAMETER_THUMBNAIL_CONFIG_T(
+                    mmal.MMAL_PARAMETER_HEADER_T(
+                        mmal.MMAL_PARAMETER_THUMBNAIL_CONFIGURATION,
+                        ct.sizeof(mmal.MMAL_PARAMETER_THUMBNAIL_CONFIG_T)
+                        ),
+                    0, 0, 0, 0)
+            else:
+                mp = mmal.MMAL_PARAMETER_THUMBNAIL_CONFIG_T(
+                    mmal.MMAL_PARAMETER_HEADER_T(
+                        mmal.MMAL_PARAMETER_THUMBNAIL_CONFIGURATION,
+                        ct.sizeof(mmal.MMAL_PARAMETER_THUMBNAIL_CONFIG_T)
+                        ),
+                    1, *thumbnail)
+            _check(
+                mmal.mmal_port_parameter_set(self.encoder[0].control, mp.hdr),
+                prefix="Failed to set thumbnail configuration")
 
         _check(
             mmal.mmal_component_enable(self.encoder),
@@ -702,6 +724,22 @@ class PiCamera(object):
         if self.recording:
             raise PiCameraRuntimeError("Recording is currently running")
 
+    def _get_format(self, output, format):
+        if format:
+            return format
+        elif isinstance(output, (bytes, str)):
+            filename = output
+        elif hasattr(output, 'name'):
+            filename = output.name
+        else:
+            raise PiCameraValueError(
+                'Format must be specified when output has no filename')
+        (type, encoding) = mimetypes.guess_type(filename)
+        if type:
+            return type
+        raise PiCameraValueError(
+            'Unable to determine type from filename %s' % filename)
+
     def close(self):
         """
         Finalizes the state of the camera.
@@ -804,19 +842,31 @@ class PiCamera(object):
             mmal.mmal_component_destroy(self._preview)
             self._preview = None
 
-    def start_recording(self, output):
+    def start_recording(self, output, format=None, **options):
         """
         Start recording video from the camera, storing it as an H264 stream.
 
-        If ``output`` is a string, it will be treated as a filename for a new
-        file which the H264 stream will be written to. Otherwise, ``output`` is
+        If *output* is a string, it will be treated as a filename for a new
+        file which the H264 stream will be written to. Otherwise, *output* is
         assumed to be a file-like object and the H264 data is appended to it
         (the implementation only assumes the object has a ``write()`` method -
         no other methods will be called).
+
+        If *format* is ``None`` (the default), the method will attempt to guess
+        the required video format from the extension of *output* (if it's a
+        string), or from the *name* attribute of *output* (if it has one). In
+        the case that the format cannot be determined, a
+        :exc:`PiCameraValueError` will be raised.
+
+        If *format* is not ``None``, it must be a string specifying the format
+        that you want the image written to. The format can be a MIME-type or
+        one of the following strings:
+
+        * ``h264`` - Write an H.264 video stream
         """
         self._check_camera_open()
         self._check_recording_stopped()
-        self._video_encoder = _PiVideoEncoder(self)
+        self._video_encoder = _PiVideoEncoder(self, format, **options)
         try:
             self._video_encoder.start(output)
         except Exception as e:
@@ -855,19 +905,54 @@ class PiCamera(object):
             self._video_encoder.close()
             self._video_encoder = None
 
-    def capture(self, output):
+    def capture(self, output, format=None, **options):
         """
-        Capture an image from the camera, storing it as a JPEG in output.
+        Capture an image from the camera, storing it in *output*.
 
-        If ``output`` is a string, it will be treated as a filename for a new
-        file which the JPEG data will be written to. Otherwise, ``output`` is
+        If *output* is a string, it will be treated as a filename for a new
+        file which the JPEG data will be written to. Otherwise, *output* is
         assumed to a be a file-like object and the JPEG data is appended to it
         (the implementation only assumes the object has a ``write()`` method -
         no other methods will be called).
+
+        If *format* is ``None`` (the default), the method will attempt to guess
+        the required image format from the extension of *output* (if it's a
+        string), or from the *name* attribute of *output* (if it has one). In
+        the case that the format cannot be determined, a
+        :exc:`PiCameraValueError` will be raised.
+
+        If *format* is not ``None``, it must be a string specifying the format
+        that you want the image written to. The format can be a MIME-type or
+        one of the following strings:
+
+        * ``'jpeg'`` - Write a JPEG file
+
+        * ``'png'`` - Write a PNG file
+
+        * ``'gif'`` - Write a GIF file
+
+        * ``'bmp'`` - Write a bitmap file
+
+        Certain file formats accept additional options which can be specified
+        as keyword arguments. Currently, only the ``'jpeg'`` encoder accepts
+        additional options, which are:
+
+        * *quality* - Defines the quality of the JPEG encoder as an integer
+            ranging from 1 to 100. Defaults to 85.
+
+        * *thumbnail* - Defines the size and quality of the thumbnail to embed
+            in the Exif data. Specifying ``None`` disables thumbnail
+            generation.  Otherwise, specify a tuple of ``(width, height,
+            quality)``. Defaults to ``(64, 48, 35)``.
         """
         self._check_camera_open()
         assert not self._still_encoder
-        self._still_encoder = _PiStillEncoder(self)
+        format = self._get_format(output, format)
+        if format.startswith('image/'):
+            format = format[6:]
+        if format == 'x-ms-bmp':
+            format = 'bmp'
+        self._still_encoder = _PiStillEncoder(self, format)
         try:
             self._still_encoder.start(output)
             # Wait for the callback to set the event indicating the end of
@@ -920,10 +1005,10 @@ class PiCamera(object):
 
             camera.exif_tags['IFD0.Copyright'] = 'Copyright (c) 2013 Foo Industries'
 
-        Please note that the Exif standard mandates ASCII encoding for all
-        textual values, hence strings containing non-ASCII characters will
-        cause an encoding error to be raised when :meth:`capture` is called.
-        If you wish to set binary values, use a :func:`bytes` value::
+        The Exif standard mandates ASCII encoding for all textual values, hence
+        strings containing non-ASCII characters will cause an encoding error to
+        be raised when :meth:`capture` is called.  If you wish to set binary
+        values, use a :func:`bytes` value::
 
             camera.exif_tags['EXIF.UserComment'] = b'Something containing\\x00NULL characters'
 
@@ -977,6 +1062,10 @@ class PiCamera(object):
         |       | RelatedImageFileFormat, RelatedImageWidth,                  |
         |       | RelatedImageLength>                                         |
         +-------+-------------------------------------------------------------+
+
+        .. note::
+            Please note that Exif tagging is only supported with the ``jpeg``
+            format.
         """
         return self._exif_tags
 
