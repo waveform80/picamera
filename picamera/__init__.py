@@ -1071,8 +1071,10 @@ class PiCamera(object):
 
     def _get_resolution(self):
         self._check_camera_open()
-        fmt = self._camera[0].port[self.CAMERA_VIDEO_PORT][0].format[0].es[0]
-        return (fmt.video.width, fmt.video.height)
+        return (
+            self._camera_config.max_stills_w,
+            self._camera_config.max_stills_h
+            )
     def _set_resolution(self, value):
         self._check_camera_open()
         self._check_preview_stopped()
