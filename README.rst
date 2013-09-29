@@ -30,8 +30,6 @@ To do
 
 Major things that still need work:
 
-* Video recording
-
 * Image encoding selection (PNG, BMP, GIF, etc.)
 
 * Image thumbnail settings
@@ -44,7 +42,7 @@ Major things that still need work:
 
 * Preview display-rect configuration
 
-* Documentation, examples, tests, etc. etc.
+* Tests
 
 * Future work - text overlay on preview (GLES?)
 
