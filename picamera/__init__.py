@@ -1224,8 +1224,8 @@ class PiCamera(object):
     def _set_exposure_compensation(self, value):
         self._check_camera_open()
         try:
-            if not (-10 <= value <= 10):
-                raise PiCameraValueError("Invalid exposure compensation value: %d (valid range -10..10)" % value)
+            if not (-25 <= value <= 25):
+                raise PiCameraValueError("Invalid exposure compensation value: %d (valid range -25..25)" % value)
         except TypeError:
             raise PiCameraValueError("Invalid exposure compensation value: %s" % value)
         _check(
@@ -1240,7 +1240,7 @@ class PiCamera(object):
         Retrieves or sets the exposure compensation level of the camera.
 
         When queried, the :attr:`exposure_compensation` property returns an
-        integer value between -10 and 10 indicating the exposure level of the
+        integer value between -25 and 25 indicating the exposure level of the
         camera. Larger values result in brighter images.
 
         When set, the property adjusts the camera's exposure compensation
