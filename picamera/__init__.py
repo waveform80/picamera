@@ -617,10 +617,6 @@ class PiCamera(object):
             'IFD0.Model': 'RP_OV5647',
             'IFD0.Make': 'RaspberryPi',
             }
-        self._create_camera()
-
-    def _create_camera(self):
-        assert not self._camera
         self._camera = ct.POINTER(mmal.MMAL_COMPONENT_T)()
         self._camera_config = mmal.MMAL_PARAMETER_CAMERA_CONFIG_T(
             mmal.MMAL_PARAMETER_HEADER_T(
@@ -679,8 +675,9 @@ class PiCamera(object):
                         self.CAMERA_CAPTURE_PORT: "still",
                         }[p])
                 if p != self.CAMERA_PREVIEW_PORT:
-                    if port[0].buffer_num < self.VIDEO_OUTPUT_BUFFERS_NUM:
-                        port[0].buffer_num = self.VIDEO_OUTPUT_BUFFERS_NUM
+                    port[0].buffer_num = max(
+                        port[0].buffer_num,
+                        self.VIDEO_OUTPUT_BUFFERS_NUM)
 
             _check(
                 mmal.mmal_component_enable(self._camera),
@@ -702,15 +699,8 @@ class PiCamera(object):
             self.hflip = self.vflip = False
             self.crop = (0.0, 0.0, 1.0, 1.0)
         except:
-            self._destroy_camera()
+            self.close()
             raise
-
-    def _destroy_camera(self):
-        if self._camera:
-            if self._camera[0].is_enabled:
-                mmal.mmal_component_disable(self._camera)
-            mmal.mmal_component_destroy(self._camera)
-            self._camera = None
 
     def _check_camera_open(self):
         if self.closed:
@@ -755,7 +745,11 @@ class PiCamera(object):
             self.stop_recording()
         if self.previewing:
             self.stop_preview()
-        self._destroy_camera()
+        if self._camera:
+            if self._camera[0].is_enabled:
+                mmal.mmal_component_disable(self._camera)
+            mmal.mmal_component_destroy(self._camera)
+            self._camera = None
 
     def __enter__(self):
         return self
@@ -1296,7 +1290,7 @@ class PiCamera(object):
                 mp
                 ),
             prefix="Failed to get ISO")
-        return int(mp)
+        return mp.value
     def _set_ISO(self, value):
         self._check_camera_open()
         # XXX Valid values?
@@ -1395,7 +1389,7 @@ class PiCamera(object):
                 mp
                 ),
             prefix="Failed to get video stabilization")
-        return mp == mmal.MMAL_TRUE
+        return mp.value != mmal.MMAL_FALSE
     def _set_video_stabilization(self, value):
         self._check_camera_open()
         try:
@@ -1440,7 +1434,7 @@ class PiCamera(object):
                 mp
                 ),
             prefix="Failed to get exposure compensation")
-        return int(mp)
+        return mp.value
     def _set_exposure_compensation(self, value):
         self._check_camera_open()
         try:
@@ -1594,7 +1588,7 @@ class PiCamera(object):
         _check(
             mmal.mmal_port_parameter_get(self._camera[0].control, mp.hdr),
             prefix="Failed to get color effects")
-        if mp.enable == mmal.MMAL_TRUE:
+        if mp.enable != mmal.MMAL_FALSE:
             return (mp.u, mp.v)
         else:
             return None
@@ -1610,6 +1604,9 @@ class PiCamera(object):
             except (TypeError, ValueError) as e:
                 raise PiCameraValueError(
                     "Invalid color effect (u, v) tuple: %s" % value)
+            if not ((0 <= u <= 255) and (0 <= v <= 255)):
+                raise PiCameraValueError(
+                    "(u, v) values must be between 0 and 255")
         mp = mmal.MMAL_PARAMETER_COLOURFX_T(
             mmal.MMAL_PARAMETER_HEADER_T(
                 mmal.MMAL_PARAMETER_COLOUR_EFFECT,
@@ -1644,7 +1641,7 @@ class PiCamera(object):
                 mp
                 ),
             prefix="Failed to get rotation")
-        return int(mp)
+        return mp.value
     def _set_rotation(self, value):
         self._check_camera_open()
         try:
