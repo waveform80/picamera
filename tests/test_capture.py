@@ -1,3 +1,4 @@
+import io
 import os
 import time
 import tempfile
@@ -5,7 +6,7 @@ import picamera
 import pytest
 from PIL import Image
 
-# Run all tests while the camera is idle and after a 2 second preview warm-up
+# Run tests while the camera is idle and after a 2 second preview warm-up
 @pytest.fixture(scope='module', params=(False, True))
 def camera(request):
     camera = picamera.PiCamera()
@@ -18,8 +19,13 @@ def camera(request):
     request.addfinalizer(fin)
     return camera
 
-# Run all tests at a variety of resolutions (and aspect ratios, 1:1, 4:3, 16:9)
-@pytest.fixture(scope='module', params=((100, 100), (320, 240), (1920, 1080), (2592, 1944)))
+# Run tests at a variety of resolutions (and aspect ratios, 1:1, 4:3, 16:9)
+@pytest.fixture(scope='module', params=(
+    (100, 100),
+    (320, 240),
+    (1920, 1080),
+    (2592, 1944),
+    ))
 def resolution(request, camera):
     was_previewing = camera.previewing
     if camera.previewing:
@@ -29,56 +35,56 @@ def resolution(request, camera):
         camera.start_preview()
     return request.param
 
-# Fixtures for producing temporary files with a variety of suffixes
-@pytest.fixture
-def tmpfile(request, suffix=''):
-    result = tempfile.mkstemp(suffix=suffix)[1]
+# Run tests with a variety of file suffixes and expected formats
+@pytest.fixture(scope='module', params=(
+    ('.jpg', 'JPEG'),
+    ('.gif', 'GIF'),
+    ('.png', 'PNG'),
+    ('.bmp', 'BMP'),
+    ))
+def filename_format(request):
+    suffix, fmt = request.param
+    fn = tempfile.mkstemp(suffix=suffix)[1]
     def fin():
-        os.unlink(result)
+        os.unlink(fn)
     request.addfinalizer(fin)
-    return result
+    return fn, fmt
 
-@pytest.fixture
-def jpegfile(request):
-    return tmpfile(request, suffix='.jpg')
+# Run tests with a variety of format specs
+@pytest.fixture(scope='module', params=('jpeg', 'gif', 'png', 'bmp'))
+def format(request):
+    return request.param
 
-@pytest.fixture
-def pngfile(request):
-    return tmpfile(request, suffix='.png')
 
-@pytest.fixture
-def giffile(request):
-    return tmpfile(request, suffix='.gif')
-
-@pytest.fixture
-def bmpfile(request):
-    return tmpfile(request, suffix='.bmp')
-
-def test_jpeg(camera, resolution, jpegfile):
-    camera.capture(jpegfile)
-    img = Image.open(jpegfile)
+def test_capture_to_file(camera, resolution, filename_format):
+    filename, format = filename_format
+    camera.capture(filename)
+    img = Image.open(filename)
     assert img.size == resolution
-    assert img.format == 'JPEG'
+    assert img.format == format
     img.verify()
 
-def test_png(camera, resolution, pngfile):
-    camera.capture(pngfile)
-    img = Image.open(pngfile)
+def test_capture_to_stream(camera, resolution, format):
+    stream = io.BytesIO()
+    camera.capture(stream, format)
+    stream.seek(0)
+    img = Image.open(stream)
     assert img.size == resolution
-    assert img.format == 'PNG'
+    assert img.format == format.upper()
     img.verify()
 
-def test_gif(camera, resolution, giffile):
-    camera.capture(giffile)
-    img = Image.open(giffile)
-    assert img.size == resolution
-    assert img.format == 'GIF'
-    img.verify()
-
-def test_bmp(camera, resolution, bmpfile):
-    camera.capture(bmpfile)
-    img = Image.open(bmpfile)
-    assert img.size == resolution
-    assert img.format == 'BMP'
-    img.verify()
-
+def test_exif(camera):
+    # Test a simple ASCII value
+    camera.exif_tags['IFD0.Artist'] = 'Me!'
+    # Test a more complex binary value containing NULLs
+    camera.exif_tags['IFD0.Copyright'] = b'Photographer copyright (c) 2000 Foo\x00Editor copyright (c) 2002 Bar\x00'
+    # Exif is only supported with JPEGs...
+    stream = io.BytesIO()
+    camera.capture(stream, 'jpeg')
+    stream.seek(0)
+    img = Image.open(stream)
+    exif = img._getexif()
+    # IFD0.Artist = 315
+    # IFD0.Copyright = 33432
+    assert exif[315] == 'Me!'
+    assert exif[33432] == b'Photographer copyright (c) 2000 Foo\x00Editor copyright (c) 2002 Bar\x00'
