@@ -17,9 +17,9 @@ Start a preview for 10 seconds with the default settings::
     finally:
         camera.close()
 
-Note that you should always ensure you call ``close()`` on the PiCamera object
-to clean up resources. The following example demonstrates that the context
-manager protocol can be used to achieve this::
+Note that you should always ensure you call :meth:`~picamera.PiCamera.close` on
+the PiCamera object to clean up resources. The following example demonstrates
+that the context manager protocol can be used to achieve this::
 
     import time
     import picamera
@@ -59,11 +59,12 @@ a preview and a recording to a disk file::
         camera.stop_recording()
         camera.stop_preview()
 
-Note that :meth:`PiCamera.wait_recording` is used above instead of
-``time.sleep``. This method checks for errors (e.g. out of disk space) while
-the recording is running and raises an exception if one occurs. If
-``time.sleep`` was used instead the exception would be raised by
-:meth:`PiCamera.stop_recording` but only after the full waiting time had run.
+Note that :meth:`~picamera.PiCamera.wait_recording` is used above instead of
+:func:`time.sleep`. This method checks for errors (e.g. out of disk space)
+while the recording is running and raises an exception if one occurs. If
+:func:`time.sleep` was used instead the exception would be raised by
+:meth:`~picamera.PiCamera.stop_recording` but only after the full waiting time
+had run.
 
 This example demonstrates starting a preview, setting some parameters
 and then capturing an image while the preview is running::
