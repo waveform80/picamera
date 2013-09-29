@@ -44,7 +44,7 @@ else:
 HERE = os.path.abspath(os.path.dirname(__file__))
 
 __project__      = 'picamera'
-__version__      = '0.2'
+__version__      = '0.3'
 __author__       = 'Dave Hughes'
 __author_email__ = 'dave@waveform.org.uk'
 __url__          = 'https://pypi.python.org/pypi/picamera/'
