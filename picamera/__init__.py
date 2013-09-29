@@ -459,8 +459,8 @@ class PiCamera(object):
         CAMERA_VIDEO_PORT,
         CAMERA_CAPTURE_PORT,
         )
-    DEFAULT_STILL_RESOLUTION = (2592, 1944)
-    DEFAULT_VIDEO_RESOLUTION = (1920, 1080)
+    MAXIMUM_RESOLUTION = (2592, 1944)
+    DEFAULT_RESOLUTION = (1920, 1080)
     DEFAULT_FRAME_RATE_NUM = 30
     DEFAULT_FRAME_RATE_DEN = 1
     FULL_FRAME_RATE_NUM = 15
@@ -568,12 +568,14 @@ class PiCamera(object):
                 prefix="Unable to enable control port")
 
             cc = self._camera_config
-            cc.max_stills_w=self.DEFAULT_STILL_RESOLUTION[0]
-            cc.max_stills_h=self.DEFAULT_STILL_RESOLUTION[1]
+            cc.max_stills_w=self.DEFAULT_RESOLUTION[0]
+            cc.max_stills_h=self.DEFAULT_RESOLUTION[1]
             cc.stills_yuv422=0
+            # XXX This is 1 in raspistill and 0 in raspivid ... doesn't seem to
+            # make any difference though?
             cc.one_shot_stills=0
-            cc.max_preview_video_w=self.DEFAULT_VIDEO_RESOLUTION[0]
-            cc.max_preview_video_h=self.DEFAULT_VIDEO_RESOLUTION[1]
+            cc.max_preview_video_w=self.DEFAULT_RESOLUTION[0]
+            cc.max_preview_video_h=self.DEFAULT_RESOLUTION[1]
             cc.num_preview_video_frames=3
             cc.stills_capture_circular_buffer_height=0
             cc.fast_preview_resume=0
@@ -885,7 +887,7 @@ class PiCamera(object):
             if port == self.CAMERA_CAPTURE_PORT:
                 fmt.video.frame_rate.num = 1
                 fmt.video.frame_rate.den = 1
-            elif (w > self.DEFAULT_VIDEO_RESOLUTION[0]) or (h > self.DEFAULT_VIDEO_RESOLUTION[1]):
+            elif (w > self.DEFAULT_RESOLUTION[0]) or (h > self.DEFAULT_RESOLUTION[1]):
                 fmt.video.frame_rate.num = self.FULL_FRAME_RATE_NUM
                 fmt.video.frame_rate.den = self.FULL_FRAME_RATE_DEN
             else:
