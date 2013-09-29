@@ -275,6 +275,8 @@ class _PiEncoder(object):
         if self.opened:
             # Open files in binary mode with a *big* (1Mb) buffer
             self.output = io.open(output, 'wb', buffering=1048576)
+        else:
+            self.output = output
         self.encoder[0].output[0][0].userdata = ct.cast(
             ct.pointer(ct.py_object(self)),
             ct.c_void_p)
