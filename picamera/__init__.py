@@ -424,13 +424,13 @@ class PiCamera(object):
 
     No preview or recording is started automatically upon construction.  Use
     the :meth:`capture` method to capture image, the :meth:`start_recording`
-    method to begin recording video (TODO), or the :meth:`start_preview` method
-    to start live display of the camera's input.
+    method to begin recording video, or the :meth:`start_preview` method to
+    start live display of the camera's input.
 
     Several attributes are provided to adjust the camera's configuration. Some
     of these can be adjusted while a preview or recording is running, like
-    :attr:`brightness`. Others, like :attr:`preview_resolution` can only be
-    adjusted when the camera is idle.
+    :attr:`brightness`. Others, like :attr:`resolution` can only be adjusted
+    when the camera is idle.
 
     When you are finished with the camera, you should ensure you call the
     :meth:`close` method to release the camera resources (failure to do this
@@ -678,10 +678,10 @@ class PiCamera(object):
         Starts a preview session over the current display.
 
         This method starts a new preview running at the configured resolution
-        (see :attr:`preview_resolution`). Most camera properties can be
-        modified "live" while the preview is running (e.g. :attr:`brightness`).
-        The preview typically overrides whatever is currently visible on the
-        display. To stop the preview and reveal the display again, call
+        (see :attr:`resolution`). Most camera properties can be modified "live"
+        while the preview is running (e.g. :attr:`brightness`).  The preview
+        typically overrides whatever is currently visible on the display. To
+        stop the preview and reveal the display again, call
         :meth:`stop_preview`. The preview can be started and stopped multiple
         times during the lifetime of the :class:`PiCamera` object.
         """
