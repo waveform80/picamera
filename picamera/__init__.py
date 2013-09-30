@@ -1008,6 +1008,10 @@ class PiCamera(object):
 
             camera.exif_tags['EXIF.UserComment'] = b'Something containing\\x00NULL characters'
 
+        .. warning::
+            Binary Exif values are currently ignored; this appears to be a
+            libmmal or firmware bug.
+
         The currently supported Exif tags are:
 
         +-------+-------------------------------------------------------------+

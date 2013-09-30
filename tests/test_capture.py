@@ -73,11 +73,9 @@ def test_capture_to_stream(camera, resolution, format):
     assert img.format == format.upper()
     img.verify()
 
-def test_exif(camera):
-    # Test a simple ASCII value
+def test_exif_ascii(camera):
     camera.exif_tags['IFD0.Artist'] = 'Me!'
-    # Test a more complex binary value containing NULLs
-    camera.exif_tags['IFD0.Copyright'] = b'Photographer copyright (c) 2000 Foo\x00Editor copyright (c) 2002 Bar\x00'
+    camera.exif_tags['IFD0.Copyright'] = 'Copyright (c) 2000 Foo'
     # Exif is only supported with JPEGs...
     stream = io.BytesIO()
     camera.capture(stream, 'jpeg')
@@ -87,4 +85,20 @@ def test_exif(camera):
     # IFD0.Artist = 315
     # IFD0.Copyright = 33432
     assert exif[315] == 'Me!'
+    assert exif[33432] == 'Copyright (c) 2000 Foo'
+
+@pytest.mark.xfail(reason="Exif binary values don't work")
+def test_exif_binary(camera):
+    camera.exif_tags['IFD0.Copyright'] = b'Photographer copyright (c) 2000 Foo\x00Editor copyright (c) 2002 Bar\x00'
+    camera.exif_tags['IFD0.UserComment'] = b'UNICODE\x00\xff\xfeF\x00o\x00o\x00'
+    # Exif is only supported with JPEGs...
+    stream = io.BytesIO()
+    camera.capture(stream, 'jpeg')
+    stream.seek(0)
+    img = Image.open(stream)
+    exif = img._getexif()
+    # IFD0.Copyright = 33432
+    # IFD0.UserComment = 37510
     assert exif[33432] == b'Photographer copyright (c) 2000 Foo\x00Editor copyright (c) 2002 Bar\x00'
+    assert exif[37510] == b'UNICODE\x00\xff\xfeF\x00o\x00o\x00'
+
