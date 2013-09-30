@@ -19,7 +19,7 @@ Start a preview for 10 seconds with the default settings::
 
 Note that you should always ensure you call :meth:`~picamera.PiCamera.close` on
 the PiCamera object to clean up resources. The following example demonstrates
-that the context manager protocol can be used to achieve this::
+that the context manager protocol can also be used to achieve this::
 
     import time
     import picamera
@@ -83,3 +83,20 @@ and then capturing an image while the preview is running::
         camera.capture('foo.jpg')
         camera.stop_preview()
 
+The following example customizes the Exif tags to embed in the image before
+calling :meth:`~picamera.PiCamera.capture`::
+
+    import time
+    import picamera
+
+    with picamera.PiCamera() as camera:
+        camera.resolution = (2592, 1944)
+        camera.start_preview()
+        time.sleep(2)
+        camera.exif_tags['IFD0.Artist'] = 'Me!'
+        camera.exif_tags['IFD0.Copyright'] = 'Copyright (c) 2013 Me!'
+        camera.capture('foo.jpg')
+        camera.stop_preview()
+
+See the documentation for :attr:`~picamera.PiCamera.exif_tags` for a complete
+list of the supported tags.

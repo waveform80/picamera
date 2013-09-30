@@ -15,7 +15,9 @@ series. The same codebase supports both Python 2 and 3 with no conversions
 The code is licensed under the `BSD license`_. Packages can be downloaded from
 the project `homepage`_ on PyPI. The `source code`_ can be obtained from
 GitHub, which also hosts the `bug tracker`_. The `documentation`_ (which
-includes installation and quick-start examples) can be read on ReadTheDocs.
+includes installation, quick-start examples, and the change-log) can be read on
+ReadTheDocs.
+
 
 To do
 =====
@@ -28,8 +30,6 @@ Major things that still need work:
 
 * JPEG quality configuration
 
-* EXIF tags
-
 * Preview alpha configuration
 
 * Preview display-rect configuration
@@ -37,6 +37,7 @@ Major things that still need work:
 * Tests
 
 * Future work - text overlay on preview (GLES?)
+
 
 .. _Raspberry Pi: http://www.raspberrypi.org/
 .. _camera: http://www.raspberrypi.org/camera

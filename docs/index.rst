@@ -15,7 +15,28 @@ series. The same codebase supports both Python 2 and 3 with no conversions
 The code is licensed under the `BSD license`_. Packages can be downloaded from
 the project `homepage`_ on PyPI. The `source code`_ can be obtained from
 GitHub, which also hosts the `bug tracker`_. The `documentation`_ (which
-includes installation and quick-start examples) can be read on ReadTheDocs.
+includes installation, quick-start examples, and the change-log) can be read on
+ReadTheDocs.
+
+
+To do
+=====
+
+Major things that still need work:
+
+* Image encoding selection (PNG, BMP, GIF, etc.)
+
+* Image thumbnail settings
+
+* JPEG quality configuration
+
+* Preview alpha configuration
+
+* Preview display-rect configuration
+
+* Tests
+
+* Future work - text overlay on preview (GLES?)
 
 
 Table of Contents
@@ -28,6 +49,7 @@ Table of Contents
    install
    quickstart
    api
+   changelog
    license
 
 
