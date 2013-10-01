@@ -732,7 +732,7 @@ class PiCamera(object):
         else:
             raise PiCameraValueError(
                 'Format must be specified when output has no filename')
-        (type, encoding) = mimetypes.guess_type(filename)
+        (type, encoding) = mimetypes.guess_type(filename, strict=False)
         if type:
             return type
         raise PiCameraValueError(
@@ -875,6 +875,11 @@ class PiCamera(object):
         """
         self._check_camera_open()
         self._check_recording_stopped()
+        format = self._get_format(output, format)
+        if format.startswith('video/'):
+            format = format[6:]
+        elif format.startswith('application/'):
+            format = format[12:]
         self._video_encoder = _PiVideoEncoder(self, format, **options)
         try:
             self._video_encoder.start(output)
@@ -1944,4 +1949,5 @@ class PiCamera(object):
 
 
 bcm_host.bcm_host_init()
+mimetypes.add_type('application/h264', '.h264', False)
 
