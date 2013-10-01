@@ -648,9 +648,10 @@ class PiCamera(object):
             cc.max_stills_w=self.DEFAULT_RESOLUTION[0]
             cc.max_stills_h=self.DEFAULT_RESOLUTION[1]
             cc.stills_yuv422=0
-            # XXX This is 1 in raspistill and 0 in raspivid ... doesn't seem to
-            # make any difference though?
-            cc.one_shot_stills=0
+            # XXX Can't take more than one still with a single encoder instance
+            # unless this is set to 1. Still not sure exactly what it means
+            # though...
+            cc.one_shot_stills=1
             cc.max_preview_video_w=self.DEFAULT_RESOLUTION[0]
             cc.max_preview_video_h=self.DEFAULT_RESOLUTION[1]
             cc.num_preview_video_frames=3
@@ -913,36 +914,6 @@ class PiCamera(object):
             self._video_encoder.close()
             self._video_encoder = None
 
-    def continuous(self, output, format=None, **options):
-        self._check_camera_open()
-        assert not self._still_encoder
-        format = self._get_format(output, format)
-        if format.startswith('image/'):
-            format = format[6:]
-        if format == 'x-ms-bmp':
-            format = 'bmp'
-        self._still_encoder = _PiStillEncoder(self, format, **options)
-        try:
-            if isinstance(output, str):
-                counter = 1
-                while True:
-                    filename = output.format({
-                        'counter': counter,
-                        'timestamp': datetime.datetime.now(),
-                        })
-                    self._still_encoder.start(filename)
-                    self._still_encoder.wait()
-                    yield filename
-                    counter += 1
-            else:
-                while True:
-                    self._still_encoder.start(output)
-                    self._still_encoder.wait()
-                    yield output
-        finally:
-            self._still_encoder.close()
-            self._still_encoder = None
-
     def capture(self, output, format=None, **options):
         """
         Capture an image from the camera, storing it in *output*.
@@ -996,6 +967,131 @@ class PiCamera(object):
             # Wait for the callback to set the event indicating the end of
             # image capture
             self._still_encoder.wait()
+        finally:
+            self._still_encoder.close()
+            self._still_encoder = None
+
+    def continuous(self, output, format=None, **options):
+        """
+        Capture images continuously from the camera as an infinite iterator.
+
+        This method returns an infinite iterator of images captured
+        continuously from the camera. If *output* is a string, each captured
+        image is stored in a file named after *output* after substitution of
+        two values with the :meth:`~str.format` method. Those two values are:
+
+        * ``{counter}`` - a simple incrementor that starts at 1 and increases
+          by 1 for each image taken
+
+        * ``{timestamp}`` - a :class:`~datetime.datetime` instance
+
+        The table below contains several example values of *output* and the
+        sequence of filenames those values could produce:
+
+        +--------------------------------------------+--------------------------------------------+-------+
+        | *output* Value                             | Filenames                                  | Notes |
+        +============================================+============================================+=======+
+        | ``'image{counter}.jpg'``                   | image1.jpg, image2.jpg, image3.jpg, ...    |       |
+        +--------------------------------------------+--------------------------------------------+-------+
+        | ``'image{counter:02}.jpg'``                | image01.jpg, image02.jpg, image03.jpg, ... |       |
+        +--------------------------------------------+--------------------------------------------+-------+
+        | ``'image{timestamp}.jpg'``                 | image2013-10-05 12:07:12.346743.jpg,       | (1)   |
+        |                                            | image2013-10-05 12:07:32.498539, ...       |       |
+        +--------------------------------------------+--------------------------------------------+-------+
+        | ``'image{timestamp:%H-%M-%S-%f}.jpg'``     | image12-10-02-561527.jpg,                  |       |
+        |                                            | image12-10-14-905398.jpg                   |       |
+        +--------------------------------------------+--------------------------------------------+-------+
+        | ``'{timestamp:%H%M%S}-{counter:03d}.jpg'`` | 121002-001.jpg, 121013-002.jpg,            | (2)   |
+        |                                            | 121014-003.jpg, ...                        |       |
+        +--------------------------------------------+--------------------------------------------+-------+
+
+        1. Note that because timestamp's default output includes colons (:),
+           the resulting filenames are not suitable for use on Windows. For
+           this reason (and the fact the default contains spaces) it is
+           strongly recommended you always specify a format when using
+           ``{timestamp}``.
+
+        2. You can use both ``{timestamp}`` and ``{counter}`` in a single
+           format string (multiple times too!) although this tends to be
+           redundant.
+
+        If *output* is not a string, it is assumed to be a file-like object
+        and each image is simply written to this object sequentially. In this
+        case you will likely either want to write something to the object
+        between the images to distinguish them, or clear the object between
+        iterations.
+
+        The *format* and *options* parameters are the same as in
+        :meth:`capture`.
+
+        For example, to capture 60 images with a one second delay between them,
+        writing the output to a series of JPEG files named image01.jpg,
+        image02.jpg, etc. one could do the following::
+
+            import time
+            import picamera
+            with picamera.PiCamera() as camera:
+                camera.start_preview()
+                try:
+                    for i, filename in enumerate(camera.continuous('image{counter:02d}.jpg')):
+                        print(filename)
+                        time.sleep(1)
+                        if i == 59:
+                            break
+                finally:
+                    camera.stop_preview()
+
+        Alternatively, to capture JPEG frames as fast as possible into an
+        in-memory stream, performing some processing on each stream until
+        some condition is satisfied::
+
+            import io
+            import time
+            import picamera
+            with picamera.PiCamera() as camera:
+                stream = io.BytesIO()
+                for foo in camera.continuous(stream):
+                    # Truncate the stream to the current position (in case
+                    # prior iterations output a longer image)
+                    stream.truncate()
+                    stream.seek(0)
+                    if process(stream):
+                        break
+                    time.sleep(0.1) # see note below
+
+        .. note::
+            You can capture images faster without a preview running (the author
+            has managed just over 4fps at 720p). However, a delay must be used
+            in this case; if no delay is used, the majority of frames come back
+            blank. The length of delay required is unfortunately arbitrary at
+            the moment and seems to depend on resolution, selected format and
+            other factors.
+        """
+        self._check_camera_open()
+        assert not self._still_encoder
+        format = self._get_format(output, format)
+        if format.startswith('image/'):
+            format = format[6:]
+        if format == 'x-ms-bmp':
+            format = 'bmp'
+        self._still_encoder = _PiStillEncoder(self, format, **options)
+        try:
+            if isinstance(output, str):
+                counter = 1
+                while True:
+                    filename = output.format(
+                        counter=counter,
+                        timestamp=datetime.datetime.now(),
+                        )
+                    self._still_encoder.start(filename)
+                    self._still_encoder.wait()
+                    yield filename
+                    counter += 1
+            else:
+                while True:
+                    self._still_encoder.start(output)
+                    self._still_encoder.wait()
+                    yield output
         finally:
             self._still_encoder.close()
             self._still_encoder = None
