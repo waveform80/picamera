@@ -223,7 +223,7 @@ class _PiEncoder(object):
         stop = False
         try:
             try:
-                stop = not self.stopped and self._callback_write(buf)
+                stop = self._callback_write(buf) and not self.stopped
             finally:
                 self._callback_recycle(port, buf)
         except Exception as e:
@@ -271,6 +271,7 @@ class _PiEncoder(object):
         """
         self.event.clear()
         self.stopped = False
+        self.exception = None
         self.opened = isinstance(output, (bytes, str))
         if self.opened:
             # Open files in binary mode with a *big* (1Mb) buffer
