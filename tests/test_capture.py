@@ -6,72 +6,80 @@ import picamera
 import pytest
 from PIL import Image
 
-# Run tests while the camera is idle and after a 2 second preview warm-up
-@pytest.fixture(scope='module', params=(False, True))
-def camera(request):
-    camera = picamera.PiCamera()
-    if request.param:
-        camera.start_preview()
-    def fin():
-        if camera.previewing:
-            camera.stop_preview()
-        camera.close()
-    request.addfinalizer(fin)
-    return camera
-
-# Run tests at a variety of resolutions (and aspect ratios, 1:1, 4:3, 16:9)
-@pytest.fixture(scope='module', params=(
-    (100, 100),
-    (320, 240),
-    (1920, 1080),
-    (2592, 1944),
-    ))
-def resolution(request, camera):
-    was_previewing = camera.previewing
-    if camera.previewing:
-        camera.stop_preview()
-    camera.resolution = request.param
-    if was_previewing:
-        camera.start_preview()
-    return request.param
-
 # Run tests with a variety of file suffixes and expected formats
 @pytest.fixture(scope='module', params=(
-    ('.jpg', 'JPEG'),
-    ('.gif', 'GIF'),
-    ('.png', 'PNG'),
-    ('.bmp', 'BMP'),
+    ('.jpg', 'JPEG', (('quality', 95),)),
+    ('.jpg', 'JPEG', ()),
+    ('.jpg', 'JPEG', (('quality', 50),)),
+    ('.gif', 'GIF',  ()),
+    ('.png', 'PNG',  ()),
+    ('.bmp', 'BMP',  ()),
     ))
-def filename_format(request):
-    suffix, fmt = request.param
-    fn = tempfile.mkstemp(suffix=suffix)[1]
+def filename_format_options(request):
+    suffix, format, options = request.param
+    filename = tempfile.mkstemp(suffix=suffix)[1]
     def fin():
-        os.unlink(fn)
+        os.unlink(filename)
     request.addfinalizer(fin)
-    return fn, fmt
+    return filename, format, dict(options)
 
 # Run tests with a variety of format specs
-@pytest.fixture(scope='module', params=('jpeg', 'gif', 'png', 'bmp'))
-def format(request):
-    return request.param
+@pytest.fixture(scope='module', params=(
+    ('jpeg', (('quality', 95),)),
+    ('jpeg', ()),
+    ('jpeg', (('quality', 50),)),
+    ('gif',  ()),
+    ('png',  ()),
+    ('bmp',  ()),
+    ))
+def format_options(request):
+    format, options = request.param
+    return format, dict(options)
 
 
-def test_capture_to_file(camera, resolution, filename_format):
-    filename, format = filename_format
-    camera.capture(filename)
+def test_capture_to_file(camera, resolution, filename_format_options):
+    filename, format, options = filename_format_options
+    camera.capture(filename, **options)
     img = Image.open(filename)
     assert img.size == resolution
     assert img.format == format
     img.verify()
 
-def test_capture_to_stream(camera, resolution, format):
+def test_capture_to_stream(camera, resolution, format_options):
     stream = io.BytesIO()
-    camera.capture(stream, format)
+    format, options = format_options
+    camera.capture(stream, format, **options)
     stream.seek(0)
     img = Image.open(stream)
     assert img.size == resolution
     assert img.format == format.upper()
     img.verify()
+
+def test_continuous_to_file(camera, resolution, tmpdir):
+    for i, filename in enumerate(camera.continuous(os.path.join(str(tmpdir), 'image{counter:02d}.jpg'))):
+        img = Image.open(filename)
+        assert img.size == resolution
+        assert img.format == 'JPEG'
+        img.verify()
+        if not camera.previewing:
+            time.sleep(0.1)
+        if i == 3:
+            break
+
+def test_continuous_to_stream(camera, resolution):
+    stream = io.BytesIO()
+    for i, foo in enumerate(camera.continuous(stream, format='jpeg')):
+        stream.truncate()
+        stream.seek(0)
+        img = Image.open(stream)
+        assert img.size == resolution
+        assert img.format == 'JPEG'
+        img.verify()
+        stream.seek(0)
+        if not camera.previewing:
+            time.sleep(0.1)
+        if i == 3:
+            break
 
 def test_exif_ascii(camera):
     camera.exif_tags['IFD0.Artist'] = 'Me!'

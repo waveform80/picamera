@@ -1,19 +1,6 @@
 import picamera
 import pytest
 
-# Run all tests while the camera is idle and while it's previewing
-@pytest.fixture(scope='module', params=(False, True))
-def camera(request):
-    camera = picamera.PiCamera()
-    if request.param:
-        camera.start_preview()
-    def fin():
-        if camera.previewing:
-            camera.stop_preview()
-        camera.close()
-    request.addfinalizer(fin)
-    return camera
-
 def numeric_attr(camera, attr, value_min, value_max, step=1):
     save_value = getattr(camera, attr)
     try:
