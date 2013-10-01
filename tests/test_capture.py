@@ -62,7 +62,7 @@ def test_continuous_to_file(camera, resolution, tmpdir):
         assert img.format == 'JPEG'
         img.verify()
         if not camera.previewing:
-            time.sleep(0.1)
+            time.sleep(0.5)
         if i == 3:
             break
 

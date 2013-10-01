@@ -150,6 +150,7 @@ class _PiEncoder(object):
         self.connection = None
         self.opened = False
         self.output = None
+        self.lock = threading.Lock() # protects access to self.output
         self.exception = None
         self.event = threading.Event()
         self.stopped = True
@@ -243,10 +244,11 @@ class _PiEncoder(object):
                 mmal.mmal_buffer_header_mem_lock(buf),
                 prefix="Unable to lock buffer header memory")
             try:
-                if self.output.write(
-                        ct.string_at(buf[0].data, buf[0].length)) != buf[0].length:
-                    raise PiCameraError(
-                        "Unable to write buffer to file - aborting")
+                with self.lock:
+                    if self.output and self.output.write(
+                           ct.string_at(buf[0].data, buf[0].length)) != buf[0].length:
+                        raise PiCameraError(
+                            "Unable to write buffer to file - aborting")
             finally:
                 mmal.mmal_buffer_header_mem_unlock(buf)
         return False
@@ -265,6 +267,33 @@ class _PiEncoder(object):
                 mmal.mmal_port_send_buffer(port, new_buf),
                 prefix="Unable to return a buffer to the encoder port")
 
+    def _open_output(self, output):
+        """
+        Opens the specified output object, if necessary and tracks whether
+        we were the one to open it.
+        """
+        with self.lock:
+            self.opened = isinstance(output, (bytes, str))
+            if self.opened:
+                # Open files in binary mode with a *big* (1Mb) buffer
+                self.output = io.open(output, 'wb', buffering=1048576)
+            else:
+                self.output = output
+
+    def _close_output(self):
+        """
+        Closes the output object, if necessary or simply flushes it if we
+        didn't open it and it has a flush method.
+        """
+        with self.lock:
+            if self.output:
+                if self.opened:
+                    self.output.close()
+                elif hasattr(self.output, 'flush'):
+                    self.output.flush()
+                self.output = None
+                self.opened = False
+
     def start(self, output):
         """
         Starts the encoder object writing to the specified output
@@ -272,12 +301,7 @@ class _PiEncoder(object):
         self.event.clear()
         self.stopped = False
         self.exception = None
-        self.opened = isinstance(output, (bytes, str))
-        if self.opened:
-            # Open files in binary mode with a *big* (1Mb) buffer
-            self.output = io.open(output, 'wb', buffering=1048576)
-        else:
-            self.output = output
+        self._open_output(output)
         self.encoder[0].output[0][0].userdata = ct.cast(
             ct.pointer(ct.py_object(self)),
             ct.c_void_p)
@@ -309,25 +333,23 @@ class _PiEncoder(object):
             _check(
                 mmal.mmal_port_disable(self.encoder[0].output[0]),
                 prefix="Failed to disable encoder output port")
+            self._close_output()
             # Check whether the callback set an exception
             if self.exception:
                 raise self.exception
         return result
 
     def stop(self):
+        """
+        Stops the encoder, regardless of whether it's finished
+        """
         if self.encoder and self.encoder[0].output[0][0].is_enabled:
             _check(
                 mmal.mmal_port_disable(self.encoder[0].output[0]),
                 prefix="Failed to disable encoder output port")
         self.stopped = True
         self.event.set()
-        # Closing connections may flush buffers hence file must be closed
-        # *after* closing connections
-        if self.output:
-            if self.opened:
-                self.output.close()
-            self.output = None
-            self.opened = False
+        self._close_output()
 
     def close(self):
         """
