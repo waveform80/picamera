@@ -24,12 +24,6 @@ To do
 
 Major things that still need work:
 
-* Image encoding selection (PNG, BMP, GIF, etc.)
-
-* Image thumbnail settings
-
-* JPEG quality configuration
-
 * Preview alpha configuration
 
 * Preview display-rect configuration
