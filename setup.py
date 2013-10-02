@@ -45,8 +45,14 @@ else:
 
 HERE = os.path.abspath(os.path.dirname(__file__))
 
+# Workaround <http://www.eby-sarna.com/pipermail/peak/2010-May/003357.html>
+try:
+    import multiprocessing
+except ImportError:
+    pass
+
 __project__      = 'picamera'
-__version__      = '0.2'
+__version__      = '0.3'
 __author__       = 'Dave Hughes'
 __author_email__ = 'dave@waveform.org.uk'
 __url__          = 'https://pypi.python.org/pypi/picamera/'
@@ -133,7 +139,7 @@ def main():
             extras_require       = __extra_requires__,
             zip_safe             = True,
             entry_points         = __entry_points__,
-            tests_require        = ['pytest-cov', 'pytest', 'mock'],
+            tests_require        = ['pytest-cov', 'pytest', 'mock', 'Pillow'],
             cmdclass             = {'test': PyTest},
             )
 

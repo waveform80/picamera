@@ -17,12 +17,12 @@ virtual Python environment to avoid affecting the system Python installation)::
 Development
 ===========
 
-For development purposes it is easiest to obtain the source by cloning the
-GitHub repository and then use the "develop" target of the Makefile which will
-install the package as a link to the cloned repository allowing in-place
-development (it also builds a tags file for use with vim/emacs with exuberant's
-ctags utility).  The following example demonstrates this method within a
-virtual Python environment::
+If you wish to development picamera itself, it is easiest to obtain the source
+by cloning the GitHub repository and then use the "develop" target of the
+Makefile which will install the package as a link to the cloned repository
+allowing in-place development (it also builds a tags file for use with
+vim/emacs with exuberant's ctags utility).  The following example demonstrates
+this method within a virtual Python environment::
 
     $ sudo apt-get install build-essential git git-core exuberant-ctags \
         python-virtualenv
@@ -33,11 +33,12 @@ virtual Python environment::
     (sandbox) $ make develop
 
 For anybody wishing to hack on the project please understand that although it
-is technically written in pure Python, heavy use of ``ctypes`` is involved so
-the code really doesn't look much like Python - more a sort of horrid mish-mash
-of C and Python. The project currently consists of a class (:class:`PiCamera`)
-which is a crude re-implementation of useful bits of the ``raspistill`` and
-``raspivid`` commands using the ``ctypes`` based ``libmmal`` header conversion.
+is technically written in pure Python, heavy use of :mod:`ctypes` is involved
+so the code really doesn't look much like Python - more a sort of horrid
+mish-mash of C and Python. The project currently consists of a class
+(:class:`PiCamera`) which is a crude re-implementation of useful bits of the
+``raspistill`` and ``raspivid`` commands using the :mod:`ctypes` based
+``libmmal`` header conversion.
 
 Even if you don't feel up to hacking on the code, I'd love to hear suggestions
 from people of what you'd like the API to look like (even if the code itself

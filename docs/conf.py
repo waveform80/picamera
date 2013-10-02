@@ -34,7 +34,7 @@ import setup as _setup
 
 # -- General configuration ------------------------------------------------
 
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.viewcode']
+extensions = ['sphinx.ext.autodoc', 'sphinx.ext.viewcode', 'sphinx.ext.intersphinx']
 templates_path = ['_templates']
 source_suffix = '.rst'
 #source_encoding = 'utf-8-sig'
@@ -57,6 +57,10 @@ pygments_style = 'sphinx'
 # -- Autodoc configuration ------------------------------------------------
 
 autodoc_member_order = 'groupwise'
+
+# -- Intersphinx configuration --------------------------------------------
+
+intersphinx_mapping = {'python': ('http://docs.python.org/3.2', None)}
 
 # -- Options for HTML output ----------------------------------------------
 

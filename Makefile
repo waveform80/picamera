@@ -89,6 +89,8 @@ release: $(PY_SOURCES) $(DOC_SOURCES)
 	test -z "$(shell git status --porcelain)"
 	# commit the changes and add a new tag
 	git tag -s release-$(VER) -m "Release $(VER)"
+	# update the package's registration on PyPI (in case any metadata's changed)
+	$(PYTHON) $(PYFLAGS) setup.py register
 
 upload: $(PY_SOURCES) $(DOC_SOURCES)
 	# build a source archive and upload to PyPI
