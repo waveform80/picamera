@@ -35,7 +35,7 @@ Major things that still need work:
 
 .. _Raspberry Pi: http://www.raspberrypi.org/
 .. _camera: http://www.raspberrypi.org/camera
-.. _homepage: https://pypi.python.org/pypi/picamera/
+.. _homepage: http://pypi.python.org/pypi/picamera/
 .. _documentation: http://picamera.readthedocs.org/
 .. _source code: https://github.com/waveform80/picamera
 .. _bug tracker: https://github.com/waveform80/picamera/issues
