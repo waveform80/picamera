@@ -565,8 +565,6 @@ class PiCamera(object):
     FULL_FRAME_RATE_NUM = 15
     FULL_FRAME_RATE_DEN = 1
     VIDEO_OUTPUT_BUFFERS_NUM = 3
-    PREVIEW_LAYER = 2
-    PREVIEW_ALPHA = 255
 
     METER_MODES = {
         'average': mmal.MMAL_PARAM_EXPOSUREMETERINGMODE_AVERAGE,
@@ -640,23 +638,25 @@ class PiCamera(object):
         self._camera_config = None
         self._preview = None
         self._preview_connection = None
+        self._preview_alpha = 255
+        self._preview_fullscreen = True
         self._video_encoder = None
         self._still_encoder = None
         self._exif_tags = {
             'IFD0.Model': 'RP_OV5647',
             'IFD0.Make': 'RaspberryPi',
             }
-        self._camera = ct.POINTER(mmal.MMAL_COMPONENT_T)()
-        self._camera_config = mmal.MMAL_PARAMETER_CAMERA_CONFIG_T(
-            mmal.MMAL_PARAMETER_HEADER_T(
-                mmal.MMAL_PARAMETER_CAMERA_CONFIG,
-                ct.sizeof(mmal.MMAL_PARAMETER_CAMERA_CONFIG_T)
-                ))
-        _check(
-            mmal.mmal_component_create(
-                mmal.MMAL_COMPONENT_DEFAULT_CAMERA, self._camera),
-            prefix="Failed to create camera component")
         try:
+            self._camera = ct.POINTER(mmal.MMAL_COMPONENT_T)()
+            self._camera_config = mmal.MMAL_PARAMETER_CAMERA_CONFIG_T(
+                mmal.MMAL_PARAMETER_HEADER_T(
+                    mmal.MMAL_PARAMETER_CAMERA_CONFIG,
+                    ct.sizeof(mmal.MMAL_PARAMETER_CAMERA_CONFIG_T)
+                    ))
+            _check(
+                mmal.mmal_component_create(
+                    mmal.MMAL_COMPONENT_DEFAULT_CAMERA, self._camera),
+                prefix="Failed to create camera component")
             if not self._camera[0].output_num:
                 raise PiCameraError("Camera doesn't have output ports")
 
@@ -728,6 +728,30 @@ class PiCamera(object):
             self.rotation = 0
             self.hflip = self.vflip = False
             self.crop = (0.0, 0.0, 1.0, 1.0)
+
+            self._preview = ct.POINTER(mmal.MMAL_COMPONENT_T)()
+            _check(
+                mmal.mmal_component_create(
+                    mmal.MMAL_COMPONENT_DEFAULT_VIDEO_RENDERER, self._preview),
+                prefix="Failed to create preview component")
+            if not self._preview[0].input_num:
+                raise PiCameraError("No input ports on preview component")
+
+            mp = mmal.MMAL_DISPLAYREGION_T(
+                mmal.MMAL_PARAMETER_HEADER_T(
+                    mmal.MMAL_PARAMETER_DISPLAYREGION,
+                    ct.sizeof(mmal.MMAL_DISPLAYREGION_T)
+                ))
+            mp.set = (
+                mmal.MMAL_DISPLAY_SET_LAYER |
+                mmal.MMAL_DISPLAY_SET_ALPHA |
+                mmal.MMAL_DISPLAY_SET_FULLSCREEN)
+            mp.layer = 2
+            mp.alpha = 255
+            mp.fullscreen = 1
+            _check(
+                mmal.mmal_port_parameter_set(self._preview[0].input[0], mp.hdr),
+                prefix="Unable to set preview port parameters")
         except:
             self.close()
             raise
@@ -775,6 +799,9 @@ class PiCamera(object):
             self.stop_recording()
         if self.previewing:
             self.stop_preview()
+        if self._preview:
+            mmal.mmal_component_destroy(self._preview)
+            self._preview = None
         if self._camera:
             if self._camera[0].is_enabled:
                 mmal.mmal_component_disable(self._camera)
@@ -801,33 +828,7 @@ class PiCamera(object):
         """
         self._check_camera_open()
         self._check_preview_stopped()
-        self._preview = ct.POINTER(mmal.MMAL_COMPONENT_T)()
-        _check(
-            mmal.mmal_component_create(
-                mmal.MMAL_COMPONENT_DEFAULT_VIDEO_RENDERER, self._preview),
-            prefix="Failed to create preview component")
         try:
-            if not self._preview[0].input_num:
-                raise PiCameraError("No input ports on preview component")
-
-            mp = mmal.MMAL_DISPLAYREGION_T(
-                mmal.MMAL_PARAMETER_HEADER_T(
-                    mmal.MMAL_PARAMETER_DISPLAYREGION,
-                    ct.sizeof(mmal.MMAL_DISPLAYREGION_T)
-                    ),
-                )
-            mp.set = mmal.MMAL_DISPLAY_SET_LAYER
-            mp.layer = self.PREVIEW_LAYER
-            # TODO Allow configuration of alpha
-            mp.set |= mmal.MMAL_DISPLAY_SET_ALPHA
-            mp.alpha = self.PREVIEW_ALPHA
-            # TODO Allow configuration of display rect
-            mp.set |= mmal.MMAL_DISPLAY_SET_FULLSCREEN
-            mp.fullscreen = 1
-            _check(
-                mmal.mmal_port_parameter_set(self._preview[0].input[0], mp.hdr),
-                prefix="Unable to set preview port parameters")
-
             _check(
                 mmal.mmal_component_enable(self._preview),
                 prefix="Preview component couldn't be enabled")
@@ -843,7 +844,6 @@ class PiCamera(object):
             _check(
                 mmal.mmal_connection_enable(self._preview_connection),
                 prefix="Failed to enable preview connection")
-
         except:
             self.stop_preview()
             raise
@@ -860,11 +860,8 @@ class PiCamera(object):
         if self._preview_connection:
             mmal.mmal_connection_destroy(self._preview_connection)
             self._preview_connection = None
-        if self._preview:
-            if self._preview[0].is_enabled:
-                mmal.mmal_component_disable(self._preview)
-            mmal.mmal_component_destroy(self._preview)
-            self._preview = None
+        if self._preview[0].is_enabled:
+            mmal.mmal_component_disable(self._preview)
 
     def start_recording(self, output, format=None, **options):
         """
@@ -1145,8 +1142,7 @@ class PiCamera(object):
         Returns True if the :meth:`start_preview` method has been called,
         and no :meth:`stop_preview` call has been made yet.
         """
-        # XXX Should probably check this is actually enabled...
-        return bool(self._preview)
+        return bool(self._preview[0].is_enabled)
 
     @property
     def exif_tags(self):
@@ -1932,10 +1928,10 @@ class PiCamera(object):
             mmal.mmal_port_parameter_get(self._camera[0].control, mp.hdr),
             prefix="Failed to get crop")
         return (
-            mp[0].rect.x / 65535.0,
-            mp[0].rect.y / 65535.0,
-            mp[0].rect.width / 65535.0,
-            mp[0].rect.height / 65535.0,
+            mp[0].rect.x.value / 65535.0,
+            mp[0].rect.y.value / 65535.0,
+            mp[0].rect.width.value / 65535.0,
+            mp[0].rect.height.value / 65535.0,
             )
     def _set_crop(self, value):
         self._check_camera_open()
@@ -1969,6 +1965,71 @@ class PiCamera(object):
         progress.
         """)
 
+    def _get_preview_alpha(self):
+        mp = mmal.MMAL_DISPLAYREGION_T(
+            mmal.MMAL_PARAMETER_HEADER_T(
+                mmal.MMAL_PARAMETER_DISPLAYREGION,
+                ct.sizeof(mmal.MMAL_DISPLAYREGION_T)
+            ))
+        _check(
+            mmal.mmal_port_parameter_get(self._preview[0].input[0], mp.hdr),
+            prefix="Failed to get preview alpha")
+        return mp.alpha.value
+    def _set_preview_alpha(self, value):
+        self._check_camera_open()
+        try:
+            if not (0 <= value <= 255):
+                raise PiCameraValueError("Invalid alpha value: %d (valid range 0..255)" % value)
+        except TypeError:
+            raise PiCameraValueError("Invalid alpha value: %s" % value)
+        mp = mmal.MMAL_DISPLAYREGION_T(
+            mmal.MMAL_PARAMETER_HEADER_T(
+                mmal.MMAL_PARAMETER_DISPLAYREGION,
+                ct.sizeof(mmal.MMAL_DISPLAYREGION_T)
+                ),
+            set=mmal.MMAL_DISPLAY_SET_ALPHA,
+            alpha=value
+            )
+        _check(
+            mmal.mmal_port_parameter_set(self._preview[0].input[0], mp.hdr),
+            prefix="Failed to set preview alpha")
+    preview_alpha = property(_get_preview_alpha, _set_preview_alpha, doc="""
+        Retrieves or sets the opacity of the preview window.
+
+        When queried, the :attr:`preivew_alpha` property returns a value between
+        0 and 255 indicating the opacity of the preview window, where 0 is
+        completely transparent and 255 is completely opaque. The default value
+        is 255. The property can be set while recordings or previews are in
+        progress.
+        """)
+
+    def _get_preview_fullscreen(self):
+        mp = mmal.MMAL_DISPLAYREGION_T(
+            mmal.MMAL_PARAMETER_HEADER_T(
+                mmal.MMAL_PARAMETER_DISPLAYREGION,
+                ct.sizeof(mmal.MMAL_DISPLAYREGION_T)
+            ))
+        _check(
+            mmal.mmal_port_parameter_get(self._preview[0].input[0], mp.hdr),
+            prefix="Failed to get preview fullscreen")
+        return mp.fullscreen.value != mmal.MMAL_FALSE
+    def _set_preview_fullscreen(self, value):
+        self._check_camera_open()
+        value = bool(value)
+        mp = mmal.MMAL_DISPLAYREGION_T(
+            mmal.MMAL_PARAMETER_HEADER_T(
+                mmal.MMAL_PARAMETER_DISPLAYREGION,
+                ct.sizeof(mmal.MMAL_DISPLAYREGION_T)
+                ),
+            set=mmal.MMAL_DISPLAY_SET_FULLSCREEN,
+            fullscreen={
+                False: mmal.MMAL_FALSE,
+                True:  mmal.MMAL_TRUE,
+                }[value]
+            )
+        _check(
+            mmal.mmal_port_parameter_set(self._preview[0].input[0], mp.hdr),
+            prefix="Failed to set preview fullscreen")
 
 bcm_host.bcm_host_init()
 mimetypes.add_type('application/h264', '.h264', False)
