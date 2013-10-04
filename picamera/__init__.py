@@ -959,7 +959,7 @@ class PiCamera(object):
             format = format[6:]
         if format == 'x-ms-bmp':
             format = 'bmp'
-        self._still_encoder = _PiStillEncoder(self, format)
+        self._still_encoder = _PiStillEncoder(self, format, **options)
         try:
             self._still_encoder.start(output)
             # Wait for the callback to set the event indicating the end of
