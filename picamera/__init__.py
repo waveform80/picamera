@@ -912,6 +912,36 @@ class PiCamera(object):
             self._video_encoder.close()
             self._video_encoder = None
 
+    def continuous(self, output, format=None, **options):
+        self._check_camera_open()
+        assert not self._still_encoder
+        format = self._get_format(output, format)
+        if format.startswith('image/'):
+            format = format[6:]
+        if format == 'x-ms-bmp':
+            format = 'bmp'
+        self._still_encoder = _PiStillEncoder(self, format, **options)
+        try:
+            if isinstance(output, str):
+                counter = 1
+                while True:
+                    filename = output.format({
+                        'counter': counter,
+                        'timestamp': datetime.datetime.now(),
+                        })
+                    self._still_encoder.start(filename)
+                    self._still_encoder.wait()
+                    yield filename
+                    counter += 1
+            else:
+                while True:
+                    self._still_encoder.start(output)
+                    self._still_encoder.wait()
+                    yield output
+        finally:
+            self._still_encoder.close()
+            self._still_encoder = None
+
     def capture(self, output, format=None, **options):
         """
         Capture an image from the camera, storing it in *output*.
