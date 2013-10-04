@@ -988,6 +988,10 @@ class PiCamera(object):
         """
         Holds a mapping of the Exif tags to apply to captured images.
 
+        .. note::
+            Please note that Exif tagging is only supported with the ``jpeg``
+            format.
+
         By default several Exif tags are automatically applied to any images
         taken with the :meth:`capture` method: ``IFD0.Make`` (which is set to
         ``RaspberryPi``), ``IFD0.Model`` (which is set to ``RP_OV5647``), and
@@ -1060,12 +1064,8 @@ class PiCamera(object):
         +-------+-------------------------------------------------------------+
         | EINT  | InteroperabilityIndex, InteroperabilityVersion,             |
         |       | RelatedImageFileFormat, RelatedImageWidth,                  |
-        |       | RelatedImageLength>                                         |
+        |       | RelatedImageLength                                          |
         +-------+-------------------------------------------------------------+
-
-        .. note::
-            Please note that Exif tagging is only supported with the ``jpeg``
-            format.
         """
         return self._exif_tags
 
@@ -1363,7 +1363,7 @@ class PiCamera(object):
         strings:
 
         +---------------+---------------------------------------------------+
-        | value         | description                                       |
+        | Value         | Description                                       |
         +===============+===================================================+
         | ``'average'`` | The camera measures the average of the entire     |
         |               | scene.                                            |
