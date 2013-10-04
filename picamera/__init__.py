@@ -353,10 +353,14 @@ class _PiVideoEncoder(_PiEncoder):
     def _create_encoder(self, format, **options):
         super(_PiVideoEncoder, self)._create_encoder(format, **options)
 
-        # TODO Allow configuration of bitrate/encoding?
         enc_out = self.encoder[0].output[0]
-        enc_out[0].format[0].encoding = mmal.MMAL_ENCODING_H264
-        enc_out[0].format[0].bitrate = 17000000
+        try:
+            enc_out[0].format[0].encoding = {
+                'h264': mmal.MMAL_ENCODING_H264,
+                }[format]
+        except KeyError:
+            raise PiCameraValueError('Unrecognized format %s' % format)
+        enc_out[0].format[0].bitrate = options.get('bitrate', 17000000)
         _check(
             mmal.mmal_port_format_commit(enc_out),
             prefix="Unable to set format on encoder output port")
@@ -840,13 +844,13 @@ class PiCamera(object):
 
     def start_recording(self, output, format=None, **options):
         """
-        Start recording video from the camera, storing it as an H264 stream.
+        Start recording video from the camera, storing it in *output*.
 
         If *output* is a string, it will be treated as a filename for a new
-        file which the H264 stream will be written to. Otherwise, *output* is
-        assumed to be a file-like object and the H264 data is appended to it
-        (the implementation only assumes the object has a ``write()`` method -
-        no other methods will be called).
+        file which the video will be written to. Otherwise, *output* is assumed
+        to be a file-like object and the video data is appended to it (the
+        implementation only assumes the object has a ``write()`` method - no
+        other methods will be called).
 
         If *format* is ``None`` (the default), the method will attempt to guess
         the required video format from the extension of *output* (if it's a
@@ -858,7 +862,14 @@ class PiCamera(object):
         that you want the image written to. The format can be a MIME-type or
         one of the following strings:
 
-        * ``h264`` - Write an H.264 video stream
+        * ``'h264'`` - Write an H.264 video stream
+
+        Certain formats accept additional options which can be specified
+        as keyword arguments. Current the only additional option, which is
+        accepted by all encoders is:
+
+        * *bitrate* - The bitrate at which video will be encoded. Defaults to
+          17000000 (17Mbps) if not specified.
         """
         self._check_camera_open()
         self._check_recording_stopped()
@@ -906,10 +917,10 @@ class PiCamera(object):
         Capture an image from the camera, storing it in *output*.
 
         If *output* is a string, it will be treated as a filename for a new
-        file which the JPEG data will be written to. Otherwise, *output* is
-        assumed to a be a file-like object and the JPEG data is appended to it
-        (the implementation only assumes the object has a ``write()`` method -
-        no other methods will be called).
+        file which the image will be written to. Otherwise, *output* is assumed
+        to a be a file-like object and the image data is appended to it (the
+        implementation only assumes the object has a ``write()`` method - no
+        other methods will be called).
 
         If *format* is ``None`` (the default), the method will attempt to guess
         the required image format from the extension of *output* (if it's a
@@ -934,12 +945,12 @@ class PiCamera(object):
         additional options, which are:
 
         * *quality* - Defines the quality of the JPEG encoder as an integer
-            ranging from 1 to 100. Defaults to 85.
+          ranging from 1 to 100. Defaults to 85.
 
         * *thumbnail* - Defines the size and quality of the thumbnail to embed
-            in the Exif data. Specifying ``None`` disables thumbnail
-            generation.  Otherwise, specify a tuple of ``(width, height,
-            quality)``. Defaults to ``(64, 48, 35)``.
+          in the Exif data. Specifying ``None`` disables thumbnail generation.
+          Otherwise, specify a tuple of ``(width, height, quality)``. Defaults
+          to ``(64, 48, 35)``.
         """
         self._check_camera_open()
         assert not self._still_encoder
@@ -1016,12 +1027,17 @@ class PiCamera(object):
             Binary Exif values are currently ignored; this appears to be a
             libmmal or firmware bug.
 
+        You may also specify datetime values, integer, or float values, all of
+        which will be converted to appropriate ASCII strings (datetime values
+        are formatted as ``YYYY:MM:DD HH:MM:SS`` in accordance with the Exif
+        standard).
+
         The currently supported Exif tags are:
 
         +-------+-------------------------------------------------------------+
         | Group | Tags                                                        |
         +=======+=============================================================+
-        | IFD0/ | ImageWidth, ImageLength, BitsPerSample, Compression,        |
+        | IFD0, | ImageWidth, ImageLength, BitsPerSample, Compression,        |
         | IFD1  | PhotometricInterpretation, ImageDescription, Make, Model,   |
         |       | StripOffsets, Orientation, SamplesPerPixel, RowsPerString,  |
         |       | StripByteCounts, Xresolution, Yresolution,                  |
