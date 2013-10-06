@@ -24,11 +24,7 @@ To do
 
 Major things that still need work:
 
-* Preview alpha configuration
-
-* Preview display-rect configuration
-
-* Tests
+* Video tests
 
 * Future work - text overlay on preview (GLES?)
 
