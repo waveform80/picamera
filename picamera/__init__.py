@@ -558,8 +558,8 @@ class PiCamera(object):
         CAMERA_VIDEO_PORT,
         CAMERA_CAPTURE_PORT,
         )
-    MAXIMUM_RESOLUTION = (2592, 1944)
-    DEFAULT_RESOLUTION = (1920, 1080)
+    MAX_IMAGE_RESOLUTION = (2592, 1944)
+    MAX_VIDEO_RESOLUTION = (1920, 1080)
     DEFAULT_FRAME_RATE_NUM = 30
     DEFAULT_FRAME_RATE_DEN = 1
     FULL_FRAME_RATE_NUM = 15
@@ -634,12 +634,13 @@ class PiCamera(object):
     _IMAGE_EFFECTS_R  = {v: k for (k, v) in IMAGE_EFFECTS.items()}
 
     def __init__(self):
+        screen_width = ct.c_uint32()
+        screen_height = ct.c_uint32()
+        bcm_host.graphics_get_display_size(0, screen_width, screen_height)
         self._camera = None
         self._camera_config = None
         self._preview = None
         self._preview_connection = None
-        self._preview_alpha = 255
-        self._preview_fullscreen = True
         self._video_encoder = None
         self._still_encoder = None
         self._exif_tags = {
@@ -667,15 +668,15 @@ class PiCamera(object):
                 prefix="Unable to enable control port")
 
             cc = self._camera_config
-            cc.max_stills_w=self.DEFAULT_RESOLUTION[0]
-            cc.max_stills_h=self.DEFAULT_RESOLUTION[1]
+            cc.max_stills_w=screen_width.value
+            cc.max_stills_h=screen_height.value
             cc.stills_yuv422=0
             # XXX Can't take more than one still with a single encoder instance
             # unless this is set to 1. Still not sure exactly what it means
             # though...
             cc.one_shot_stills=1
-            cc.max_preview_video_w=self.DEFAULT_RESOLUTION[0]
-            cc.max_preview_video_h=self.DEFAULT_RESOLUTION[1]
+            cc.max_preview_video_w=screen_width.value
+            cc.max_preview_video_h=screen_height.value
             cc.num_preview_video_frames=3
             cc.stills_capture_circular_buffer_height=0
             cc.fast_preview_resume=0
@@ -1273,7 +1274,7 @@ class PiCamera(object):
             if port == self.CAMERA_CAPTURE_PORT:
                 fmt.video.frame_rate.num = 1
                 fmt.video.frame_rate.den = 1
-            elif (w > self.DEFAULT_RESOLUTION[0]) or (h > self.DEFAULT_RESOLUTION[1]):
+            elif (w > self.MAX_VIDEO_RESOLUTION[0]) or (h > self.MAX_VIDEO_RESOLUTION[1]):
                 fmt.video.frame_rate.num = self.FULL_FRAME_RATE_NUM
                 fmt.video.frame_rate.den = self.FULL_FRAME_RATE_DEN
             else:
@@ -1974,7 +1975,7 @@ class PiCamera(object):
         _check(
             mmal.mmal_port_parameter_get(self._preview[0].input[0], mp.hdr),
             prefix="Failed to get preview alpha")
-        return mp.alpha.value
+        return mp.alpha
     def _set_preview_alpha(self, value):
         self._check_camera_open()
         try:
@@ -1996,11 +1997,20 @@ class PiCamera(object):
     preview_alpha = property(_get_preview_alpha, _set_preview_alpha, doc="""
         Retrieves or sets the opacity of the preview window.
 
-        When queried, the :attr:`preivew_alpha` property returns a value between
-        0 and 255 indicating the opacity of the preview window, where 0 is
-        completely transparent and 255 is completely opaque. The default value
-        is 255. The property can be set while recordings or previews are in
-        progress.
+        When queried, the :attr:`preview_alpha` property returns a value
+        between 0 and 255 indicating the opacity of the preview window, where 0
+        is completely transparent and 255 is completely opaque. The default
+        value is 255. The property can be set while recordings or previews are
+        in progress.
+
+        .. note::
+            If the preview is not running, the property will not reflect
+            changes to it, but they will be in effect next time the preview is
+            started. In other words, you can set preview_alpha to 128, but
+            querying it will still return 255 (the default) until you call
+            :meth:`start_preview` at which point the preview will appear
+            semi-transparent and :attr:`preview_alpha` will suddenly return
+            128. This appears to be a firmware issue.
         """)
 
     def _get_preview_fullscreen(self):
@@ -2012,7 +2022,7 @@ class PiCamera(object):
         _check(
             mmal.mmal_port_parameter_get(self._preview[0].input[0], mp.hdr),
             prefix="Failed to get preview fullscreen")
-        return mp.fullscreen.value != mmal.MMAL_FALSE
+        return mp.fullscreen != mmal.MMAL_FALSE
     def _set_preview_fullscreen(self, value):
         self._check_camera_open()
         value = bool(value)
@@ -2030,6 +2040,68 @@ class PiCamera(object):
         _check(
             mmal.mmal_port_parameter_set(self._preview[0].input[0], mp.hdr),
             prefix="Failed to set preview fullscreen")
+    preview_fullscreen = property(
+            _get_preview_fullscreen, _set_preview_fullscreen, doc="""
+        Retrieves or sets full-screen for the preview window.
+
+        The :attr:`preview_fullscreen` property is a bool which controls
+        whether the preview window takes up the entire display or not. When
+        set to False, the :attr:`preview_window` property can be used to
+        control the precise size of the preview display. The property can be
+        set while recordings or previews are active.
+
+        .. note::
+            The :attr:`preview_fullscreen` attribute is afflicted by the same
+            issue as :attr:`preview_alpha` with regards to changes while the
+            preview is not running.
+        """)
+
+    def _get_preview_window(self):
+        mp = mmal.MMAL_DISPLAYREGION_T(
+            mmal.MMAL_PARAMETER_HEADER_T(
+                mmal.MMAL_PARAMETER_DISPLAYREGION,
+                ct.sizeof(mmal.MMAL_DISPLAYREGION_T)
+            ))
+        _check(
+            mmal.mmal_port_parameter_get(self._preview[0].input[0], mp.hdr),
+            prefix="Failed to get preview window")
+        return (
+            mp.dest_rect.x,
+            mp.dest_rect.y,
+            mp.dest_rect.width,
+            mp.dest_rect.height,
+            )
+    def _set_preview_window(self, value):
+        self._check_camera_open()
+        try:
+            x, y, w, h = value
+        except (TypeError, ValueError) as e:
+            raise PiCameraValueError("Invalid window rectangle (x, y, w, h) tuple: %s" % value)
+        mp = mmal.MMAL_DISPLAYREGION_T(
+            mmal.MMAL_PARAMETER_HEADER_T(
+                mmal.MMAL_PARAMETER_DISPLAYREGION,
+                ct.sizeof(mmal.MMAL_DISPLAYREGION_T)
+                ),
+            set=mmal.MMAL_DISPLAY_SET_DEST_RECT,
+            dest_rect=mmal.MMAL_RECT_T(x, y, w, h),
+            )
+        _check(
+            mmal.mmal_port_parameter_set(self._preview[0].input[0], mp.hdr),
+            prefix="Failed to set preview window")
+    preview_window = property(_get_preview_window, _set_preview_window, doc="""
+        Retrieves or sets the size of the preview window.
+
+        When the :attr:`preview_fullscreen` property is set to False, the
+        :attr:`preview_window` property specifies the size and position of the
+        preview window on the display. The property is a 4-tuple consisting of
+        ``(x, y, width, height)``. The property can be set while recordings or
+        previews are active.
+
+        .. note::
+            The :attr:`preview_window` attribute is afflicted by the same issue
+            as :attr:`preview_alpha` with regards to changes while the preview
+            is not running.
+        """)
 
 bcm_host.bcm_host_init()
 mimetypes.add_type('application/h264', '.h264', False)
