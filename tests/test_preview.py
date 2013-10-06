@@ -123,6 +123,35 @@ def test_hflip(camera):
 def test_vflip(camera):
     boolean_attr(camera, 'vflip')
 
+# XXX The preview properties work, but don't return correct values unless the
+# preview is actually running; if this isn't expected behaviour then we should
+# xfail these tests instead of simply testing for previewing...
+
+def test_preview_alpha(camera):
+    if camera.previewing:
+        numeric_attr(camera, 'preview_alpha', 0, 255)
+
+def test_preview_fullscreen(camera):
+    if camera.previewing:
+        boolean_attr(camera, 'preview_fullscreen')
+
+def test_preview_window(camera):
+    if camera.previewing:
+        camera.preview_window = (0, 0, 320, 240)
+        assert camera.preview_window == (0, 0, 320, 240)
+        camera.preview_window = (1280-320, 720-240, 320, 240)
+        assert camera.preview_window == (1280-320, 720-240, 320, 240)
+        camera.preview_window = (0, 0, 640, 360)
+        assert camera.preview_window == (0, 0, 640, 360)
+        camera.preview_window = (0, 720-360, 640, 360)
+        assert camera.preview_window == (0, 720-360, 640, 360)
+        camera.preview_window = (1280-640, 0, 640, 360)
+        assert camera.preview_window == (1280-640, 0, 640, 360)
+        camera.preview_window = (1280-640, 720-360, 640, 360)
+        assert camera.preview_window == (1280-640, 720-360, 640, 360)
+        camera.preview_window = (0, 0, 1920, 1080)
+        assert camera.preview_window == (0, 0, 1920, 1080)
+
 def test_resolution(camera):
     # Resolution can only be changed when the camera is idle
     if camera.previewing:
