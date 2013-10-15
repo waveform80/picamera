@@ -1101,6 +1101,14 @@ class PiCamera(object):
             format = 'bmp'
         self._still_encoder = _PiStillEncoder(self, format, **options)
         try:
+            if isinstance(output, bytes):
+                # If we're fed a bytes string, assume it's UTF-8 encoded and
+                # convert it to Unicode. Technically this is wrong
+                # (file-systems use all sorts of encodings), but UTF-8 is a
+                # reasonable default and this keeps compatibility with Python 2
+                # simple although it breaks the edge cases of non-UTF-8 encoded
+                # bytes strings with non-UTF-8 encoded file-systems
+                output = output.decode('utf-8')
             if isinstance(output, str):
                 counter = 1
                 while True:
