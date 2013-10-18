@@ -1151,7 +1151,7 @@ class PiCamera(object):
         Returns True if the :meth:`start_preview` method has been called,
         and no :meth:`stop_preview` call has been made yet.
         """
-        return bool(self._preview[0].is_enabled)
+        return self._preview and self._preview[0].is_enabled
 
     @property
     def exif_tags(self):
