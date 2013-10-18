@@ -4,16 +4,30 @@
 Installation
 ============
 
+There are several ways to install picamera, each with their own advantages and
+disadvantages. Have a read of the sections below and select an installation
+method which conforms to your needs.
+
+
+.. _user_install:
+
 User installation
 =================
 
-This is by far the simplest form of installation (though it's also the most
-complex to uninstall should you wish to do so later)::
+This is by far the simplest form of installation (though it's also complex to
+uninstall should you wish to do so later), but bear in mind that it will only
+work for the user you install under. For example, if you install as the ``pi``
+user, you will only be able to use picamera as the ``pi`` user. If you run
+python as root (e.g. with ``sudo python``) it will not find the module.  See
+`_system_install`_ below if you require a root installation.
+
+To install as your current user::
 
     $ sudo apt-get install python-setuptools
     $ easy_install --user picamera
 
-To upgrade your installation when new releases are made::
+Note that easy_install is _not_ run with sudo; this is deliberate. To upgrade
+your installation when new releases are made::
 
     $ easy_install --user -U picamera
 
@@ -29,6 +43,38 @@ If you ever need to remove your installation::
     a tiny package and has no dependencies so leaving it lying around shouldn't
     cause any issues even if you don't use it anymore.
 
+
+.. _system_install:
+
+System installation
+===================
+
+A system installation will make picamera accessible to all users (in contrast
+to the user installation). It is as simple to perform as the user installation
+and equally easy to keep updated but unfortunately, is also difficult to
+remove. To perform the installation::
+
+    $ sudo apt-get install python-setuptools
+    $ sudo easy_install picamera
+
+To upgrade your installation when new releases are made::
+
+    $ sudo easy_install -U picamera
+
+If you ever need to remove your installation::
+
+    $ sudo rm -fr /usr/local/lib/python*/dist-packages/picamera-*
+    $ sudo sed -i -e '/^\.\/picamera-/d' /usr/local/lib/python*/dist-packages/easy-install.pth
+
+.. warning::
+    Please be careful when running commands like ``rm -fr`` as root. With a
+    simple slip (e.g. changing the final "-" to a space), such a command will
+    very quickly delete a lot of things you probably don't want deleted
+    (including most of your operating system if you're unlucky enough to be in
+    the root directory). Double check what you've typed before hitting Enter!
+
+
+.. _virtualenv_install:
 
 Virtualenv installation
 =======================
@@ -59,6 +105,8 @@ To remove your installation simply blow away the virtualenv::
 
     $ rm -fr ~/sandbox/
 
+
+.. _dev_install:
 
 Development installation
 ========================
