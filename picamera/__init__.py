@@ -468,7 +468,7 @@ class _PiSequenceEncoder(_PiEncoder):
     def _callback_write(self, buf):
         try:
             if (
-                super(_PiStillEncoder, self)._callback_write(buf)
+                super(_PiSequenceEncoder, self)._callback_write(buf)
                 ) or bool(
                 buf[0].flags & (
                     mmal.MMAL_BUFFER_HEADER_FLAG_FRAME_END |
