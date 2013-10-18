@@ -221,6 +221,7 @@ class _PiEncoder(object):
         """
         The encoder's main callback function
         """
+        print('_callback')
         stop = False
         try:
             try:
@@ -239,6 +240,7 @@ class _PiEncoder(object):
         Performs output writing on behalf of the encoder callback function;
         return value determines whether writing has completed.
         """
+        print('_callback_write')
         if buf[0].length:
             _check(
                 mmal.mmal_buffer_header_mem_lock(buf),
@@ -257,6 +259,7 @@ class _PiEncoder(object):
         """
         Recycles the buffer on behalf of the encoder callback function
         """
+        print('_callback_recycle')
         mmal.mmal_buffer_header_release(buf)
         if port[0].is_enabled:
             new_buf = mmal.mmal_queue_get(self.pool[0].queue)
@@ -298,6 +301,7 @@ class _PiEncoder(object):
         """
         Starts the encoder object writing to the specified output
         """
+        print('start')
         self.event.clear()
         self.stopped = False
         self.exception = None
@@ -305,19 +309,23 @@ class _PiEncoder(object):
         self.encoder[0].output[0][0].userdata = ct.cast(
             ct.pointer(ct.py_object(self)),
             ct.c_void_p)
+        print('mmal_port_enable')
         _check(
             mmal.mmal_port_enable(self.encoder[0].output[0], _encoder_callback),
             prefix="Failed to enable encoder output port")
 
         for q in range(mmal.mmal_queue_length(self.pool[0].queue)):
+            print('mmal_queue_get')
             buf = mmal.mmal_queue_get(self.pool[0].queue)
             if not buf:
                 raise PiCameraRuntimeError(
                     "Unable to get a required buffer from pool queue")
+            print('mmal_port_send_buffer')
             _check(
                 mmal.mmal_port_send_buffer(self.encoder[0].output[0], buf),
                 prefix="Unable to send a buffer to encoder output port")
 
+        print('mmal_port_parameter_set_boolean')
         _check(
             mmal.mmal_port_parameter_set_boolean(
                 self.camera[0].output[self.port],
@@ -328,8 +336,11 @@ class _PiEncoder(object):
         """
         Waits for the encoder to finish (successfully or otherwise)
         """
+        print('wait')
         result = self.event.wait(timeout)
+        print('wait result: %s' % result)
         if result:
+            print('>> mmal_port_disable')
             _check(
                 mmal.mmal_port_disable(self.encoder[0].output[0]),
                 prefix="Failed to disable encoder output port")
@@ -343,7 +354,9 @@ class _PiEncoder(object):
         """
         Stops the encoder, regardless of whether it's finished
         """
+        print('stop')
         if self.encoder and self.encoder[0].output[0][0].is_enabled:
+            print('>> mmal_port_disable')
             _check(
                 mmal.mmal_port_disable(self.encoder[0].output[0]),
                 prefix="Failed to disable encoder output port")
@@ -355,16 +368,21 @@ class _PiEncoder(object):
         """
         Finalizes the encoder and deallocates all structures
         """
+        print('close')
         self.stop()
         if self.connection:
+            print('>> mmal_connection_destroy')
             mmal.mmal_connection_destroy(self.connection)
             self.connection = None
         if self.pool:
+            print('>> mmal_port_pool_destroy')
             mmal.mmal_port_pool_destroy(self.encoder[0].output[0], self.pool)
             self.pool = None
         if self.encoder:
             if self.encoder[0].is_enabled:
+                print('>> mmal_component_disable')
                 mmal.mmal_component_disable(self.encoder)
+            print('>> mmal_component_destroy')
             mmal.mmal_component_destroy(self.encoder)
             self.encoder = None
 
@@ -410,16 +428,13 @@ class _PiSequenceEncoder(_PiEncoder):
     port = 1
 
     def _create_encoder(self, format, **options):
-        print('_create_encoder')
         super(_PiSequenceEncoder, self)._create_encoder(format, **options)
 
         enc_out = self.encoder[0].output[0]
         enc_out[0].format[0].encoding = mmal.MMAL_ENCODING_JPEG
-        print('>> mmal_port_format_comment')
         _check(
             mmal.mmal_port_format_commit(enc_out),
             prefix="Unable to set format on encoder output port")
-        print('>> mmal_port_parameter_set_uint32')
         _check(
             mmal.mmal_port_parameter_set_uint32(
                 enc_out,
@@ -442,20 +457,15 @@ class _PiSequenceEncoder(_PiEncoder):
             prefix="Unable to enable video encoder component")
 
     def _open_output(self, outputs):
-        print('_open_output')
         self._output_iter = iter(outputs)
         self._next_output()
 
     def _next_output(self):
-        print('_next_output')
         if self.output:
-            print('>> super()._close_output')
             self._close_output()
-        print('>> super()._open_output')
         super(_PiSequenceEncoder, self)._open_output(next(self._output_iter))
 
     def _callback_write(self, buf):
-        print('_callback_write')
         try:
             if (
                 super(_PiStillEncoder, self)._callback_write(buf)
@@ -464,12 +474,9 @@ class _PiSequenceEncoder(_PiEncoder):
                     mmal.MMAL_BUFFER_HEADER_FLAG_FRAME_END |
                     mmal.MMAL_BUFFER_HEADER_FLAG_TRANSMISSION_FAILED)
                 ):
-                print('>> ..FRAME_END')
                 self._next_output()
-            print('>> return False')
             return False
         except StopIteration:
-            print('>> return True')
             return True
 
 
@@ -628,7 +635,7 @@ class PiCamera(object):
         )
     MAX_IMAGE_RESOLUTION = (2592, 1944)
     MAX_VIDEO_RESOLUTION = (1920, 1080)
-    DEFAULT_FRAME_RATE_NUM = 30
+    DEFAULT_FRAME_RATE_NUM = 10
     DEFAULT_FRAME_RATE_DEN = 1
     FULL_FRAME_RATE_NUM = 15
     FULL_FRAME_RATE_DEN = 1
@@ -739,10 +746,7 @@ class PiCamera(object):
             cc.max_stills_w=screen_width.value
             cc.max_stills_h=screen_height.value
             cc.stills_yuv422=0
-            # XXX Can't take more than one still with a single encoder instance
-            # unless this is set to 1. Still not sure exactly what it means
-            # though...
-            cc.one_shot_stills=1
+            cc.one_shot_stills=0
             cc.max_preview_video_w=screen_width.value
             cc.max_preview_video_h=screen_height.value
             cc.num_preview_video_frames=3
@@ -756,15 +760,15 @@ class PiCamera(object):
             for p in self.CAMERA_PORTS:
                 port = self._camera[0].output[p]
                 fmt = port[0].format
+                fmt[0].encoding = mmal.MMAL_ENCODING_I420 if p == self.CAMERA_VIDEO_PORT else mmal.MMAL_ENCODING_OPAQUE
                 fmt[0].encoding_variant = mmal.MMAL_ENCODING_I420
-                fmt[0].encoding = mmal.MMAL_ENCODING_OPAQUE
                 fmt[0].es[0].video.width = cc.max_preview_video_w
                 fmt[0].es[0].video.height = cc.max_preview_video_h
                 fmt[0].es[0].video.crop.x = 0
                 fmt[0].es[0].video.crop.y = 0
                 fmt[0].es[0].video.crop.width = cc.max_preview_video_w
                 fmt[0].es[0].video.crop.height = cc.max_preview_video_h
-                fmt[0].es[0].video.frame_rate.num = 1 if p == self.CAMERA_CAPTURE_PORT else self.DEFAULT_FRAME_RATE_NUM
+                fmt[0].es[0].video.frame_rate.num = 3 if p == self.CAMERA_CAPTURE_PORT else self.DEFAULT_FRAME_RATE_NUM
                 fmt[0].es[0].video.frame_rate.den = 1 if p == self.CAMERA_CAPTURE_PORT else self.DEFAULT_FRAME_RATE_DEN
                 _check(
                     mmal.mmal_port_format_commit(self._camera[0].output[p]),
@@ -1070,7 +1074,7 @@ class PiCamera(object):
         self._video_encoder = _PiSequenceEncoder(self, 'jpeg')
         try:
             self._video_encoder.start(outputs)
-            self._video_encoder.wait()
+            self._video_encoder.wait(5)
         finally:
             self._video_encoder.close()
             self._video_encoder = None
@@ -1230,7 +1234,7 @@ class PiCamera(object):
         Returns True if the :meth:`start_preview` method has been called,
         and no :meth:`stop_preview` call has been made yet.
         """
-        return bool(self._preview[0].is_enabled)
+        return self._preview and self._preview[0].is_enabled
 
     @property
     def exif_tags(self):
