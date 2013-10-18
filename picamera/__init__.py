@@ -405,6 +405,74 @@ class _PiVideoEncoder(_PiEncoder):
             prefix="Unable to enable video encoder component")
 
 
+class _PiSequenceEncoder(_PiEncoder):
+    encoder_type = mmal.MMAL_COMPONENT_DEFAULT_IMAGE_ENCODER
+    port = 1
+
+    def _create_encoder(self, format, **options):
+        print('_create_encoder')
+        super(_PiSequenceEncoder, self)._create_encoder(format, **options)
+
+        enc_out = self.encoder[0].output[0]
+        enc_out[0].format[0].encoding = mmal.MMAL_ENCODING_JPEG
+        print('>> mmal_port_format_comment')
+        _check(
+            mmal.mmal_port_format_commit(enc_out),
+            prefix="Unable to set format on encoder output port")
+        print('>> mmal_port_parameter_set_uint32')
+        _check(
+            mmal.mmal_port_parameter_set_uint32(
+                enc_out,
+                mmal.MMAL_PARAMETER_JPEG_Q_FACTOR,
+                options.get('quality', 85)),
+            prefix="Failed to set JPEG quality")
+        # Disable thumbnail generation
+        mp = mmal.MMAL_PARAMETER_THUMBNAIL_CONFIG_T(
+            mmal.MMAL_PARAMETER_HEADER_T(
+                mmal.MMAL_PARAMETER_THUMBNAIL_CONFIGURATION,
+                ct.sizeof(mmal.MMAL_PARAMETER_THUMBNAIL_CONFIG_T)
+                ),
+            0, 0, 0, 0)
+        _check(
+            mmal.mmal_port_parameter_set(self.encoder[0].control, mp.hdr),
+            prefix="Failed to set thumbnail configuration")
+
+        _check(
+            mmal.mmal_component_enable(self.encoder),
+            prefix="Unable to enable video encoder component")
+
+    def _open_output(self, outputs):
+        print('_open_output')
+        self._output_iter = iter(outputs)
+        self._next_output()
+
+    def _next_output(self):
+        print('_next_output')
+        if self.output:
+            print('>> super()._close_output')
+            self._close_output()
+        print('>> super()._open_output')
+        super(_PiSequenceEncoder, self)._open_output(next(self._output_iter))
+
+    def _callback_write(self, buf):
+        print('_callback_write')
+        try:
+            if (
+                super(_PiStillEncoder, self)._callback_write(buf)
+                ) or bool(
+                buf[0].flags & (
+                    mmal.MMAL_BUFFER_HEADER_FLAG_FRAME_END |
+                    mmal.MMAL_BUFFER_HEADER_FLAG_TRANSMISSION_FAILED)
+                ):
+                print('>> ..FRAME_END')
+                self._next_output()
+            print('>> return False')
+            return False
+        except StopIteration:
+            print('>> return True')
+            return True
+
+
 class _PiStillEncoder(_PiEncoder):
     encoder_type = mmal.MMAL_COMPONENT_DEFAULT_IMAGE_ENCODER
     port = 2
@@ -996,7 +1064,18 @@ class PiCamera(object):
             self._still_encoder.close()
             self._still_encoder = None
 
-    def continuous(self, output, format=None, **options):
+    def capture_sequence(self, outputs):
+        self._check_camera_open()
+        assert not self._still_encoder
+        self._video_encoder = _PiSequenceEncoder(self, 'jpeg')
+        try:
+            self._video_encoder.start(outputs)
+            self._video_encoder.wait()
+        finally:
+            self._video_encoder.close()
+            self._video_encoder = None
+
+    def capture_continuous(self, output, format=None, **options):
         """
         Capture images continuously from the camera as an infinite iterator.
 
@@ -1058,7 +1137,7 @@ class PiCamera(object):
             with picamera.PiCamera() as camera:
                 camera.start_preview()
                 try:
-                    for i, filename in enumerate(camera.continuous('image{counter:02d}.jpg')):
+                    for i, filename in enumerate(camera.capture_continuous('image{counter:02d}.jpg')):
                         print(filename)
                         time.sleep(1)
                         if i == 59:
@@ -1075,7 +1154,7 @@ class PiCamera(object):
             import picamera
             with picamera.PiCamera() as camera:
                 stream = io.BytesIO()
-                for foo in camera.continuous(stream):
+                for foo in camera.capture_continuous(stream):
                     # Truncate the stream to the current position (in case
                     # prior iterations output a longer image)
                     stream.truncate()
