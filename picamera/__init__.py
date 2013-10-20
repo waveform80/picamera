@@ -718,7 +718,7 @@ class PiCamera(object):
             self.contrast = 0
             self.brightness = 50
             self.saturation = 0
-            self.ISO = 400
+            self.ISO = 0 # auto
             self.video_stabilization = False
             self.exposure_compensation = 0
             self.exposure_mode = 'auto'
