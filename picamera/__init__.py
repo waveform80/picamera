@@ -1910,7 +1910,7 @@ class PiCamera(object):
         default value is ``'auto'``.
 
         .. warning::
-            Currently, the "verylong" exposure mode can` lock up the camera`_
+            Currently, the "verylong" exposure mode can `lock up the camera`_
             under certain conditions.
 
         .. _lock up the camera: http://www.raspberrypi.org/phpBB3/viewtopic.php?p=429945#p429945
