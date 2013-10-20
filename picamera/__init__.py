@@ -410,6 +410,36 @@ class _PiVideoEncoder(_PiEncoder):
             mmal.mmal_port_format_commit(enc_out),
             prefix="Unable to set format on encoder output port")
 
+        if 'intraperiod' in options:
+            mp = mmal.MMAL_PARAMETER_UINT32_T(
+                    mmal.MMAL_PARAMETER_HEADER_T(
+                        mmal.MMAL_PARAMETER_INTRAPERIOD,
+                        ct.sizeof(mmal.MMAL_PARAMETER_UINT32_T),
+                        ),
+                    int(options['intraperiod'])
+                    )
+            _check(
+                mmal.mmal_port_parameter_set(enc_out, mp.hdr),
+                prefix="Unable to set encoder intraperiod")
+
+        if 'profile' in options:
+            mp = mmal.MMAL_PARAMETER_VIDEO_PROFILE_T(
+                    mmal.MMAL_PARAMETER_HEADER_T(
+                        mmal.MMAL_PARAMETER_PROFILE,
+                        ct.sizeof(mmal.MMAL_PARAMETER_VIDEO_PROFILE_T),
+                        ),
+                    )
+            mp.profile[0].profile = {
+                'baseline':    mmal.MMAL_VIDEO_PROFILE_H264_BASELINE,
+                'main':        mmal.MMAL_VIDEO_PROFILE_H264_MAIN,
+                'high':        mmal.MMAL_VIDEO_PROFILE_H264_HIGH,
+                'constrained': mmal.MMAL_VIDEO_PROFILE_H264_CONSTRAINED_BASELINE,
+            }[options['profile']]
+            mp.profile[0].level = mmal.MMAL_VIDEO_LEVEL_H264_4
+            _check(
+                mmal.mmal_port_parameter_set(enc_out, mp.hdr),
+                prefix="Unable to set encoder H.264 profile")
+
         # XXX Why does this fail? Is it even needed?
         #try:
         #    _check(
@@ -942,8 +972,15 @@ class PiCamera(object):
         * ``'h264'`` - Write an H.264 video stream
 
         Certain formats accept additional options which can be specified
-        as keyword arguments. Current the only additional option, which is
-        accepted by all encoders is:
+        as keyword arguments. The ``'h264'`` format accepts the following
+        additional options:
+
+        * *profile* - The H.264 profile to use for encoding. Defaults to 'high',
+          but can be one of 'baseline', 'main', 'high', or 'constrained'.
+
+        * *intraperiod* - The key frame rate (the rate at which I-frames are
+          inserted in the output). Defaults to 0, but can be any positive
+          32-bit integer value.
 
         * *bitrate* - The bitrate at which video will be encoded. Defaults to
           17000000 (17Mbps) if not specified.
