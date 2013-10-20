@@ -55,8 +55,8 @@ def test_capture_to_stream(camera, resolution, format_options):
     assert img.format == format.upper()
     img.verify()
 
-def test_continuous_to_file(camera, resolution, tmpdir):
-    for i, filename in enumerate(camera.continuous(os.path.join(str(tmpdir), 'image{counter:02d}.jpg'))):
+def test_capture_continuous_to_file(camera, resolution, tmpdir):
+    for i, filename in enumerate(camera.capture_continuous(os.path.join(str(tmpdir), 'image{counter:02d}.jpg'))):
         img = Image.open(filename)
         assert img.size == resolution
         assert img.format == 'JPEG'
@@ -66,9 +66,9 @@ def test_continuous_to_file(camera, resolution, tmpdir):
         if i == 3:
             break
 
-def test_continuous_to_stream(camera, resolution):
+def test_capture_continuous_to_stream(camera, resolution):
     stream = io.BytesIO()
-    for i, foo in enumerate(camera.continuous(stream, format='jpeg')):
+    for i, foo in enumerate(camera.capture_continuous(stream, format='jpeg')):
         stream.truncate()
         stream.seek(0)
         img = Image.open(stream)
