@@ -870,6 +870,23 @@ class PiCamera(object):
         raise PiCameraValueError(
             'Unable to determine type from filename %s' % filename)
 
+    def _get_image_format(self, output, format):
+        format = self._get_format(output, format)
+        format = (
+            format[6:] if format.startswith('image/') else
+            format)
+        if format == 'x-ms-bmp':
+            format = 'bmp'
+        return format
+
+    def _get_video_format(self, output, format)
+        format = self._get_format(output, format)
+        format = (
+            format[6:]  if format.startswith('video/') else
+            format[12:] if format.startswith('application/') else
+            format)
+        return format
+
     def close(self):
         """
         Finalizes the state of the camera.
@@ -985,11 +1002,7 @@ class PiCamera(object):
         * *bitrate* - The bitrate at which video will be encoded. Defaults to
           17000000 (17Mbps) if not specified.
         """
-        format = self._get_format(output, format)
-        if format.startswith('video/'):
-            format = format[6:]
-        elif format.startswith('application/'):
-            format = format[12:]
+        format = self._get_video_format(output, format)
         encoder = _PiVideoEncoder(self, format, **options)
         try:
             encoder.start(output)
@@ -1069,11 +1082,7 @@ class PiCamera(object):
           Otherwise, specify a tuple of ``(width, height, quality)``. Defaults
           to ``(64, 48, 35)``.
         """
-        format = self._get_format(output, format)
-        if format.startswith('image/'):
-            format = format[6:]
-        if format == 'x-ms-bmp':
-            format = 'bmp'
+        format = self._get_image_format(output, format)
         encoder = _PiOneImageEncoder(self, format, **options)
         try:
             encoder.start(output)
@@ -1137,7 +1146,7 @@ class PiCamera(object):
         More complex effects can be obtained by using a generator function to
         provide the filenames or output objects.
         """
-        format = self._get_format('', format)
+        format = self._get_image_format('', format)
         if use_video_port:
             encoder = _PiMultiImageEncoder(self, format, **options)
             try:
@@ -1249,11 +1258,7 @@ class PiCamera(object):
                         break
                     time.sleep(0.5)
         """
-        format = self._get_format(output, format)
-        if format.startswith('image/'):
-            format = format[6:]
-        if format == 'x-ms-bmp':
-            format = 'bmp'
+        format = self._get_image_format(output, format)
         encoder = _PiOneImageEncoder(
             self, format, use_video_port=use_video_port, **options)
         try:
