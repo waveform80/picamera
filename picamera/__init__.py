@@ -1723,12 +1723,12 @@ class PiCamera(object):
         When set, the property adjusts the sensitivity of the camera. The valid
         limits are currently undocumented, but a range of 100 to 1600 would
         seem reasonable. ISO can be adjusted while previews or recordings are
-        in progress. The default value is 400.
+        in progress. The default value is 0 which means the ISO is automatically
+        set according to image-taking conditions.
 
         .. note::
-            Currently, adjusting this value doesn't seem to do anything. The
-            author has tried assigning values of 0 to 100,000 with no apparent
-            effect (nor any error occurring).
+            With ISO settings other than 0 (auto), the :attr:`exposure_mode`
+            property becomes non-functional.
 
         .. _sensitivity of the camera to light: http://en.wikipedia.org/wiki/Film_speed#Digital
         """)
@@ -1908,6 +1908,12 @@ class PiCamera(object):
         When set, the property adjusts the camera's exposure mode.  The
         property can be set while recordings or previews are in progress. The
         default value is ``'auto'``.
+
+        .. warning::
+            Currently, the "verylong" exposure mode can` lock up the camera`_
+            under certain conditions.
+
+        .. _lock up the camera: http://www.raspberrypi.org/phpBB3/viewtopic.php?p=429945#p429945
         """)
 
     def _get_awb_mode(self):
