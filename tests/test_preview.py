@@ -152,6 +152,43 @@ def test_preview_window(camera):
         camera.preview_window = (0, 0, 1920, 1080)
         assert camera.preview_window == (0, 0, 1920, 1080)
 
+def test_framerate(camera):
+    # Framerate can only be changed when the camera is idle
+    if camera.previewing:
+        with pytest.raises(picamera.PiCameraError):
+            camera.framerate = 30
+    else:
+        save_framerate = camera.framerate
+        try:
+            assert len(camera.framerate) == 2
+            camera.framerate = (30, 1)
+            n, d = camera.framerate
+            assert n/d == 30
+            camera.framerate = (15, 1)
+            n, d = camera.framerate
+            assert n/d == 15
+            camera.framerate = 30
+            n, d = camera.framerate
+            assert n/d == 30
+            camera.framerate = 15
+            n, d = camera.framerate
+            assert n/d == 15
+            camera.framerate = (30, 2)
+            n, d = camera.framerate
+            assert n/d == 15
+            camera.framerate = 5
+            n, d = camera.framerate
+            assert n/d == 5
+            camera.framerate = 10
+            n, d = camera.framerate
+            assert n/d == 10
+            with pytest.raises(picamera.PiCameraError):
+                camera.framerate = -1
+            with pytest.raises(picamera.PiCameraError):
+                camera.framerate = 60
+        finally:
+            camera.framerate = save_framerate
+
 def test_resolution(camera):
     # Resolution can only be changed when the camera is idle
     if camera.previewing:
@@ -186,7 +223,7 @@ def test_resolution(camera):
             # Test some irregular resolutions
             camera.resolution = (100, 100)
             assert camera.resolution == (100, 100)
-            assert camera._camera[0].port[2][0].format[0].es[0].video.width == 100
+            assert camera._camera[0].port[2][0].format[0].es[0].video.width == 128
             assert camera._camera[0].port[2][0].format[0].es[0].video.height == 112
             # Anything below 16,16 will fail (because the camera's vertical resolution
             # works in increments of 16)
