@@ -81,6 +81,24 @@ def test_capture_continuous_to_stream(camera, resolution):
         if i == 3:
             break
 
+def test_capture_sequence_to_file(camera, resolution, tmpdir):
+    filenames = [os.path.join(tmpdir, 'image%d.jpg' % i) for i in range(3)]
+    camera.capture_sequence(filenames)
+    for filename in filenames:
+        img = Image.open(filename)
+        assert img.size == resolution
+        assert img.format == 'JPEG'
+        img.verify()
+
+def test_capture_sequence_to_stream(camera, resolution):
+    streams = [io.BytesIO() for i in range(3)]
+    camera.capture_sequence(streams)
+    for stream in streams:
+        img = Image.open(filename)
+        assert img.size == resolution
+        assert img.format == 'JPEG'
+        img.verify()
+
 def test_exif_ascii(camera):
     camera.exif_tags['IFD0.Artist'] = 'Me!'
     camera.exif_tags['IFD0.Copyright'] = 'Copyright (c) 2000 Foo'
