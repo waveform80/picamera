@@ -384,9 +384,9 @@ class _PiEncoder(object):
                 self.encoder = None
         finally:
             if self.port == 1:
-                parent._video_encoder = None
+                self.parent._video_encoder = None
             elif self.port == 2:
-                parent._still_encoder = None
+                self.parent._still_encoder = None
             else:
                 raise PiCameraValueError("Invalid camera port %d" % self.port)
 
@@ -618,7 +618,7 @@ class PiCamera(object):
         )
     MAX_IMAGE_RESOLUTION = (2592, 1944)
     MAX_VIDEO_RESOLUTION = (1920, 1080)
-    DEFAULT_FRAME_RATE_NUM = 10
+    DEFAULT_FRAME_RATE_NUM = 30
     DEFAULT_FRAME_RATE_DEN = 1
     FULL_FRAME_RATE_NUM = 15
     FULL_FRAME_RATE_DEN = 1
@@ -729,7 +729,7 @@ class PiCamera(object):
             cc.max_stills_w=screen_width.value
             cc.max_stills_h=screen_height.value
             cc.stills_yuv422=0
-            cc.one_shot_stills=0
+            cc.one_shot_stills=1
             cc.max_preview_video_w=screen_width.value
             cc.max_preview_video_h=screen_height.value
             cc.num_preview_video_frames=3
@@ -1047,7 +1047,8 @@ class PiCamera(object):
             encoder.close()
             encoder = None
 
-    def capture_sequence(self, outputs, format=None, use_video_port=False, **options):
+    def capture_sequence(
+            self, outputs, format='jpeg', use_video_port=False, **options):
         """
         Capture a sequence of consecutive images from the camera.
 
@@ -1058,7 +1059,8 @@ class PiCamera(object):
         it can.
 
         The *format* and *options* parameters are the same as in
-        :meth:`capture`.
+        :meth:`capture`, but *format* defaults to ``'jpeg'``. The format is
+        _not_ derived from the filenames in *outputs* by this method.
 
         For example, to capture 3 consecutive images::
 
@@ -1092,7 +1094,7 @@ class PiCamera(object):
         More complex effects can be obtained by using a generator function to
         provide the filenames or output objects.
         """
-        format = self._get_format(output, format)
+        format = self._get_format('', format)
         if use_video_port:
             encoder = _PiMultiImageEncoder(self, format, **options)
             try:
@@ -1109,7 +1111,8 @@ class PiCamera(object):
             finally:
                 encoder.close()
 
-    def capture_continuous(self, output, format=None, use_video_port=False, **options):
+    def capture_continuous(
+            self, output, format=None, use_video_port=False, **options):
         """
         Capture images continuously from the camera as an infinite iterator.
 
@@ -1355,6 +1358,71 @@ class PiCamera(object):
         """
         return self._exif_tags
 
+    def _get_framerate(self):
+        self._check_camera_open()
+        return (
+            self._camera[0].output[1][0].format[0].es[0].video.frame_rate.num,
+            self._camera[0].output[1][0].format[0].es[0].video.frame_rate.den)
+    def _set_framerate(self, value):
+        self._check_camera_open()
+        self._check_preview_stopped()
+        self._check_recording_stopped()
+        w, h = self.resolution
+        try:
+            n, d = value
+        except (TypeError, ValueError) as e:
+            n = int(value)
+            d = 1
+        # At resolutions higher than 1080p, drop the frame rate (GPU can only
+        # manage 15fps at full frame)
+        if ((w > self.MAX_VIDEO_RESOLUTION[0])
+                or (h > self.MAX_VIDEO_RESOLUTION[1])):
+            max_rate = 15
+        else:
+            max_rate = 30
+        if n / d > max_rate:
+            raise PiCameraValueError(
+                "Maximum framerate at the current resolution is %dfps" % max_rate)
+        _check(
+            mmal.mmal_component_disable(self._camera),
+            prefix="Failed to disable camera")
+        for port in (self.CAMERA_VIDEO_PORT, self.CAMERA_PREVIEW_PORT):
+            fmt = self._camera[0].output[port][0].format[0].es[0]
+            fmt.video.width = w
+            fmt.video.height = h
+            fmt.video.crop.x = 0
+            fmt.video.crop.y = 0
+            fmt.video.crop.width = w
+            fmt.video.crop.height = h
+            fmt.video.frame_rate.num = n
+            fmt.video.frame_rate.den = d
+            _check(
+                mmal.mmal_port_format_commit(self._camera[0].output[port]),
+                prefix="Camera video format couldn't be set")
+        _check(
+            mmal.mmal_component_enable(self._camera),
+            prefix="Failed to enable camera")
+    framerate = property(_get_framerate, _set_framerate, doc="""
+        Retrieves or sets the framerate at which video-port based image
+        captures, video recordings, and previews will run.
+
+        When queried, the :attr:`resolution` property returns the framerate at
+        which the camera's video and preview ports will operate as a tuple of
+        ``(numerator, denominator)``. The true framerate can be calculated as
+        ``numerator / denominator``.
+
+        When set, the property reconfigures the camera so that the next call to
+        recording and previewing methods will use the new framerate.  The
+        framerate can be specified as a ``(numerator, denominator)`` tuple, or
+        as a simple integer.  The camera must not be closed, and no preview or
+        recording must be active when the property is set.
+
+        The property defaults to 30fps at resolutions of 1080p (1920x1080) or
+        below. Above this resolution, the property defaults to 15fps. These
+        are the maximum framerates of the camera and attempting to set higher
+        rates will result in a PiCameraValueError.
+        """)
+
     def _get_resolution(self):
         self._check_camera_open()
         return (
@@ -1365,11 +1433,18 @@ class PiCamera(object):
         self._check_camera_open()
         self._check_preview_stopped()
         self._check_recording_stopped()
+        n, d = self.framerate
         try:
             w, h = value
         except (TypeError, ValueError) as e:
             raise PiCameraValueError(
                 "Invalid resolution (width, height) tuple: %s" % value)
+        # At resolutions higher than 1080p, drop the frame rate (GPU can only
+        # manage 15fps at full frame)
+        if ((w > self.MAX_VIDEO_RESOLUTION[0])
+                or (h > self.MAX_VIDEO_RESOLUTION[1])) and (n / d > 15):
+            n = 15
+            d = 1
         _check(
             mmal.mmal_component_disable(self._camera),
             prefix="Failed to disable camera")
@@ -1388,25 +1463,19 @@ class PiCamera(object):
             fmt.video.crop.y = 0
             fmt.video.crop.width = w
             fmt.video.crop.height = h
-            # At resolutions higher than 1080p, drop the frame rate (GPU can
-            # only manage 15fps at full frame)
             if port == self.CAMERA_CAPTURE_PORT:
-                fmt.video.frame_rate.num = 1
+                fmt.video.frame_rate.num = 3
                 fmt.video.frame_rate.den = 1
-            elif (w > self.MAX_VIDEO_RESOLUTION[0]) or (h > self.MAX_VIDEO_RESOLUTION[1]):
-                fmt.video.frame_rate.num = self.FULL_FRAME_RATE_NUM
-                fmt.video.frame_rate.den = self.FULL_FRAME_RATE_DEN
             else:
-                fmt.video.frame_rate.num = self.DEFAULT_FRAME_RATE_NUM
-                fmt.video.frame_rate.den = self.DEFAULT_FRAME_RATE_DEN
+                fmt.video.frame_rate.num = n
+                fmt.video.frame_rate.den = d
             _check(
                 mmal.mmal_port_format_commit(self._camera[0].output[port]),
                 prefix="Camera video format couldn't be set")
         _check(
             mmal.mmal_component_enable(self._camera),
             prefix="Failed to enable camera")
-    resolution = property(
-        _get_resolution, _set_resolution, doc="""
+    resolution = property(_get_resolution, _set_resolution, doc="""
         Retrieves or sets the resolution at which image captures, video
         recordings, and previews will be captured.
 
