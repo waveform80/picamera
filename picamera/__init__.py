@@ -879,7 +879,7 @@ class PiCamera(object):
             format = 'bmp'
         return format
 
-    def _get_video_format(self, output, format)
+    def _get_video_format(self, output, format):
         format = self._get_format(output, format)
         format = (
             format[6:]  if format.startswith('video/') else
