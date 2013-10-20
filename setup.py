@@ -52,14 +52,14 @@ except ImportError:
     pass
 
 __project__      = 'picamera'
-__version__      = '0.4'
+__version__      = '0.5'
 __author__       = 'Dave Hughes'
 __author_email__ = 'dave@waveform.org.uk'
 __url__          = 'https://pypi.python.org/pypi/picamera/'
 __platforms__    = ['ALL']
 
 __classifiers__ = [
-    'Development Status :: 3 - Alpha',
+    'Development Status :: 4 - Beta',
     'Environment :: Console',
     'Intended Audience :: Developers',
     'License :: OSI Approved :: BSD License',
