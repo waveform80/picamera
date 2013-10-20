@@ -143,18 +143,32 @@ class _PiEncoder(object):
     port = None
 
     def __init__(self, parent, format, **options):
-        self.parent = parent
-        self.camera = parent._camera
-        self.encoder = None
-        self.pool = None
-        self.connection = None
-        self.opened = False
-        self.output = None
-        self.lock = threading.Lock() # protects access to self.output
-        self.exception = None
-        self.event = threading.Event()
-        self.stopped = True
         try:
+            if parent.closed:
+                raise PiCameraRuntimeError("Camera is closed")
+            if self.port == 1:
+                if parent._video_encoder:
+                    raise PiCameraRuntimeError(
+                        "There is already an encoder connected to the video port")
+                parent._video_encoder = self
+            elif self.port == 2:
+                if parent._still_encoder:
+                    raise PiCameraRuntimeError(
+                        "There is already an encoder connected to the still port")
+                parent._still_encoder = self
+            else:
+                raise PiCameraValueError("Invalid camera port %d" % self.port)
+            self.parent = parent
+            self.camera = parent._camera
+            self.encoder = None
+            self.pool = None
+            self.connection = None
+            self.opened = False
+            self.output = None
+            self.lock = threading.Lock() # protects access to self.output
+            self.exception = None
+            self.event = threading.Event()
+            self.stopped = True
             self._create_encoder(format, **options)
             self._create_pool()
             self._create_connection()
@@ -221,7 +235,6 @@ class _PiEncoder(object):
         """
         The encoder's main callback function
         """
-        print('_callback')
         stop = False
         try:
             try:
@@ -240,7 +253,6 @@ class _PiEncoder(object):
         Performs output writing on behalf of the encoder callback function;
         return value determines whether writing has completed.
         """
-        print('_callback_write')
         if buf[0].length:
             _check(
                 mmal.mmal_buffer_header_mem_lock(buf),
@@ -259,7 +271,6 @@ class _PiEncoder(object):
         """
         Recycles the buffer on behalf of the encoder callback function
         """
-        print('_callback_recycle')
         mmal.mmal_buffer_header_release(buf)
         if port[0].is_enabled:
             new_buf = mmal.mmal_queue_get(self.pool[0].queue)
@@ -301,7 +312,6 @@ class _PiEncoder(object):
         """
         Starts the encoder object writing to the specified output
         """
-        print('start')
         self.event.clear()
         self.stopped = False
         self.exception = None
@@ -309,23 +319,19 @@ class _PiEncoder(object):
         self.encoder[0].output[0][0].userdata = ct.cast(
             ct.pointer(ct.py_object(self)),
             ct.c_void_p)
-        print('mmal_port_enable')
         _check(
             mmal.mmal_port_enable(self.encoder[0].output[0], _encoder_callback),
             prefix="Failed to enable encoder output port")
 
         for q in range(mmal.mmal_queue_length(self.pool[0].queue)):
-            print('mmal_queue_get')
             buf = mmal.mmal_queue_get(self.pool[0].queue)
             if not buf:
                 raise PiCameraRuntimeError(
                     "Unable to get a required buffer from pool queue")
-            print('mmal_port_send_buffer')
             _check(
                 mmal.mmal_port_send_buffer(self.encoder[0].output[0], buf),
                 prefix="Unable to send a buffer to encoder output port")
 
-        print('mmal_port_parameter_set_boolean')
         _check(
             mmal.mmal_port_parameter_set_boolean(
                 self.camera[0].output[self.port],
@@ -336,11 +342,8 @@ class _PiEncoder(object):
         """
         Waits for the encoder to finish (successfully or otherwise)
         """
-        print('wait')
         result = self.event.wait(timeout)
-        print('wait result: %s' % result)
         if result:
-            print('>> mmal_port_disable')
             _check(
                 mmal.mmal_port_disable(self.encoder[0].output[0]),
                 prefix="Failed to disable encoder output port")
@@ -354,9 +357,7 @@ class _PiEncoder(object):
         """
         Stops the encoder, regardless of whether it's finished
         """
-        print('stop')
         if self.encoder and self.encoder[0].output[0][0].is_enabled:
-            print('>> mmal_port_disable')
             _check(
                 mmal.mmal_port_disable(self.encoder[0].output[0]),
                 prefix="Failed to disable encoder output port")
@@ -368,23 +369,26 @@ class _PiEncoder(object):
         """
         Finalizes the encoder and deallocates all structures
         """
-        print('close')
-        self.stop()
-        if self.connection:
-            print('>> mmal_connection_destroy')
-            mmal.mmal_connection_destroy(self.connection)
-            self.connection = None
-        if self.pool:
-            print('>> mmal_port_pool_destroy')
-            mmal.mmal_port_pool_destroy(self.encoder[0].output[0], self.pool)
-            self.pool = None
-        if self.encoder:
-            if self.encoder[0].is_enabled:
-                print('>> mmal_component_disable')
-                mmal.mmal_component_disable(self.encoder)
-            print('>> mmal_component_destroy')
-            mmal.mmal_component_destroy(self.encoder)
-            self.encoder = None
+        try:
+            self.stop()
+            if self.connection:
+                mmal.mmal_connection_destroy(self.connection)
+                self.connection = None
+            if self.pool:
+                mmal.mmal_port_pool_destroy(self.encoder[0].output[0], self.pool)
+                self.pool = None
+            if self.encoder:
+                if self.encoder[0].is_enabled:
+                    mmal.mmal_component_disable(self.encoder)
+                mmal.mmal_component_destroy(self.encoder)
+                self.encoder = None
+        finally:
+            if self.port == 1:
+                parent._video_encoder = None
+            elif self.port == 2:
+                parent._still_encoder = None
+            else:
+                raise PiCameraValueError("Invalid camera port %d" % self.port)
 
 
 class _PiVideoEncoder(_PiEncoder):
@@ -423,70 +427,13 @@ class _PiVideoEncoder(_PiEncoder):
             prefix="Unable to enable video encoder component")
 
 
-class _PiSequenceEncoder(_PiEncoder):
-    encoder_type = mmal.MMAL_COMPONENT_DEFAULT_IMAGE_ENCODER
-    port = 1
-
-    def _create_encoder(self, format, **options):
-        super(_PiSequenceEncoder, self)._create_encoder(format, **options)
-
-        enc_out = self.encoder[0].output[0]
-        enc_out[0].format[0].encoding = mmal.MMAL_ENCODING_JPEG
-        _check(
-            mmal.mmal_port_format_commit(enc_out),
-            prefix="Unable to set format on encoder output port")
-        _check(
-            mmal.mmal_port_parameter_set_uint32(
-                enc_out,
-                mmal.MMAL_PARAMETER_JPEG_Q_FACTOR,
-                options.get('quality', 85)),
-            prefix="Failed to set JPEG quality")
-        # Disable thumbnail generation
-        mp = mmal.MMAL_PARAMETER_THUMBNAIL_CONFIG_T(
-            mmal.MMAL_PARAMETER_HEADER_T(
-                mmal.MMAL_PARAMETER_THUMBNAIL_CONFIGURATION,
-                ct.sizeof(mmal.MMAL_PARAMETER_THUMBNAIL_CONFIG_T)
-                ),
-            0, 0, 0, 0)
-        _check(
-            mmal.mmal_port_parameter_set(self.encoder[0].control, mp.hdr),
-            prefix="Failed to set thumbnail configuration")
-
-        _check(
-            mmal.mmal_component_enable(self.encoder),
-            prefix="Unable to enable video encoder component")
-
-    def _open_output(self, outputs):
-        self._output_iter = iter(outputs)
-        self._next_output()
-
-    def _next_output(self):
-        if self.output:
-            self._close_output()
-        super(_PiSequenceEncoder, self)._open_output(next(self._output_iter))
-
-    def _callback_write(self, buf):
-        try:
-            if (
-                super(_PiSequenceEncoder, self)._callback_write(buf)
-                ) or bool(
-                buf[0].flags & (
-                    mmal.MMAL_BUFFER_HEADER_FLAG_FRAME_END |
-                    mmal.MMAL_BUFFER_HEADER_FLAG_TRANSMISSION_FAILED)
-                ):
-                self._next_output()
-            return False
-        except StopIteration:
-            return True
-
-
-class _PiStillEncoder(_PiEncoder):
+class _PiImageEncoder(_PiEncoder):
     encoder_type = mmal.MMAL_COMPONENT_DEFAULT_IMAGE_ENCODER
     port = 2
     exif_encoding = 'ascii'
 
     def _create_encoder(self, format, **options):
-        super(_PiStillEncoder, self)._create_encoder(format, **options)
+        super(_PiImageEncoder, self)._create_encoder(format, **options)
 
         enc_out = self.encoder[0].output[0]
         try:
@@ -497,7 +444,7 @@ class _PiStillEncoder(_PiEncoder):
                 'bmp':  mmal.MMAL_ENCODING_BMP,
                 }[format]
         except KeyError:
-            raise PiCameraValueError('Unrecognized format %s' % format)
+            raise PiCameraValueError("Unrecognized format %s" % format)
         _check(
             mmal.mmal_port_format_commit(enc_out),
             prefix="Unable to set format on encoder output port")
@@ -576,16 +523,53 @@ class _PiStillEncoder(_PiEncoder):
         for tag, value in self.parent.exif_tags.items():
             if not tag in timestamp_tags:
                 self._add_exif_tag(tag, value)
-        super(_PiStillEncoder, self).start(output)
+        super(_PiImageEncoder, self).start(output)
+
+
+class _PiOneImageEncoder(_PiImageEncoder):
+    def __init__(self, parent, format, **options):
+        if options.get('use_video_port', False):
+            self.port = 1
+        super(_PiOneImageEncoder, self).__init__(parent, format, **options)
 
     def _callback_write(self, buf):
         return (
-            super(_PiStillEncoder, self)._callback_write(buf)
+            super(_PiOneImageEncoder, self)._callback_write(buf)
             ) or bool(
             buf[0].flags & (
                 mmal.MMAL_BUFFER_HEADER_FLAG_FRAME_END |
                 mmal.MMAL_BUFFER_HEADER_FLAG_TRANSMISSION_FAILED)
             )
+
+
+class _PiMultiImageEncoder(_PiImageEncoder):
+    # Despite the fact it's an image encoder, this encoder is attached to the
+    # video port
+    port = 1
+
+    def _open_output(self, outputs):
+        self._output_iter = iter(outputs)
+        self._next_output()
+
+    def _next_output(self):
+        if self.output:
+            self._close_output()
+        super(_PiMultiImageEncoder, self)._open_output(next(self._output_iter))
+
+    def _callback_write(self, buf):
+        try:
+            if (
+                super(_PiMultiImageEncoder, self)._callback_write(buf)
+                ) or bool(
+                buf[0].flags & (
+                    mmal.MMAL_BUFFER_HEADER_FLAG_FRAME_END |
+                    mmal.MMAL_BUFFER_HEADER_FLAG_TRANSMISSION_FAILED)
+                ):
+                self._next_output()
+            return False
+        except StopIteration:
+            return True
+
 
 class PiCamera(object):
     """
@@ -622,12 +606,11 @@ class PiCamera(object):
 
         with PiCamera() as camera:
             # do something with the camera
-
     """
 
     CAMERA_PREVIEW_PORT = 0
     CAMERA_VIDEO_PORT = _PiVideoEncoder.port
-    CAMERA_CAPTURE_PORT = _PiStillEncoder.port
+    CAMERA_CAPTURE_PORT = _PiImageEncoder.port
     CAMERA_PORTS = (
         CAMERA_PREVIEW_PORT,
         CAMERA_VIDEO_PORT,
@@ -965,18 +948,16 @@ class PiCamera(object):
         * *bitrate* - The bitrate at which video will be encoded. Defaults to
           17000000 (17Mbps) if not specified.
         """
-        self._check_camera_open()
-        self._check_recording_stopped()
         format = self._get_format(output, format)
         if format.startswith('video/'):
             format = format[6:]
         elif format.startswith('application/'):
             format = format[12:]
-        self._video_encoder = _PiVideoEncoder(self, format, **options)
+        encoder = _PiVideoEncoder(self, format, **options)
         try:
-            self._video_encoder.start(output)
+            encoder.start(output)
         except Exception as e:
-            self._video_encoder.close()
+            encoder.close()
             raise
 
     def wait_recording(self, timeout=0):
@@ -991,7 +972,8 @@ class PiCamera(object):
         If ``timeout`` is 0 (the default) the function will immediately return
         (or raise an exception if an error has occurred).
         """
-        assert self._video_encoder
+        if not self._video_encoder:
+            raise PiCameraRuntimeError('There is no recording in progress')
         assert timeout is not None
         self._video_encoder.wait(timeout)
 
@@ -1009,7 +991,6 @@ class PiCamera(object):
             self.wait_recording(0)
         finally:
             self._video_encoder.close()
-            self._video_encoder = None
 
     def capture(self, output, format=None, **options):
         """
@@ -1051,35 +1032,84 @@ class PiCamera(object):
           Otherwise, specify a tuple of ``(width, height, quality)``. Defaults
           to ``(64, 48, 35)``.
         """
-        self._check_camera_open()
-        assert not self._still_encoder
         format = self._get_format(output, format)
         if format.startswith('image/'):
             format = format[6:]
         if format == 'x-ms-bmp':
             format = 'bmp'
-        self._still_encoder = _PiStillEncoder(self, format, **options)
+        encoder = _PiOneImageEncoder(self, format, **options)
         try:
-            self._still_encoder.start(output)
+            encoder.start(output)
             # Wait for the callback to set the event indicating the end of
             # image capture
-            self._still_encoder.wait()
+            encoder.wait()
         finally:
-            self._still_encoder.close()
-            self._still_encoder = None
+            encoder.close()
+            encoder = None
 
-    def capture_sequence(self, outputs):
-        self._check_camera_open()
-        assert not self._still_encoder
-        self._video_encoder = _PiSequenceEncoder(self, 'jpeg')
-        try:
-            self._video_encoder.start(outputs)
-            self._video_encoder.wait(5)
-        finally:
-            self._video_encoder.close()
-            self._video_encoder = None
+    def capture_sequence(self, outputs, format=None, use_video_port=False, **options):
+        """
+        Capture a sequence of consecutive images from the camera.
 
-    def capture_continuous(self, output, format=None, **options):
+        This method accepts a sequence or iterator of *outputs* each of which
+        must either be a string specifying a filename for output, or a
+        file-like object with a ``write`` method. For each item in the sequence
+        or iterator of outputs, the camera captures a single image as fast as
+        it can.
+
+        The *format* and *options* parameters are the same as in
+        :meth:`capture`.
+
+        For example, to capture 3 consecutive images::
+
+            import time
+            import picamera
+            with picamera.PiCamera() as camera:
+                camera.start_preview()
+                time.sleep(2)
+                camera.capture_sequence([
+                    'image1.jpg',
+                    'image2.jpg',
+                    'image3.jpg',
+                    ])
+                camera.stop_preview()
+
+        If you wish to capture a large number of images, a list comprehension
+        or generator expression can be used to construct the list of filenames
+        to use::
+
+            import time
+            import picamera
+            with picamera.PiCamera() as camera:
+                camera.start_preview()
+                time.sleep(2)
+                camera.capture_sequence([
+                    'image%02d.jpg' % i
+                    for i in range(100)
+                    ])
+                camera.stop_preview()
+
+        More complex effects can be obtained by using a generator function to
+        provide the filenames or output objects.
+        """
+        format = self._get_format(output, format)
+        if use_video_port:
+            encoder = _PiMultiImageEncoder(self, format, **options)
+            try:
+                encoder.start(outputs)
+                encoder.wait()
+            finally:
+                encoder.close()
+        else:
+            encoder = _PiOneImageEncoder(self, format, **options)
+            try:
+                for output in outputs:
+                    encoder.start(output)
+                    encoder.wait()
+            finally:
+                encoder.close()
+
+    def capture_continuous(self, output, format=None, use_video_port=False, **options):
         """
         Capture images continuously from the camera as an infinite iterator.
 
@@ -1165,24 +1195,15 @@ class PiCamera(object):
                     stream.seek(0)
                     if process(stream):
                         break
-                    time.sleep(0.1) # see note below
-
-        .. note::
-            You can capture images faster without a preview running (the author
-            has managed just over 4fps at 720p). However, a delay must be used
-            in this case; if no delay is used, the majority of frames come back
-            blank. The length of delay required is unfortunately arbitrary at
-            the moment and seems to depend on resolution, selected format and
-            other factors.
+                    time.sleep(0.5)
         """
-        self._check_camera_open()
-        assert not self._still_encoder
         format = self._get_format(output, format)
         if format.startswith('image/'):
             format = format[6:]
         if format == 'x-ms-bmp':
             format = 'bmp'
-        self._still_encoder = _PiStillEncoder(self, format, **options)
+        encoder = _PiOneImageEncoder(
+            self, format, use_video_port=use_video_port, **options)
         try:
             if isinstance(output, bytes):
                 # If we're fed a bytes string, assume it's UTF-8 encoded and
@@ -1199,18 +1220,25 @@ class PiCamera(object):
                         counter=counter,
                         timestamp=datetime.datetime.now(),
                         )
-                    self._still_encoder.start(filename)
-                    self._still_encoder.wait()
+                    encoder.start(filename)
+                    encoder.wait()
                     yield filename
                     counter += 1
             else:
                 while True:
-                    self._still_encoder.start(output)
-                    self._still_encoder.wait()
+                    encoder.start(output)
+                    encoder.wait()
                     yield output
         finally:
-            self._still_encoder.close()
-            self._still_encoder = None
+            encoder.close()
+
+    def continuous(self, output, format, **options):
+        """
+        .. deprecated:: 0.5
+            Please use :meth:`capture_continuous` instead. This method will be
+            removed in 1.0.
+        """
+        return self.capture_continuous(output, format, **options)
 
     @property
     def closed(self):
