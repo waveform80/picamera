@@ -1099,6 +1099,12 @@ class PiCamera(object):
         :meth:`capture`, but *format* defaults to ``'jpeg'``. The format is
         _not_ derived from the filenames in *outputs* by this method.
 
+        The *use_video_port* parameter controls whether the camera's image or
+        video port is used to capture images. It defaults to False which means
+        that the camera's image port is used. This port is slow but produces
+        better quality pictures. If you need rapid capture up to the rate of
+        video frames, set this to True.
+
         For example, to capture 3 consecutive images::
 
             import time
@@ -1201,6 +1207,12 @@ class PiCamera(object):
 
         The *format* and *options* parameters are the same as in
         :meth:`capture`.
+
+        The *use_video_port* parameter controls whether the camera's image or
+        video port is used to capture images. It defaults to False which means
+        that the camera's image port is used. This port is slow but produces
+        better quality pictures. If you need rapid capture up to the rate of
+        video frames, set this to True.
 
         For example, to capture 60 images with a one second delay between them,
         writing the output to a series of JPEG files named image01.jpg,
