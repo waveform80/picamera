@@ -1429,7 +1429,7 @@ class PiCamera(object):
             max_rate = 15
         else:
             max_rate = 30
-        if n / d > max_rate:
+        if not (0 < n / d <= max_rate):
             raise PiCameraValueError(
                 "Maximum framerate at the current resolution is %dfps" % max_rate)
         _check(
