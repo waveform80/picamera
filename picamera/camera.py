@@ -1020,7 +1020,8 @@ class PiCamera(object):
         self._check_camera_open()
         try:
             if not (-100 <= value <= 100):
-                raise PiCameraValueError("Invalid saturation value: %d (valid range -100..100)" % value)
+                raise PiCameraValueError(
+                    "Invalid saturation value: %d (valid range -100..100)" % value)
         except TypeError:
             raise PiCameraValueError("Invalid saturation value: %s" % value)
         mmal_check(
@@ -1055,7 +1056,8 @@ class PiCamera(object):
         self._check_camera_open()
         try:
             if not (-100 <= value <= 100):
-                raise PiCameraValueError("Invalid sharpness value: %d (valid range -100..100)" % value)
+                raise PiCameraValueError(
+                    "Invalid sharpness value: %d (valid range -100..100)" % value)
         except TypeError:
             raise PiCameraValueError("Invalid sharpness value: %s" % value)
         mmal_check(
@@ -1091,7 +1093,8 @@ class PiCamera(object):
         self._check_camera_open()
         try:
             if not (-100 <= value <= 100):
-                raise PiCameraValueError("Invalid contrast value: %d (valid range -100..100)" % value)
+                raise PiCameraValueError(
+                    "Invalid contrast value: %d (valid range -100..100)" % value)
         except TypeError:
             raise PiCameraValueError("Invalid contrast value: %s" % value)
         mmal_check(
@@ -1125,7 +1128,8 @@ class PiCamera(object):
         self._check_camera_open()
         try:
             if not (0 <= value <= 100):
-                raise PiCameraValueError("Invalid brightness value: %d (valid range 0..100)" % value)
+                raise PiCameraValueError(
+                    "Invalid brightness value: %d (valid range 0..100)" % value)
         except TypeError:
             raise PiCameraValueError("Invalid brightness value: %s" % value)
         mmal_check(
@@ -1274,7 +1278,8 @@ class PiCamera(object):
                     ),
                 prefix="Failed to set video stabilization")
         except KeyError:
-            raise PiCameraValueError("Invalid video stabilization boolean value: %s" % value)
+            raise PiCameraValueError(
+                "Invalid video stabilization boolean value: %s" % value)
     video_stabilization = property(
         _get_video_stabilization, _set_video_stabilization, doc="""
         Retrieves or sets the video stabilization mode of the camera.
@@ -1309,9 +1314,12 @@ class PiCamera(object):
         self._check_camera_open()
         try:
             if not (-25 <= value <= 25):
-                raise PiCameraValueError("Invalid exposure compensation value: %d (valid range -25..25)" % value)
+                raise PiCameraValueError(
+                    "Invalid exposure compensation value: "
+                    "%d (valid range -25..25)" % value)
         except TypeError:
-            raise PiCameraValueError("Invalid exposure compensation value: %s" % value)
+            raise PiCameraValueError(
+                "Invalid exposure compensation value: %s" % value)
         mmal_check(
             mmal.mmal_port_parameter_set_int32(
                 self._camera[0].control,
@@ -1642,7 +1650,8 @@ class PiCamera(object):
         try:
             x, y, w, h = value
         except (TypeError, ValueError) as e:
-            raise PiCameraValueError("Invalid crop rectangle (x, y, w, h) tuple: %s" % value)
+            raise PiCameraValueError(
+                "Invalid crop rectangle (x, y, w, h) tuple: %s" % value)
         mp = mmal.MMAL_PARAMETER_INPUT_CROP_T(
             mmal.MMAL_PARAMETER_HEADER_T(
                 mmal.MMAL_PARAMETER_INPUT_CROP,
@@ -1683,7 +1692,8 @@ class PiCamera(object):
         self._check_camera_open()
         try:
             if not (0 <= value <= 255):
-                raise PiCameraValueError("Invalid alpha value: %d (valid range 0..255)" % value)
+                raise PiCameraValueError(
+                    "Invalid alpha value: %d (valid range 0..255)" % value)
         except TypeError:
             raise PiCameraValueError("Invalid alpha value: %s" % value)
         mp = mmal.MMAL_DISPLAYREGION_T(
@@ -1779,7 +1789,8 @@ class PiCamera(object):
         try:
             x, y, w, h = value
         except (TypeError, ValueError) as e:
-            raise PiCameraValueError("Invalid window rectangle (x, y, w, h) tuple: %s" % value)
+            raise PiCameraValueError(
+                "Invalid window rectangle (x, y, w, h) tuple: %s" % value)
         mp = mmal.MMAL_DISPLAYREGION_T(
             mmal.MMAL_PARAMETER_HEADER_T(
                 mmal.MMAL_PARAMETER_DISPLAYREGION,
