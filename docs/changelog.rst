@@ -4,6 +4,33 @@
 Change log
 ==========
 
+
+Release 0.5
+===========
+
+In 0.5, the major features added were:
+
+* New :meth:`~picamera.PiCamera.capture_sequence` method
+* :meth:`~picamera.PiCamera.continuous` method renamed to
+  :meth:`~picamera.PiCamera.capture_continuous`. Old method name retained for
+  compatiblity until 1.0.
+* *use_video_port* option for :meth:`~picamera.PiCamera.capture_sequence` and
+  :meth:`~picamera.PiCamera.capture_continuous` to allow rapid capture of
+  JPEGs via video port
+* New :attr:`~picamera.PiCamera.framerate` attribute to control video and
+  rapid-image capture frame rates
+* Default value for :attr:`~picamera.PiCamera.ISO` changed from 400 to 0 (auto)
+  which fixes :attr:`~picamera.PiCamera.exposure_mode` not working by default
+* *intraperiod* and *profile* options for
+  :meth:`~picamera.PiCamera.start_recording`
+
+In addition a few bugs were fixed:
+
+* Byte strings not being accepted by :meth:`~picamera.PiCamera.continuous`
+* Erroneous docs for :attr:`~picamera.PiCamera.ISO`
+
+Many thanks to the community for the bug reports!
+
 Release 0.4
 ===========
 
