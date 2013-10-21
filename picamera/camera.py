@@ -1185,10 +1185,10 @@ class PiCamera(object):
         "noisy" (smoother) images, but operate poorly in low light conditions.
 
         When set, the property adjusts the sensitivity of the camera. The valid
-        limits are currently undocumented, but a range of 100 to 1600 would
-        seem reasonable. ISO can be adjusted while previews or recordings are
-        in progress. The default value is 0 which means the ISO is automatically
-        set according to image-taking conditions.
+        limits are currently undocumented, but the class enforces a reasonable
+        range of 0 to 1600. ISO can be adjusted while previews or recordings
+        are in progress. The default value is 0 which means the ISO is
+        automatically set according to image-taking conditions.
 
         .. note::
             With ISO settings other than 0 (auto), the :attr:`exposure_mode`
