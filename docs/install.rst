@@ -19,15 +19,15 @@ uninstall should you wish to do so later), but bear in mind that it will only
 work for the user you install under. For example, if you install as the ``pi``
 user, you will only be able to use picamera as the ``pi`` user. If you run
 python as root (e.g. with ``sudo python``) it will not find the module.  See
-`_system_install`_ below if you require a root installation.
+:ref:`system_install` below if you require a root installation.
 
 To install as your current user::
 
     $ sudo apt-get install python-setuptools
     $ easy_install --user picamera
 
-Note that easy_install is _not_ run with sudo; this is deliberate. To upgrade
-your installation when new releases are made::
+Note that ``easy_install`` is **not** run with sudo; this is deliberate. To
+upgrade your installation when new releases are made::
 
     $ easy_install --user -U picamera
 

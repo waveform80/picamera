@@ -100,3 +100,40 @@ calling :meth:`~picamera.PiCamera.capture`::
 
 See the documentation for :attr:`~picamera.PiCamera.exif_tags` for a complete
 list of the supported tags.
+
+The next example demonstrates capturing a series of images as a numbered series
+with a one minute delay between each capture using the
+:meth:`~picamera.PiCamera.capture_continuous` method::
+
+    import time
+    import picamera
+
+    with picamera.PiCamera() as camera:
+        camera.resolution = (1280, 720)
+        camera.start_preview()
+        time.sleep(1)
+        for i, filename in enumerate(camera.capture_continuous('image{counter:02d}.jpg')):
+            print('Captured image %s' % filename)
+            if i == 100:
+                break
+            time.sleep(60)
+        camera.stop_preview()
+
+This example demonstrates capturing low resolution JPEGs extremely rapidly
+using the video-port capability of the
+:meth:`~picamera.PiCamera.capture_sequence` method. The framerate of the
+captures is displayed afterward::
+
+    import time
+    import picamera
+
+    with picamera.PiCamera() as camera:
+        camera.resolution = (640, 480)
+        camera.start_preview()
+        start = time.time()
+        camera.capture_sequence((
+            'image%03d.jpg' % i
+            for i in range(120)
+            ), use_video_port=True)
+        print('Captured 120 images at %.2ffps' % (120 / (time.time() - start)))
+        camera.stop_preview()
