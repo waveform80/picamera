@@ -27,29 +27,6 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-"""
-This package primarily provides the :class:`PiCamera` class which is a pure
-Python interface to the Raspberry Pi's camera module.
-
-
-Classes
-=======
-
-.. autoclass:: PiCamera()
-    :members:
-
-
-Exceptions
-==========
-
-.. autoexception:: PiCameraError
-
-.. autoexception:: PiCameraValueError
-
-.. autoexception:: PiCameraRuntimeError
-
-"""
-
 from __future__ import (
     unicode_literals,
     print_function,
@@ -60,14 +37,57 @@ from __future__ import (
 # Make Py2's str equivalent to Py3's
 str = type('')
 
-from picamera.exc import PiCameraError, PiCameraRuntimeError, PiCameraValueError
-from picamera.camera import PiCamera
-
 
 __all__ = [
-    'PiCamera',
     'PiCameraError',
     'PiCameraRuntimeError',
     'PiCameraValueError',
+    'mmal_check',
     ]
+
+
+class PiCameraError(Exception):
+    """
+    Base class for PiCamera errors
+    """
+
+
+class PiCameraRuntimeError(PiCameraError, RuntimeError):
+    """
+    Raised when an invalid sequence of operations is attempted with a PiCamera object
+    """
+
+
+class PiCameraValueError(PiCameraError, ValueError):
+    """
+    Raised when an invalid value is fed to a PiCamera object
+    """
+
+
+def mmal_check(status, prefix=""):
+    """
+    Checks the return status of an mmal call and raises an exception on
+    failure.
+
+    The optional prefix parameter specifies a prefix message to place at the
+    start of the exception's message to provide some context.
+    """
+    if status != mmal.MMAL_SUCCESS:
+        raise PiCameraError("%s%s%s" % (prefix, ": " if prefix else "", {
+            mmal.MMAL_ENOMEM:    "Out of memory",
+            mmal.MMAL_ENOSPC:    "Out of resources (other than memory)",
+            mmal.MMAL_EINVAL:    "Argument is invalid",
+            mmal.MMAL_ENOSYS:    "Function not implemented",
+            mmal.MMAL_ENOENT:    "No such file or directory",
+            mmal.MMAL_ENXIO:     "No such device or address",
+            mmal.MMAL_EIO:       "I/O error",
+            mmal.MMAL_ESPIPE:    "Illegal seek",
+            mmal.MMAL_ECORRUPT:  "Data is corrupt #FIXME not POSIX",
+            mmal.MMAL_ENOTREADY: "Component is not ready #FIXME not POSIX",
+            mmal.MMAL_ECONFIG:   "Component is not configured #FIXME not POSIX",
+            mmal.MMAL_EISCONN:   "Port is already connected",
+            mmal.MMAL_ENOTCONN:  "Port is disconnected",
+            mmal.MMAL_EAGAIN:    "Resource temporarily unavailable; try again later",
+            mmal.MMAL_EFAULT:    "Bad address",
+            }.get(status, "Unknown status error")))
 

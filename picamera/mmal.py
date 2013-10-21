@@ -38,6 +38,9 @@ from __future__ import (
     absolute_import,
     )
 
+# Make Py2's str equivalent to Py3's
+str = type('')
+
 import ctypes as ct
 
 try:
@@ -2025,3 +2028,4 @@ mmal_util_get_port.restype = ct.POINTER(MMAL_PORT_T)
 mmal_4cc_to_string = _lib.mmal_4cc_to_string
 mmal_4cc_to_string.argtypes = [ct.c_char_p, ct.c_size_t, ct.c_uint32]
 mmal_4cc_to_string.restype = ct.c_char_p
+
