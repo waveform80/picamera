@@ -55,13 +55,6 @@ __all__ = [
     ]
 
 
-def _control_callback(port, buf):
-    if buf[0].cmd != mmal.MMAL_EVENT_PARAMETER_CHANGED:
-        raise PiCameraRuntimeError(
-            "Received unexpected camera control callback event, 0x%08x" % buf[0].cmd)
-    mmal.mmal_buffer_header_release(buf)
-_control_callback = mmal.MMAL_PORT_BH_CB_T(_control_callback)
-
 def _encoder_callback(port, buf):
     encoder = ct.cast(port[0].userdata, ct.POINTER(ct.py_object))[0]
     encoder._callback(port, buf)

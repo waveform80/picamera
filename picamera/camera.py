@@ -31,6 +31,14 @@ from picamera.encoders import (
 __all__ = ['PiCamera']
 
 
+def _control_callback(port, buf):
+    if buf[0].cmd != mmal.MMAL_EVENT_PARAMETER_CHANGED:
+        raise PiCameraRuntimeError(
+            "Received unexpected camera control callback event, 0x%08x" % buf[0].cmd)
+    mmal.mmal_buffer_header_release(buf)
+_control_callback = mmal.MMAL_PORT_BH_CB_T(_control_callback)
+
+
 class PiCamera(object):
     """
     Provides a pure Python interface to the Raspberry Pi's camera module.
