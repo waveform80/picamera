@@ -325,12 +325,12 @@ class PiEncoder(object):
                 raise PiCameraValueError("Invalid camera port %d" % self.port)
 
 
-class _PiVideoEncoder(PiEncoder):
+class PiVideoEncoder(PiEncoder):
     encoder_type = mmal.MMAL_COMPONENT_DEFAULT_VIDEO_ENCODER
     port = 1
 
     def _create_encoder(self, format, **options):
-        super(_PiVideoEncoder, self)._create_encoder(format, **options)
+        super(PiVideoEncoder, self)._create_encoder(format, **options)
 
         enc_out = self.encoder[0].output[0]
         try:
