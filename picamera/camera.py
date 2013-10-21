@@ -1158,7 +1158,12 @@ class PiCamera(object):
         return mp.value
     def _set_ISO(self, value):
         self._check_camera_open()
-        # XXX Valid values?
+        try:
+            if not (0 <= value <= 1600):
+                raise PiCameraValueError(
+                    "Invalid ISO value: %d (valid range 0..1600)" % value)
+        except TypeError:
+            raise PiCameraValueError("Invalid ISO value: %s" % value)
         mmal_check(
             mmal.mmal_port_parameter_set_uint32(
                 self._camera[0].control,
