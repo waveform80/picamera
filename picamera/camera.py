@@ -20,6 +20,11 @@ from picamera.exc import (
     PiCameraRuntimeError,
     mmal_check,
     )
+from picamera.encoders import (
+    PiVideoEncoder,
+    PiOneImageEncoder,
+    PiMultiImageEncoder,
+    )
 
 
 __all__ = ['PiCamera']
@@ -63,8 +68,8 @@ class PiCamera(object):
     """
 
     CAMERA_PREVIEW_PORT = 0
-    CAMERA_VIDEO_PORT = _PiVideoEncoder.port
-    CAMERA_CAPTURE_PORT = _PiImageEncoder.port
+    CAMERA_VIDEO_PORT = PiVideoEncoder.port
+    CAMERA_CAPTURE_PORT = PiImageEncoder.port
     CAMERA_PORTS = (
         CAMERA_PREVIEW_PORT,
         CAMERA_VIDEO_PORT,
@@ -427,7 +432,7 @@ class PiCamera(object):
           17000000 (17Mbps) if not specified.
         """
         format = self._get_video_format(output, format)
-        encoder = _PiVideoEncoder(self, format, **options)
+        encoder = PiVideoEncoder(self, format, **options)
         try:
             encoder.start(output)
         except Exception as e:
@@ -507,7 +512,7 @@ class PiCamera(object):
           to ``(64, 48, 35)``.
         """
         format = self._get_image_format(output, format)
-        encoder = _PiOneImageEncoder(self, format, **options)
+        encoder = PiOneImageEncoder(self, format, **options)
         try:
             encoder.start(output)
             # Wait for the callback to set the event indicating the end of
@@ -572,14 +577,14 @@ class PiCamera(object):
         """
         format = self._get_image_format('', format)
         if use_video_port:
-            encoder = _PiMultiImageEncoder(self, format, **options)
+            encoder = PiMultiImageEncoder(self, format, **options)
             try:
                 encoder.start(outputs)
                 encoder.wait()
             finally:
                 encoder.close()
         else:
-            encoder = _PiOneImageEncoder(self, format, **options)
+            encoder = PiOneImageEncoder(self, format, **options)
             try:
                 for output in outputs:
                     encoder.start(output)
@@ -683,7 +688,7 @@ class PiCamera(object):
                     time.sleep(0.5)
         """
         format = self._get_image_format(output, format)
-        encoder = _PiOneImageEncoder(
+        encoder = PiOneImageEncoder(
             self, format, use_video_port=use_video_port, **options)
         try:
             if isinstance(output, bytes):
