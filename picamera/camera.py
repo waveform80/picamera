@@ -262,6 +262,7 @@ class PiCamera(object):
             self.rotation = 0
             self.hflip = self.vflip = False
             self.crop = (0.0, 0.0, 1.0, 1.0)
+            self.shutter_speed = 0
 
             self._preview = ct.POINTER(mmal.MMAL_COMPONENT_T)()
             mmal_check(
@@ -1176,15 +1177,13 @@ class PiCamera(object):
         When queried, the :attr:`shutter_speed` property returns the shutter
         speed of the camera in microseconds, or 0 which indicates that the
         speed will be automatically determined according to lighting
-        conditions. Lower shutter times naturally require greater amounts of
+        conditions. Faster shutter times naturally require greater amounts of
         illumination and vice versa.
 
         When set, the property adjusts the shutter speed of the camera, which
         most obviously affects the illumination of subsequently captured
         images. Shutter speed can be adjusted while previews or recordings are
-        running. The default value is 0 which indicates that shutter speed will
-        be set by the camera automatically according to the prevailing lighting
-        conditions.
+        running. The default value is 0 (auto).
         """)
 
     def _get_ISO(self):
