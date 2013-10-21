@@ -22,6 +22,7 @@ from picamera.exc import (
     )
 from picamera.encoders import (
     PiVideoEncoder,
+    PiImageEncoder,
     PiOneImageEncoder,
     PiMultiImageEncoder,
     )
