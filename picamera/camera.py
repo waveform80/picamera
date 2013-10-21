@@ -1149,6 +1149,44 @@ class PiCamera(object):
         value is 50.
         """)
 
+    def _get_shutter_speed(self):
+        self._check_camera_open()
+        mp = ct.c_uint32()
+        mmal_check(
+            mmal.mmal_port_parameter_get_uint32(
+                self._camera[0].control,
+                mmal.MMAL_PARAMETER_SHUTTER_SPEED,
+                mp
+                ),
+            prefix="Failed to get shutter speed")
+        return mp.value
+    def _set_shutter_speed(self, value):
+        self._check_camera_open()
+        # XXX Valid values?
+        mmal_check(
+            mmal.mmal_port_parameter_set_uint32(
+                self._camera[0].control,
+                mmal.MMAL_PARAMETER_SHUTTER_SPEED,
+                value
+                ),
+            prefix="Failed to set shutter speed")
+    shutter_speed = property(_get_shutter_speed, _set_shutter_speed, doc="""
+        Retrieves or sets the shutter speed of the camera in microseconds.
+
+        When queried, the :attr:`shutter_speed` property returns the shutter
+        speed of the camera in microseconds, or 0 which indicates that the
+        speed will be automatically determined according to lighting
+        conditions. Lower shutter times naturally require greater amounts of
+        illumination and vice versa.
+
+        When set, the property adjusts the shutter speed of the camera, which
+        most obviously affects the illumination of subsequently captured
+        images. Shutter speed can be adjusted while previews or recordings are
+        running. The default value is 0 which indicates that shutter speed will
+        be set by the camera automatically according to the prevailing lighting
+        conditions.
+        """)
+
     def _get_ISO(self):
         self._check_camera_open()
         mp = ct.c_uint32()
