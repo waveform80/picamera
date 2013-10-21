@@ -39,6 +39,11 @@ def _control_callback(port, buf):
 _control_callback = mmal.MMAL_PORT_BH_CB_T(_control_callback)
 
 
+# Guardian variable set upon initialization of PiCamera and used to ensure that
+# no more than one PiCamera is instantiated at a given time
+_CAMERA = None
+
+
 class PiCamera(object):
     """
     Provides a pure Python interface to the Raspberry Pi's camera module.
@@ -160,6 +165,11 @@ class PiCamera(object):
     _IMAGE_EFFECTS_R  = {v: k for (k, v) in IMAGE_EFFECTS.items()}
 
     def __init__(self):
+        global _CAMERA
+        if _CAMERA:
+            raise PiCameraRuntimeError(
+                "Only one PiCamera object can be in existence at a time")
+        _CAMERA = self
         screen_width = ct.c_uint32()
         screen_height = ct.c_uint32()
         bcm_host.graphics_get_display_size(0, screen_width, screen_height)
@@ -336,6 +346,7 @@ class PiCamera(object):
         resources associated with the camera; this is necessary to prevent GPU
         memory leaks.
         """
+        global _CAMERA
         if self.recording:
             self.stop_recording()
         if self.previewing:
@@ -348,6 +359,7 @@ class PiCamera(object):
                 mmal.mmal_component_disable(self._camera)
             mmal.mmal_component_destroy(self._camera)
             self._camera = None
+        _CAMERA = None
 
     def __enter__(self):
         return self
