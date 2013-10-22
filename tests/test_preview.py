@@ -126,7 +126,7 @@ def test_vflip(camera):
 def test_shutter_speed(camera):
     # When setting shutter speed manually, ensure the actual shutter speed is
     # within 50usec of the specified amount
-    for value in range(0, 500000, 50):
+    for value in range(0, 200000, 50):
         camera.shutter_speed = value
         assert (value - 50) <= camera.shutter_speed <= value
 
