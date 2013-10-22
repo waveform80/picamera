@@ -123,6 +123,13 @@ def test_hflip(camera):
 def test_vflip(camera):
     boolean_attr(camera, 'vflip')
 
+def test_shutter_speed(camera):
+    # When setting shutter speed manually, ensure the actual shutter speed is
+    # within 50usec of the specified amount
+    for value in range(0, 500000, 50):
+        camera.shutter_speed = value
+        assert (value - 50) <= camera.shutter_speed <= value
+
 # XXX The preview properties work, but don't return correct values unless the
 # preview is actually running; if this isn't expected behaviour then we should
 # xfail these tests instead of simply testing for previewing...
