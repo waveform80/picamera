@@ -446,19 +446,6 @@ class PiImageEncoder(PiEncoder):
             prefix="Unable to enable encoder component")
 
 
-class PiRawImageEncoder(PiImageEncoder):
-    def _create_encoder(self, format, **options):
-        # Overridden to skip creating an encoder. Instead we simply use the
-        # camera's still port as the output port
-        self.input_port = None
-        self.output_port = self.camera[0].output[self.port]
-
-    def _create_connection(self):
-        # Overridden to skip creating a connection; there's no encoder so
-        # there's no connection
-        pass
-
-
 class PiOneImageEncoder(PiImageEncoder):
     def __init__(self, parent, format, **options):
         if options.get('use_video_port', False):
@@ -474,6 +461,21 @@ class PiOneImageEncoder(PiImageEncoder):
                 mmal.MMAL_BUFFER_HEADER_FLAG_TRANSMISSION_FAILED)
             )
 
+
+class PiRawImageEncoder(PiOneImageEncoder):
+    def _create_encoder(self, format, **options):
+        # Overridden to skip creating an encoder. Instead we simply use the
+        # camera's still port as the output port
+        self.input_port = None
+        self.output_port = self.camera[0].output[self.port]
+
+    def _create_connection(self):
+        # Overridden to skip creating a connection; there's no encoder so
+        # there's no connection
+        pass
+
+
+class PiCookedImageEncoder(PiOneImageEncoder):
     def _add_exif_tag(self, tag, value):
         # Format the tag and value into an appropriate bytes string, encoded
         # with the Exif encoding (ASCII)
@@ -518,7 +520,7 @@ class PiOneImageEncoder(PiImageEncoder):
             for tag, value in self.parent.exif_tags.items():
                 if not tag in timestamp_tags:
                     self._add_exif_tag(tag, value)
-        super(PiOneImageEncoder, self).start(output)
+        super(PiCookedImageEncoder, self).start(output)
 
 
 class PiMultiImageEncoder(PiImageEncoder):

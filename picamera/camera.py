@@ -561,7 +561,7 @@ class PiCamera(object):
         if format == 'yuv':
             encoder = PiRawImageEncoder(self, format, **options)
         else:
-            encoder = PiOneImageEncoder(self, format, **options)
+            encoder = PiCookedImageEncoder(self, format, **options)
         try:
             encoder.start(output)
             # Wait for the callback to set the event indicating the end of
@@ -633,7 +633,10 @@ class PiCamera(object):
             finally:
                 encoder.close()
         else:
-            encoder = PiOneImageEncoder(self, format, **options)
+            if format == 'yuv':
+                encoder = PiRawImageEncoder(self, format, **options)
+            else:
+                encoder = PiCookedImageEncoder(self, format, **options)
             try:
                 for output in outputs:
                     encoder.start(output)
@@ -737,8 +740,12 @@ class PiCamera(object):
                     time.sleep(0.5)
         """
         format = self._get_image_format(output, format)
-        encoder = PiOneImageEncoder(
-            self, format, use_video_port=use_video_port, **options)
+        if format == 'yuv':
+            encoder = PiRawImageEncoder(
+                self, format, use_video_port=use_video_port, **options)
+        else:
+            encoder = PiCookedImageEncoder(
+                self, format, use_video_port=use_video_port, **options)
         try:
             if isinstance(output, bytes):
                 # If we're fed a bytes string, assume it's UTF-8 encoded and
