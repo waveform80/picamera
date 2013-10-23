@@ -1200,7 +1200,7 @@ class PiCamera(object):
     def _set_ISO(self, value):
         self._check_camera_open()
         try:
-            if not (0 <= value <= 1600):
+            if not (0 <= value <= 800):
                 raise PiCameraValueError(
                     "Invalid ISO value: %d (valid range 0..1600)" % value)
         except TypeError:
@@ -1221,11 +1221,14 @@ class PiCamera(object):
         ISO speeds (e.g. 400 or 800). Lower sensitivities tend to produce less
         "noisy" (smoother) images, but operate poorly in low light conditions.
 
-        When set, the property adjusts the sensitivity of the camera. The valid
-        limits are currently undocumented, but the class enforces a reasonable
-        range of 0 to 1600. ISO can be adjusted while previews or recordings
-        are in progress. The default value is 0 which means the ISO is
-        automatically set according to image-taking conditions.
+        When set, the property adjusts the sensitivity of the camera. Valid
+        values are between 0 (auto) and 800. The actual value used when ISO is
+        explicitly set will be one of the following values (whichever is
+        closest): 100, 200, 320, 400, 500, 640, 800.
+
+        ISO can be adjusted while previews or recordings are in progress. The
+        default value is 0 which means the ISO is automatically set according
+        to image-taking conditions.
 
         .. note::
             With ISO settings other than 0 (auto), the :attr:`exposure_mode`
