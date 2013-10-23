@@ -24,7 +24,7 @@ from picamera.encoders import (
     PiVideoEncoder,
     PiImageEncoder,
     PiRawImageEncoder,
-    PiOneImageEncoder,
+    PiCookedImageEncoder,
     PiMultiImageEncoder,
     )
 
