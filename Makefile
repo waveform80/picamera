@@ -1,7 +1,7 @@
 # vim: set noet sw=4 ts=4 fileencoding=utf-8:
 
 # External utilities
-PYTHON=python3
+PYTHON=python
 PYFLAGS=
 DEST_DIR=/
 
