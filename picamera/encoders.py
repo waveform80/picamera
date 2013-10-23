@@ -332,7 +332,10 @@ class PiVideoEncoder(PiEncoder):
                 }[format]
         except KeyError:
             raise PiCameraValueError('Unrecognized format %s' % format)
-        enc_out[0].format[0].bitrate = options.get('bitrate', 17000000)
+        bitrate = options.get('bitrate', 17000000)
+        if bitrate > 25000000:
+            raise PiCameraValueError('25Mbps is the maximum bitrate')
+        enc_out[0].format[0].bitrate = bitrate
         mmal_check(
             mmal.mmal_port_format_commit(enc_out),
             prefix="Unable to set format on encoder output port")
