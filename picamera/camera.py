@@ -27,6 +27,14 @@ from picamera.encoders import (
     PiMultiImageEncoder,
     )
 
+try:
+    import RPIO as GPIO
+except ImportError:
+    try:
+        import RPi.GPIO as GPIO
+    except ImportError:
+        GPIO = None
+
 
 __all__ = ['PiCamera']
 
@@ -183,6 +191,16 @@ class PiCamera(object):
             'IFD0.Model': 'RP_OV5647',
             'IFD0.Make': 'RaspberryPi',
             }
+        if GPIO:
+            try:
+                GPIO.setmode(GPIO.BCM)
+                GPIO.setwarnings(False)
+                GPIO.setup(5, GPIO.OUT, initial=GPIO.LOW)
+            except RuntimeError:
+                # We're probably not running as root. In this case, cleanup and
+                # forget the GPIO reference so we don't try anything further
+                GPIO.cleanup()
+                GPIO = None
         try:
             self._camera = ct.POINTER(mmal.MMAL_COMPONENT_T)()
             self._camera_config = mmal.MMAL_PARAMETER_CAMERA_CONFIG_T(
@@ -360,6 +378,8 @@ class PiCamera(object):
                 mmal.mmal_component_disable(self._camera)
             mmal.mmal_component_destroy(self._camera)
             self._camera = None
+        if GPIO:
+            GPIO.cleanup()
         _CAMERA = None
 
     def __enter__(self):
@@ -862,6 +882,23 @@ class PiCamera(object):
         +-------+-------------------------------------------------------------+
         """
         return self._exif_tags
+
+    def _set_led(self, value):
+        GPIO.output(5, bool(value))
+    led = property(None, _set_led, doc="""
+        Sets the state of the camera's LED via GPIO.
+
+        If a GPIO library is available (RPi.GPIO and RPIO are supported), and
+        if the python process has the necessary privileges (typically this
+        means running as root via sudo), this property can be used to set the
+        state of the camera's LED as a boolean value (True is on, False is
+        off).
+
+        .. note::
+            This is a write-only property. While it can be used to control the
+            camera's LED, you cannot query the state of the camera's LED using
+            this property.
+        """)
 
     def _get_framerate(self):
         self._check_camera_open()
