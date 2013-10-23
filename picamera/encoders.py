@@ -445,51 +445,6 @@ class PiImageEncoder(PiEncoder):
             mmal.mmal_component_enable(self.encoder),
             prefix="Unable to enable encoder component")
 
-    def _add_exif_tag(self, tag, value):
-        # Format the tag and value into an appropriate bytes string, encoded
-        # with the Exif encoding (ASCII)
-        if isinstance(tag, str):
-            tag = tag.encode(self.exif_encoding)
-        if isinstance(value, str):
-            value = value.encode(self.exif_encoding)
-        elif isinstance(value, datetime.datetime):
-            value = value.strftime('%Y:%m:%d %H:%M:%S').encode(self.exif_encoding)
-        # MMAL_PARAMETER_EXIF_T is a variable sized structure, hence all the
-        # mucking about with string buffers here...
-        buf = ct.create_string_buffer(
-            ct.sizeof(mmal.MMAL_PARAMETER_EXIF_T) + len(tag) + len(value) + 1)
-        mp = ct.cast(buf, ct.POINTER(mmal.MMAL_PARAMETER_EXIF_T))
-        mp[0].hdr.id = mmal.MMAL_PARAMETER_EXIF
-        mp[0].hdr.size = len(buf)
-        if (b'=' in tag or b'\x00' in value):
-            data = tag + value
-            mp[0].keylen = len(tag)
-            mp[0].value_offset = len(tag)
-            mp[0].valuelen = len(value)
-        else:
-            data = tag + b'=' + value
-        ct.memmove(mp[0].data, data, len(data))
-        mmal_check(
-            mmal.mmal_port_parameter_set(self.encoder[0].output[0], mp[0].hdr),
-            prefix="Failed to set Exif tag %s" % tag)
-
-    def start(self, output):
-        timestamp = datetime.datetime.now()
-        timestamp_tags = (
-            'EXIF.DateTimeDigitized',
-            'EXIF.DateTimeOriginal',
-            'IFD0.DateTime')
-        # Timestamp tags are always included with the value calculated above,
-        # but the user may choose to override the value in the exif_tags
-        # mapping
-        for tag in timestamp_tags:
-            self._add_exif_tag(tag, self.parent.exif_tags.get(tag, timestamp))
-        # All other tags are just copied in verbatim
-        for tag, value in self.parent.exif_tags.items():
-            if not tag in timestamp_tags:
-                self._add_exif_tag(tag, value)
-        super(PiImageEncoder, self).start(output)
-
 
 class PiRawImageEncoder(PiImageEncoder):
     def _create_encoder(self, format, **options):
@@ -518,6 +473,52 @@ class PiOneImageEncoder(PiImageEncoder):
                 mmal.MMAL_BUFFER_HEADER_FLAG_FRAME_END |
                 mmal.MMAL_BUFFER_HEADER_FLAG_TRANSMISSION_FAILED)
             )
+
+    def _add_exif_tag(self, tag, value):
+        # Format the tag and value into an appropriate bytes string, encoded
+        # with the Exif encoding (ASCII)
+        if isinstance(tag, str):
+            tag = tag.encode(self.exif_encoding)
+        if isinstance(value, str):
+            value = value.encode(self.exif_encoding)
+        elif isinstance(value, datetime.datetime):
+            value = value.strftime('%Y:%m:%d %H:%M:%S').encode(self.exif_encoding)
+        # MMAL_PARAMETER_EXIF_T is a variable sized structure, hence all the
+        # mucking about with string buffers here...
+        buf = ct.create_string_buffer(
+            ct.sizeof(mmal.MMAL_PARAMETER_EXIF_T) + len(tag) + len(value) + 1)
+        mp = ct.cast(buf, ct.POINTER(mmal.MMAL_PARAMETER_EXIF_T))
+        mp[0].hdr.id = mmal.MMAL_PARAMETER_EXIF
+        mp[0].hdr.size = len(buf)
+        if (b'=' in tag or b'\x00' in value):
+            data = tag + value
+            mp[0].keylen = len(tag)
+            mp[0].value_offset = len(tag)
+            mp[0].valuelen = len(value)
+        else:
+            data = tag + b'=' + value
+        ct.memmove(mp[0].data, data, len(data))
+        mmal_check(
+            mmal.mmal_port_parameter_set(self.output_port, mp[0].hdr),
+            prefix="Failed to set Exif tag %s" % tag)
+
+    def start(self, output):
+        if self.port == 2:
+            timestamp = datetime.datetime.now()
+            timestamp_tags = (
+                'EXIF.DateTimeDigitized',
+                'EXIF.DateTimeOriginal',
+                'IFD0.DateTime')
+            # Timestamp tags are always included with the value calculated
+            # above, but the user may choose to override the value in the
+            # exif_tags mapping
+            for tag in timestamp_tags:
+                self._add_exif_tag(tag, self.parent.exif_tags.get(tag, timestamp))
+            # All other tags are just copied in verbatim
+            for tag, value in self.parent.exif_tags.items():
+                if not tag in timestamp_tags:
+                    self._add_exif_tag(tag, value)
+        super(PiOneImageEncoder, self).start(output)
 
 
 class PiMultiImageEncoder(PiImageEncoder):
