@@ -50,6 +50,7 @@ __all__ = [
     'PiEncoder',
     'PiVideoEncoder',
     'PiImageEncoder',
+    'PiRawImageEncoder',
     'PiOneImageEncoder',
     'PiMultiImageEncoder',
     ]
@@ -88,6 +89,8 @@ class PiEncoder(object):
             self.parent = parent
             self.camera = parent._camera
             self.encoder = None
+            self.output_port = None
+            self.input_port = None
             self.pool = None
             self.connection = None
             self.opened = False
@@ -117,25 +120,27 @@ class PiEncoder(object):
         if not self.encoder[0].output_num:
             raise PiCameraError("No output ports on encoder component")
         # Ensure output format is the same as the input
-        enc_out = self.encoder[0].output[0]
-        enc_in = self.encoder[0].input[0]
-        mmal.mmal_format_copy(enc_out[0].format, enc_in[0].format)
+        self.output_port = self.encoder[0].output[0]
+        self.input_port = self.encoder[0].input[0]
+        mmal.mmal_format_copy(
+            self.output_port[0].format, self.input_port[0].format)
         # Set buffer size and number to appropriate values
-        enc_out[0].buffer_size = max(
-            enc_out[0].buffer_size_recommended,
-            enc_out[0].buffer_size_min)
-        enc_out[0].buffer_num = max(
-            enc_out[0].buffer_num_recommended,
-            enc_out[0].buffer_num_min)
+        self.output_port[0].buffer_size = max(
+            self.output_port[0].buffer_size_recommended,
+            self.output_port[0].buffer_size_min)
+        self.output_port[0].buffer_num = max(
+            self.output_port[0].buffer_num_recommended,
+            self.output_port[0].buffer_num_min)
 
     def _create_pool(self):
         """
         Allocates a pool of buffers for the encoder
         """
         assert not self.pool
-        enc_out = self.encoder[0].output[0]
         self.pool = mmal.mmal_port_pool_create(
-            enc_out, enc_out[0].buffer_num, enc_out[0].buffer_size)
+            self.output_port,
+            self.output_port[0].buffer_num,
+            self.output_port[0].buffer_size)
         if not self.pool:
             raise PiCameraError(
                 "Failed to create buffer header pool for encoder component")
@@ -150,7 +155,7 @@ class PiEncoder(object):
             mmal.mmal_connection_create(
                 self.connection,
                 self.camera[0].output[self.port],
-                self.encoder[0].input[0],
+                self.input_port,
                 mmal.MMAL_CONNECTION_FLAG_TUNNELLING |
                 mmal.MMAL_CONNECTION_FLAG_ALLOCATION_ON_INPUT),
             prefix="Failed to connect camera to encoder")
@@ -243,11 +248,11 @@ class PiEncoder(object):
         self.stopped = False
         self.exception = None
         self._open_output(output)
-        self.encoder[0].output[0][0].userdata = ct.cast(
+        self.output_port[0].userdata = ct.cast(
             ct.pointer(ct.py_object(self)),
             ct.c_void_p)
         mmal_check(
-            mmal.mmal_port_enable(self.encoder[0].output[0], _encoder_callback),
+            mmal.mmal_port_enable(self.output_port, _encoder_callback),
             prefix="Failed to enable encoder output port")
 
         for q in range(mmal.mmal_queue_length(self.pool[0].queue)):
@@ -256,7 +261,7 @@ class PiEncoder(object):
                 raise PiCameraRuntimeError(
                     "Unable to get a required buffer from pool queue")
             mmal_check(
-                mmal.mmal_port_send_buffer(self.encoder[0].output[0], buf),
+                mmal.mmal_port_send_buffer(self.output_port, buf),
                 prefix="Unable to send a buffer to encoder output port")
 
         mmal_check(
@@ -272,7 +277,7 @@ class PiEncoder(object):
         result = self.event.wait(timeout)
         if result:
             mmal_check(
-                mmal.mmal_port_disable(self.encoder[0].output[0]),
+                mmal.mmal_port_disable(self.output_port),
                 prefix="Failed to disable encoder output port")
             self._close_output()
             # Check whether the callback set an exception
@@ -284,9 +289,9 @@ class PiEncoder(object):
         """
         Stops the encoder, regardless of whether it's finished
         """
-        if self.encoder and self.encoder[0].output[0][0].is_enabled:
+        if self.encoder and self.output_port[0].is_enabled:
             mmal_check(
-                mmal.mmal_port_disable(self.encoder[0].output[0]),
+                mmal.mmal_port_disable(self.output_port),
                 prefix="Failed to disable encoder output port")
         self.stopped = True
         self.event.set()
@@ -302,13 +307,15 @@ class PiEncoder(object):
                 mmal.mmal_connection_destroy(self.connection)
                 self.connection = None
             if self.pool:
-                mmal.mmal_port_pool_destroy(self.encoder[0].output[0], self.pool)
+                mmal.mmal_port_pool_destroy(self.output_port, self.pool)
                 self.pool = None
             if self.encoder:
                 if self.encoder[0].is_enabled:
                     mmal.mmal_component_disable(self.encoder)
                 mmal.mmal_component_destroy(self.encoder)
                 self.encoder = None
+                self.output_port = None
+                self.input_port = None
         finally:
             if self.port == 1:
                 self.parent._video_encoder = None
@@ -325,9 +332,8 @@ class PiVideoEncoder(PiEncoder):
     def _create_encoder(self, format, **options):
         super(PiVideoEncoder, self)._create_encoder(format, **options)
 
-        enc_out = self.encoder[0].output[0]
         try:
-            enc_out[0].format[0].encoding = {
+            self.output_port[0].format[0].encoding = {
                 'h264': mmal.MMAL_ENCODING_H264,
                 }[format]
         except KeyError:
@@ -335,9 +341,9 @@ class PiVideoEncoder(PiEncoder):
         bitrate = options.get('bitrate', 17000000)
         if bitrate > 25000000:
             raise PiCameraValueError('25Mbps is the maximum bitrate')
-        enc_out[0].format[0].bitrate = bitrate
+        self.output_port[0].format[0].bitrate = bitrate
         mmal_check(
-            mmal.mmal_port_format_commit(enc_out),
+            mmal.mmal_port_format_commit(self.output_port),
             prefix="Unable to set format on encoder output port")
 
         if 'intraperiod' in options:
@@ -349,7 +355,7 @@ class PiVideoEncoder(PiEncoder):
                     int(options['intraperiod'])
                     )
             mmal_check(
-                mmal.mmal_port_parameter_set(enc_out, mp.hdr),
+                mmal.mmal_port_parameter_set(self.output_port, mp.hdr),
                 prefix="Unable to set encoder intraperiod")
 
         if 'profile' in options:
@@ -367,7 +373,7 @@ class PiVideoEncoder(PiEncoder):
             }[options['profile']]
             mp.profile[0].level = mmal.MMAL_VIDEO_LEVEL_H264_4
             mmal_check(
-                mmal.mmal_port_parameter_set(enc_out, mp.hdr),
+                mmal.mmal_port_parameter_set(self.output_port, mp.hdr),
                 prefix="Unable to set encoder H.264 profile")
 
         # XXX Why does this fail? Is it even needed?
@@ -395,9 +401,8 @@ class PiImageEncoder(PiEncoder):
     def _create_encoder(self, format, **options):
         super(PiImageEncoder, self)._create_encoder(format, **options)
 
-        enc_out = self.encoder[0].output[0]
         try:
-            enc_out[0].format[0].encoding = {
+            self.output_port[0].format[0].encoding = {
                 'jpeg': mmal.MMAL_ENCODING_JPEG,
                 'png':  mmal.MMAL_ENCODING_PNG,
                 'gif':  mmal.MMAL_ENCODING_GIF,
@@ -406,13 +411,13 @@ class PiImageEncoder(PiEncoder):
         except KeyError:
             raise PiCameraValueError("Unrecognized format %s" % format)
         mmal_check(
-            mmal.mmal_port_format_commit(enc_out),
+            mmal.mmal_port_format_commit(self.output_port),
             prefix="Unable to set format on encoder output port")
 
         if format == 'jpeg':
             mmal_check(
                 mmal.mmal_port_parameter_set_uint32(
-                    enc_out,
+                    self.output_port,
                     mmal.MMAL_PARAMETER_JPEG_Q_FACTOR,
                     options.get('quality', 85)),
                 prefix="Failed to set JPEG quality")
@@ -484,6 +489,19 @@ class PiImageEncoder(PiEncoder):
             if not tag in timestamp_tags:
                 self._add_exif_tag(tag, value)
         super(PiImageEncoder, self).start(output)
+
+
+class PiRawImageEncoder(PiImageEncoder):
+    def _create_encoder(self, format, **options):
+        # Overridden to skip creating an encoder. Instead we simply use the
+        # camera's still port as the output port
+        self.input_port = None
+        self.output_port = self.camera[0].output[self.port]
+
+    def _create_connection(self):
+        # Overridden to skip creating a connection; there's no encoder so
+        # there's no connection
+        pass
 
 
 class PiOneImageEncoder(PiImageEncoder):

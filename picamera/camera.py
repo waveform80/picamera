@@ -23,6 +23,7 @@ from picamera.exc import (
 from picamera.encoders import (
     PiVideoEncoder,
     PiImageEncoder,
+    PiRawImageEncoder,
     PiOneImageEncoder,
     PiMultiImageEncoder,
     )
@@ -239,7 +240,7 @@ class PiCamera(object):
             for p in self.CAMERA_PORTS:
                 port = self._camera[0].output[p]
                 fmt = port[0].format
-                fmt[0].encoding = mmal.MMAL_ENCODING_I420 if p == self.CAMERA_VIDEO_PORT else mmal.MMAL_ENCODING_OPAQUE
+                fmt[0].encoding = mmal.MMAL_ENCODING_I420 if p != self.CAMERA_PREVIEW_PORT else mmal.MMAL_ENCODING_OPAQUE
                 fmt[0].encoding_variant = mmal.MMAL_ENCODING_I420
                 fmt[0].es[0].video.width = cc.max_preview_video_w
                 fmt[0].es[0].video.height = cc.max_preview_video_h
@@ -541,6 +542,8 @@ class PiCamera(object):
 
         * ``'bmp'`` - Write a bitmap file
 
+        * ``'yuv'`` - Write a file of raw YUV 4:2:0 values
+
         Certain file formats accept additional options which can be specified
         as keyword arguments. Currently, only the ``'jpeg'`` encoder accepts
         additional options, which are:
@@ -554,7 +557,10 @@ class PiCamera(object):
           to ``(64, 48, 35)``.
         """
         format = self._get_image_format(output, format)
-        encoder = PiOneImageEncoder(self, format, **options)
+        if format == 'yuv':
+            encoder = PiRawImageEncoder(self, format, **options)
+        else:
+            encoder = PiOneImageEncoder(self, format, **options)
         try:
             encoder.start(output)
             # Wait for the callback to set the event indicating the end of
