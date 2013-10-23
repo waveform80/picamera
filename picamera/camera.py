@@ -174,6 +174,7 @@ class PiCamera(object):
     _IMAGE_EFFECTS_R  = {v: k for (k, v) in IMAGE_EFFECTS.items()}
 
     def __init__(self):
+        global GPIO
         global _CAMERA
         if _CAMERA:
             raise PiCameraRuntimeError(
@@ -890,6 +891,10 @@ class PiCamera(object):
         return self._exif_tags
 
     def _set_led(self, value):
+        if not GPIO:
+            raise PiCameraRuntimeError(
+                "GPIO library not found, or not accessible; please install "
+                "RPIO or RPi.GPIO and run the script as root")
         GPIO.output(5, bool(value))
     led = property(None, _set_led, doc="""
         Sets the state of the camera's LED via GPIO.
