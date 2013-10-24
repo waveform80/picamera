@@ -169,10 +169,8 @@ class PiCamera(object):
         }
 
     RAW_FORMATS = {
-        'yuv420': mmal.MMAL_ENCODING_I420,
-        'yuv422': mmal.MMAL_ENCODING_I422,
-        'rgba':   mmal.MMAL_ENCODING_BGRA,
-        'rgb24':  mmal.MMAL_ENCODING_BGR24,
+        'yuv': mmal.MMAL_ENCODING_I420,
+        'rgb': mmal.MMAL_ENCODING_BGR24,
         }
 
     _METER_MODES_R    = {v: k for (k, v) in METER_MODES.items()}
@@ -958,18 +956,29 @@ class PiCamera(object):
         This property is only of interest to those wishing to :meth:`capture`
         images with `format='raw'`. It configures the raw output format of the
         image and video capture ports of the camera. By default, these are set
-        to ``'yuv420'``, and this is the only format which is compatible with
-        the encoders for JPEG, PNG, etc. (attempting to use :meth:`capture`
-        while :attr:`raw_format` is set to something other than ``'yuv420'``
-        will result in an exception).
+        to ``'yuv'``, and this is the only format which is compatible with the
+        encoders for JPEG, PNG, etc. (attempting to use :meth:`capture` while
+        :attr:`raw_format` is set to something other than ``'yuv'`` will result
+        in an exception). Currently the only settings supported by this
+        attribute are:
 
-        For example, if you wish to capture raw images in RGB24 format (8 bits
+        * ``'yuv'`` - Capture data in planar YUV 4:2:0 format (FOURCC=I420).
+
+        * ``'rgb'`` - Capture data in 24-bit RGB format (8 bits per color).
+
+        .. note::
+            The camera is capable of other raw formats (e.g. NV12); if anyone
+            is interested in the library providing access to these formats,
+            please contact the author or file an enhancement ticket in the bug
+            tracker.
+
+        For example, if you wish to capture raw images in RGB format (8 bits
         of red, 8 bits of green, 8 bits of blue) you would do the following::
 
             import time
             import picamera
             with picamera.PiCamera() as camera:
-                camera.raw_format = 'rgb24'
+                camera.raw_format = 'rgb'
                 camera.start_preview()
                 time.sleep(1)
                 camera.capture('foo.raw', format='raw')
