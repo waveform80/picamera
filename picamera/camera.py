@@ -933,17 +933,25 @@ class PiCamera(object):
             self._camera[0].output[1][0].format[0].encoding]
     def _set_raw_format(self, value):
         self._check_camera_open()
+        self._check_preview_stopped()
         self._check_recording_stopped()
         try:
             value = self.RAW_FORMATS[value]
         except KeyError:
             raise PiCameraValueError("Invalid raw format: %s" % value)
+        mmal_check(
+            mmal.mmal_component_disable(self._camera),
+            prefix="Failed to disable camera")
         for port in (self.CAMERA_VIDEO_PORT, self.CAMERA_CAPTURE_PORT):
             fmt = self._camera[0].output[port][0].format[0]
-            fmt.encoding = self.RAW_FORMATS[value]
+            fmt.encoding = value
+            fmt.encoding_variant = value
             mmal_check(
                 mmal.mmal_port_format_commit(self._camera[0].output[port]),
                 prefix="Camera port format couldn't be set")
+        mmal_check(
+            mmal.mmal_component_enable(self._camera),
+            prefix="Failed to enable camera")
     raw_format = property(_get_raw_format, _set_raw_format, doc="""
         Retrieves or sets the raw format of the camera's ports.
 

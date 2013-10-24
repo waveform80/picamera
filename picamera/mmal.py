@@ -73,7 +73,7 @@ def MMAL_VERSION_TO_MINOR(a):
 # mmal_common.h ##############################################################
 
 def MMAL_FOURCC(s):
-    return ct.c_uint32(sum(ord(c) << (i * 8) for (i, c) in enumerate(s)))
+    return sum(ord(c) << (i * 8) for (i, c) in enumerate(s))
 
 MMAL_MAGIC = MMAL_FOURCC('mmal')
 
