@@ -17,69 +17,39 @@ import picamera
 import pytest
 from PIL import Image
 
-# Run tests with a variety of file suffixes and expected formats
-@pytest.fixture(scope='module', params=(
-    ('.jpg', 'JPEG', (('quality', 95),)),
-    ('.jpg', 'JPEG', ()),
-    ('.jpg', 'JPEG', (('quality', 50),)),
-    ('.gif', 'GIF',  ()),
-    ('.png', 'PNG',  ()),
-    ('.bmp', 'BMP',  ()),
-    ))
-def filename_format_options(request):
-    suffix, format, options = request.param
-    filename = tempfile.mkstemp(suffix=suffix)[1]
-    def fin():
-        os.unlink(filename)
-    request.addfinalizer(fin)
-    return filename, format, dict(options)
 
-# Run tests with a variety of format specs
-@pytest.fixture(scope='module', params=(
-    ('jpeg', (('quality', 95),)),
-    ('jpeg', ()),
-    ('jpeg', (('quality', 50),)),
-    ('gif',  ()),
-    ('png',  ()),
-    ('bmp',  ()),
-    ))
-def format_options(request):
-    format, options = request.param
-    return format, dict(options)
-
-
-def test_capture_to_file(camera, resolution, filename_format_options):
+def test_capture_to_file(camera_b, resolution, filename_format_options):
     filename, format, options = filename_format_options
-    camera.capture(filename, **options)
+    camera_b.capture(filename, **options)
     img = Image.open(filename)
     assert img.size == resolution
     assert img.format == format
     img.verify()
 
-def test_capture_to_stream(camera, resolution, format_options):
+def test_capture_to_stream(camera_b, resolution, format_options):
     stream = io.BytesIO()
     format, options = format_options
-    camera.capture(stream, format, **options)
+    camera_b.capture(stream, format, **options)
     stream.seek(0)
     img = Image.open(stream)
     assert img.size == resolution
     assert img.format == format.upper()
     img.verify()
 
-def test_capture_continuous_to_file(camera, resolution, tmpdir):
-    for i, filename in enumerate(camera.capture_continuous(os.path.join(str(tmpdir), 'image{counter:02d}.jpg'))):
+def test_capture_continuous_to_file(camera_b, resolution, tmpdir):
+    for i, filename in enumerate(camera_b.capture_continuous(os.path.join(str(tmpdir), 'image{counter:02d}.jpg'))):
         img = Image.open(filename)
         assert img.size == resolution
         assert img.format == 'JPEG'
         img.verify()
-        if not camera.previewing:
+        if not camera_b.previewing:
             time.sleep(0.5)
         if i == 3:
             break
 
-def test_capture_continuous_to_stream(camera, resolution):
+def test_capture_continuous_to_stream(camera_b, resolution):
     stream = io.BytesIO()
-    for i, foo in enumerate(camera.capture_continuous(stream, format='jpeg')):
+    for i, foo in enumerate(camera_b.capture_continuous(stream, format='jpeg')):
         stream.truncate()
         stream.seek(0)
         img = Image.open(stream)
@@ -87,23 +57,23 @@ def test_capture_continuous_to_stream(camera, resolution):
         assert img.format == 'JPEG'
         img.verify()
         stream.seek(0)
-        if not camera.previewing:
+        if not camera_b.previewing:
             time.sleep(0.1)
         if i == 3:
             break
 
-def test_capture_sequence_to_file(camera, resolution, tmpdir):
+def test_capture_sequence_to_file(camera_b, resolution, tmpdir):
     filenames = [os.path.join(str(tmpdir), 'image%d.jpg' % i) for i in range(3)]
-    camera.capture_sequence(filenames)
+    camera_b.capture_sequence(filenames)
     for filename in filenames:
         img = Image.open(filename)
         assert img.size == resolution
         assert img.format == 'JPEG'
         img.verify()
 
-def test_capture_sequence_to_stream(camera, resolution):
+def test_capture_sequence_to_stream(camera_b, resolution):
     streams = [io.BytesIO() for i in range(3)]
-    camera.capture_sequence(streams)
+    camera_b.capture_sequence(streams)
     for stream in streams:
         stream.seek(0)
         img = Image.open(stream)
@@ -111,12 +81,7 @@ def test_capture_sequence_to_stream(camera, resolution):
         assert img.format == 'JPEG'
         img.verify()
 
-def test_capture_raw(camera, resolution):
-    if camera.previewing:
-        # Don't bother testing when the preview is running; the camera has to
-        # be idle to switch raw_format and stopping the preview will simply
-        # make the test equivalent to the non-preview state
-        return
+def test_capture_raw_rgb(camera, resolution, raw_format):
     save_raw_format = camera.raw_format
     try:
         # Calculate the expected size of the streams for the current
@@ -134,6 +99,12 @@ def test_capture_raw(camera, resolution):
         camera.capture(stream, format='raw')
         # Check the output stream has 3-bytes (24-bits) per pixel
         assert stream.tell() == size
+    finally:
+        camera.raw_format = save_raw_format
+
+def test_capture_raw_yuv(camera, resolution):
+    save_raw_format = camera.raw_format
+    try:
         camera.raw_format = 'yuv'
         size = int(
                 math.ceil(resolution[0] / 32) * 32
@@ -146,12 +117,12 @@ def test_capture_raw(camera, resolution):
     finally:
         camera.raw_format = save_raw_format
 
-def test_exif_ascii(camera):
-    camera.exif_tags['IFD0.Artist'] = 'Me!'
-    camera.exif_tags['IFD0.Copyright'] = 'Copyright (c) 2000 Foo'
+def test_exif_ascii(camera_b, resolution):
+    camera_b.exif_tags['IFD0.Artist'] = 'Me!'
+    camera_b.exif_tags['IFD0.Copyright'] = 'Copyright (c) 2000 Foo'
     # Exif is only supported with JPEGs...
     stream = io.BytesIO()
-    camera.capture(stream, 'jpeg')
+    camera_b.capture(stream, 'jpeg')
     stream.seek(0)
     img = Image.open(stream)
     exif = img._getexif()
@@ -161,12 +132,12 @@ def test_exif_ascii(camera):
     assert exif[33432] == 'Copyright (c) 2000 Foo'
 
 @pytest.mark.xfail(reason="Exif binary values don't work")
-def test_exif_binary(camera):
-    camera.exif_tags['IFD0.Copyright'] = b'Photographer copyright (c) 2000 Foo\x00Editor copyright (c) 2002 Bar\x00'
-    camera.exif_tags['IFD0.UserComment'] = b'UNICODE\x00\xff\xfeF\x00o\x00o\x00'
+def test_exif_binary(camera_b, resolution):
+    camera_b.exif_tags['IFD0.Copyright'] = b'Photographer copyright (c) 2000 Foo\x00Editor copyright (c) 2002 Bar\x00'
+    camera_b.exif_tags['IFD0.UserComment'] = b'UNICODE\x00\xff\xfeF\x00o\x00o\x00'
     # Exif is only supported with JPEGs...
     stream = io.BytesIO()
-    camera.capture(stream, 'jpeg')
+    camera_b.capture(stream, 'jpeg')
     stream.seek(0)
     img = Image.open(stream)
     exif = img._getexif()
