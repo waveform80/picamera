@@ -1,6 +1,17 @@
+from __future__ import (
+    unicode_literals,
+    print_function,
+    division,
+    absolute_import,
+    )
+
+# Make Py2's str equivalent to Py3's
+str = type('')
+
 import io
 import os
 import time
+import math
 import tempfile
 import picamera
 import pytest
@@ -99,6 +110,41 @@ def test_capture_sequence_to_stream(camera, resolution):
         assert img.size == resolution
         assert img.format == 'JPEG'
         img.verify()
+
+def test_capture_raw(camera, resolution):
+    if camera.previewing:
+        # Don't bother testing when the preview is running; the camera has to
+        # be idle to switch raw_format and stopping the preview will simply
+        # make the test equivalent to the non-preview state
+        return
+    save_raw_format = camera.raw_format
+    try:
+        # Calculate the expected size of the streams for the current
+        # resolution; horizontal resolution is rounded up to the nearest
+        # multiple of 32, and vertical to the nearest multiple of 16 by the
+        # camera for raw data. RGB format holds 3 bytes per pixel, YUV format
+        # holds 1.5 bytes per pixel (1 byte of Y per pixel, and 2 bytes of Cb
+        # and Cr per 4 pixels)
+        camera.raw_format = 'rgb'
+        size = (
+                math.ceil(resolution[0] / 32) * 32
+                * math.ceil(resolution[1] / 16) * 16
+                * 3)
+        stream = io.BytesIO()
+        camera.capture(stream, format='raw')
+        # Check the output stream has 3-bytes (24-bits) per pixel
+        assert stream.tell() == size
+        camera.raw_format = 'yuv'
+        size = int(
+                math.ceil(resolution[0] / 32) * 32
+                * math.ceil(resolution[0] / 16) * 16
+                * 1.5)
+        stream = io.BytesIO()
+        camera.capture(stream, format='raw')
+        # Check the output stream has 1.5-bytes per pixel
+        assert stream.tell() == size
+    finally:
+        camera.raw_format = save_raw_format
 
 def test_exif_ascii(camera):
     camera.exif_tags['IFD0.Artist'] = 'Me!'
