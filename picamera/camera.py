@@ -787,7 +787,8 @@ class PiCamera(object):
             Please use :meth:`capture_continuous` instead. This method will be
             removed in 1.0.
         """
-        return self.capture_continuous(output, format, **options)
+        for result in self.capture_continuous(output, format, **options):
+            yield result
 
     @property
     def closed(self):
