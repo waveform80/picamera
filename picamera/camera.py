@@ -1018,12 +1018,6 @@ class PiCamera(object):
             prefix="Failed to disable camera")
         for port in (self.CAMERA_VIDEO_PORT, self.CAMERA_PREVIEW_PORT):
             fmt = self._camera[0].output[port][0].format[0].es[0]
-            fmt.video.width = w
-            fmt.video.height = h
-            fmt.video.crop.x = 0
-            fmt.video.crop.y = 0
-            fmt.video.crop.width = w
-            fmt.video.crop.height = h
             fmt.video.frame_rate.num = n
             fmt.video.frame_rate.den = d
             mmal_check(
@@ -1093,10 +1087,7 @@ class PiCamera(object):
             fmt.video.crop.y = 0
             fmt.video.crop.width = w
             fmt.video.crop.height = h
-            if port == self.CAMERA_CAPTURE_PORT:
-                fmt.video.frame_rate.num = 3
-                fmt.video.frame_rate.den = 1
-            else:
+            if port != self.CAMERA_CAPTURE_PORT:
                 fmt.video.frame_rate.num = n
                 fmt.video.frame_rate.den = d
             mmal_check(
