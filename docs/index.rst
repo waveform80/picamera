@@ -19,16 +19,6 @@ includes installation, quick-start examples, and the change-log) can be read on
 ReadTheDocs.
 
 
-To do
-=====
-
-Major things that still need work:
-
-* Video tests
-
-* Future work - text overlay on preview (GLES?)
-
-
 Table of Contents
 =================
 

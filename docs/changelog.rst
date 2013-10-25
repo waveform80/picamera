@@ -5,6 +5,23 @@ Change log
 ==========
 
 
+Release 0.6
+===========
+
+In 0.6, the major features added were:
+
+* New ``'raw'`` format added to all capture methods
+  (:meth:`~picamera.PiCamera.capture`,
+  :meth:`~picamera.PiCamera.capture_continuous`, and
+  :meth:`~picamera.PiCamera.capture_sequence`) to permit capturing of raw
+  sensor data
+* New :attr:`~picamera.PiCamera.raw_format` attribute to permit control of
+  raw format (defaults to ``'yuv'``, only other setting currently is ``'rgb'``)
+* New :attr:`~picamera.PiCamera.shutter_speed` attribute to permit manual
+  control of shutter speed (defaults to 0 for automatic shutter speed, and
+  requires latest firmware to operate - use ``sudo rpi-update`` to upgrade)
+
+
 Release 0.5
 ===========
 
