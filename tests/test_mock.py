@@ -48,3 +48,13 @@ def test_camera_init():
             picamera.PiCamera()
         assert e.value.args[0].startswith("Camera component couldn't be enabled")
 
+def test_camera_led():
+    with mock.patch('picamera.camera.GPIO') as GPIO:
+        with picamera.PiCamera() as camera:
+            GPIO.setmode.assert_called_once_with(GPIO.BCM)
+            GPIO.setup.assert_called_once_with(5, GPIO.OUT, initial=GPIO.LOW)
+            camera.led = True
+            GPIO.output.assert_called_with(5, True)
+            camera.led = False
+            GPIO.output.assert_called_with(5, False)
+
