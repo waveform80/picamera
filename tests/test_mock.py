@@ -57,4 +57,5 @@ def test_camera_led():
             GPIO.output.assert_called_with(5, True)
             camera.led = False
             GPIO.output.assert_called_with(5, False)
-
+            with pytest.raises(AttributeError):
+                camera.led
