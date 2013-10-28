@@ -79,6 +79,7 @@ and then capturing an image while the preview is running::
         camera.exposure_mode = 'spotlight'
         camera.meter_mode = 'matrix'
         camera.image_effect = 'gpen'
+        # Give the camera some time to adjust to conditions
         time.sleep(2)
         camera.capture('foo.jpg')
         camera.stop_preview()
@@ -137,3 +138,16 @@ captures is displayed afterward::
             ), use_video_port=True)
         print('Captured 120 images at %.2ffps' % (120 / (time.time() - start)))
         camera.stop_preview()
+
+This example demonstrates capturing an image in raw RGB format::
+
+    import time
+    import picamera
+
+    with picamera.PiCamera() as camera:
+        camera.resolution = (1024, 768)
+        camera.raw_format = 'rgb'
+        camera.start_preview()
+        time.sleep(2)
+        camera.capture('image.data', 'raw')
+

@@ -28,6 +28,7 @@ Table of Contents
 
    install
    quickstart
+   recipes
    api
    changelog
    license
