@@ -269,10 +269,10 @@ capture will be:
 
 .. math::
 
-    &        & 128   & \text{100 rounded up to nearest multiple of 32}\\
-    & \times & 112   & \text{100 rounded up to nearest multiple of 16}\\
-    & \times & 1.5   & \text{bytes of data per pixel in YUV420 format}\\
-    & =      & 21504 & \text{bytes}
+           & 128   \quad \text{100 rounded up to nearest multiple of 32} \\
+    \times & 112   \quad \text{100 rounded up to nearest multiple of 16} \\
+    \times & 1.5   \quad \text{bytes of data per pixel in YUV420 format} \\
+    =      & 21504 \quad \text{bytes}
 
 The first 14336 bytes of the data (128*112) will be Y values, the next 3584
 bytes (128*112/4) will be U values, and the final 3584 bytes will be the V
@@ -366,10 +366,10 @@ produced is:
 
 .. math::
 
-    &        & 128   & \text{100 rounded up to nearest multiple of 32}\\
-    & \times & 112   & \text{100 rounded up to nearest multiple of 16}\\
-    & \times & 3     & \text{bytes of data per pixel in RGB888 format}\\
-    & =      & 43008 & \text{bytes}
+           & 128   \quad \text{100 rounded up to nearest multiple of 32} \\
+    \times & 112   \quad \text{100 rounded up to nearest multiple of 16} \\
+    \times & 3     \quad \text{bytes of data per pixel in RGB888 format} \\
+    =      & 43008 \quad \text{bytes}
 
 The resulting RGB data is interleaved. That is to say that the red, green and
 blue values for a given pixel are grouped together, in that order. The first
