@@ -28,7 +28,7 @@ output of whatever capture() method you're using::
 
 Note that the format is explicitly specified in the case above. The BytesIO
 object has no filename, so the camera can't automatically figure out what
-format to use, hence we need to specify it explicitly.
+format to use.
 
 One thing to bear in mind is that (unlike specifying a filename), the stream is
 *not* automatically closed after capture; picamera assumes that since it didn't
@@ -89,7 +89,7 @@ Capturing to an OpenCV object
 
 This is another variation on :ref:`stream_capture`. First we'll capture an
 image to a BytesIO stream (Python's in-memory stream class), then rewind the
-position of the stream to the start, adn read the stream with `OpenCV`_::
+position of the stream to the start, and read the stream with `OpenCV`_::
 
     import io
     import time
@@ -227,6 +227,8 @@ are several things to note about using this technique:
   part of the image processing pipeline that is present for still captures is
   not used when performing still captures through the video-port.
 
+XXX TODO
+
 
 .. _yuv_capture:
 
@@ -339,8 +341,8 @@ Raw image capture (RGB format)
 
 The RGB format is rather larger than the `YUV`_ format discussed in the section
 above, but is more useful for most analyses. To have the camera produce raw
-output in `RGB`_ format, you simply need to adjust the :attr:`raw_format`
-attribute prior to capturing the image::
+output in `RGB`_ format, you simply need to adjust the
+:attr:`~picamera.PiCamera.raw_format` attribute prior to capturing the image::
 
     import time
     import picamera
@@ -355,8 +357,8 @@ attribute prior to capturing the image::
 Note that this attribute can only be adjusted while the camera is idle (hence
 why the above code does so before starting the preview). Also note that
 capturing to "ordinary" formats (JPEG, PNG, etc.) and video recording will
-*not* work when :attr:`raw_format` is set to ``rgb``. This is because the
-encoders used for these formats all expect YUV input.
+*not* work when :attr:`~picamera.PiCamera.raw_format` is set to ``rgb``. This
+is because the encoders used for these formats all expect YUV input.
 
 The size of raw RGB data can be calculated similarly to YUV captures. Firstly
 round the resolution appropriately (see :ref:`yuv_capture` for the specifics),
@@ -378,7 +380,7 @@ the green value for the same pixel, and the third byte is the blue value for
 that pixel. The fourth byte is the red value for the pixel at (1, 0), and so
 on.
 
-Loading the resulting RGB data into a numpy array is a trivial affair::
+Loading the resulting RGB data into a `numpy`_ array is simple::
 
     width = 100
     height = 100
@@ -392,12 +394,17 @@ Loading the resulting RGB data into a numpy array is a trivial affair::
         camera.capture(stream, 'raw')
     # Rewind the stream for reading
     stream.seek(0)
+    # Calculate the actual image size in the stream (accounting for rounding
+    # of the resolution)
+    fwidth = (width + 31) // 32 * 32
+    fheight = (height + 15) // 16 * 16
     # Load the data in a three-dimensional array and crop it to the requested
     # resolution
     image = np.fromfile(stream, dtype=uint8).\
-            reshape((height, width, 3))[:height, :width, :]
+            reshape((fheight, fwidth, 3))[:height, :width, :]
     # If you wish, the following code will convert the image's bytes into
-    # floating point values in the range 0 to 1
+    # floating point values in the range 0 to 1 (a typical format for some
+    # sorts of analysis)
     image = image.astype(np.float, copy=False)
     image = image / 255.0
 
