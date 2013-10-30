@@ -208,28 +208,6 @@ required.
 
 .. _video_port_capture:
 
-Rapid sequence capture
-======================
-
-The camera is capable of capturing a sequence of images extremely rapidly by
-utilizing its video-capture capabilities with a JPEG encoder. However, there
-are several things to note about using this technique:
-
-* When using video-port based capture only the preview area is captured; in
-  some cases this may be desirable (see the discussion under
-  :ref:`preview_still_resolution`).
-
-* No Exif information is embedded in JPEG images captured through the
-  video-port.
-
-* Captures typically appear "granier" with this technique. The author is not
-  aware of the exact technical reasons why this is so, but suspects that some
-  part of the image processing pipeline that is present for still captures is
-  not used when performing still captures through the video-port.
-
-XXX TODO
-
-
 .. _yuv_capture:
 
 Raw image capture (YUV format)
@@ -407,6 +385,193 @@ Loading the resulting RGB data into a `numpy`_ array is simple::
     # sorts of analysis)
     image = image.astype(np.float, copy=False)
     image = image / 255.0
+
+
+Rapid capture and processing
+============================
+
+The camera is capable of capturing a sequence of images extremely rapidly by
+utilizing its video-capture capabilities with a JPEG encoder (via the
+``use_video_port`` parameter). However, there are several things to note about
+using this technique:
+
+* When using video-port based capture only the preview area is captured; in
+  some cases this may be desirable (see the discussion under
+  :ref:`preview_still_resolution`).
+
+* No Exif information is embedded in JPEG images captured through the
+  video-port.
+
+* Captures typically appear "granier" with this technique. The author is not
+  aware of the exact technical reasons why this is so, but suspects that some
+  part of the image processing pipeline that is present for still captures is
+  not used when performing still captures through the video-port.
+
+All capture methods support the ``use_video_port`` option, but the methods
+differ in their ability to rapidly capture sequential frames. So, whilst
+:meth:`~picamera.PiCamera.capture` and
+:meth:`~picamera.PiCamera.capture_continuous` both support ``use_video_port``,
+:meth:`~picamera.PiCamera.capture_sequence` is by far the fastest method. Using
+this method, the author has managed 30fps JPEG captures at a resolution of
+1024x768.
+
+However, :meth:`~picamera.PiCamera.capture_sequence` is particular suited to
+capturing a fixed number of frames rapidly, as in the following example which
+captures a "burst" of 5 images::
+
+    import time
+    import picamera
+
+    with picamera.PiCamera() as camera:
+        camera.resolution = (1024, 768)
+        camera.framerate = 30
+        camera.start_preview()
+        time.sleep(2)
+        camera.capture_sequence([
+            'image1.jpg',
+            'image2.jpg',
+            'image3.jpg',
+            'image4.jpg',
+            'image5.jpg',
+            ])
+
+We can refine this slightly by using a generator expression to provide the
+filenames for processing instead of specifying every single filename manually::
+
+    import time
+    import picamera
+
+    frames = 60
+
+    with picamera.PiCamera() as camera:
+        camera.resolution = (1024, 768)
+        camera.framerate = 30
+        camera.start_preview()
+        # Give the camera some warm-up time
+        time.sleep(2)
+        start = time.time()
+        camera.capture_sequence([
+            'image%02d.jpg' % i
+            for i in range(frames)
+            ], use_video_port=True)
+        finish = time.time()
+    print('Captured %d frames at %.2ffps' % (
+        frames,
+        frames / (finish - start)))
+
+However, this still doesn't let us capture an arbitrary number of frames until
+some condition is satisfied. To do this we need to use a generator function to
+provide the list of filenames (or more usefully, streams) to the
+:meth:`~picamera.PiCamera.capture_sequence` method::
+
+    import time
+    import picamera
+
+    frames = 60
+
+    def filenames():
+        frame = 0
+        while frame < frames:
+            yield 'image%02d.jpg' % frame
+            frame += 1
+
+    with picamera.PiCamera() as camera:
+        camera.resolution = (1024, 768)
+        camera.framerate = 30
+        camera.start_preview()
+        # Give the camera some warm-up time
+        time.sleep(2)
+        start = time.time()
+        camera.capture_sequence(filenames(), use_video_port=True)
+        finish = time.time()
+    print('Captured %d frames at %.2ffps' % (
+        frames,
+        frames / (finish - start)))
+
+The major issue with capturing this rapidly is that the Raspberry Pi's IO
+bandwidth is extremely limited. As a format, JPEG is considerably less
+efficient than the H.264 video format (which is to say that, for the same
+number of bytes, H.264 will provide considerably better quality over the same
+number of frames).
+
+At higher resolutions (beyond 800x600) you are likely to find you cannot
+sustain 30fps captures to the Pi's SD card for very long (before exhausting the
+disk cache).  In other words, if you are intending to perform processing on the
+frames after capture, you may be better off just capturing video and decoding
+frames from the resulting file rather than dealing with individual JPEG
+captures.
+
+However, if you can perform your processing fast enough, you may not need to
+involve the disk at all.  Using a generator function, we can maintain a queue
+of objects to store the captures, and have parallel threads accept and process
+the streams as captures come in. Provided the processing runs at a faster frame
+rate than the captures, the encoder won't stall and nothing ever need hit the
+disk::
+
+    import io
+    import time
+    import threading
+    import picamera
+
+    # Create a pool of image processors
+    done = False
+    lock = threading.Lock()
+    pool = []
+
+    class ImageProcessor(threading.Thread):
+        def __init__(self):
+            super(ImageProcessor, self).__init__()
+            self.stream = io.BytesIO()
+            self.event = threading.Event()
+            self.terminated = False
+            self.start()
+
+        def run(self):
+            # This method runs in a separate thread
+            global done
+            while not self.terminated:
+                if self.event.wait(1):
+                    try:
+                        self.stream.seek(0)
+                        # Read the image and do some processing on it
+                        #Image.open(self.stream)
+                        #...
+                        #...
+                        # Set done to True if you want the script to terminate
+                        # at some point
+                        #done=True
+                    finally:
+                        # Reset the stream and event
+                        self.stream.seek(0)
+                        self.stream.truncate()
+                        self.event.clear()
+                        # Return ourselves to the pool
+                        with lock:
+                            pool.append(self)
+
+    def streams():
+        while not done:
+            with lock:
+                processor = pool.pop()
+            yield processor.stream
+            processor.event.set()
+
+    with picamera.PiCamera() as camera:
+        pool = [ImageProcessor() for i in range (4)]
+        camera.resolution = (640, 480)
+        # Set the framerate appropriately; too fast and the image processors
+        # will stall the image pipeline and crash the script
+        camera.framerate = 10
+        camera.start_preview()
+        time.sleep(2)
+        camera.capture_sequence(streams(), use_video_port=True)
+
+    # Shut down the processors in an orderly fashion
+    while pool:
+        with lock:
+            processor = pool.pop()
+        processor.terminated = True
+        processor.join()
 
 
 .. _PIL: http://effbot.org/imagingbook/pil-index.htm
