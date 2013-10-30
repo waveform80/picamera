@@ -360,6 +360,8 @@ on.
 
 Loading the resulting RGB data into a `numpy`_ array is simple::
 
+    from __future__ import division
+
     width = 100
     height = 100
     stream = io.BytesIO()
