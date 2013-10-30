@@ -20,6 +20,8 @@ In 0.6, the major features added were:
 * New :attr:`~picamera.PiCamera.shutter_speed` attribute to permit manual
   control of shutter speed (defaults to 0 for automatic shutter speed, and
   requires latest firmware to operate - use ``sudo rpi-update`` to upgrade)
+* New "Recipes" chapter in the documentation which demonstrates a wide variety
+  of capture techniques ranging from trivial to complex
 
 
 Release 0.5
