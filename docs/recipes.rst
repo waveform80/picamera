@@ -365,10 +365,10 @@ Loading the resulting RGB data into a `numpy`_ array is simple::
     width = 100
     height = 100
     stream = io.BytesIO()
-    # Capture the image in raw YUV format
+    # Capture the image in raw RGB format
     with picamera.PiCamera() as camera:
         camera.resolution = (width, height)
-        camera.raw_format = 'yuv'
+        camera.raw_format = 'rgb'
         camera.start_preview()
         time.sleep(2)
         camera.capture(stream, 'raw')
