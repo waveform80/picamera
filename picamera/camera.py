@@ -29,12 +29,10 @@ from picamera.encoders import (
     )
 
 try:
-    import RPIO as GPIO
+    import RPi.GPIO as GPIO
 except ImportError:
-    try:
-        import RPi.GPIO as GPIO
-    except ImportError:
-        GPIO = None
+    # Can't find RPi.GPIO so just null-out the reference
+    GPIO = None
 
 
 __all__ = ['PiCamera']
@@ -910,13 +908,13 @@ class PiCamera(object):
         if not GPIO:
             raise PiCameraRuntimeError(
                 "GPIO library not found, or not accessible; please install "
-                "RPIO or RPi.GPIO and run the script as root")
+                "RPi.GPIO and run the script as root")
         GPIO.output(5, bool(value))
     led = property(None, _set_led, doc="""
         Sets the state of the camera's LED via GPIO.
 
-        If a GPIO library is available (RPi.GPIO and RPIO are supported), and
-        if the python process has the necessary privileges (typically this
+        If a GPIO library is available (only RPi.GPIO is currently supported),
+        and if the python process has the necessary privileges (typically this
         means running as root via sudo), this property can be used to set the
         state of the camera's LED as a boolean value (True is on, False is
         off).
