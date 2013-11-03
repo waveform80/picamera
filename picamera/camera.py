@@ -1032,7 +1032,7 @@ class PiCamera(object):
         Retrieves or sets the framerate at which video-port based image
         captures, video recordings, and previews will run.
 
-        When queried, the :attr:`resolution` property returns the framerate at
+        When queried, the :attr:`framerate` property returns the rate at
         which the camera's video and preview ports will operate as a tuple of
         ``(numerator, denominator)``. The true framerate can be calculated as
         ``numerator / denominator``.
