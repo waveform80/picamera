@@ -26,7 +26,8 @@ Table of Contents
    :maxdepth: 1
    :numbered:
 
-   install
+   install2
+   install3
    quickstart
    recipes
    api
