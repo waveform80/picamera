@@ -427,11 +427,12 @@ first - just add ``use_video_port=True`` to the
         client_socket.close()
 
 Using this technique, the author can manage about 14fps of streaming at
-640x480. Once deficiency of the script above is that it interleaves capturing
-images with sending them over the wire. Potentially, it would be more efficient
-to permit image capture to occur simultaneously with image transmission. We
-can attempt to do this by utilizing the background threading techniques from
-the final example in :ref:`rapid_capture`.
+640x480. One deficiency of the script above is that it interleaves capturing
+images with sending them over the wire (although we deliberately don't flush on
+sending the image data). Potentially, it would be more efficient to permit
+image capture to occur simultaneously with image transmission. We can attempt
+to do this by utilizing the background threading techniques from the final
+example in :ref:`rapid_capture`.
 
 Once again, please note that the following code involves some quite advanced
 techniques and is not "beginner friendly"::
