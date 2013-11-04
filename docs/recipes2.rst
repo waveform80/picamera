@@ -1,212 +1,12 @@
-.. _recipes:
+.. _recipes2:
 
-=======
-Recipes
-=======
+================
+Advanced Recipes
+================
 
+The following recipes involve advanced techniques and may not be "beginner
+friendly". Please feel free to suggest enhancements or additional recipes.
 
-.. _stream_capture:
-
-Capturing to a stream
-=====================
-
-Capturing to a file-like object (a socket, a :class:`io.BytesIO` stream, an
-existing open file object, etc.) is as simple as specifying that object as the
-output of whatever capture() method you're using::
-
-    import io
-    import time
-    import picamera
-
-    # Create an in-memory stream
-    my_stream = io.BytesIO()
-    with picamera.PiCamera() as camera:
-        camera.start_preview()
-        # Camera warm-up time
-        time.sleep(2)
-        camera.capture(my_stream, 'jpeg')
-
-Note that the format is explicitly specified in the case above. The BytesIO
-object has no filename, so the camera can't automatically figure out what
-format to use.
-
-One thing to bear in mind is that (unlike specifying a filename), the stream is
-*not* automatically closed after capture; picamera assumes that since it didn't
-open the stream it can't presume to close it either. In the case of file
-objects this can mean that the data doesn't actually get written to the disk
-until the object is explicitly closed::
-
-    import time
-    import picamera
-
-    # Create a new file called my_image.jpg
-    my_file = open('my_image.jpg', 'wb')
-    with picamera.PiCamera() as camera:
-        camera.start_preview()
-        time.sleep(2)
-        camera.capture(my_file)
-    # Note that at this point the data is in the file cache, but may
-    # not actually have been written to disk yet
-    my_file.close()
-    # Now the file has been closed, other processes should be able to
-    # read the image successfully
-
-Note that in the case above, we didn't have to specify the format as the camera
-interrogated the ``my_file`` object for its filename (specifically, it looks
-for a ``name`` attribute on the provided object).
-
-
-.. _pil_capture:
-
-Capturing to a PIL Image
-========================
-
-This is a variation on :ref:`stream_capture`. First we'll capture an image to
-a BytesIO stream (Python's in-memory stream class), then we'll rewind the
-position of the stream to the start, and read the stream into a `PIL`_ Image
-object::
-
-    import io
-    import time
-    import picamera
-    from PIL import Image
-
-    # Create the in-memory stream
-    stream = io.BytesIO()
-    with picamera.PiCamera() as camera:
-        camera.start_preview()
-        time.sleep(2)
-        camera.capture(stream, format='jpeg')
-    # "Rewind" the stream to the beginning so we can read its content
-    stream.seek(0)
-    image = Image.open(stream)
-
-
-.. _opencv_capture:
-
-Capturing to an OpenCV object
-=============================
-
-This is another variation on :ref:`stream_capture`. First we'll capture an
-image to a BytesIO stream (Python's in-memory stream class), then rewind the
-position of the stream to the start, and read the stream with `OpenCV`_::
-
-    import io
-    import time
-    import picamera
-    import cv2
-
-    # Create the in-memory stream
-    stream = io.BytesIO()
-    with picamera.PiCamera() as camera:
-        camera.start_preview()
-        time.sleep(2)
-        camera.capture(stream, format='jpeg')
-    # "Rewind" the stream to the beginning so we can read its content
-    stream.seek(0)
-    image = cv2.imread(stream)
-
-
-.. _timelapse_capture:
-
-Capturing timelapse sequences
-=============================
-
-The simplest way to capture long time-lapse sequences is with the
-:meth:`~picamera.PiCamera.capture_continuous` method. With this method, the
-camera captures images continually until you tell it to stop. Images are
-automatically given unique names and you can easily control the delay between
-captures. The following example shows how to capture images with a 5 minute
-delay between each shot::
-
-    import time
-    import picamera
-
-    with picamera.PiCamera() as camera:
-        camera.start_preview()
-        time.sleep(2)
-        for filename in camera.capture_continuous('img{counter:03d}.jpg'):
-            print('Captured %s' % filename)
-            time.sleep(300) # wait 5 minutes
-
-However, you may wish to capture images at a particular time, say at the start
-of every hour. This simply requires a refinement of the delay in the loop (the
-:mod:`datetime` module is slightly easier to use for calculating dates and
-times; this example also demonstrates the ``timestamp`` template in the
-captured filenames)::
-
-    import time
-    import picamera
-    from datetime import datetime, timedelta
-
-    def wait():
-        # Calculate the delay to the start of the next hour
-        next_hour = (datetime.now() + timedelta(hour=1)).replace(
-            minute=0, second=0, microsecond=0)
-        delay = (datetime.now() - next_hour).seconds
-        time.sleep(delay)
-
-    with picamera.PiCamera() as camera:
-        camera.start_preview()
-        wait()
-        for filename in camera.capture_continuous('img{timestamp:%Y-%m-%d-%H-%M}.jpg'):
-            print('Captured %s' % filename)
-            wait()
-
-
-.. _preview_still_resolution:
-
-Preview vs Still resolution
-===========================
-
-One thing you may have noted while experimenting with the camera's preview mode
-is that captured images typically show more than the preview. The reason for
-this is that the camera does not (usually) use the full sensor area for preview
-or video captures, but does for image captures. Specifically, the camera's
-sensor has a resolution of 2592x1944 pixels (approximately 5 mega-pixels in
-area), but only the 1920x1080 pixels in the center of the sensor are used for
-previews or video:
-
-.. image:: sensor_area.png
-    :width: 640px
-    :align: center
-
-When still images are captured, the full sensor area is used and the resulting
-image is scaled to the requested resolution. This usually results in a
-considerably larger field of view being observed in the final image than was
-present in the preview shown before the capture. The following image shows the
-preview area for the 1920x1080 resolution, and the resulting capture area
-(which is scaled to 1920x1080 during capture):
-
-.. image:: capture_area.png
-    :width: 640px
-    :align: center
-
-The main method of mitigating this effect is to force the preview to use the
-full sensor area. This can be done by setting
-:attr:`~picamera.PiCamera.resolution` to 2592x1944 (this must be done before
-starting the preview as resolution can only be set when the camera is idle)::
-
-    import time
-    import picamera
-
-    with picamera.PiCamera() as camera:
-        camera.resolution = (2592, 1944)
-        # The following is equivalent
-        #camera.resolution = camera.MAX_IMAGE_RESOLUTION
-        camera.start_preview()
-        time.sleep(2)
-        camera.capture('foo.jpg')
-
-When the preview runs at full resolution, you may notice that the framerate is
-a little lower (specifically it is set to 15fps), however captures will show
-the same content as the preview before hand. The main downside to this method
-is that captured images are obviously full resolution. If you want something
-smaller than full resolution, post scaling and/or cropping (e.g. in `PIL`_) is
-required.
-
-
-.. _video_port_capture:
 
 .. _yuv_capture:
 
@@ -312,6 +112,7 @@ in an efficient manner::
 Alternatively, see :ref:`rgb_capture` for a method of having the camera output
 RGB data directly.
 
+
 .. _rgb_capture:
 
 Raw image capture (RGB format)
@@ -388,6 +189,8 @@ Loading the resulting RGB data into a `numpy`_ array is simple::
     image = image.astype(np.float, copy=False)
     image = image / 255.0
 
+
+.. _rapid_capture:
 
 Rapid capture and processing
 ============================
@@ -508,7 +311,11 @@ involve the disk at all.  Using a generator function, we can maintain a queue
 of objects to store the captures, and have parallel threads accept and process
 the streams as captures come in. Provided the processing runs at a faster frame
 rate than the captures, the encoder won't stall and nothing ever need hit the
-disk::
+disk.
+
+Please note that the following code involves some fairly advanced techniques
+(threading and all its associated locking fun is typically not a "beginner
+friendly" subject, not to mention generator expressions)::
 
     import io
     import time
@@ -576,8 +383,148 @@ disk::
         processor.join()
 
 
-.. _PIL: http://effbot.org/imagingbook/pil-index.htm
-.. _OpenCV: http://opencv.org/
+.. _rapid_streaming:
+
+Rapid Capture and Streaming
+===========================
+
+Following on from :ref:`rapid_capture`, we can combine the video-port capture
+technique with :ref:`streaming_capture`. The server side script doesn't change
+(it doesn't really care what capture technique is being used - it just reads
+JPEGs off the wire). The changes to the client side script can be minimal at
+first - just add ``use_video_port=True`` to the
+:meth:`~picamera.PiCamera.capture_continuous` call::
+
+    import io
+    import socket
+    import struct
+    import time
+    import picamera
+
+    client_socket = socket.socket()
+    client_socket.connect(('my_server', 8000))
+    connection = client_socket.makefile('wb')
+    try:
+        with picamera.PiCamera() as camera:
+            camera.resolution = (640, 480)
+            time.sleep(2)
+            start = time.time()
+            stream = io.BytesIO()
+            # Use the video-port for captures...
+            for foo in camera.capture_continuous(stream, 'jpeg',
+                                                 use_video_port=True):
+                connection.write(struct.pack('<L', stream.tell()))
+                connection.flush()
+                stream.seek(0)
+                connection.write(stream.read())
+                if time.time() - start > 30:
+                    break
+                stream.seek(0)
+                stream.truncate()
+        connection.write(struct.pack('<L', 0))
+    finally:
+        connection.close()
+        client_socket.close()
+
+Using this technique, the author can manage about 14fps of streaming at
+640x480. Once deficiency of the script above is that it interleaves capturing
+images with sending them over the wire. Potentially, it would be more efficient
+to permit image capture to occur simultaneously with image transmission. We
+can attempt to do this by utilizing the background threading techniques from
+the final example in :ref:`rapid_capture`.
+
+Once again, please note that the following code involves some quite advanced
+techniques and is not "beginner friendly"::
+
+    import io
+    import socket
+    import struct
+    import time
+    import threading
+    import picamera
+
+    client_socket = socket.socket()
+    client_socket.connect(('spider', 8000))
+    connection = client_socket.makefile('wb')
+    try:
+        connection_lock = threading.Lock()
+        pool = []
+        pool_lock = threading.Lock()
+
+        class ImageStreamer(threading.Thread):
+            def __init__(self):
+                super(ImageStreamer, self).__init__()
+                self.stream = io.BytesIO()
+                self.event = threading.Event()
+                self.terminated = False
+                self.start()
+
+            def run(self):
+                # This method runs in a background thread
+                while not self.terminated:
+                    if self.event.wait(1):
+                        try:
+                            with connection_lock:
+                                connection.write(struct.pack('<L', self.stream.tell()))
+                                connection.flush()
+                                self.stream.seek(0)
+                                connection.write(self.stream.read())
+                        finally:
+                            self.stream.seek(0)
+                            self.stream.truncate()
+                            self.event.clear()
+                            with pool_lock:
+                                pool.append(self)
+
+        count = 0
+        start = time.time()
+        finish = time.time()
+
+        def streams():
+            global count, finish
+            while finish - start < 30:
+                with pool_lock:
+                    streamer = pool.pop()
+                yield streamer.stream
+                streamer.event.set()
+                count += 1
+                finish = time.time()
+
+        with picamera.PiCamera() as camera:
+            pool = [ImageStreamer() for i in range(4)]
+            camera.resolution = (640, 480)
+            # Set the framerate appropriately; too fast and we'll starve the
+            # pool of streamers and crash the script
+            camera.framerate = 15
+            camera.start_preview()
+            time.sleep(2)
+            camera.capture_sequence(streams(), 'jpeg', use_video_port=True)
+
+        # Shut down the streamers in an orderly fashion
+        while pool:
+            with pool_lock:
+                streamer = pool.pop()
+            streamer.terminated = True
+            streamer.join()
+
+        # Write the terminating 0-length to the connection to let the server
+        # know we're done
+        with connection_lock:
+            connection.write(struct.pack('<L', 0))
+
+    finally:
+        connection.close()
+        client_socket.close()
+
+    print('Sent %d images in %.2f seconds at %.2ffps' % (
+        count, finish-start, count / (finish-start)))
+
+The authors tests with the script above haven't yielded substantial
+improvements over the former script using
+:meth:`~picamera.PiCamera.capture_continuous`, but the reason for this is not
+currently clear. Suggestions for further improvements are welcomed!
+
+
 .. _YUV: http://en.wikipedia.org/wiki/YUV
 .. _RGB: http://en.wikipedia.org/wiki/RGB
 .. _numpy: http://www.numpy.org/

@@ -29,7 +29,8 @@ Table of Contents
    install2
    install3
    quickstart
-   recipes
+   recipes1
+   recipes2
    api
    changelog
    license
@@ -43,6 +44,7 @@ Indices and tables
 * :ref:`search`
 
 
+.. _email: mailto:dave@waveform.org.uk
 .. _Raspberry Pi: http://www.raspberrypi.org/
 .. _camera: http://www.raspberrypi.org/camera
 .. _homepage: http://pypi.python.org/pypi/picamera/
