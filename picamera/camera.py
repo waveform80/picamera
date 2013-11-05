@@ -734,7 +734,7 @@ class PiCamera(object):
             import picamera
             with picamera.PiCamera() as camera:
                 stream = io.BytesIO()
-                for foo in camera.capture_continuous(stream):
+                for foo in camera.capture_continuous(stream, format='jpeg'):
                     # Truncate the stream to the current position (in case
                     # prior iterations output a longer image)
                     stream.truncate()
