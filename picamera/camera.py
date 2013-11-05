@@ -1318,7 +1318,7 @@ class PiCamera(object):
         try:
             if not (0 <= value <= 800):
                 raise PiCameraValueError(
-                    "Invalid ISO value: %d (valid range 0..1600)" % value)
+                    "Invalid ISO value: %d (valid range 0..800)" % value)
         except TypeError:
             raise PiCameraValueError("Invalid ISO value: %s" % value)
         mmal_check(
