@@ -149,7 +149,7 @@ captured filenames)::
         # Calculate the delay to the start of the next hour
         next_hour = (datetime.now() + timedelta(hour=1)).replace(
             minute=0, second=0, microsecond=0)
-        delay = (datetime.now() - next_hour).seconds
+        delay = (next_hour - datetime.now()).seconds
         time.sleep(delay)
 
     with picamera.PiCamera() as camera:
