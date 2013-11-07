@@ -520,7 +520,7 @@ techniques and is not "beginner friendly"::
     print('Sent %d images in %.2f seconds at %.2ffps' % (
         count, finish-start, count / (finish-start)))
 
-The authors tests with the script above haven't yielded substantial
+The author's tests with the script above haven't yielded substantial
 improvements over the former script using
 :meth:`~picamera.PiCamera.capture_continuous`, but the reason for this is not
 currently clear. Suggestions for further improvements are welcomed!

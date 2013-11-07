@@ -92,13 +92,14 @@ Capturing to an OpenCV object
 =============================
 
 This is another variation on :ref:`stream_capture`. First we'll capture an
-image to a BytesIO stream (Python's in-memory stream class), then rewind the
-position of the stream to the start, and read the stream with `OpenCV`_::
+image to a BytesIO stream (Python's in-memory stream class), then convert the
+stream to a numpy array and read the array with `OpenCV`_::
 
     import io
     import time
     import picamera
     import cv2
+    import numpy as np
 
     # Create the in-memory stream
     stream = io.BytesIO()
@@ -106,9 +107,10 @@ position of the stream to the start, and read the stream with `OpenCV`_::
         camera.start_preview()
         time.sleep(2)
         camera.capture(stream, format='jpeg')
-    # "Rewind" the stream to the beginning so we can read its content
-    stream.seek(0)
-    image = cv2.imread(stream)
+    # Construct a numpy array from the stream
+    data = np.fromstring(stream.getvalue(), dtype=np.uint8)
+    # "Decode" the image from the array
+    image = cv2.imdecode(data, 0)
 
 
 .. _timelapse_capture:
