@@ -110,7 +110,10 @@ stream to a numpy array and read the array with `OpenCV`_::
     # Construct a numpy array from the stream
     data = np.fromstring(stream.getvalue(), dtype=np.uint8)
     # "Decode" the image from the array
-    image = cv2.imdecode(data, 0)
+    image = cv2.imdecode(data, 1)
+    # OpenCV returns an array with data in BGR order. If you want RGB instead
+    # use the following...
+    image = image[:, :, ::-1]
 
 
 .. _timelapse_capture:
