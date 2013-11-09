@@ -1844,6 +1844,9 @@ MMAL_COMPONENT_DEFAULT_VIDEO_SPLITTER  = b"vc.ril.video_splitter"
 MMAL_COMPONENT_DEFAULT_AUDIO_DECODER   = b"none"
 MMAL_COMPONENT_DEFAULT_AUDIO_RENDERER  = b"vc.ril.audio_render"
 MMAL_COMPONENT_DEFAULT_MIRACAST        = b"vc.miracast"
+# The following two components aren't in the MMAL headers, but do exist
+MMAL_COMPONENT_DEFAULT_NULL_SINK       = b"vc.null_sink"
+MMAL_COMPONENT_DEFAULT_RESIZER         = b"vc.ril.resize"
 
 # util/mmal_util_params.h ####################################################
 
@@ -1938,7 +1941,8 @@ MMAL_CONNECTION_T._fields_ = [
     ('callback',     MMAL_CONNECTION_CALLBACK_T),
     ('is_enabled',   ct.c_uint32),
     ('flags',        ct.c_uint32),
-    ('in',           ct.POINTER(MMAL_PORT_T)),
+    # Originally "in", but this is a Python keyword
+    ('in_',          ct.POINTER(MMAL_PORT_T)),
     ('out',          ct.POINTER(MMAL_PORT_T)),
     ('pool',         ct.POINTER(MMAL_POOL_T)),
     ('queue',        ct.POINTER(MMAL_QUEUE_T)),

@@ -191,6 +191,7 @@ class PiCamera(object):
         self._camera_config = None
         self._preview = None
         self._preview_connection = None
+        self._null_sink = None
         self._video_encoder = None
         self._still_encoder = None
         self._exif_tags = {
@@ -208,6 +209,7 @@ class PiCamera(object):
                 GPIO.cleanup()
                 GPIO = None
         try:
+            # Create the camera component and configure it
             self._camera = ct.POINTER(mmal.MMAL_COMPONENT_T)()
             self._camera_config = mmal.MMAL_PARAMETER_CAMERA_CONFIG_T(
                 mmal.MMAL_PARAMETER_HEADER_T(
@@ -242,6 +244,7 @@ class PiCamera(object):
                 mmal.mmal_port_parameter_set(self._camera[0].control, cc.hdr),
                 prefix="Camera control port couldn't be configured")
 
+            # Configure the camera's 3 output ports
             for p in self.CAMERA_PORTS:
                 port = self._camera[0].output[p]
                 fmt = port[0].format
@@ -271,6 +274,7 @@ class PiCamera(object):
                 mmal.mmal_component_enable(self._camera),
                 prefix="Camera component couldn't be enabled")
 
+            # Set defaults for the camera's attributes
             self.sharpness = 0
             self.contrast = 0
             self.brightness = 50
@@ -287,6 +291,8 @@ class PiCamera(object):
             self.hflip = self.vflip = False
             self.crop = (0.0, 0.0, 1.0, 1.0)
 
+            # Create and enable the preview component, but don't actually
+            # connect it to the camera at this time
             self._preview = ct.POINTER(mmal.MMAL_COMPONENT_T)()
             mmal_check(
                 mmal.mmal_component_create(
@@ -310,6 +316,38 @@ class PiCamera(object):
             mmal_check(
                 mmal.mmal_port_parameter_set(self._preview[0].input[0], mp.hdr),
                 prefix="Unable to set preview port parameters")
+
+            mmal_check(
+                mmal.mmal_component_enable(self._preview),
+                prefix="Preview component couldn't be enabled")
+
+            # Create a null-sink component, enable it and connect it to the
+            # camera's preview port. If nothing is connected to the preview
+            # port, the camera doesn't measure exposure and captured images
+            # gradually fade to black (issue #22)
+            self._null_sink = ct.POINTER(mmal.MMAL_COMPONENT_T)()
+            mmal_check(
+                mmal.mmal_component_create(
+                    mmal.MMAL_COMPONENT_DEFAULT_NULL_SINK, self._null_sink),
+                prefix="Failed to create null sink component")
+            if not self._preview[0].input_num:
+                raise PiCameraError("No input ports on null sink component")
+
+            mmal_check(
+                mmal.mmal_component_enable(self._null_sink),
+                prefix="Null sink component couldn't be enabled")
+
+            self._preview_connection = ct.POINTER(mmal.MMAL_CONNECTION_T)()
+            mmal_check(
+                mmal.mmal_connection_create(
+                    self._preview_connection,
+                    self._camera[0].output[self.CAMERA_PREVIEW_PORT],
+                    self._null_sink[0].input[0],
+                    mmal.MMAL_CONNECTION_FLAG_TUNNELLING | mmal.MMAL_CONNECTION_FLAG_ALLOCATION_ON_INPUT),
+                prefix="Failed to connect camera to null sink")
+            mmal_check(
+                mmal.mmal_connection_enable(self._preview_connection),
+                prefix="Failed to enable preview connection")
         except:
             self.close()
             raise
@@ -317,10 +355,6 @@ class PiCamera(object):
     def _check_camera_open(self):
         if self.closed:
             raise PiCameraRuntimeError("Camera is closed")
-
-    def _check_preview_stopped(self):
-        if self.previewing:
-            raise PiCameraRuntimeError("Preview is currently running")
 
     def _check_recording_stopped(self):
         if self.recording:
@@ -373,14 +407,16 @@ class PiCamera(object):
         global _CAMERA
         if self.recording:
             self.stop_recording()
-        if self.previewing:
-            self.stop_preview()
+        if self._preview_connection:
+            mmal.mmal_connection_destroy(self._preview_connection)
+            self._preview_connection = None
+        if self._null_sink:
+            mmal.mmal_component_destroy(self._null_sink)
+            self._null_sink = None
         if self._preview:
             mmal.mmal_component_destroy(self._preview)
             self._preview = None
         if self._camera:
-            if self._camera[0].is_enabled:
-                mmal.mmal_component_disable(self._camera)
             mmal.mmal_component_destroy(self._camera)
             self._camera = None
         if GPIO:
@@ -395,7 +431,7 @@ class PiCamera(object):
 
     def start_preview(self):
         """
-        Starts a preview session over the current display.
+        Displays the preview window.
 
         This method starts a new preview running at the configured resolution
         (see :attr:`resolution`). Most camera properties can be modified "live"
@@ -406,41 +442,49 @@ class PiCamera(object):
         times during the lifetime of the :class:`PiCamera` object.
         """
         self._check_camera_open()
-        self._check_preview_stopped()
-        try:
-            mmal_check(
-                mmal.mmal_component_enable(self._preview),
-                prefix="Preview component couldn't be enabled")
-
-            self._preview_connection = ct.POINTER(mmal.MMAL_CONNECTION_T)()
-            mmal_check(
-                mmal.mmal_connection_create(
-                    self._preview_connection,
-                    self._camera[0].output[self.CAMERA_PREVIEW_PORT],
-                    self._preview[0].input[0],
-                    mmal.MMAL_CONNECTION_FLAG_TUNNELLING | mmal.MMAL_CONNECTION_FLAG_ALLOCATION_ON_INPUT),
-                prefix="Failed to connect camera to preview")
-            mmal_check(
-                mmal.mmal_connection_enable(self._preview_connection),
-                prefix="Failed to enable preview connection")
-        except:
-            self.stop_preview()
-            raise
+        # Switch the camera's preview port from the null sink to the
+        # preview component
+        if self._preview_connection:
+            mmal.mmal_connection_destroy(self._preview_connection)
+            self._null_connection = None
+        self._preview_connection = ct.POINTER(mmal.MMAL_CONNECTION_T)()
+        mmal_check(
+            mmal.mmal_connection_create(
+                self._preview_connection,
+                self._camera[0].output[self.CAMERA_PREVIEW_PORT],
+                self._preview[0].input[0],
+                mmal.MMAL_CONNECTION_FLAG_TUNNELLING | mmal.MMAL_CONNECTION_FLAG_ALLOCATION_ON_INPUT),
+            prefix="Failed to connect camera to preview")
+        mmal_check(
+            mmal.mmal_connection_enable(self._preview_connection),
+            prefix="Failed to enable preview connection")
 
     def stop_preview(self):
         """
-        Stops the preview session and shuts down the preview window display.
+        Closes the preview window display.
 
         If :meth:`start_preview` has previously been called, this method shuts
         down the preview display which generally results in the underlying TTY
         becoming visible again. If a preview is not currently running, no
         exception is raised - the method will simply do nothing.
         """
+        self._check_camera_open()
+        # This is the reverse of start_preview; disconnect the camera from the
+        # preview component (if it's connected) and connect it to the null sink
         if self._preview_connection:
             mmal.mmal_connection_destroy(self._preview_connection)
             self._preview_connection = None
-        if self._preview[0].is_enabled:
-            mmal.mmal_component_disable(self._preview)
+        self._preview_connection = ct.POINTER(mmal.MMAL_CONNECTION_T)()
+        mmal_check(
+            mmal.mmal_connection_create(
+                self._preview_connection,
+                self._camera[0].output[self.CAMERA_PREVIEW_PORT],
+                self._null_sink[0].input[0],
+                mmal.MMAL_CONNECTION_FLAG_TUNNELLING | mmal.MMAL_CONNECTION_FLAG_ALLOCATION_ON_INPUT),
+            prefix="Failed to connect camera to null sink")
+        mmal_check(
+            mmal.mmal_connection_enable(self._preview_connection),
+            prefix="Failed to enable preview connection")
 
     def start_recording(self, output, format=None, **options):
         """
@@ -811,7 +855,12 @@ class PiCamera(object):
         Returns True if the :meth:`start_preview` method has been called,
         and no :meth:`stop_preview` call has been made yet.
         """
-        return self._preview and self._preview[0].is_enabled
+        return (
+                bool(self._preview_connection)
+                and self._preview_connection[0].is_enabled
+                and self._preview_connection[0].in_[0].name.startswith(
+                    mmal.MMAL_COMPONENT_DEFAULT_VIDEO_RENDERER)
+                )
 
     @property
     def exif_tags(self):
@@ -931,12 +980,14 @@ class PiCamera(object):
             self._camera[0].output[1][0].format[0].encoding]
     def _set_raw_format(self, value):
         self._check_camera_open()
-        self._check_preview_stopped()
         self._check_recording_stopped()
         try:
             value = self.RAW_FORMATS[value]
         except KeyError:
             raise PiCameraValueError("Invalid raw format: %s" % value)
+        mmal_check(
+            mmal.mmal_connection_disable(self._preview_connection),
+            prefix="Failed to disable preview connection")
         mmal_check(
             mmal.mmal_component_disable(self._camera),
             prefix="Failed to disable camera")
@@ -950,6 +1001,9 @@ class PiCamera(object):
         mmal_check(
             mmal.mmal_component_enable(self._camera),
             prefix="Failed to enable camera")
+        mmal_check(
+            mmal.mmal_connection_enable(self._preview_connection),
+            prefix="Failed to enable preview connection")
     raw_format = property(_get_raw_format, _set_raw_format, doc="""
         Retrieves or sets the raw format of the camera's ports.
 
@@ -985,7 +1039,7 @@ class PiCamera(object):
 
         All available raw formats can be queried from the
         ``PiCamera.RAW_FORMATS`` attribute. The camera must not be closed, and
-        no preview or recording must be active when the property is set.
+        no recording must be active when the property is set.
         """)
 
     def _get_framerate(self):
@@ -995,7 +1049,6 @@ class PiCamera(object):
             self._camera[0].output[1][0].format[0].es[0].video.frame_rate.den)
     def _set_framerate(self, value):
         self._check_camera_open()
-        self._check_preview_stopped()
         self._check_recording_stopped()
         w, h = self.resolution
         try:
@@ -1014,6 +1067,9 @@ class PiCamera(object):
             raise PiCameraValueError(
                 "Maximum framerate at the current resolution is %dfps" % max_rate)
         mmal_check(
+            mmal.mmal_connection_disable(self._preview_connection),
+            prefix="Failed to disable preview connection")
+        mmal_check(
             mmal.mmal_component_disable(self._camera),
             prefix="Failed to disable camera")
         for port in (self.CAMERA_VIDEO_PORT, self.CAMERA_PREVIEW_PORT):
@@ -1026,6 +1082,9 @@ class PiCamera(object):
         mmal_check(
             mmal.mmal_component_enable(self._camera),
             prefix="Failed to enable camera")
+        mmal_check(
+            mmal.mmal_connection_enable(self._preview_connection),
+            prefix="Failed to enable preview connection")
     framerate = property(_get_framerate, _set_framerate, doc="""
         Retrieves or sets the framerate at which video-port based image
         captures, video recordings, and previews will run.
@@ -1038,8 +1097,8 @@ class PiCamera(object):
         When set, the property reconfigures the camera so that the next call to
         recording and previewing methods will use the new framerate.  The
         framerate can be specified as a ``(numerator, denominator)`` tuple, or
-        as a simple integer.  The camera must not be closed, and no preview or
-        recording must be active when the property is set.
+        as a simple integer.  The camera must not be closed, and no recording
+        must be active when the property is set.
 
         The property defaults to 30fps at resolutions of 1080p (1920x1080) or
         below. Above this resolution, the property defaults to 15fps. These
@@ -1055,7 +1114,6 @@ class PiCamera(object):
             )
     def _set_resolution(self, value):
         self._check_camera_open()
-        self._check_preview_stopped()
         self._check_recording_stopped()
         n, d = self.framerate
         try:
@@ -1069,6 +1127,9 @@ class PiCamera(object):
                 or (h > self.MAX_VIDEO_RESOLUTION[1])) and (n / d > 15):
             n = 15
             d = 1
+        mmal_check(
+            mmal.mmal_connection_disable(self._preview_connection),
+            prefix="Failed to disable preview connection")
         mmal_check(
             mmal.mmal_component_disable(self._camera),
             prefix="Failed to disable camera")
@@ -1096,6 +1157,9 @@ class PiCamera(object):
         mmal_check(
             mmal.mmal_component_enable(self._camera),
             prefix="Failed to enable camera")
+        mmal_check(
+            mmal.mmal_connection_enable(self._preview_connection),
+            prefix="Failed to enable preview connection")
     resolution = property(_get_resolution, _set_resolution, doc="""
         Retrieves or sets the resolution at which image captures, video
         recordings, and previews will be captured.
@@ -1110,8 +1174,7 @@ class PiCamera(object):
         When set, the property reconfigures the camera so that the next call to
         these methods will use the new resolution.  The resolution must be
         specified as a ``(width, height)`` tuple, the camera must not be
-        closed, and no preview or recording must be active when the property is
-        set.
+        closed, and no recording must be active when the property is set.
 
         The property defaults to the standard 1080p resolution of ``(1920,
         1080)``.
