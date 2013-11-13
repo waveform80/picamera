@@ -12,9 +12,41 @@ import io
 import os
 import time
 import math
+import tempfile
 import picamera
 import pytest
 from PIL import Image
+
+
+# Run tests with a variety of file suffixes and expected formats
+@pytest.fixture(scope='module', params=(
+    ('.jpg', 'JPEG', (('quality', 95),)),
+    ('.jpg', 'JPEG', ()),
+    ('.jpg', 'JPEG', (('quality', 50),)),
+    #('.gif', 'GIF',  ()),
+    ('.png', 'PNG',  ()),
+    #('.bmp', 'BMP',  ()),
+    ))
+def filename_format_options(request):
+    suffix, format, options = request.param
+    filename = tempfile.mkstemp(suffix=suffix)[1]
+    def fin():
+        os.unlink(filename)
+    request.addfinalizer(fin)
+    return filename, format, dict(options)
+
+# Run tests with a variety of format specs
+@pytest.fixture(scope='module', params=(
+    ('jpeg', (('quality', 95),)),
+    ('jpeg', ()),
+    ('jpeg', (('quality', 50),)),
+    #('gif',  ()),
+    ('png',  ()),
+    #('bmp',  ()),
+    ))
+def format_options(request):
+    format, options = request.param
+    return format, dict(options)
 
 
 def test_capture_to_file(camera, previewing, resolution, filename_format_options):

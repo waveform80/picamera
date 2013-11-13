@@ -8,8 +8,6 @@ from __future__ import (
 # Make Py2's str equivalent to Py3's
 str = type('')
 
-import os
-import tempfile
 import picamera
 import pytest
 
@@ -80,34 +78,4 @@ def raw_format(request, camera):
             camera.start_preview()
     request.addfinalizer(fin)
     return request.param
-
-# Run tests with a variety of file suffixes and expected formats
-@pytest.fixture(scope='module', params=(
-    ('.jpg', 'JPEG', (('quality', 95),)),
-    ('.jpg', 'JPEG', ()),
-    ('.jpg', 'JPEG', (('quality', 50),)),
-    #('.gif', 'GIF',  ()),
-    ('.png', 'PNG',  ()),
-    #('.bmp', 'BMP',  ()),
-    ))
-def filename_format_options(request):
-    suffix, format, options = request.param
-    filename = tempfile.mkstemp(suffix=suffix)[1]
-    def fin():
-        os.unlink(filename)
-    request.addfinalizer(fin)
-    return filename, format, dict(options)
-
-# Run tests with a variety of format specs
-@pytest.fixture(scope='module', params=(
-    ('jpeg', (('quality', 95),)),
-    ('jpeg', ()),
-    ('jpeg', (('quality', 50),)),
-    #('gif',  ()),
-    ('png',  ()),
-    #('bmp',  ()),
-    ))
-def format_options(request):
-    format, options = request.param
-    return format, dict(options)
 
