@@ -178,15 +178,11 @@ class PiCamera(object):
     _RAW_FORMATS_R    = {v: k for (k, v) in RAW_FORMATS.items()}
 
     def __init__(self):
-        global GPIO
         global _CAMERA
         if _CAMERA:
             raise PiCameraRuntimeError(
                 "Only one PiCamera object can be in existence at a time")
         _CAMERA = self
-        screen_width = ct.c_uint32()
-        screen_height = ct.c_uint32()
-        bcm_host.graphics_get_display_size(0, screen_width, screen_height)
         self._camera = None
         self._camera_config = None
         self._preview = None
@@ -198,6 +194,17 @@ class PiCamera(object):
             'IFD0.Model': 'RP_OV5647',
             'IFD0.Make': 'RaspberryPi',
             }
+        self._init_led()
+        try:
+            self._init_camera()
+            self._init_defaults()
+            self._init_preview()
+        except:
+            self.close()
+            raise
+
+    def _init_led(self):
+        global GPIO
         if GPIO:
             try:
                 GPIO.setmode(GPIO.BCM)
@@ -208,149 +215,150 @@ class PiCamera(object):
                 # forget the GPIO reference so we don't try anything further
                 GPIO.cleanup()
                 GPIO = None
-        try:
-            # Create the camera component and configure it
-            self._camera = ct.POINTER(mmal.MMAL_COMPONENT_T)()
-            self._camera_config = mmal.MMAL_PARAMETER_CAMERA_CONFIG_T(
-                mmal.MMAL_PARAMETER_HEADER_T(
-                    mmal.MMAL_PARAMETER_CAMERA_CONFIG,
-                    ct.sizeof(mmal.MMAL_PARAMETER_CAMERA_CONFIG_T)
-                    ))
-            mmal_check(
-                mmal.mmal_component_create(
-                    mmal.MMAL_COMPONENT_DEFAULT_CAMERA, self._camera),
-                prefix="Failed to create camera component")
-            if not self._camera[0].output_num:
-                raise PiCameraError("Camera doesn't have output ports")
 
-            mmal_check(
-                mmal.mmal_port_enable(
-                    self._camera[0].control,
-                    _control_callback),
-                prefix="Unable to enable control port")
-
-            cc = self._camera_config
-            cc.max_stills_w=screen_width.value
-            cc.max_stills_h=screen_height.value
-            cc.stills_yuv422=0
-            cc.one_shot_stills=1
-            cc.max_preview_video_w=screen_width.value
-            cc.max_preview_video_h=screen_height.value
-            cc.num_preview_video_frames=3
-            cc.stills_capture_circular_buffer_height=0
-            cc.fast_preview_resume=0
-            cc.use_stc_timestamp=mmal.MMAL_PARAM_TIMESTAMP_MODE_RESET_STC
-            mmal_check(
-                mmal.mmal_port_parameter_set(self._camera[0].control, cc.hdr),
-                prefix="Camera control port couldn't be configured")
-
-            # Configure the camera's 3 output ports
-            for p in self.CAMERA_PORTS:
-                port = self._camera[0].output[p]
-                fmt = port[0].format
-                fmt[0].encoding = mmal.MMAL_ENCODING_I420 if p != self.CAMERA_PREVIEW_PORT else mmal.MMAL_ENCODING_OPAQUE
-                fmt[0].encoding_variant = mmal.MMAL_ENCODING_I420
-                fmt[0].es[0].video.width = cc.max_preview_video_w
-                fmt[0].es[0].video.height = cc.max_preview_video_h
-                fmt[0].es[0].video.crop.x = 0
-                fmt[0].es[0].video.crop.y = 0
-                fmt[0].es[0].video.crop.width = cc.max_preview_video_w
-                fmt[0].es[0].video.crop.height = cc.max_preview_video_h
-                fmt[0].es[0].video.frame_rate.num = 3 if p == self.CAMERA_CAPTURE_PORT else self.DEFAULT_FRAME_RATE_NUM
-                fmt[0].es[0].video.frame_rate.den = 1 if p == self.CAMERA_CAPTURE_PORT else self.DEFAULT_FRAME_RATE_DEN
-                mmal_check(
-                    mmal.mmal_port_format_commit(self._camera[0].output[p]),
-                    prefix="Camera %s format couldn't be set" % {
-                        self.CAMERA_PREVIEW_PORT: "preview",
-                        self.CAMERA_VIDEO_PORT:   "video",
-                        self.CAMERA_CAPTURE_PORT: "still",
-                        }[p])
-                if p != self.CAMERA_PREVIEW_PORT:
-                    port[0].buffer_num = max(
-                        port[0].buffer_num,
-                        self.VIDEO_OUTPUT_BUFFERS_NUM)
-
-            mmal_check(
-                mmal.mmal_component_enable(self._camera),
-                prefix="Camera component couldn't be enabled")
-
-            # Set defaults for the camera's attributes
-            self.sharpness = 0
-            self.contrast = 0
-            self.brightness = 50
-            self.saturation = 0
-            self.ISO = 0 # auto
-            self.video_stabilization = False
-            self.exposure_compensation = 0
-            self.exposure_mode = 'auto'
-            self.meter_mode = 'average'
-            self.awb_mode = 'auto'
-            self.image_effect = 'none'
-            self.color_effects = None
-            self.rotation = 0
-            self.hflip = self.vflip = False
-            self.crop = (0.0, 0.0, 1.0, 1.0)
-
-            # Create and enable the preview component, but don't actually
-            # connect it to the camera at this time
-            self._preview = ct.POINTER(mmal.MMAL_COMPONENT_T)()
-            mmal_check(
-                mmal.mmal_component_create(
-                    mmal.MMAL_COMPONENT_DEFAULT_VIDEO_RENDERER, self._preview),
-                prefix="Failed to create preview component")
-            if not self._preview[0].input_num:
-                raise PiCameraError("No input ports on preview component")
-
-            mp = mmal.MMAL_DISPLAYREGION_T(
-                mmal.MMAL_PARAMETER_HEADER_T(
-                    mmal.MMAL_PARAMETER_DISPLAYREGION,
-                    ct.sizeof(mmal.MMAL_DISPLAYREGION_T)
+    def _init_camera(self):
+        self._camera = ct.POINTER(mmal.MMAL_COMPONENT_T)()
+        self._camera_config = mmal.MMAL_PARAMETER_CAMERA_CONFIG_T(
+            mmal.MMAL_PARAMETER_HEADER_T(
+                mmal.MMAL_PARAMETER_CAMERA_CONFIG,
+                ct.sizeof(mmal.MMAL_PARAMETER_CAMERA_CONFIG_T)
                 ))
-            mp.set = (
-                mmal.MMAL_DISPLAY_SET_LAYER |
-                mmal.MMAL_DISPLAY_SET_ALPHA |
-                mmal.MMAL_DISPLAY_SET_FULLSCREEN)
-            mp.layer = 2
-            mp.alpha = 255
-            mp.fullscreen = 1
-            mmal_check(
-                mmal.mmal_port_parameter_set(self._preview[0].input[0], mp.hdr),
-                prefix="Unable to set preview port parameters")
+        mmal_check(
+            mmal.mmal_component_create(
+                mmal.MMAL_COMPONENT_DEFAULT_CAMERA, self._camera),
+            prefix="Failed to create camera component")
+        if not self._camera[0].output_num:
+            raise PiCameraError("Camera doesn't have output ports")
 
-            mmal_check(
-                mmal.mmal_component_enable(self._preview),
-                prefix="Preview component couldn't be enabled")
+        mmal_check(
+            mmal.mmal_port_enable(
+                self._camera[0].control,
+                _control_callback),
+            prefix="Unable to enable control port")
 
-            # Create a null-sink component, enable it and connect it to the
-            # camera's preview port. If nothing is connected to the preview
-            # port, the camera doesn't measure exposure and captured images
-            # gradually fade to black (issue #22)
-            self._null_sink = ct.POINTER(mmal.MMAL_COMPONENT_T)()
-            mmal_check(
-                mmal.mmal_component_create(
-                    mmal.MMAL_COMPONENT_DEFAULT_NULL_SINK, self._null_sink),
-                prefix="Failed to create null sink component")
-            if not self._preview[0].input_num:
-                raise PiCameraError("No input ports on null sink component")
+        screen_width = ct.c_uint32()
+        screen_height = ct.c_uint32()
+        bcm_host.graphics_get_display_size(0, screen_width, screen_height)
+        cc = self._camera_config
+        cc.max_stills_w=screen_width.value
+        cc.max_stills_h=screen_height.value
+        cc.stills_yuv422=0
+        cc.one_shot_stills=1
+        cc.max_preview_video_w=screen_width.value
+        cc.max_preview_video_h=screen_height.value
+        cc.num_preview_video_frames=3
+        cc.stills_capture_circular_buffer_height=0
+        cc.fast_preview_resume=0
+        cc.use_stc_timestamp=mmal.MMAL_PARAM_TIMESTAMP_MODE_RESET_STC
+        mmal_check(
+            mmal.mmal_port_parameter_set(self._camera[0].control, cc.hdr),
+            prefix="Camera control port couldn't be configured")
 
+        for p in self.CAMERA_PORTS:
+            port = self._camera[0].output[p]
+            fmt = port[0].format
+            fmt[0].encoding = mmal.MMAL_ENCODING_I420 if p != self.CAMERA_PREVIEW_PORT else mmal.MMAL_ENCODING_OPAQUE
+            fmt[0].encoding_variant = mmal.MMAL_ENCODING_I420
+            fmt[0].es[0].video.width = cc.max_preview_video_w
+            fmt[0].es[0].video.height = cc.max_preview_video_h
+            fmt[0].es[0].video.crop.x = 0
+            fmt[0].es[0].video.crop.y = 0
+            fmt[0].es[0].video.crop.width = cc.max_preview_video_w
+            fmt[0].es[0].video.crop.height = cc.max_preview_video_h
+            fmt[0].es[0].video.frame_rate.num = 3 if p == self.CAMERA_CAPTURE_PORT else self.DEFAULT_FRAME_RATE_NUM
+            fmt[0].es[0].video.frame_rate.den = 1 if p == self.CAMERA_CAPTURE_PORT else self.DEFAULT_FRAME_RATE_DEN
             mmal_check(
-                mmal.mmal_component_enable(self._null_sink),
-                prefix="Null sink component couldn't be enabled")
+                mmal.mmal_port_format_commit(self._camera[0].output[p]),
+                prefix="Camera %s format couldn't be set" % {
+                    self.CAMERA_PREVIEW_PORT: "preview",
+                    self.CAMERA_VIDEO_PORT:   "video",
+                    self.CAMERA_CAPTURE_PORT: "still",
+                    }[p])
+            if p != self.CAMERA_PREVIEW_PORT:
+                port[0].buffer_num = max(
+                    port[0].buffer_num,
+                    self.VIDEO_OUTPUT_BUFFERS_NUM)
 
-            self._preview_connection = ct.POINTER(mmal.MMAL_CONNECTION_T)()
-            mmal_check(
-                mmal.mmal_connection_create(
-                    self._preview_connection,
-                    self._camera[0].output[self.CAMERA_PREVIEW_PORT],
-                    self._null_sink[0].input[0],
-                    mmal.MMAL_CONNECTION_FLAG_TUNNELLING | mmal.MMAL_CONNECTION_FLAG_ALLOCATION_ON_INPUT),
-                prefix="Failed to connect camera to null sink")
-            mmal_check(
-                mmal.mmal_connection_enable(self._preview_connection),
-                prefix="Failed to enable preview connection")
-        except:
-            self.close()
-            raise
+        mmal_check(
+            mmal.mmal_component_enable(self._camera),
+            prefix="Camera component couldn't be enabled")
+
+    def _init_defaults(self):
+        self.sharpness = 0
+        self.contrast = 0
+        self.brightness = 50
+        self.saturation = 0
+        self.ISO = 0 # auto
+        self.video_stabilization = False
+        self.exposure_compensation = 0
+        self.exposure_mode = 'auto'
+        self.meter_mode = 'average'
+        self.awb_mode = 'auto'
+        self.image_effect = 'none'
+        self.color_effects = None
+        self.rotation = 0
+        self.hflip = self.vflip = False
+        self.crop = (0.0, 0.0, 1.0, 1.0)
+
+    def _init_preview(self):
+        # Create and enable the preview component, but don't actually connect
+        # it to the camera at this time
+        self._preview = ct.POINTER(mmal.MMAL_COMPONENT_T)()
+        mmal_check(
+            mmal.mmal_component_create(
+                mmal.MMAL_COMPONENT_DEFAULT_VIDEO_RENDERER, self._preview),
+            prefix="Failed to create preview component")
+        if not self._preview[0].input_num:
+            raise PiCameraError("No input ports on preview component")
+
+        mp = mmal.MMAL_DISPLAYREGION_T(
+            mmal.MMAL_PARAMETER_HEADER_T(
+                mmal.MMAL_PARAMETER_DISPLAYREGION,
+                ct.sizeof(mmal.MMAL_DISPLAYREGION_T)
+            ))
+        mp.set = (
+            mmal.MMAL_DISPLAY_SET_LAYER |
+            mmal.MMAL_DISPLAY_SET_ALPHA |
+            mmal.MMAL_DISPLAY_SET_FULLSCREEN)
+        mp.layer = 2
+        mp.alpha = 255
+        mp.fullscreen = 1
+        mmal_check(
+            mmal.mmal_port_parameter_set(self._preview[0].input[0], mp.hdr),
+            prefix="Unable to set preview port parameters")
+
+        mmal_check(
+            mmal.mmal_component_enable(self._preview),
+            prefix="Preview component couldn't be enabled")
+
+        # Create a null-sink component, enable it and connect it to the
+        # camera's preview port. If nothing is connected to the preview port,
+        # the camera doesn't measure exposure and captured images gradually
+        # fade to black (issue #22)
+        self._null_sink = ct.POINTER(mmal.MMAL_COMPONENT_T)()
+        mmal_check(
+            mmal.mmal_component_create(
+                mmal.MMAL_COMPONENT_DEFAULT_NULL_SINK, self._null_sink),
+            prefix="Failed to create null sink component")
+        if not self._preview[0].input_num:
+            raise PiCameraError("No input ports on null sink component")
+
+        mmal_check(
+            mmal.mmal_component_enable(self._null_sink),
+            prefix="Null sink component couldn't be enabled")
+
+        self._preview_connection = ct.POINTER(mmal.MMAL_CONNECTION_T)()
+        mmal_check(
+            mmal.mmal_connection_create(
+                self._preview_connection,
+                self._camera[0].output[self.CAMERA_PREVIEW_PORT],
+                self._null_sink[0].input[0],
+                mmal.MMAL_CONNECTION_FLAG_TUNNELLING |
+                mmal.MMAL_CONNECTION_FLAG_ALLOCATION_ON_INPUT),
+            prefix="Failed to connect camera to null sink")
+        mmal_check(
+            mmal.mmal_connection_enable(self._preview_connection),
+            prefix="Failed to enable preview connection")
 
     def _check_camera_open(self):
         if self.closed:
@@ -453,7 +461,8 @@ class PiCamera(object):
                 self._preview_connection,
                 self._camera[0].output[self.CAMERA_PREVIEW_PORT],
                 self._preview[0].input[0],
-                mmal.MMAL_CONNECTION_FLAG_TUNNELLING | mmal.MMAL_CONNECTION_FLAG_ALLOCATION_ON_INPUT),
+                mmal.MMAL_CONNECTION_FLAG_TUNNELLING |
+                mmal.MMAL_CONNECTION_FLAG_ALLOCATION_ON_INPUT),
             prefix="Failed to connect camera to preview")
         mmal_check(
             mmal.mmal_connection_enable(self._preview_connection),
@@ -480,7 +489,8 @@ class PiCamera(object):
                 self._preview_connection,
                 self._camera[0].output[self.CAMERA_PREVIEW_PORT],
                 self._null_sink[0].input[0],
-                mmal.MMAL_CONNECTION_FLAG_TUNNELLING | mmal.MMAL_CONNECTION_FLAG_ALLOCATION_ON_INPUT),
+                mmal.MMAL_CONNECTION_FLAG_TUNNELLING |
+                mmal.MMAL_CONNECTION_FLAG_ALLOCATION_ON_INPUT),
             prefix="Failed to connect camera to null sink")
         mmal_check(
             mmal.mmal_connection_enable(self._preview_connection),
