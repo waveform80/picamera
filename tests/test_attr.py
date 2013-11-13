@@ -172,83 +172,75 @@ def test_preview_window(camera, previewing):
         assert camera.preview_window == (0, 0, 1920, 1080)
 
 def test_framerate(camera, previewing):
-    if previewing:
+    save_framerate = camera.framerate
+    try:
+        assert len(camera.framerate) == 2
+        camera.framerate = (30, 1)
+        n, d = camera.framerate
+        assert n/d == 30
+        camera.framerate = (15, 1)
+        n, d = camera.framerate
+        assert n/d == 15
+        camera.framerate = 30
+        n, d = camera.framerate
+        assert n/d == 30
+        camera.framerate = 15
+        n, d = camera.framerate
+        assert n/d == 15
+        camera.framerate = (30, 2)
+        n, d = camera.framerate
+        assert n/d == 15
+        camera.framerate = 5
+        n, d = camera.framerate
+        assert n/d == 5
+        camera.framerate = 10
+        n, d = camera.framerate
+        assert n/d == 10
         with pytest.raises(picamera.PiCameraError):
-            camera.framerate = 30
-    else:
-        save_framerate = camera.framerate
-        try:
-            assert len(camera.framerate) == 2
-            camera.framerate = (30, 1)
-            n, d = camera.framerate
-            assert n/d == 30
-            camera.framerate = (15, 1)
-            n, d = camera.framerate
-            assert n/d == 15
-            camera.framerate = 30
-            n, d = camera.framerate
-            assert n/d == 30
-            camera.framerate = 15
-            n, d = camera.framerate
-            assert n/d == 15
-            camera.framerate = (30, 2)
-            n, d = camera.framerate
-            assert n/d == 15
-            camera.framerate = 5
-            n, d = camera.framerate
-            assert n/d == 5
-            camera.framerate = 10
-            n, d = camera.framerate
-            assert n/d == 10
-            with pytest.raises(picamera.PiCameraError):
-                camera.framerate = -1
-            with pytest.raises(picamera.PiCameraError):
-                camera.framerate = 60
-        finally:
-            camera.framerate = save_framerate
+            camera.framerate = -1
+        with pytest.raises(picamera.PiCameraError):
+            camera.framerate = 60
+    finally:
+        camera.framerate = save_framerate
 
 def test_resolution(camera, previewing):
-    if previewing:
+    save_resolution = camera.resolution
+    try:
+        # Test setting some regular resolutions
+        camera.resolution = (320, 240)
+        assert camera.resolution == (320, 240)
+        assert camera._camera[0].port[2][0].format[0].es[0].video.width == 320
+        assert camera._camera[0].port[2][0].format[0].es[0].video.height == 240
+        camera.resolution = (640, 480)
+        assert camera.resolution == (640, 480)
+        assert camera._camera[0].port[2][0].format[0].es[0].video.width == 640
+        assert camera._camera[0].port[2][0].format[0].es[0].video.height == 480
+        camera.resolution = (1280, 720)
+        assert camera.resolution == (1280, 720)
+        assert camera._camera[0].port[2][0].format[0].es[0].video.width == 1280
+        assert camera._camera[0].port[2][0].format[0].es[0].video.height == 720
+        camera.resolution = (1920, 1080)
+        assert camera.resolution == (1920, 1080)
+        # Camera's vertical resolution is always a multiple of 16, and
+        # horizontal is a multiple of 32, hence the difference in the video
+        # formats here and below
+        assert camera._camera[0].port[2][0].format[0].es[0].video.width == 1920
+        assert camera._camera[0].port[2][0].format[0].es[0].video.height == 1088
+        camera.resolution = (2592, 1944)
+        assert camera.resolution == (2592, 1944)
+        assert camera._camera[0].port[2][0].format[0].es[0].video.width == 2592
+        assert camera._camera[0].port[2][0].format[0].es[0].video.height == 1952
+        # Test some irregular resolutions
+        camera.resolution = (100, 100)
+        assert camera.resolution == (100, 100)
+        assert camera._camera[0].port[2][0].format[0].es[0].video.width == 128
+        assert camera._camera[0].port[2][0].format[0].es[0].video.height == 112
+        # Anything below 16,16 will fail (because the camera's vertical
+        # resolution works in increments of 16)
         with pytest.raises(picamera.PiCameraError):
-            camera.resolution = (320, 240)
-    else:
-        save_resolution = camera.resolution
-        try:
-            # Test setting some regular resolutions
-            camera.resolution = (320, 240)
-            assert camera.resolution == (320, 240)
-            assert camera._camera[0].port[2][0].format[0].es[0].video.width == 320
-            assert camera._camera[0].port[2][0].format[0].es[0].video.height == 240
-            camera.resolution = (640, 480)
-            assert camera.resolution == (640, 480)
-            assert camera._camera[0].port[2][0].format[0].es[0].video.width == 640
-            assert camera._camera[0].port[2][0].format[0].es[0].video.height == 480
-            camera.resolution = (1280, 720)
-            assert camera.resolution == (1280, 720)
-            assert camera._camera[0].port[2][0].format[0].es[0].video.width == 1280
-            assert camera._camera[0].port[2][0].format[0].es[0].video.height == 720
-            camera.resolution = (1920, 1080)
-            assert camera.resolution == (1920, 1080)
-            # Camera's vertical resolution is always a multiple of 16, and
-            # horizontal is a multiple of 32, hence the difference in the video
-            # formats here and below
-            assert camera._camera[0].port[2][0].format[0].es[0].video.width == 1920
-            assert camera._camera[0].port[2][0].format[0].es[0].video.height == 1088
-            camera.resolution = (2592, 1944)
-            assert camera.resolution == (2592, 1944)
-            assert camera._camera[0].port[2][0].format[0].es[0].video.width == 2592
-            assert camera._camera[0].port[2][0].format[0].es[0].video.height == 1952
-            # Test some irregular resolutions
-            camera.resolution = (100, 100)
-            assert camera.resolution == (100, 100)
-            assert camera._camera[0].port[2][0].format[0].es[0].video.width == 128
-            assert camera._camera[0].port[2][0].format[0].es[0].video.height == 112
-            # Anything below 16,16 will fail (because the camera's vertical
-            # resolution works in increments of 16)
-            with pytest.raises(picamera.PiCameraError):
-                camera.resolution = (0, 0)
-            with pytest.raises(picamera.PiCameraError):
-                camera.resolution = (15, 15)
-        finally:
-            camera.resolution = save_resolution
+            camera.resolution = (0, 0)
+        with pytest.raises(picamera.PiCameraError):
+            camera.resolution = (15, 15)
+    finally:
+        camera.resolution = save_resolution
 
