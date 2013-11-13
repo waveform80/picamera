@@ -346,17 +346,17 @@ class PiVideoEncoder(PiEncoder):
             mmal.mmal_port_format_commit(self.output_port),
             prefix="Unable to set format on encoder output port")
 
-        if 'intraperiod' in options:
+        if 'intra_period' in options:
             mp = mmal.MMAL_PARAMETER_UINT32_T(
                     mmal.MMAL_PARAMETER_HEADER_T(
                         mmal.MMAL_PARAMETER_INTRAPERIOD,
                         ct.sizeof(mmal.MMAL_PARAMETER_UINT32_T),
                         ),
-                    int(options['intraperiod'])
+                    int(options['intra_period']),
                     )
             mmal_check(
                 mmal.mmal_port_parameter_set(self.output_port, mp.hdr),
-                prefix="Unable to set encoder intraperiod")
+                prefix="Unable to set encoder intra_period")
 
         if 'profile' in options:
             mp = mmal.MMAL_PARAMETER_VIDEO_PROFILE_T(
@@ -365,16 +365,48 @@ class PiVideoEncoder(PiEncoder):
                         ct.sizeof(mmal.MMAL_PARAMETER_VIDEO_PROFILE_T),
                         ),
                     )
-            mp.profile[0].profile = {
-                'baseline':    mmal.MMAL_VIDEO_PROFILE_H264_BASELINE,
-                'main':        mmal.MMAL_VIDEO_PROFILE_H264_MAIN,
-                'high':        mmal.MMAL_VIDEO_PROFILE_H264_HIGH,
-                'constrained': mmal.MMAL_VIDEO_PROFILE_H264_CONSTRAINED_BASELINE,
-            }[options['profile']]
+            try:
+                mp.profile[0].profile = {
+                    'baseline':    mmal.MMAL_VIDEO_PROFILE_H264_BASELINE,
+                    'main':        mmal.MMAL_VIDEO_PROFILE_H264_MAIN,
+                    'high':        mmal.MMAL_VIDEO_PROFILE_H264_HIGH,
+                    'constrained': mmal.MMAL_VIDEO_PROFILE_H264_CONSTRAINED_BASELINE,
+                }[options['profile']]
+            except KeyError:
+                raise PiCameraValueError(
+                    "Invalid H.264 profile %s" % options['profile'])
             mp.profile[0].level = mmal.MMAL_VIDEO_LEVEL_H264_4
             mmal_check(
                 mmal.mmal_port_parameter_set(self.output_port, mp.hdr),
                 prefix="Unable to set encoder H.264 profile")
+
+        if 'quantization' in options:
+            mp = mmal.MMAL_PARAMETER_UINT32_T(
+                    mmal.MMAL_PARAMETER_HEADER_T(
+                        mmal.MMAL_PARAMETER_VIDEO_ENCODE_INITIAL_QUANT,
+                        ct.sizeof(mmal.MMAL_PARAMETER_UINT32_T),
+                        ),
+                    int(options['quantization']),
+                    )
+            mmal_check(
+                mmal.mmal_port_parameter_set(self.output_port, mp.hdr),
+                prefix="Unable to set quantization")
+            mp = mmal.MMAL_PARAMETER_UINT32_T(
+                    mmal.MMAL_PARAMETER_HEADER_T(
+                        mmal.MMAL_PARAMETER_VIDEO_ENCODE_QP_P,
+                        ct.sizeof(mmal.MMAL_PARAMETER_UINT32_T),
+                        ),
+                    int(options['quantization']) + 6,
+                    )
+            mmal_check(
+                mmal.mmal_port_parameter_set(self.output_port, mp.hdr),
+                prefix="Unable to set quantization")
+
+        if bool(options.get('inline_headers', False)):
+            mmal_check(
+                mmal.mmal_port_parameter_set_boolean(
+                    self.output_port, mmal.MMAL_PARAMETER_VIDEO_ENCODE_INLINE_HEADER, 1),
+                prefix="Unable to set inline_headers")
 
         # XXX Why does this fail? Is it even needed?
         #try:
