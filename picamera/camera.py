@@ -1869,10 +1869,10 @@ class PiCamera(object):
             mmal.mmal_port_parameter_get(self._camera[0].control, mp.hdr),
             prefix="Failed to get crop")
         return (
-            mp[0].rect.x.value / 65535.0,
-            mp[0].rect.y.value / 65535.0,
-            mp[0].rect.width.value / 65535.0,
-            mp[0].rect.height.value / 65535.0,
+            mp.rect.x / 65535.0,
+            mp.rect.y / 65535.0,
+            mp.rect.width / 65535.0,
+            mp.rect.height / 65535.0,
             )
     def _set_crop(self, value):
         self._check_camera_open()

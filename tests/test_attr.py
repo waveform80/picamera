@@ -142,6 +142,19 @@ def test_shutter_speed(camera, previewing):
         camera.shutter_speed = value
         assert (value - 50) <= camera.shutter_speed <= value
 
+def test_crop(camera, previewing):
+    save_crop = camera.crop
+    try:
+        camera.crop = (0.0, 0.0, 1.0, 1.0)
+        assert camera.crop == (0.0, 0.0, 1.0, 1.0)
+        camera.crop = (0.2, 0.2, 0.6, 0.6)
+        assert camera.crop == (0.2, 0.2, 0.6, 0.6)
+        camera.crop = (0.1, 0.1, 0.8, 0.8)
+        # 0.1 doesn't quite make the round trip...
+        assert camera.crop == (int(0.1*65535.0)/65535.0, int(0.1*65535.0)/65535.0, 0.8, 0.8)
+    finally:
+        camera.crop = save_crop
+
 # XXX The preview properties work, but don't return correct values unless the
 # preview is actually running; if this isn't expected behaviour then we should
 # xfail these tests instead of simply testing for previewing...
