@@ -5,6 +5,22 @@ Change log
 ==========
 
 
+Release 0.7
+===========
+
+0.7 is mostly a bug fix release, with a few new video recording features:
+
+* Added ``quantisation`` and ``inline_headers`` options to
+  :meth:`~picamera.PiCamera.start_recording` method
+* Fixed bugs in the :attr:`~picamera.PiCamera.crop` property
+* The issue of captures fading to black over time when the preview is not
+  running has been resolved. This solution was to permanently activate the
+  preview, but pipe it to a null-sink when not required. Note that this means
+  rapid capture gets even slower when not using the video port
+* LED support is via RPi.GPIO only; the RPIO library simply doesn't support it
+  at this time
+* Numerous documentation fixes
+
 Release 0.6
 ===========
 
