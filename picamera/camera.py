@@ -570,7 +570,8 @@ class PiCamera(object):
         try:
             self.wait_recording(0)
         finally:
-            self._video_encoder.close()
+            if self._video_encoder:
+                self._video_encoder.close()
 
     def capture(self, output, format=None, **options):
         """
