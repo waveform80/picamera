@@ -19,7 +19,8 @@ Start a preview for 10 seconds with the default settings::
 
 Note that you should always ensure you call :meth:`~picamera.PiCamera.close` on
 the PiCamera object to clean up resources. The following example demonstrates
-that the context manager protocol can also be used to achieve this::
+that the context manager protocol (with ``with`` statement) can also be used to
+achieve this::
 
     import time
     import picamera
@@ -46,8 +47,8 @@ during display::
             camera.stop_preview()
 
 The next example demonstrates setting the camera resolution (this can only be
-done when the camera is not recording or previewing) to 640x480, then starting
-a preview and a recording to a disk file::
+done when the camera is not recording) to 640x480, then starting a preview and
+a recording to a disk file::
 
     import picamera
 
