@@ -9,6 +9,29 @@ all skill levels. Please feel free to suggest enhancements or additional
 recipes.
 
 
+.. _file_capture:
+
+Capturing to a file
+===================
+
+Capturing a file is as simple as specifying the name of the file as the output
+of whatever capture() method you require::
+
+    import time
+    import picamera
+
+    with picamera.PiCamera() as camera:
+        camera.resolution = (1024, 768)
+        camera.start_preview()
+        # Camera warm-up time
+        time.sleep(2)
+        camera.capture('foo.jpg')
+
+Note that files opened by picamera (as in the case above) will be flushed and
+closed so that when the capture() method returns, the data should be accessible
+to other processes.
+
+
 .. _stream_capture:
 
 Capturing to a stream
@@ -43,7 +66,7 @@ until the object is explicitly closed::
     import time
     import picamera
 
-    # Create a new file called my_image.jpg
+    # Explicitly open a new file called my_image.jpg
     my_file = open('my_image.jpg', 'wb')
     with picamera.PiCamera() as camera:
         camera.start_preview()
@@ -109,7 +132,7 @@ stream to a numpy array and read the array with `OpenCV`_::
         camera.capture(stream, format='jpeg')
     # Construct a numpy array from the stream
     data = np.fromstring(stream.getvalue(), dtype=np.uint8)
-    # "Decode" the image from the array
+    # "Decode" the image from the array, preserving colour
     image = cv2.imdecode(data, 1)
     # OpenCV returns an array with data in BGR order. If you want RGB instead
     # use the following...
