@@ -1078,10 +1078,8 @@ class PiCamera(object):
         except (TypeError, ValueError) as e:
             n = int(value)
             d = 1
-        # At resolutions higher than 1080p, drop the frame rate (GPU can only
-        # manage 15fps at full frame)
-        if ((w > self.MAX_VIDEO_RESOLUTION[0])
-                or (h > self.MAX_VIDEO_RESOLUTION[1])):
+        # At full frame, drop frame rate to 15fps
+        if (w, h) == self.MAX_IMAGE_RESOLUTION:
             max_rate = 15
         else:
             max_rate = 30
@@ -1143,10 +1141,8 @@ class PiCamera(object):
         except (TypeError, ValueError) as e:
             raise PiCameraValueError(
                 "Invalid resolution (width, height) tuple: %s" % value)
-        # At resolutions higher than 1080p, drop the frame rate (GPU can only
-        # manage 15fps at full frame)
-        if ((w > self.MAX_VIDEO_RESOLUTION[0])
-                or (h > self.MAX_VIDEO_RESOLUTION[1])) and (n / d > 15):
+        # At full frame, drop the frame rate to 15fps
+        if ((w, h) == self.MAX_IMAGE_RESOLUTION) and (n / d > 15):
             n = 15
             d = 1
         mmal_check(
