@@ -525,12 +525,23 @@ class PiCamera(object):
         * *profile* - The H.264 profile to use for encoding. Defaults to 'high',
           but can be one of 'baseline', 'main', 'high', or 'constrained'.
 
-        * *intraperiod* - The key frame rate (the rate at which I-frames are
+        * *intra_period* - The key frame rate (the rate at which I-frames are
           inserted in the output). Defaults to 0, but can be any positive
           32-bit integer value.
 
         * *bitrate* - The bitrate at which video will be encoded. Defaults to
           17000000 (17Mbps) if not specified.
+
+        * *quantization* - When *bitrate* is zero (for variable bit-rate
+          encodings), this parameter specifies the quality that the encoder
+          should attempt to maintain. Use values between 10 and 40 where 10 is
+          extremely high quality, and 40 is extremely low (20-25 is usually a
+          reasonable range).
+
+        * *inline_headers* - When True, specifies that the encoder should
+          output SPS/PPS headers within the stream to ensure GOPs are self
+          contained. This is important for streaming applications where the
+          client may wish to seek within the stream.
         """
         format = self._get_video_format(output, format)
         encoder = PiVideoEncoder(self, format, **options)
