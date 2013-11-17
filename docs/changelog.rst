@@ -5,6 +5,24 @@ Change log
 ==========
 
 
+Release 0.8
+===========
+
+In 0.8 the major features added were:
+
+* Capture of images whilst recording without frame-drop. Previously, images
+  could be captured whilst recording but only from the still port which
+  resulted in dropped frames in the recorded video due to the mode switch. In
+  0.8, ``use_video_port=True`` can be specified on capture methods whilst
+  recording video to avoid this.
+
+In addition a few bugs were fixed:
+
+* Documentation updates that were missing from 0.7 (specifically the new
+  video recording parameters)
+* The ability to perform raw captures through the video port
+
+
 Release 0.7
 ===========
 
