@@ -48,6 +48,16 @@ def format_options(request):
     format, options = request.param
     return format, dict(options)
 
+# Run tests with one of the two supported raw formats
+@pytest.fixture(scope='module', params=('yuv', 'rgb'))
+def raw_format(request, camera):
+    save_format = camera.raw_format
+    camera.raw_format = request.param
+    def fin():
+        camera.raw_format = save_format
+    request.addfinalizer(fin)
+    return request.param
+
 
 def test_capture_to_file(camera, previewing, resolution, filename_format_options):
     filename, format, options = filename_format_options

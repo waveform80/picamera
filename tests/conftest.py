@@ -50,13 +50,3 @@ def resolution(request, camera):
     request.addfinalizer(fin)
     return request.param
 
-# Run tests with one of the two supported raw formats
-@pytest.fixture(scope='module', params=('yuv', 'rgb'))
-def raw_format(request, camera):
-    save_format = camera.raw_format
-    camera.raw_format = request.param
-    def fin():
-        camera.raw_format = save_format
-    request.addfinalizer(fin)
-    return request.param
-
