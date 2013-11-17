@@ -44,38 +44,19 @@ def previewing(request, camera):
     ))
 def resolution(request, camera):
     save_resolution = camera.resolution
-    was_previewing = camera.previewing
-    if was_previewing:
-        camera.stop_preview()
     camera.resolution = request.param
-    if was_previewing:
-        camera.start_preview()
     def fin():
-        was_previewing = camera.previewing
-        if was_previewing:
-            camera.stop_preview()
         camera.resolution = save_resolution
-        if was_previewing:
-            camera.start_preview()
+    request.addfinalizer(fin)
     return request.param
 
 # Run tests with one of the two supported raw formats
 @pytest.fixture(scope='module', params=('yuv', 'rgb'))
 def raw_format(request, camera):
     save_format = camera.raw_format
-    was_previewing = camera.previewing
-    if was_previewing:
-        camera.stop_preview()
     camera.raw_format = request.param
-    if was_previewing:
-        camera.start_preview()
     def fin():
-        was_previewing = camera.previewing
-        if was_previewing:
-            camera.stop_preview()
         camera.raw_format = save_format
-        if was_previewing:
-            camera.start_preview()
     request.addfinalizer(fin)
     return request.param
 
