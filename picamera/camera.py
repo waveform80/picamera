@@ -23,9 +23,10 @@ from picamera.exc import (
 from picamera.encoders import (
     PiVideoEncoder,
     PiImageEncoder,
-    PiRawImageEncoder,
-    PiCookedImageEncoder,
-    PiMultiImageEncoder,
+    PiRawOneImageEncoder,
+    PiRawMultiImageEncoder,
+    PiCookedOneImageEncoder,
+    PiCookedMultiImageEncoder,
     )
 
 try:
@@ -89,12 +90,20 @@ class PiCamera(object):
     """
 
     CAMERA_PREVIEW_PORT = 0
-    CAMERA_VIDEO_PORT = PiVideoEncoder.port
-    CAMERA_CAPTURE_PORT = PiImageEncoder.port
+    CAMERA_VIDEO_PORT = 1
+    CAMERA_CAPTURE_PORT = 2
     CAMERA_PORTS = (
         CAMERA_PREVIEW_PORT,
         CAMERA_VIDEO_PORT,
         CAMERA_CAPTURE_PORT,
+        )
+    SPLITTER_VIDEO_PORT = 0
+    SPLITTER_CAPTURE_PORT = 1
+    SPLITTER_PORTS = (
+        SPLITTER_VIDEO_PORT,
+        SPLITTER_CAPTURE_PORT,
+        2,
+        3,
         )
     MAX_IMAGE_RESOLUTION = (2592, 1944)
     MAX_VIDEO_RESOLUTION = (1920, 1080)
@@ -189,7 +198,8 @@ class PiCamera(object):
         self._preview_connection = None
         self._null_sink = None
         self._video_encoder = None
-        self._still_encoder = None
+        self._splitter = None
+        self._splitter_connection = None
         self._exif_tags = {
             'IFD0.Model': 'RP_OV5647',
             'IFD0.Make': 'RaspberryPi',
@@ -199,6 +209,7 @@ class PiCamera(object):
             self._init_camera()
             self._init_defaults()
             self._init_preview()
+            self._init_splitter()
         except:
             self.close()
             raise
@@ -300,6 +311,42 @@ class PiCamera(object):
         self.hflip = self.vflip = False
         self.crop = (0.0, 0.0, 1.0, 1.0)
 
+    def _init_splitter(self):
+        # Create a splitter component for the video port. This is to permit
+        # video recordings and captures where use_video_port=True to occur
+        # simultaneously (#26)
+        self._splitter = ct.POINTER(mmal.MMAL_COMPONENT_T)()
+        mmal_check(
+            mmal.mmal_component_create(
+                mmal.MMAL_COMPONENT_DEFAULT_VIDEO_SPLITTER, self._splitter),
+            prefix="Failed to create video splitter")
+        if not self._splitter[0].input_num:
+            raise PiCameraError("No input ports on splitter component")
+        if self._splitter[0].output_num != len(self.SPLITTER_PORTS):
+            raise PiCameraError(
+                "Expected 4 output ports on splitter "
+                "(found %d)" % self._splitter[0].output_num)
+
+        mmal.mmal_format_copy(
+            self._splitter[0].input[0][0].format,
+            self._camera[0].output[self.CAMERA_VIDEO_PORT][0].format)
+        self._splitter[0].input[0][0].buffer_num = max(
+            self._splitter[0].input[0][0].buffer_num,
+            self.VIDEO_OUTPUT_BUFFERS_NUM)
+        mmal_check(
+            mmal.mmal_port_format_commit(self._splitter[0].input[0]),
+            prefix="Couldn't set splitter input port format")
+        for p in self.SPLITTER_PORTS:
+            mmal.mmal_format_copy(
+                self._splitter[0].output[p][0].format,
+                self._splitter[0].input[0][0].format)
+            mmal_check(
+                mmal.mmal_port_format_commit(self._splitter[0].output[p]),
+                prefix="Couldn't set splitter output port %d format" % p)
+        self._splitter_connection = self._connect_ports(
+            self._camera[0].output[self.CAMERA_VIDEO_PORT],
+            self._splitter[0].input[0])
+
     def _init_preview(self):
         # Create and enable the preview component, but don't actually connect
         # it to the camera at this time
@@ -342,23 +389,26 @@ class PiCamera(object):
             prefix="Failed to create null sink component")
         if not self._preview[0].input_num:
             raise PiCameraError("No input ports on null sink component")
-
         mmal_check(
             mmal.mmal_component_enable(self._null_sink),
             prefix="Null sink component couldn't be enabled")
 
-        self._preview_connection = ct.POINTER(mmal.MMAL_CONNECTION_T)()
+        self._preview_connection = self._connect_ports(
+            self._camera[0].output[self.CAMERA_PREVIEW_PORT],
+            self._null_sink[0].input[0])
+
+    def _connect_ports(self, output_port, input_port):
+        result = ct.POINTER(mmal.MMAL_CONNECTION_T)()
         mmal_check(
             mmal.mmal_connection_create(
-                self._preview_connection,
-                self._camera[0].output[self.CAMERA_PREVIEW_PORT],
-                self._null_sink[0].input[0],
+                result, output_port, input_port,
                 mmal.MMAL_CONNECTION_FLAG_TUNNELLING |
                 mmal.MMAL_CONNECTION_FLAG_ALLOCATION_ON_INPUT),
-            prefix="Failed to connect camera to null sink")
+            prefix="Failed to create connection")
         mmal_check(
-            mmal.mmal_connection_enable(self._preview_connection),
-            prefix="Failed to enable preview connection")
+            mmal.mmal_connection_enable(result),
+            prefix="Failed to enable connection")
+        return result
 
     def _check_camera_open(self):
         if self.closed:
@@ -415,12 +465,18 @@ class PiCamera(object):
         global _CAMERA
         if self.recording:
             self.stop_recording()
+        if self._splitter_connection:
+            mmal.mmal_connection_destroy(self._splitter_connection)
+            self._splitter_connection = None
         if self._preview_connection:
             mmal.mmal_connection_destroy(self._preview_connection)
             self._preview_connection = None
         if self._null_sink:
             mmal.mmal_component_destroy(self._null_sink)
             self._null_sink = None
+        if self._splitter:
+            mmal.mmal_component_destroy(self._splitter)
+            self._splitter = None
         if self._preview:
             mmal.mmal_component_destroy(self._preview)
             self._preview = None
@@ -455,18 +511,9 @@ class PiCamera(object):
         if self._preview_connection:
             mmal.mmal_connection_destroy(self._preview_connection)
             self._null_connection = None
-        self._preview_connection = ct.POINTER(mmal.MMAL_CONNECTION_T)()
-        mmal_check(
-            mmal.mmal_connection_create(
-                self._preview_connection,
-                self._camera[0].output[self.CAMERA_PREVIEW_PORT],
-                self._preview[0].input[0],
-                mmal.MMAL_CONNECTION_FLAG_TUNNELLING |
-                mmal.MMAL_CONNECTION_FLAG_ALLOCATION_ON_INPUT),
-            prefix="Failed to connect camera to preview")
-        mmal_check(
-            mmal.mmal_connection_enable(self._preview_connection),
-            prefix="Failed to enable preview connection")
+        self._preview_connection = self._connect_ports(
+            self._camera[0].output[self.CAMERA_PREVIEW_PORT],
+            self._preview[0].input[0])
 
     def stop_preview(self):
         """
@@ -483,18 +530,9 @@ class PiCamera(object):
         if self._preview_connection:
             mmal.mmal_connection_destroy(self._preview_connection)
             self._preview_connection = None
-        self._preview_connection = ct.POINTER(mmal.MMAL_CONNECTION_T)()
-        mmal_check(
-            mmal.mmal_connection_create(
-                self._preview_connection,
-                self._camera[0].output[self.CAMERA_PREVIEW_PORT],
-                self._null_sink[0].input[0],
-                mmal.MMAL_CONNECTION_FLAG_TUNNELLING |
-                mmal.MMAL_CONNECTION_FLAG_ALLOCATION_ON_INPUT),
-            prefix="Failed to connect camera to null sink")
-        mmal_check(
-            mmal.mmal_connection_enable(self._preview_connection),
-            prefix="Failed to enable preview connection")
+        self._preview_connection = self._connect_ports(
+            self._camera[0].output[self.CAMERA_PREVIEW_PORT],
+            self._null_sink[0].input[0])
 
     def start_recording(self, output, format=None, **options):
         """
@@ -543,12 +581,21 @@ class PiCamera(object):
           contained. This is important for streaming applications where the
           client may wish to seek within the stream.
         """
+        if self.recording:
+            raise PiCameraRuntimeError('The camera is already recording')
+        camera_port = self._camera[0].output[self.CAMERA_VIDEO_PORT]
+        enc_port = self._splitter[0].output[self.SPLITTER_VIDEO_PORT]
         format = self._get_video_format(output, format)
-        encoder = PiVideoEncoder(self, format, **options)
+        self._video_encoder = PiVideoEncoder(self, enc_port, format, **options)
         try:
-            encoder.start(output)
+            self._video_encoder.start(output)
+            mmal_check(
+                mmal.mmal_port_parameter_set_boolean(
+                    camera_port, mmal.MMAL_PARAMETER_CAPTURE, mmal.MMAL_TRUE),
+                prefix="Failed to start capture")
         except Exception as e:
-            encoder.close()
+            self._video_encoder.close()
+            self._video_encoder = None
             raise
 
     def wait_recording(self, timeout=0):
@@ -583,8 +630,9 @@ class PiCamera(object):
         finally:
             if self._video_encoder:
                 self._video_encoder.close()
+                self._video_encoder = None
 
-    def capture(self, output, format=None, **options):
+    def capture(self, output, format=None, use_video_port=False, **options):
         """
         Capture an image from the camera, storing it in *output*.
 
@@ -593,6 +641,12 @@ class PiCamera(object):
         to a be a file-like object and the image data is appended to it (the
         implementation only assumes the object has a ``write()`` method - no
         other methods will be called).
+
+        The *use_video_port* parameter controls whether the camera's image or
+        video port is used to capture images. It defaults to False which means
+        that the camera's image port is used. This port is slow but produces
+        better quality pictures. If you need rapid capture up to the rate of
+        video frames, set this to True.
 
         If *format* is ``None`` (the default), the method will attempt to guess
         the required image format from the extension of *output* (if it's a
@@ -627,13 +681,23 @@ class PiCamera(object):
           Otherwise, specify a tuple of ``(width, height, quality)``. Defaults
           to ``(64, 48, 35)``.
         """
+        camera_port = self._camera[0].output[
+                self.CAMERA_VIDEO_PORT if use_video_port else
+                self.CAMERA_CAPTURE_PORT]
+        enc_port = (
+                self._splitter[0].output[self.SPLITTER_CAPTURE_PORT] if use_video_port else
+                camera_port)
         format = self._get_image_format(output, format)
-        if format == 'raw':
-            encoder = PiRawImageEncoder(self, format, **options)
-        else:
-            encoder = PiCookedImageEncoder(self, format, **options)
+        enc_class = (
+                PiRawOneImageEncoder if format == 'raw' else
+                PiCookedOneImageEncoder)
+        encoder = enc_class(self, enc_port, format, **options)
         try:
             encoder.start(output)
+            mmal_check(
+                mmal.mmal_port_parameter_set_boolean(
+                    camera_port, mmal.MMAL_PARAMETER_CAPTURE, mmal.MMAL_TRUE),
+                prefix="Failed to start capture")
             # Wait for the callback to set the event indicating the end of
             # image capture
             encoder.wait()
@@ -694,22 +758,41 @@ class PiCamera(object):
         More complex effects can be obtained by using a generator function to
         provide the filenames or output objects.
         """
+        camera_port = self._camera[0].output[
+                self.CAMERA_VIDEO_PORT if use_video_port else
+                self.CAMERA_CAPTURE_PORT]
+        enc_port = (
+                self._splitter[0].output[self.SPLITTER_CAPTURE_PORT] if use_video_port else
+                camera_port)
         format = self._get_image_format('', format)
         if use_video_port:
-            encoder = PiMultiImageEncoder(self, format, **options)
+            enc_class = (
+                    PiRawMultiImageEncoder if format == 'raw' else
+                    PiCookedMultiImageEncoder)
+            encoder = enc_class(self, enc_port, format, **options)
             try:
                 encoder.start(outputs)
+                mmal_check(
+                    mmal.mmal_port_parameter_set_boolean(
+                        camera_port, mmal.MMAL_PARAMETER_CAPTURE,
+                        mmal.MMAL_TRUE),
+                    prefix="Failed to start capture")
                 encoder.wait()
             finally:
                 encoder.close()
         else:
-            if format == 'raw':
-                encoder = PiRawImageEncoder(self, format, **options)
-            else:
-                encoder = PiCookedImageEncoder(self, format, **options)
+            enc_class = (
+                    PiRawOneImageEncoder if format == 'raw' else
+                    PiCookedOneImageEncoder)
+            encoder = enc_class(self, enc_port, format, **options)
             try:
                 for output in outputs:
                     encoder.start(output)
+                    mmal_check(
+                        mmal.mmal_port_parameter_set_boolean(
+                            camera_port, mmal.MMAL_PARAMETER_CAPTURE,
+                            mmal.MMAL_TRUE),
+                        prefix="Failed to start capture")
                     encoder.wait()
             finally:
                 encoder.close()
@@ -809,13 +892,17 @@ class PiCamera(object):
                         break
                     time.sleep(0.5)
         """
+        camera_port = self._camera[0].output[
+                self.CAMERA_VIDEO_PORT if use_video_port else
+                self.CAMERA_CAPTURE_PORT]
+        enc_port = (
+                self._splitter[0].output[self.SPLITTER_CAPTURE_PORT] if use_video_port else
+                camera_port)
         format = self._get_image_format(output, format)
-        if format == 'raw':
-            encoder = PiRawImageEncoder(
-                self, format, use_video_port=use_video_port, **options)
-        else:
-            encoder = PiCookedImageEncoder(
-                self, format, use_video_port=use_video_port, **options)
+        enc_class = (
+                PiRawOneImageEncoder if format == 'raw' else
+                PiCookedOneImageEncoder)
+        encoder = enc_class(self, enc_port, format, **options)
         try:
             if isinstance(output, bytes):
                 # If we're fed a bytes string, assume it's UTF-8 encoded and
@@ -833,12 +920,22 @@ class PiCamera(object):
                         timestamp=datetime.datetime.now(),
                         )
                     encoder.start(filename)
+                    mmal_check(
+                        mmal.mmal_port_parameter_set_boolean(
+                            camera_port, mmal.MMAL_PARAMETER_CAPTURE,
+                            mmal.MMAL_TRUE),
+                        prefix="Failed to start capture")
                     encoder.wait()
                     yield filename
                     counter += 1
             else:
                 while True:
                     encoder.start(output)
+                    mmal_check(
+                        mmal.mmal_port_parameter_set_boolean(
+                            camera_port, mmal.MMAL_PARAMETER_CAPTURE,
+                            mmal.MMAL_TRUE),
+                        prefix="Failed to start capture")
                     encoder.wait()
                     yield output
         finally:

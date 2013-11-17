@@ -68,37 +68,24 @@ class PiEncoder(object):
     """
 
     encoder_type = None
-    port = None
 
-    def __init__(self, parent, format, **options):
+    def __init__(self, parent, port, format, **options):
+        self.parent = parent
+        self.encoder = None
+        self.camera_port = port
+        self.input_port = None
+        self.output_port = None
+        self.pool = None
+        self.connection = None
+        self.opened = False
+        self.output = None
+        self.lock = threading.Lock() # protects access to self.output
+        self.exception = None
+        self.event = threading.Event()
+        self.stopped = True
         try:
             if parent.closed:
                 raise PiCameraRuntimeError("Camera is closed")
-            if self.port == 1:
-                if parent._video_encoder:
-                    raise PiCameraRuntimeError(
-                        "There is already an encoder connected to the video port")
-                parent._video_encoder = self
-            elif self.port == 2:
-                if parent._still_encoder:
-                    raise PiCameraRuntimeError(
-                        "There is already an encoder connected to the still port")
-                parent._still_encoder = self
-            else:
-                raise PiCameraValueError("Invalid camera port %d" % self.port)
-            self.parent = parent
-            self.camera = parent._camera
-            self.encoder = None
-            self.output_port = None
-            self.input_port = None
-            self.pool = None
-            self.connection = None
-            self.opened = False
-            self.output = None
-            self.lock = threading.Lock() # protects access to self.output
-            self.exception = None
-            self.event = threading.Event()
-            self.stopped = True
             self._create_encoder(format, **options)
             self._create_pool()
             self._create_connection()
@@ -150,18 +137,8 @@ class PiEncoder(object):
         Connects the camera to the encoder object
         """
         assert not self.connection
-        self.connection = ct.POINTER(mmal.MMAL_CONNECTION_T)()
-        mmal_check(
-            mmal.mmal_connection_create(
-                self.connection,
-                self.camera[0].output[self.port],
-                self.input_port,
-                mmal.MMAL_CONNECTION_FLAG_TUNNELLING |
-                mmal.MMAL_CONNECTION_FLAG_ALLOCATION_ON_INPUT),
-            prefix="Failed to connect camera to encoder")
-        mmal_check(
-            mmal.mmal_connection_enable(self.connection),
-            prefix="Failed to enable encoder connection")
+        self.connection = self.parent._connect_ports(
+            self.camera_port, self.input_port)
 
     def _callback(self, port, buf):
         """
@@ -264,11 +241,6 @@ class PiEncoder(object):
                 mmal.mmal_port_send_buffer(self.output_port, buf),
                 prefix="Unable to send a buffer to encoder output port")
 
-        mmal_check(
-            mmal.mmal_port_parameter_set_boolean(
-                self.camera[0].output[self.port],
-                mmal.MMAL_PARAMETER_CAPTURE, mmal.MMAL_TRUE),
-            prefix="Failed to start capture")
 
     def wait(self, timeout=None):
         """
@@ -301,33 +273,24 @@ class PiEncoder(object):
         """
         Finalizes the encoder and deallocates all structures
         """
-        try:
-            self.stop()
-            if self.connection:
-                mmal.mmal_connection_destroy(self.connection)
-                self.connection = None
-            if self.pool:
-                mmal.mmal_port_pool_destroy(self.output_port, self.pool)
-                self.pool = None
-            if self.encoder:
-                if self.encoder[0].is_enabled:
-                    mmal.mmal_component_disable(self.encoder)
-                mmal.mmal_component_destroy(self.encoder)
-                self.encoder = None
-                self.output_port = None
-                self.input_port = None
-        finally:
-            if self.port == 1:
-                self.parent._video_encoder = None
-            elif self.port == 2:
-                self.parent._still_encoder = None
-            else:
-                raise PiCameraValueError("Invalid camera port %d" % self.port)
+        self.stop()
+        if self.connection:
+            mmal.mmal_connection_destroy(self.connection)
+            self.connection = None
+        if self.pool:
+            mmal.mmal_port_pool_destroy(self.output_port, self.pool)
+            self.pool = None
+        if self.encoder:
+            if self.encoder[0].is_enabled:
+                mmal.mmal_component_disable(self.encoder)
+            mmal.mmal_component_destroy(self.encoder)
+            self.encoder = None
+            self.output_port = None
+            self.input_port = None
 
 
 class PiVideoEncoder(PiEncoder):
     encoder_type = mmal.MMAL_COMPONENT_DEFAULT_VIDEO_ENCODER
-    port = 1
 
     def _create_encoder(self, format, **options):
         super(PiVideoEncoder, self)._create_encoder(format, **options)
@@ -339,8 +302,8 @@ class PiVideoEncoder(PiEncoder):
         except KeyError:
             raise PiCameraValueError('Unrecognized format %s' % format)
         bitrate = options.get('bitrate', 17000000)
-        if bitrate > 25000000:
-            raise PiCameraValueError('25Mbps is the maximum bitrate')
+        if not (0 <= bitrate <= 25000000):
+            raise PiCameraValueError('bitrate must be between 0 (VBR) and 25Mbps')
         self.output_port[0].format[0].bitrate = bitrate
         mmal_check(
             mmal.mmal_port_format_commit(self.output_port),
@@ -427,8 +390,6 @@ class PiVideoEncoder(PiEncoder):
 
 class PiImageEncoder(PiEncoder):
     encoder_type = mmal.MMAL_COMPONENT_DEFAULT_IMAGE_ENCODER
-    port = 2
-    exif_encoding = 'ascii'
 
     def _create_encoder(self, format, **options):
         super(PiImageEncoder, self)._create_encoder(format, **options)
@@ -479,11 +440,6 @@ class PiImageEncoder(PiEncoder):
 
 
 class PiOneImageEncoder(PiImageEncoder):
-    def __init__(self, parent, format, **options):
-        if options.get('use_video_port', False):
-            self.port = 1
-        super(PiOneImageEncoder, self).__init__(parent, format, **options)
-
     def _callback_write(self, buf):
         return (
             super(PiOneImageEncoder, self)._callback_write(buf)
@@ -494,12 +450,12 @@ class PiOneImageEncoder(PiImageEncoder):
             )
 
 
-class PiRawImageEncoder(PiOneImageEncoder):
+class PiRawOneImageEncoder(PiOneImageEncoder):
     def _create_encoder(self, format, **options):
         # Overridden to skip creating an encoder. Instead we simply use the
         # camera's still port as the output port
         self.input_port = None
-        self.output_port = self.camera[0].output[self.port]
+        self.output_port = self.camera_port
 
     def _create_connection(self):
         # Overridden to skip creating a connection; there's no encoder so
@@ -507,7 +463,9 @@ class PiRawImageEncoder(PiOneImageEncoder):
         pass
 
 
-class PiCookedImageEncoder(PiOneImageEncoder):
+class PiCookedOneImageEncoder(PiOneImageEncoder):
+    exif_encoding = 'ascii'
+
     def _add_exif_tag(self, tag, value):
         # Format the tag and value into an appropriate bytes string, encoded
         # with the Exif encoding (ASCII)
@@ -537,29 +495,24 @@ class PiCookedImageEncoder(PiOneImageEncoder):
             prefix="Failed to set Exif tag %s" % tag)
 
     def start(self, output):
-        if self.port == 2:
-            timestamp = datetime.datetime.now()
-            timestamp_tags = (
-                'EXIF.DateTimeDigitized',
-                'EXIF.DateTimeOriginal',
-                'IFD0.DateTime')
-            # Timestamp tags are always included with the value calculated
-            # above, but the user may choose to override the value in the
-            # exif_tags mapping
-            for tag in timestamp_tags:
-                self._add_exif_tag(tag, self.parent.exif_tags.get(tag, timestamp))
-            # All other tags are just copied in verbatim
-            for tag, value in self.parent.exif_tags.items():
-                if not tag in timestamp_tags:
-                    self._add_exif_tag(tag, value)
-        super(PiCookedImageEncoder, self).start(output)
+        timestamp = datetime.datetime.now()
+        timestamp_tags = (
+            'EXIF.DateTimeDigitized',
+            'EXIF.DateTimeOriginal',
+            'IFD0.DateTime')
+        # Timestamp tags are always included with the value calculated
+        # above, but the user may choose to override the value in the
+        # exif_tags mapping
+        for tag in timestamp_tags:
+            self._add_exif_tag(tag, self.parent.exif_tags.get(tag, timestamp))
+        # All other tags are just copied in verbatim
+        for tag, value in self.parent.exif_tags.items():
+            if not tag in timestamp_tags:
+                self._add_exif_tag(tag, value)
+        super(PiCookedOneImageEncoder, self).start(output)
 
 
 class PiMultiImageEncoder(PiImageEncoder):
-    # Despite the fact it's an image encoder, this encoder is attached to the
-    # video port
-    port = 1
-
     def _open_output(self, outputs):
         self._output_iter = iter(outputs)
         self._next_output()
@@ -582,4 +535,21 @@ class PiMultiImageEncoder(PiImageEncoder):
             return False
         except StopIteration:
             return True
+
+
+class PiRawMultiImageEncoder(PiMultiImageEncoder):
+    def _create_encoder(self, format, **options):
+        # Overridden to skip creating an encoder. Instead we simply use the
+        # camera's still port as the output port
+        self.input_port = None
+        self.output_port = self.camera_port
+
+    def _create_connection(self):
+        # Overridden to skip creating a connection; there's no encoder so
+        # there's no connection
+        pass
+
+
+class PiCookedMultiImageEncoder(PiMultiImageEncoder):
+    pass
 
