@@ -410,6 +410,24 @@ class PiCamera(object):
             prefix="Failed to enable connection")
         return result
 
+    def _get_ports(self, for_video, from_video_port):
+        if for_video:
+            camera_port = self._camera[0].output[self.CAMERA_VIDEO_PORT]
+            encoder_port = self._splitter[0].output[self.SPLITTER_VIDEO_PORT]
+        else:
+            camera_port = self._camera[0].output[self.CAMERA_CAPTURE_PORT]
+            if from_video_port:
+                encoder_port = self._splitter[0].output[self.SPLITTER_CAPTURE_PORT]
+            else:
+                encoder_port = camera_port
+        return (camera_port, encoder_port)
+
+    def _enable_port(self, camera_port):
+        mmal_check(
+            mmal.mmal_port_parameter_set_boolean(
+                camera_port, mmal.MMAL_PARAMETER_CAPTURE, mmal.MMAL_TRUE),
+            prefix="Failed to start capture")
+
     def _check_camera_open(self):
         if self.closed:
             raise PiCameraRuntimeError("Camera is closed")
@@ -583,16 +601,12 @@ class PiCamera(object):
         """
         if self.recording:
             raise PiCameraRuntimeError('The camera is already recording')
-        camera_port = self._camera[0].output[self.CAMERA_VIDEO_PORT]
-        enc_port = self._splitter[0].output[self.SPLITTER_VIDEO_PORT]
+        camera_port, enc_port = self._get_ports(True, True)
         format = self._get_video_format(output, format)
         self._video_encoder = PiVideoEncoder(self, enc_port, format, **options)
         try:
             self._video_encoder.start(output)
-            mmal_check(
-                mmal.mmal_port_parameter_set_boolean(
-                    camera_port, mmal.MMAL_PARAMETER_CAPTURE, mmal.MMAL_TRUE),
-                prefix="Failed to start capture")
+            self._enable_port(camera_port)
         except Exception as e:
             self._video_encoder.close()
             self._video_encoder = None
@@ -681,12 +695,7 @@ class PiCamera(object):
           Otherwise, specify a tuple of ``(width, height, quality)``. Defaults
           to ``(64, 48, 35)``.
         """
-        camera_port = self._camera[0].output[
-                self.CAMERA_VIDEO_PORT if use_video_port else
-                self.CAMERA_CAPTURE_PORT]
-        enc_port = (
-                self._splitter[0].output[self.SPLITTER_CAPTURE_PORT] if use_video_port else
-                camera_port)
+        camera_port, enc_port = self._get_ports(False, use_video_port)
         format = self._get_image_format(output, format)
         enc_class = (
                 PiRawOneImageEncoder if format == 'raw' else
@@ -694,10 +703,7 @@ class PiCamera(object):
         encoder = enc_class(self, enc_port, format, **options)
         try:
             encoder.start(output)
-            mmal_check(
-                mmal.mmal_port_parameter_set_boolean(
-                    camera_port, mmal.MMAL_PARAMETER_CAPTURE, mmal.MMAL_TRUE),
-                prefix="Failed to start capture")
+            self._enable_port(camera_port)
             # Wait for the callback to set the event indicating the end of
             # image capture
             encoder.wait()
@@ -758,12 +764,7 @@ class PiCamera(object):
         More complex effects can be obtained by using a generator function to
         provide the filenames or output objects.
         """
-        camera_port = self._camera[0].output[
-                self.CAMERA_VIDEO_PORT if use_video_port else
-                self.CAMERA_CAPTURE_PORT]
-        enc_port = (
-                self._splitter[0].output[self.SPLITTER_CAPTURE_PORT] if use_video_port else
-                camera_port)
+        camera_port, enc_port = self._get_ports(False, use_video_port)
         format = self._get_image_format('', format)
         if use_video_port:
             enc_class = (
@@ -772,11 +773,7 @@ class PiCamera(object):
             encoder = enc_class(self, enc_port, format, **options)
             try:
                 encoder.start(outputs)
-                mmal_check(
-                    mmal.mmal_port_parameter_set_boolean(
-                        camera_port, mmal.MMAL_PARAMETER_CAPTURE,
-                        mmal.MMAL_TRUE),
-                    prefix="Failed to start capture")
+                self._enable_port(camera_port)
                 encoder.wait()
             finally:
                 encoder.close()
@@ -788,11 +785,7 @@ class PiCamera(object):
             try:
                 for output in outputs:
                     encoder.start(output)
-                    mmal_check(
-                        mmal.mmal_port_parameter_set_boolean(
-                            camera_port, mmal.MMAL_PARAMETER_CAPTURE,
-                            mmal.MMAL_TRUE),
-                        prefix="Failed to start capture")
+                    self._enable_port(camera_port)
                     encoder.wait()
             finally:
                 encoder.close()
@@ -892,12 +885,7 @@ class PiCamera(object):
                         break
                     time.sleep(0.5)
         """
-        camera_port = self._camera[0].output[
-                self.CAMERA_VIDEO_PORT if use_video_port else
-                self.CAMERA_CAPTURE_PORT]
-        enc_port = (
-                self._splitter[0].output[self.SPLITTER_CAPTURE_PORT] if use_video_port else
-                camera_port)
+        camera_port, enc_port = self._get_ports(False, use_video_port)
         format = self._get_image_format(output, format)
         enc_class = (
                 PiRawOneImageEncoder if format == 'raw' else
@@ -920,22 +908,14 @@ class PiCamera(object):
                         timestamp=datetime.datetime.now(),
                         )
                     encoder.start(filename)
-                    mmal_check(
-                        mmal.mmal_port_parameter_set_boolean(
-                            camera_port, mmal.MMAL_PARAMETER_CAPTURE,
-                            mmal.MMAL_TRUE),
-                        prefix="Failed to start capture")
+                    self._enable_port(camera_port)
                     encoder.wait()
                     yield filename
                     counter += 1
             else:
                 while True:
                     encoder.start(output)
-                    mmal_check(
-                        mmal.mmal_port_parameter_set_boolean(
-                            camera_port, mmal.MMAL_PARAMETER_CAPTURE,
-                            mmal.MMAL_TRUE),
-                        prefix="Failed to start capture")
+                    self._enable_port(camera_port)
                     encoder.wait()
                     yield output
         finally:
