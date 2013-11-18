@@ -58,27 +58,37 @@ def raw_format(request, camera):
     request.addfinalizer(fin)
     return request.param
 
+@pytest.fixture(scope='module', params=(False, True))
+def use_video_port(request):
+    return request.param
 
-def test_capture_to_file(camera, previewing, resolution, filename_format_options):
+
+def test_capture_to_file(
+        camera, previewing, resolution, filename_format_options, use_video_port):
     filename, format, options = filename_format_options
-    camera.capture(filename, **options)
+    camera.capture(filename, use_video_port=use_video_port, **options)
     img = Image.open(filename)
     assert img.size == resolution
     assert img.format == format
     img.verify()
 
-def test_capture_to_stream(camera, previewing, resolution, format_options):
+def test_capture_to_stream(
+        camera, previewing, resolution, format_options, use_video_port):
     stream = io.BytesIO()
     format, options = format_options
-    camera.capture(stream, format, **options)
+    camera.capture(stream, format, use_video_port=use_video_port, **options)
     stream.seek(0)
     img = Image.open(stream)
     assert img.size == resolution
     assert img.format == format.upper()
     img.verify()
 
-def test_capture_continuous_to_file(camera, previewing, resolution, tmpdir):
-    for i, filename in enumerate(camera.capture_continuous(os.path.join(str(tmpdir), 'image{counter:02d}.jpg'))):
+def test_capture_continuous_to_file(
+        camera, previewing, resolution, tmpdir, use_video_port):
+    for i, filename in enumerate(
+            camera.capture_continuous(os.path.join(
+                str(tmpdir), 'image{counter:02d}.jpg'),
+                use_video_port=use_video_port)):
         img = Image.open(filename)
         assert img.size == resolution
         assert img.format == 'JPEG'
@@ -88,9 +98,12 @@ def test_capture_continuous_to_file(camera, previewing, resolution, tmpdir):
         if i == 3:
             break
 
-def test_capture_continuous_to_stream(camera, previewing, resolution):
+def test_capture_continuous_to_stream(
+        camera, previewing, resolution, use_video_port):
     stream = io.BytesIO()
-    for i, foo in enumerate(camera.capture_continuous(stream, format='jpeg')):
+    for i, foo in enumerate(
+            camera.capture_continuous(stream, format='jpeg',
+                use_video_port=use_video_port)):
         stream.truncate()
         stream.seek(0)
         img = Image.open(stream)
@@ -103,18 +116,20 @@ def test_capture_continuous_to_stream(camera, previewing, resolution):
         if i == 3:
             break
 
-def test_capture_sequence_to_file(camera, previewing, resolution, tmpdir):
+def test_capture_sequence_to_file(
+        camera, previewing, resolution, tmpdir, use_video_port):
     filenames = [os.path.join(str(tmpdir), 'image%d.jpg' % i) for i in range(3)]
-    camera.capture_sequence(filenames)
+    camera.capture_sequence(filenames, use_video_port=use_video_port)
     for filename in filenames:
         img = Image.open(filename)
         assert img.size == resolution
         assert img.format == 'JPEG'
         img.verify()
 
-def test_capture_sequence_to_stream(camera, previewing, resolution):
+def test_capture_sequence_to_stream(
+        camera, previewing, resolution, use_video_port):
     streams = [io.BytesIO() for i in range(3)]
-    camera.capture_sequence(streams)
+    camera.capture_sequence(streams, use_video_port=use_video_port)
     for stream in streams:
         stream.seek(0)
         img = Image.open(stream)
@@ -122,7 +137,7 @@ def test_capture_sequence_to_stream(camera, previewing, resolution):
         assert img.format == 'JPEG'
         img.verify()
 
-def test_capture_raw_rgb(camera, resolution, raw_format):
+def test_capture_raw(camera, resolution, raw_format, use_video_port):
     # Calculate the expected size of the streams for the current
     # resolution; horizontal resolution is rounded up to the nearest
     # multiple of 32, and vertical to the nearest multiple of 16 by the
@@ -134,7 +149,7 @@ def test_capture_raw_rgb(camera, resolution, raw_format):
             * math.ceil(resolution[1] / 16) * 16
             * {'yuv': 1.5, 'rgb': 3}[raw_format])
     stream = io.BytesIO()
-    camera.capture(stream, format='raw')
+    camera.capture(stream, format='raw', use_video_port=use_video_port)
     # Check the output stream has 3-bytes (24-bits) per pixel
     assert stream.tell() == size
 
