@@ -251,16 +251,16 @@ class PiCamera(object):
         screen_height = ct.c_uint32()
         bcm_host.graphics_get_display_size(0, screen_width, screen_height)
         cc = self._camera_config
-        cc.max_stills_w=screen_width.value
-        cc.max_stills_h=screen_height.value
-        cc.stills_yuv422=0
-        cc.one_shot_stills=1
-        cc.max_preview_video_w=screen_width.value
-        cc.max_preview_video_h=screen_height.value
-        cc.num_preview_video_frames=3
-        cc.stills_capture_circular_buffer_height=0
-        cc.fast_preview_resume=0
-        cc.use_stc_timestamp=mmal.MMAL_PARAM_TIMESTAMP_MODE_RESET_STC
+        cc.max_stills_w = screen_width.value
+        cc.max_stills_h = screen_height.value
+        cc.stills_yuv422 = 0
+        cc.one_shot_stills = 1
+        cc.max_preview_video_w = screen_width.value
+        cc.max_preview_video_h = screen_height.value
+        cc.num_preview_video_frames = 3
+        cc.stills_capture_circular_buffer_height = 0
+        cc.fast_preview_resume = 0
+        cc.use_stc_timestamp = mmal.MMAL_PARAM_TIMESTAMP_MODE_RESET_STC
         mmal_check(
             mmal.mmal_port_parameter_set(self._camera[0].control, cc.hdr),
             prefix="Camera control port couldn't be configured")
@@ -427,6 +427,28 @@ class PiCamera(object):
             mmal.mmal_port_parameter_set_boolean(
                 camera_port, mmal.MMAL_PARAMETER_CAPTURE, mmal.MMAL_TRUE),
             prefix="Failed to start capture")
+
+    def _disable_camera(self):
+        mmal_check(
+            mmal.mmal_connection_disable(self._splitter_connection),
+            prefix="Failed to disable splitter connection")
+        mmal_check(
+            mmal.mmal_connection_disable(self._preview_connection),
+            prefix="Failed to disable preview connection")
+        mmal_check(
+            mmal.mmal_component_disable(self._camera),
+            prefix="Failed to disable camera")
+
+    def _enable_camera(self):
+        mmal_check(
+            mmal.mmal_component_enable(self._camera),
+            prefix="Failed to enable camera")
+        mmal_check(
+            mmal.mmal_connection_enable(self._preview_connection),
+            prefix="Failed to enable preview connection")
+        mmal_check(
+            mmal.mmal_connection_enable(self._splitter_connection),
+            prefix="Failed to enable splitter connection")
 
     def _check_camera_open(self):
         if self.closed:
@@ -1084,12 +1106,7 @@ class PiCamera(object):
             value = self.RAW_FORMATS[value]
         except KeyError:
             raise PiCameraValueError("Invalid raw format: %s" % value)
-        mmal_check(
-            mmal.mmal_connection_disable(self._preview_connection),
-            prefix="Failed to disable preview connection")
-        mmal_check(
-            mmal.mmal_component_disable(self._camera),
-            prefix="Failed to disable camera")
+        self._disable_camera()
         for port in (self.CAMERA_VIDEO_PORT, self.CAMERA_CAPTURE_PORT):
             fmt = self._camera[0].output[port][0].format[0]
             fmt.encoding = value
@@ -1097,12 +1114,7 @@ class PiCamera(object):
             mmal_check(
                 mmal.mmal_port_format_commit(self._camera[0].output[port]),
                 prefix="Camera port format couldn't be set")
-        mmal_check(
-            mmal.mmal_component_enable(self._camera),
-            prefix="Failed to enable camera")
-        mmal_check(
-            mmal.mmal_connection_enable(self._preview_connection),
-            prefix="Failed to enable preview connection")
+        self._enable_camera()
     raw_format = property(_get_raw_format, _set_raw_format, doc="""
         Retrieves or sets the raw format of the camera's ports.
 
@@ -1163,12 +1175,7 @@ class PiCamera(object):
         if not (0 < n / d <= max_rate):
             raise PiCameraValueError(
                 "Maximum framerate at the current resolution is %dfps" % max_rate)
-        mmal_check(
-            mmal.mmal_connection_disable(self._preview_connection),
-            prefix="Failed to disable preview connection")
-        mmal_check(
-            mmal.mmal_component_disable(self._camera),
-            prefix="Failed to disable camera")
+        self._disable_camera()
         for port in (self.CAMERA_VIDEO_PORT, self.CAMERA_PREVIEW_PORT):
             fmt = self._camera[0].output[port][0].format[0].es[0]
             fmt.video.frame_rate.num = n
@@ -1176,12 +1183,7 @@ class PiCamera(object):
             mmal_check(
                 mmal.mmal_port_format_commit(self._camera[0].output[port]),
                 prefix="Camera video format couldn't be set")
-        mmal_check(
-            mmal.mmal_component_enable(self._camera),
-            prefix="Failed to enable camera")
-        mmal_check(
-            mmal.mmal_connection_enable(self._preview_connection),
-            prefix="Failed to enable preview connection")
+        self._enable_camera()
     framerate = property(_get_framerate, _set_framerate, doc="""
         Retrieves or sets the framerate at which video-port based image
         captures, video recordings, and previews will run.
@@ -1222,12 +1224,7 @@ class PiCamera(object):
         if ((w, h) == self.MAX_IMAGE_RESOLUTION) and (n / d > 15):
             n = 15
             d = 1
-        mmal_check(
-            mmal.mmal_connection_disable(self._preview_connection),
-            prefix="Failed to disable preview connection")
-        mmal_check(
-            mmal.mmal_component_disable(self._camera),
-            prefix="Failed to disable camera")
+        self._disable_camera()
         self._camera_config.max_stills_w = w
         self._camera_config.max_stills_h = h
         self._camera_config.max_preview_video_w = w
@@ -1249,12 +1246,7 @@ class PiCamera(object):
             mmal_check(
                 mmal.mmal_port_format_commit(self._camera[0].output[port]),
                 prefix="Camera video format couldn't be set")
-        mmal_check(
-            mmal.mmal_component_enable(self._camera),
-            prefix="Failed to enable camera")
-        mmal_check(
-            mmal.mmal_connection_enable(self._preview_connection),
-            prefix="Failed to enable preview connection")
+        self._enable_camera()
     resolution = property(_get_resolution, _set_resolution, doc="""
         Retrieves or sets the resolution at which image captures, video
         recordings, and previews will be captured.
