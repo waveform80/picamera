@@ -64,14 +64,13 @@ in an efficient manner::
 
     from __future__ import division
 
-    import io
     import time
     import picamera
     import numpy as np
 
     width = 100
     height = 100
-    stream = io.BytesIO()
+    stream = open('image.data', 'wb')
     # Capture the image in raw YUV format
     with picamera.PiCamera() as camera:
         camera.resolution = (width, height)
@@ -165,7 +164,7 @@ Loading the resulting RGB data into a `numpy`_ array is simple::
 
     width = 100
     height = 100
-    stream = io.BytesIO()
+    stream = open('image.data', 'wb')
     # Capture the image in raw RGB format
     with picamera.PiCamera() as camera:
         camera.resolution = (width, height)
