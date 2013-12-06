@@ -173,10 +173,14 @@ class PiEncoder(object):
                 prefix="Unable to lock buffer header memory")
             try:
                 with self.lock:
-                    if self.output and self.output.write(
-                           ct.string_at(buf[0].data, buf[0].length)) != buf[0].length:
-                        raise PiCameraError(
-                            "Unable to write buffer to file - aborting")
+                    if self.output:
+                        written = self.output.write(
+                           ct.string_at(buf[0].data, buf[0].length))
+                        # Ignore None return value; most Python 2 streams have
+                        # no return value for write()
+                        if (written is not None) and (written != buf[0].length):
+                            raise PiCameraError(
+                                "Unable to write buffer to file - aborting")
             finally:
                 mmal.mmal_buffer_header_mem_unlock(buf)
         return False
@@ -245,7 +249,6 @@ class PiEncoder(object):
             mmal_check(
                 mmal.mmal_port_send_buffer(self.output_port, buf),
                 prefix="Unable to send a buffer to encoder output port")
-
 
     def wait(self, timeout=None):
         """
