@@ -398,6 +398,9 @@ class PiCamera(object):
             self._null_sink[0].input[0])
 
     def _connect_ports(self, output_port, input_port):
+        """
+        Connect the specified output and input ports
+        """
         result = ct.POINTER(mmal.MMAL_CONNECTION_T)()
         mmal_check(
             mmal.mmal_connection_create(
@@ -411,6 +414,9 @@ class PiCamera(object):
         return result
 
     def _get_ports(self, for_video, from_video_port):
+        """
+        Determine the camera and encoder ports for given capture options
+        """
         if for_video:
             camera_port = self._camera[0].output[self.CAMERA_VIDEO_PORT]
             encoder_port = self._splitter[0].output[self.SPLITTER_VIDEO_PORT]
@@ -423,12 +429,18 @@ class PiCamera(object):
         return (camera_port, encoder_port)
 
     def _enable_port(self, camera_port):
+        """
+        Tell the specified camera port to begin capture
+        """
         mmal_check(
             mmal.mmal_port_parameter_set_boolean(
                 camera_port, mmal.MMAL_PARAMETER_CAPTURE, mmal.MMAL_TRUE),
             prefix="Failed to start capture")
 
     def _disable_camera(self):
+        """
+        Temporarily disable the camera and all permanently attached components
+        """
         mmal_check(
             mmal.mmal_connection_disable(self._splitter_connection),
             prefix="Failed to disable splitter connection")
@@ -440,6 +452,9 @@ class PiCamera(object):
             prefix="Failed to disable camera")
 
     def _enable_camera(self):
+        """
+        Re-enable the camera and all permanently attached components
+        """
         mmal_check(
             mmal.mmal_component_enable(self._camera),
             prefix="Failed to enable camera")
@@ -451,10 +466,16 @@ class PiCamera(object):
             prefix="Failed to enable splitter connection")
 
     def _check_camera_open(self):
+        """
+        Raise an exception if the camera is already closed
+        """
         if self.closed:
             raise PiCameraRuntimeError("Camera is closed")
 
     def _check_recording_stopped(self):
+        """
+        Raise an exception if the camera is currently recording
+        """
         if self.recording:
             raise PiCameraRuntimeError("Recording is currently running")
 
