@@ -43,7 +43,12 @@ import threading
 import ctypes as ct
 
 import picamera.mmal as mmal
-from picamera.exc import mmal_check
+from picamera.exc import (
+    mmal_check,
+    PiCameraError,
+    PiCameraValueError,
+    PiCameraRuntimeError,
+    )
 
 
 __all__ = [
