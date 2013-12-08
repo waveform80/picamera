@@ -644,7 +644,8 @@ class PiCamera(object):
         """
         if self.recording:
             raise PiCameraRuntimeError('The camera is already recording')
-        camera_port, enc_port = self._get_ports(True, True)
+        camera_port, enc_port = self._get_ports(
+                for_video=True, from_video_port=True)
         format = self._get_video_format(output, format)
         self._video_encoder = PiVideoEncoder(self, enc_port, format, **options)
         try:
@@ -738,7 +739,8 @@ class PiCamera(object):
           Otherwise, specify a tuple of ``(width, height, quality)``. Defaults
           to ``(64, 48, 35)``.
         """
-        camera_port, enc_port = self._get_ports(False, use_video_port)
+        camera_port, enc_port = self._get_ports(
+                for_video=False, from_video_port=use_video_port)
         format = self._get_image_format(output, format)
         enc_class = (
                 PiRawOneImageEncoder if format == 'raw' else
@@ -807,7 +809,8 @@ class PiCamera(object):
         More complex effects can be obtained by using a generator function to
         provide the filenames or output objects.
         """
-        camera_port, enc_port = self._get_ports(False, use_video_port)
+        camera_port, enc_port = self._get_ports(
+                for_video=False, from_video_port=use_video_port)
         format = self._get_image_format('', format)
         if use_video_port:
             enc_class = (
@@ -928,7 +931,8 @@ class PiCamera(object):
                         break
                     time.sleep(0.5)
         """
-        camera_port, enc_port = self._get_ports(False, use_video_port)
+        camera_port, enc_port = self._get_ports(
+                for_video=False, from_video_port=use_video_port)
         format = self._get_image_format(output, format)
         enc_class = (
                 PiRawOneImageEncoder if format == 'raw' else
