@@ -15,12 +15,21 @@ In 0.8 the major features added were:
   resulted in dropped frames in the recorded video due to the mode switch. In
   0.8, ``use_video_port=True`` can be specified on capture methods whilst
   recording video to avoid this.
+* Splitting of video recordings into multiple files. This is done via the new
+  :meth:`~picamera.PiCamera.split_recording` method, and requires that the
+  :meth:`~picamera.PiCamera.start_recording` method was called with
+  *inline_headers* set to True. The latter has now been made the default
+  (technically this is a backwards incompatible change, but it's relatively
+  trivial and I don't anticipate anyone's code breaking because of this
+  change).
 
 In addition a few bugs were fixed:
 
 * Documentation updates that were missing from 0.7 (specifically the new
   video recording parameters)
 * The ability to perform raw captures through the video port
+* Missing exception imports in the encoders module (which caused very confusing
+  errors in the case that an exception was raised within an encoder thread)
 
 
 Release 0.7
