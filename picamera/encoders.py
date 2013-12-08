@@ -428,7 +428,8 @@ class PiVideoEncoder(PiEncoder):
 class PiImageEncoder(PiEncoder):
     encoder_type = mmal.MMAL_COMPONENT_DEFAULT_IMAGE_ENCODER
 
-    def _create_encoder(self, format, **options):
+    def _create_encoder(
+            self, format, quality=85, thumbnail=(64, 48, 35), **options):
         super(PiImageEncoder, self)._create_encoder(format, **options)
 
         try:
@@ -449,10 +450,9 @@ class PiImageEncoder(PiEncoder):
                 mmal.mmal_port_parameter_set_uint32(
                     self.output_port,
                     mmal.MMAL_PARAMETER_JPEG_Q_FACTOR,
-                    options.get('quality', 85)),
+                    quality),
                 prefix="Failed to set JPEG quality")
 
-            thumbnail = options.get('thumbnail', (64, 48, 35))
             if thumbnail is None:
                 mp = mmal.MMAL_PARAMETER_THUMBNAIL_CONFIG_T(
                     mmal.MMAL_PARAMETER_HEADER_T(
