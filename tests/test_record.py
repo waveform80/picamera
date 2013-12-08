@@ -27,8 +27,8 @@ import pytest
     (('bitrate', 0), ('quantization', 20)),
     (('bitrate', 0), ('quantization', 30)),
     (('bitrate', 0), ('quantization', 40)),
-    (('bitrate', 10000000), ('intra_period', 10)),
-    (('bitrate', 10000000), ('inline_headers', True)),
+    (('bitrate', 10000000), ('intra_period', 15)),
+    (('bitrate', 10000000), ('inline_headers', False)),
     (('bitrate', 15000000),),
     (('bitrate', 20000000), ('profile', 'main')),
     ))
@@ -42,26 +42,34 @@ def h264_options(request):
 def test_record_to_file(camera, previewing, resolution, h264_options):
     if resolution == (2592, 1944):
         pytest.xfail('Cannot encode video at max resolution')
-    filename = tempfile.mkstemp(suffix='.h264')[1]
+    filename1 = tempfile.mkstemp(suffix='.h264')[1]
+    filename2 = tempfile.mkstemp(suffix='.h264')[1]
     try:
-        camera.start_recording(filename, **h264_options)
+        camera.start_recording(filename1, **h264_options)
         try:
+            camera.wait_recording(1)
+            camera.split_recording(filename2)
             camera.wait_recording(1)
         finally:
             camera.stop_recording()
-        # TODO verify the stream
+        # TODO verify the files
     finally:
-        os.unlink(filename)
+        os.unlink(filename1)
+        os.unlink(filename2)
 
-def test_capture_to_stream(camera, previewing, resolution, h264_options):
+def test_record_to_stream(camera, previewing, resolution, h264_options):
     if resolution == (2592, 1944):
         pytest.xfail('Cannot encode video at max resolution')
-    stream = io.BytesIO()
-    camera.start_recording(stream, 'h264', **h264_options)
+    stream1 = io.BytesIO()
+    stream2 = io.BytesIO()
+    camera.start_recording(stream1, 'h264', **h264_options)
     try:
+        camera.wait_recording(1)
+        camera.split_recording(stream2)
         camera.wait_recording(1)
     finally:
         camera.stop_recording()
-    stream.seek(0)
+    stream1.seek(0)
+    stream2.seek(0)
     # TODO verify the stream
 

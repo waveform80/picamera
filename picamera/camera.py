@@ -626,12 +626,14 @@ class PiCamera(object):
 
         * *intra_period* - The key frame rate (the rate at which I-frames are
           inserted in the output). Defaults to 0, but can be any positive
-          32-bit integer value.
+          32-bit integer value representing the number of frames between
+          successive I-frames.
 
         * *bitrate* - The bitrate at which video will be encoded. Defaults to
-          17000000 (17Mbps) if not specified.
+          17000000 (17Mbps) if not specified. A value of 0 implies VBR
+          (variable bitrate) encoding. The maximum value is 25000000 (25Mbps).
 
-        * *quantization* - When *bitrate* is zero (for variable bit-rate
+        * *quantization* - When *bitrate* is zero (for variable bitrate
           encodings), this parameter specifies the quality that the encoder
           should attempt to maintain. Use values between 10 and 40 where 10 is
           extremely high quality, and 40 is extremely low (20-25 is usually a
@@ -640,7 +642,8 @@ class PiCamera(object):
         * *inline_headers* - When True, specifies that the encoder should
           output SPS/PPS headers within the stream to ensure GOPs are self
           contained. This is important for streaming applications where the
-          client may wish to seek within the stream.
+          client may wish to seek within the stream, and enables the use of
+          :meth:`split_recording`. Defaults to True if not specified.
         """
         if self.recording:
             raise PiCameraRuntimeError('The camera is already recording')
@@ -655,6 +658,31 @@ class PiCamera(object):
             self._video_encoder.close()
             self._video_encoder = None
             raise
+
+    def split_recording(self, output):
+        """
+        Continue the recording in the specified output; close existing output.
+
+        When called, the video encoder will wait for the next appropriate
+        split point (an inline SPS header), then will cease writing to the
+        current output (and close it, if it was specified as a filename), and
+        continue writing to the newly specified *output*.
+
+        If *output* is a string, it will be treated as a filename for a new
+        file which the video will be written to. Otherwise, *output* is assumed
+        to be a file-like object and the video data is appended to it (the
+        implementation only assumes the object has a ``write()`` method - no
+        other methods will be called).
+
+        Note that unlike :meth:`start_recording`, you cannot specify format or
+        options as these cannot be changed in the middle of recording. Only the
+        new *output* can be specified. Furthermore, the format of the recording
+        is currently limited to H264, and *inline_headers* must be True when
+        :meth:`start_recording` is called (this is the default).
+        """
+        if not self._video_encoder:
+            raise PiCameraRuntimeError('There is no recording in progress')
+        self._video_encoder.split(output)
 
     def wait_recording(self, timeout=0):
         """
