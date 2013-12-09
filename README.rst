@@ -5,18 +5,13 @@ picamera
 ========
 
 This package provides a pure Python interface to the `Raspberry Pi`_ `camera`_
-module.
-
-The project is written to be compatible with `Python`_ 2.7 from the 2.x series
-(it will not work with 2.6 or below), and Python 3.2 or above from the 3.x
-series. The same codebase supports both Python 2 and 3 with no conversions
-(e.g. ``2to3``) required.
+module for Python 2.7 (or above) or Python 3.2 (or above).
 
 The code is licensed under the `BSD license`_. Packages can be downloaded from
 the project `homepage`_ on PyPI. The `source code`_ can be obtained from
 GitHub, which also hosts the `bug tracker`_. The `documentation`_ (which
-includes installation, quick-start examples, and the change-log) can be read on
-ReadTheDocs.
+includes installation, quick-start examples, and lots of code recipes) can be
+read on ReadTheDocs.
 
 
 .. _Raspberry Pi: http://www.raspberrypi.org/
