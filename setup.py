@@ -99,6 +99,7 @@ class PyTest(TestCommand):
     def finalize_options(self):
         TestCommand.finalize_options(self)
         self.test_args = [
+            '--verbose',
             '--cov', __project__,
             '--cov-report', 'term-missing',
             '--cov-report', 'html',
