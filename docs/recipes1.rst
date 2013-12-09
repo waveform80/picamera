@@ -14,8 +14,8 @@ recipes.
 Capturing to a file
 ===================
 
-Capturing a file is as simple as specifying the name of the file as the output
-of whatever capture() method you require::
+Capturing an image to a file is as simple as specifying the name of the file as
+the output of whatever capture() method you require::
 
     import time
     import picamera
@@ -37,9 +37,9 @@ to other processes.
 Capturing to a stream
 =====================
 
-Capturing to a file-like object (a socket, a :class:`io.BytesIO` stream, an
-existing open file object, etc.) is as simple as specifying that object as the
-output of whatever capture() method you're using::
+Capturing an image to a file-like object (a socket, a :class:`io.BytesIO`
+stream, an existing open file object, etc.) is as simple as specifying that
+object as the output of whatever capture() method you're using::
 
     import io
     import time
@@ -335,6 +335,85 @@ the same content as the preview before hand. The main downside to this method
 is that captured images are obviously full resolution. If you want something
 smaller than full resolution, post scaling and/or cropping (e.g. in `PIL`_) is
 required.
+
+
+.. _file_record:
+
+Recording video to a file
+=========================
+
+Recording a video to a file is simple, provided you remember that the only
+format (currently) supported is a raw H264 stream::
+
+    import picamera
+
+    with picamera.PiCamera() as camera:
+        camera.resolution = (640, 480)
+        camera.start_recording('my_video.h264')
+        camera.wait_recording(60)
+        camera.stop_recording()
+
+Note that we use :meth:`~picamera.PiCamera.wait_recording` in the example above
+instead of :func:`time.sleep` which we've been using in the image capture
+recipes above. The :meth:`~picamera.PiCamera.wait_recording` method is similar
+in that it will pause for the number of seconds specified, but unlike
+:func:`time.sleep` it will continually check for recording errors (e.g. an out
+of disk space condition) while it is waiting. If we had used :func:`time.sleep`
+instead, such errors would only be raised by the
+:meth:`~picamera.PiCamera.stop_recording` call (which could be long after the
+error actually occurred).
+
+
+.. _stream_record:
+
+Recording video to a stream
+===========================
+
+This is very similar to :ref:`file_record`::
+
+    import io
+    import picamera
+
+    stream = io.BytesIO()
+    with picamera.PiCamera() as camera:
+        camera.resolution = (640, 480)
+        camera.start_recording(stream, quantization=23)
+        camera.wait_recording(15)
+        camera.stop_recording()
+
+Here, we've set the *quantization* parameter which will cause the video encoder
+to use VBR (variable bit-rate) encoding. This can be considerably more
+efficient especially in mostly static scenes (which can be important when
+recording to memory, as in the example above). Quantization values can be
+between 0 and 40, where 0 represents the highest possible quality, and 40 the
+lowest.  Typically, a value in the range of 20-25 provides reasonable quality
+for reasonable bandwidth.
+
+
+.. _split_record:
+
+Recording over multiple files
+=============================
+
+If you wish split your recording over multiple files, you can use the
+:meth:`~picamera.PiCamera.split_recording` method to accomplish this::
+
+    import picamera
+
+    with picamera.PiCamera() as camera:
+        camera.resolution = (640, 480)
+        camera.start_recording('1.h264')
+        for i in range(2, 10):
+            camera.wait_recording(5)
+            camera.split_recording('%d.h264' % i)
+        camera.stop_recording()
+
+This should produce 10 video files named ``1.h264``, ``2.h264``, etc. each of
+which is approximately 5 seconds long (approximately because the
+:meth:`~picamera.PiCamera.split_recording` method will only split files at a
+keyframe.
+
+.. versionadded:: 0.8
 
 
 .. _PIL: http://effbot.org/imagingbook/pil-index.htm

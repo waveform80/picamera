@@ -111,6 +111,8 @@ in an efficient manner::
 Alternatively, see :ref:`rgb_capture` for a method of having the camera output
 RGB data directly.
 
+.. versionadded:: 0.6
+
 
 .. _rgb_capture:
 
@@ -187,6 +189,8 @@ Loading the resulting RGB data into a `numpy`_ array is simple::
     # sorts of analysis)
     image = image.astype(np.float, copy=False)
     image = image / 255.0
+
+.. versionadded:: 0.6
 
 
 .. _rapid_capture:
@@ -381,6 +385,8 @@ friendly" subject, not to mention generator expressions)::
         processor.terminated = True
         processor.join()
 
+.. versionadded:: 0.5
+
 
 .. _rapid_streaming:
 
@@ -523,6 +529,41 @@ The author's tests with the script above haven't yielded substantial
 improvements over the former script using
 :meth:`~picamera.PiCamera.capture_continuous`, but the reason for this is not
 currently clear. Suggestions for further improvements are welcomed!
+
+.. versionadded:: 0.5
+
+
+.. _record_and_capture:
+
+Capturing images whilst recording
+=================================
+
+The camera is capable of capturing still images while it is recording video.
+However, if one attempts this using the stills capture mode, the resulting
+video will have dropped frames during the still image capture. This is because
+regular stills require a mode change, causing the dropped frames (this is the
+flicker to a higher resolution that one sees when capturing while a preview is
+running).
+
+However, if the *use_video_port* parameter is used to force a video-port based
+image capture (see :ref:`rapid_capture`) then the mode change does not occur,
+and the resulting video will not have dropped frames::
+
+    import picamera
+
+    with picamera.PiCamera() as camera:
+        camera.resolution = (800, 600)
+        camera.start_preview()
+        camera.start_recording('foo.h264')
+        camera.wait_recording(10)
+        camera.capture('foo.jpg', use_video_port=True)
+        camera.wait_recording(10)
+        camera.stop_recording()
+
+The above code should produce a 20 second video with no dropped frames, and a
+still frame from 10 seconds into the video.
+
+.. versionadded:: 0.8
 
 
 .. _YUV: http://en.wikipedia.org/wiki/YUV
