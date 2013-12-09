@@ -403,11 +403,9 @@ class PiVideoEncoder(PiEncoder):
                 raise PiCameraRuntimeError(
                     'Cannot use split_recording without inline_headers')
             self._next_output.append(output)
-        # We probably shouldn't wait indefinitely here, but we can't tell when
-        # a keyframe is going to come along (the user may or may not have
-        # specified an intra_period). Perhaps specify a sensible maximum (what
-        # is a sensible maximum?)
-        self.event.wait()
+        # XXX Is 30 seconds a reasonable timeout for this?
+        if not self.event.wait(30):
+            raise PiCameraRuntimeError('Timed out waiting for an SPS header')
         self.event.clear()
 
     def _callback_write(self, buf):
