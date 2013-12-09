@@ -173,6 +173,8 @@ def test_capture_raw(camera, resolution, raw_format, use_video_port):
     # camera for raw data. RGB format holds 3 bytes per pixel, YUV format
     # holds 1.5 bytes per pixel (1 byte of Y per pixel, and 2 bytes of Cb
     # and Cr per 4 pixels)
+    if raw_format == 'rgb' and use_video_port:
+        pytest.xfail('Cannot capture raw-RGB from video port')
     size = (
             math.ceil(resolution[0] / 32) * 32
             * math.ceil(resolution[1] / 16) * 16

@@ -801,6 +801,12 @@ class PiCamera(object):
           in the Exif data. Specifying ``None`` disables thumbnail generation.
           Otherwise, specify a tuple of ``(width, height, quality)``. Defaults
           to ``(64, 48, 35)``.
+
+        Note that when capturing with *format* set to ``'raw'``, and
+        *use_video_port* set to True, only YUV format is supported. If
+        :attr:`raw_format` is set to ``'rgb'``, the capture will still be in
+        YUV format. This is due to a firmware limitation (the video splitter
+        does not support RGB format). Workarounds are being investigated.
         """
         camera_port, enc_port = self._get_ports(
                 for_video=False, from_video_port=use_video_port)
@@ -1195,7 +1201,7 @@ class PiCamera(object):
         except KeyError:
             raise PiCameraValueError("Invalid raw format: %s" % value)
         self._disable_camera()
-        for port in (self.CAMERA_VIDEO_PORT, self.CAMERA_CAPTURE_PORT):
+        for port in (self.CAMERA_CAPTURE_PORT,):
             fmt = self._camera[0].output[port][0].format[0]
             fmt.encoding = value
             fmt.encoding_variant = value
