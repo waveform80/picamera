@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # vim: set et sw=4 sts=4 fileencoding=utf-8:
 #
-# Copyright 2013 Dave Hughes.
+# Python camera library for the Rasperry-Pi camera module
+# Copyright (c) 2013, Dave Hughes <dave@waveform.org.uk>
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
