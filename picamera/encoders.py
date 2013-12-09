@@ -40,11 +40,13 @@ str = type('')
 import io
 import datetime
 import threading
+import warnings
 import ctypes as ct
 
 import picamera.mmal as mmal
 from picamera.exc import (
     mmal_check,
+    PiCameraWarning,
     PiCameraError,
     PiCameraValueError,
     PiCameraRuntimeError,
@@ -302,10 +304,7 @@ class PiVideoEncoder(PiEncoder):
 
     def __init__(self, parent, port, format, **options):
         super(PiVideoEncoder, self).__init__(parent, port, format, **options)
-        if bool(options.get('inline_headers', True)):
-            self._next_output = []
-        else:
-            self._next_output = None
+        self._next_output = []
 
     def _create_encoder(
             self, format, bitrate=17000000, intra_period=0, profile='high',
@@ -318,8 +317,12 @@ class PiVideoEncoder(PiEncoder):
                 }[format]
         except KeyError:
             raise PiCameraValueError('Unrecognized format %s' % format)
+
         if not (0 <= bitrate <= 25000000):
             raise PiCameraValueError('bitrate must be between 0 (VBR) and 25Mbps')
+        if quantization and bitrate:
+            warnings.warn('Setting bitrate to 0 as quantization is non-zero', PiCameraWarning)
+            bitrate = 0
         self.output_port[0].format[0].bitrate = bitrate
         mmal_check(
             mmal.mmal_port_format_commit(self.output_port),
@@ -393,6 +396,11 @@ class PiVideoEncoder(PiEncoder):
                 int(inline_headers)),
             prefix="Unable to set inline_headers")
 
+        if not (bitrate and inline_headers):
+            # If inline_headers is disabled, or VBR encoding is configured,
+            # disable the split function
+            self._next_output = None
+
         mmal_check(
             mmal.mmal_component_enable(self.encoder),
             prefix="Unable to enable video encoder component")
@@ -401,21 +409,21 @@ class PiVideoEncoder(PiEncoder):
         with self.lock:
             if self._next_output is None:
                 raise PiCameraRuntimeError(
-                    'Cannot use split_recording without inline_headers')
+                    'Cannot use split_recording without inline_headers and CBR')
             self._next_output.append(output)
+        # XXX Instead of a 10-second timeout, how about a warning here (which
+        # can be converted to an error and captured by the test suite?)
         if not self.event.wait(10):
             raise PiCameraRuntimeError('Timed out waiting for an SPS header')
         self.event.clear()
 
     def _callback_write(self, buf):
         if buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_CONFIG:
-            print('FLAG_CONFIG')
             new_output = None
             with self.lock:
                 if self._next_output:
                     new_output = self._next_output.pop(0)
             if new_output:
-                print('Switching outputs')
                 self._close_output()
                 self._open_output(new_output)
                 self.event.set()

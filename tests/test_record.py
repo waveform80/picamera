@@ -48,8 +48,12 @@ def test_record_to_file(camera, previewing, resolution, h264_options):
         camera.start_recording(filename1, **h264_options)
         try:
             camera.wait_recording(1)
-            camera.split_recording(filename2)
-            camera.wait_recording(1)
+            if not (h264_options.get('inline_headers', True) and h264_options.get('bitrate', 17000000)):
+                with pytest.raises(picamera.PiCameraRuntimeError):
+                    camera.split_recording(filename2)
+            else:
+                camera.split_recording(filename2)
+                camera.wait_recording(1)
         finally:
             camera.stop_recording()
         # TODO verify the files
@@ -65,8 +69,12 @@ def test_record_to_stream(camera, previewing, resolution, h264_options):
     camera.start_recording(stream1, 'h264', **h264_options)
     try:
         camera.wait_recording(1)
-        camera.split_recording(stream2)
-        camera.wait_recording(1)
+        if not (h264_options.get('inline_headers', True) and h264_options.get('bitrate', 17000000)):
+            with pytest.raises(picamera.PiCameraRuntimeError):
+                camera.split_recording(stream2)
+        else:
+            camera.split_recording(stream2)
+            camera.wait_recording(1)
     finally:
         camera.stop_recording()
     stream1.seek(0)
