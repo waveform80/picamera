@@ -403,8 +403,7 @@ class PiVideoEncoder(PiEncoder):
                 raise PiCameraRuntimeError(
                     'Cannot use split_recording without inline_headers')
             self._next_output.append(output)
-        # XXX Is 30 seconds a reasonable timeout for this?
-        if not self.event.wait(30):
+        if not self.event.wait(10):
             raise PiCameraRuntimeError('Timed out waiting for an SPS header')
         self.event.clear()
 
