@@ -355,23 +355,7 @@ class PiCamera(object):
             raise PiCameraError(
                 "Expected 4 output ports on splitter "
                 "(found %d)" % self._splitter[0].output_num)
-
-        mmal.mmal_format_copy(
-            self._splitter[0].input[0][0].format,
-            self._camera[0].output[self.CAMERA_VIDEO_PORT][0].format)
-        self._splitter[0].input[0][0].buffer_num = max(
-            self._splitter[0].input[0][0].buffer_num,
-            self.VIDEO_OUTPUT_BUFFERS_NUM)
-        mmal_check(
-            mmal.mmal_port_format_commit(self._splitter[0].input[0]),
-            prefix="Couldn't set splitter input port format")
-        for p in self.SPLITTER_PORTS:
-            mmal.mmal_format_copy(
-                self._splitter[0].output[p][0].format,
-                self._splitter[0].input[0][0].format)
-            mmal_check(
-                mmal.mmal_port_format_commit(self._splitter[0].output[p]),
-                prefix="Couldn't set splitter output port %d format" % p)
+        self._reconfigure_splitter()
         self._splitter_connection = self._connect_ports(
             self._camera[0].output[self.CAMERA_VIDEO_PORT],
             self._splitter[0].input[0])
@@ -446,15 +430,15 @@ class PiCamera(object):
         """
         Determine the camera and encoder ports for given capture options
         """
-        if for_video:
-            camera_port = self._camera[0].output[self.CAMERA_VIDEO_PORT]
-            encoder_port = self._splitter[0].output[self.SPLITTER_VIDEO_PORT]
-        else:
-            camera_port = self._camera[0].output[self.CAMERA_CAPTURE_PORT]
-            if from_video_port:
-                encoder_port = self._splitter[0].output[self.SPLITTER_CAPTURE_PORT]
-            else:
-                encoder_port = camera_port
+        camera_port = (
+            self._camera[0].output[self.CAMERA_VIDEO_PORT] if from_video_port else
+            self._camera[0].output[self.CAMERA_CAPTURE_PORT]
+            )
+        encoder_port = (
+            self._splitter[0].output[self.SPLITTER_VIDEO_PORT] if for_video else
+            self._splitter[0].output[self.SPLITTER_CAPTURE_PORT] if from_video_port else
+            camera_port
+            )
         return (camera_port, encoder_port)
 
     def _enable_port(self, camera_port):
@@ -465,6 +449,27 @@ class PiCamera(object):
             mmal.mmal_port_parameter_set_boolean(
                 camera_port, mmal.MMAL_PARAMETER_CAPTURE, mmal.MMAL_TRUE),
             prefix="Failed to start capture")
+
+    def _reconfigure_splitter(self):
+        """
+        Copy the camera's video port config to the video splitter
+        """
+        mmal.mmal_format_copy(
+            self._splitter[0].input[0][0].format,
+            self._camera[0].output[self.CAMERA_VIDEO_PORT][0].format)
+        self._splitter[0].input[0][0].buffer_num = max(
+            self._splitter[0].input[0][0].buffer_num,
+            self.VIDEO_OUTPUT_BUFFERS_NUM)
+        mmal_check(
+            mmal.mmal_port_format_commit(self._splitter[0].input[0]),
+            prefix="Couldn't set splitter input port format")
+        for p in self.SPLITTER_PORTS:
+            mmal.mmal_format_copy(
+                self._splitter[0].output[p][0].format,
+                self._splitter[0].input[0][0].format)
+            mmal_check(
+                mmal.mmal_port_format_commit(self._splitter[0].output[p]),
+                prefix="Couldn't set splitter output port %d format" % p)
 
     def _disable_camera(self):
         """
@@ -484,6 +489,7 @@ class PiCamera(object):
         """
         Re-enable the camera and all permanently attached components
         """
+        self._reconfigure_splitter()
         mmal_check(
             mmal.mmal_component_enable(self._camera),
             prefix="Failed to enable camera")
