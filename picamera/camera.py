@@ -672,7 +672,8 @@ class PiCamera(object):
           encodings), this parameter specifies the quality that the encoder
           should attempt to maintain. Use values between 10 and 40 where 10 is
           extremely high quality, and 40 is extremely low (20-25 is usually a
-          reasonable range).
+          reasonable range). Note that :meth:`split_recording` cannot be used
+          in VBR mode.
 
         * *inline_headers* - When True, specifies that the encoder should
           output SPS/PPS headers within the stream to ensure GOPs are self
@@ -712,8 +713,9 @@ class PiCamera(object):
         Note that unlike :meth:`start_recording`, you cannot specify format or
         options as these cannot be changed in the middle of recording. Only the
         new *output* can be specified. Furthermore, the format of the recording
-        is currently limited to H264, and *inline_headers* must be True when
-        :meth:`start_recording` is called (this is the default).
+        is currently limited to H264, *inline_headers* must be True, and
+        *bitrate* must be non-zero (CBR mode) when :meth:`start_recording` is
+        called (this is the default).
         """
         if not self._video_encoder:
             raise PiCameraRuntimeError('There is no recording in progress')
