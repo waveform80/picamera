@@ -315,8 +315,7 @@ preview area for the 1920x1080 resolution, and the resulting capture area
 
 The main method of mitigating this effect is to force the preview to use the
 full sensor area. This can be done by setting
-:attr:`~picamera.PiCamera.resolution` to 2592x1944 (this must be done before
-starting the preview as resolution can only be set when the camera is idle)::
+:attr:`~picamera.PiCamera.resolution` to 2592x1944::
 
     import time
     import picamera
@@ -403,15 +402,16 @@ If you wish split your recording over multiple files, you can use the
     with picamera.PiCamera() as camera:
         camera.resolution = (640, 480)
         camera.start_recording('1.h264')
-        for i in range(2, 10):
-            camera.wait_recording(5)
+        camera.wait_recording(5)
+        for i in range(2, 11):
             camera.split_recording('%d.h264' % i)
+            camera.wait_recording(5)
         camera.stop_recording()
 
 This should produce 10 video files named ``1.h264``, ``2.h264``, etc. each of
 which is approximately 5 seconds long (approximately because the
 :meth:`~picamera.PiCamera.split_recording` method will only split files at a
-keyframe.
+keyframe).
 
 .. versionadded:: 0.8
 

@@ -18,9 +18,11 @@ Start a preview for 10 seconds with the default settings::
         camera.close()
 
 Note that you should always ensure you call :meth:`~picamera.PiCamera.close` on
-the PiCamera object to clean up resources. The following example demonstrates
-that the context manager protocol (with ``with`` statement) can also be used to
-achieve this::
+the PiCamera object to clean up resources.
+
+The following example demonstrates that Python's ``with`` statement can be used
+to achieve this implicitly; when the ``with`` block ends,
+:meth:`~picamera.PiCamera.close` will be called implicitly::
 
     import time
     import picamera

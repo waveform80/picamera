@@ -91,12 +91,12 @@ class PiCamera(object):
     singleton class although it is not implemented as such).
 
     No preview or recording is started automatically upon construction.  Use
-    the :meth:`capture` method to capture image, the :meth:`start_recording`
+    the :meth:`capture` method to capture images, the :meth:`start_recording`
     method to begin recording video, or the :meth:`start_preview` method to
     start live display of the camera's input.
 
     Several attributes are provided to adjust the camera's configuration. Some
-    of these can be adjusted while a preview or recording is running, like
+    of these can be adjusted while a recording is running, like
     :attr:`brightness`. Others, like :attr:`resolution` can only be adjusted
     when the camera is idle.
 
@@ -676,10 +676,11 @@ class PiCamera(object):
           in VBR mode.
 
         * *inline_headers* - When True, specifies that the encoder should
-          output SPS/PPS headers within the stream to ensure GOPs are self
-          contained. This is important for streaming applications where the
-          client may wish to seek within the stream, and enables the use of
-          :meth:`split_recording`. Defaults to True if not specified.
+          output SPS/PPS headers within the stream to ensure GOPs (groups of
+          pictures) are self describing. This is important for streaming
+          applications where the client may wish to seek within the stream, and
+          enables the use of :meth:`split_recording`. Defaults to True if not
+          specified.
         """
         if self.recording:
             raise PiCameraRuntimeError('The camera is already recording')
@@ -787,7 +788,7 @@ class PiCamera(object):
 
         * ``'gif'`` - Write a GIF file
 
-        * ``'bmp'`` - Write a bitmap file
+        * ``'bmp'`` - Write a Windows bitmap file
 
         * ``'raw'`` - Write the raw sensor data to a file (set
           :attr:`raw_format` to determine the raw format)
@@ -804,11 +805,13 @@ class PiCamera(object):
           Otherwise, specify a tuple of ``(width, height, quality)``. Defaults
           to ``(64, 48, 35)``.
 
-        Note that when capturing with *format* set to ``'raw'``, and
-        *use_video_port* set to True, only YUV format is supported. If
-        :attr:`raw_format` is set to ``'rgb'``, the capture will still be in
-        YUV format. This is due to a firmware limitation (the video splitter
-        does not support RGB format). Workarounds are being investigated.
+        .. note::
+            Note that when capturing with *format* set to ``'raw'``, and
+            *use_video_port* set to True, only YUV format is supported. If
+            :attr:`raw_format` is set to ``'rgb'``, the capture will still be
+            in YUV format. This is due to a firmware limitation (the video
+            splitter does not support RGB format). Workarounds are being
+            investigated.
         """
         camera_port, enc_port = self._get_ports(
                 for_video=False, from_video_port=use_video_port)
@@ -1000,7 +1003,6 @@ class PiCamera(object):
                     stream.seek(0)
                     if process(stream):
                         break
-                    time.sleep(0.5)
         """
         camera_port, enc_port = self._get_ports(
                 for_video=False, from_video_port=use_video_port)
