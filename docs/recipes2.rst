@@ -223,7 +223,7 @@ differ in their ability to rapidly capture sequential frames. So, whilst
 this method, the author has managed 30fps JPEG captures at a resolution of
 1024x768.
 
-However, :meth:`~picamera.PiCamera.capture_sequence` is particular suited to
+By default, :meth:`~picamera.PiCamera.capture_sequence` is particular suited to
 capturing a fixed number of frames rapidly, as in the following example which
 captures a "burst" of 5 images::
 
@@ -390,7 +390,7 @@ friendly" subject, not to mention generator expressions)::
 
 .. _rapid_streaming:
 
-Rapid Capture and Streaming
+Rapid capture and streaming
 ===========================
 
 Following on from :ref:`rapid_capture`, we can combine the video-port capture
