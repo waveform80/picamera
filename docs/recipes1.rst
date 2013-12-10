@@ -451,7 +451,8 @@ pipe it to VLC for display::
             ['vlc', '--demux', 'h264', '-'],
             stdin=subprocess.PIPE)
         while True:
-            # Read 1k of data from the connection and write it to VLC's stdin
+            # Repeatedly read 1k of data from the connection and write it to
+            # VLC's stdin
             data = connection.read(1024)
             if not data:
                 break
@@ -459,6 +460,7 @@ pipe it to VLC for display::
     finally:
         connection.close()
         server_socket.close()
+        vlc.terminate()
 
 .. note::
     If you run this script on Windows you will probably need to provide a
@@ -485,7 +487,7 @@ object created from the network socket::
             camera.start_preview()
             time.sleep(2)
             # Start recording, sending the output to the connection for 60
-            seconds, then stop
+            # seconds, then stop
             camera.start_recording(connection, format='h264')
             camera.wait_recording(60)
             camera.stop_recording()
