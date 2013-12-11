@@ -21,12 +21,21 @@ PYVER:=$(shell $(PYTHON) $(PYFLAGS) -c "import sys; print('py%d.%d' % sys.versio
 PY_SOURCES:=$(shell \
 	$(PYTHON) $(PYFLAGS) setup.py egg_info >/dev/null 2>&1 && \
 	cat $(NAME).egg-info/SOURCES.txt)
+DEB_SOURCES:=debian/changelog \
+	debian/control \
+	debian/copyright \
+	debian/install \
+	debian/rules \
+	debian/source/include-binaries \
+	debian/$(NAME).manpages \
+	$(wildcard debian/*.desktop)
 DOC_SOURCES:=$(wildcard docs/*.rst)
 
 # Calculate the name of all outputs
 DIST_EGG=dist/$(NAME)-$(VER)-$(PYVER).egg
 DIST_TAR=dist/$(NAME)-$(VER).tar.gz
 DIST_ZIP=dist/$(NAME)-$(VER).zip
+DIST_DEB=dist/$(NAME)_$(VER)-1~ppa1_all.deb
 
 
 # Default target
@@ -39,6 +48,7 @@ all:
 	@echo "make egg - Generate a PyPI egg package"
 	@echo "make zip - Generate a source zip package"
 	@echo "make tar - Generate a source tar package"
+	@echo "make deb - Generate Debian packages"
 	@echo "make dist - Generate all packages"
 	@echo "make clean - Get rid of all generated files"
 	@echo "make release - Create and tag a new release"
@@ -58,7 +68,9 @@ zip: $(DIST_ZIP)
 
 tar: $(DIST_TAR)
 
-dist: $(DIST_EGG) $(DIST_RPM) $(DIST_DEB) $(DIST_TAR) $(DIST_ZIP)
+deb: $(DIST_DEB)
+
+dist: $(DIST_EGG) $(DIST_DEB) $(DIST_TAR) $(DIST_ZIP)
 
 develop: tags
 	$(PYTHON) $(PYFLAGS) setup.py develop
@@ -68,6 +80,7 @@ test:
 
 clean:
 	$(PYTHON) $(PYFLAGS) setup.py clean
+	$(MAKE) -f $(CURDIR)/debian/rules clean
 	rm -fr build/ dist/ $(NAME).egg-info/ tags
 	find $(CURDIR) -name "*.pyc" -delete
 
@@ -82,6 +95,15 @@ $(DIST_ZIP): $(PY_SOURCES)
 
 $(DIST_EGG): $(PY_SOURCES)
 	$(PYTHON) $(PYFLAGS) setup.py bdist_egg
+
+$(DIST_DEB): $(PY_SOURCES) $(DEB_SOURCES)
+	# build the source package in the parent directory then rename it to
+	# project_version.orig.tar.gz
+	$(PYTHON) $(PYFLAGS) setup.py sdist --dist-dir=../
+	rename -f 's/$(NAME)-(.*)\.tar\.gz/$(NAME)_$$1\.orig\.tar\.gz/' ../*
+	debuild -b -i -I -Idist -Idocs -Ibuild/sphinx/doctrees -rfakeroot
+	mkdir -p dist/
+	cp ../$(NAME)_$(VER)-1~ppa1_all.deb dist/
 
 release: $(PY_SOURCES) $(DOC_SOURCES)
 	$(MAKE) clean
