@@ -3,7 +3,7 @@ Maintainer: Dave Hughes <dave@waveform.org.uk>
 Homepage: http://pypi.python.org/pypi/picamera
 Section: python
 Priority: extra
-Build-Depends: debhelper (>= 8), dh-python, python-all (>= 2.7), python-setuptools, python3-all, python3-setuptools, python-docutils, python-sphinx (>= 1.0.7+dfsg-1~)
+Build-Depends: debhelper (>= 8), python-all (>= 2.7), python-setuptools, python3-all, python3-setuptools, python-docutils, python-sphinx (>= 1.0.7+dfsg-1~)
 Standards-Version: 3.9.3
 X-Python-Version: >= 2.7
 X-Python3-Version: >= 3.2

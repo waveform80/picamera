@@ -6,7 +6,7 @@
 export PYBUILD_NAME=picamera
 
 %:
-	dh $@ --with python2,python3,sphinxdoc --buildsystem=pybuild
+	dh $@ --with python2,python3,sphinxdoc --buildsystem=python_distutils
 
 override_dh_auto_test:
 	# Don't run the tests!
