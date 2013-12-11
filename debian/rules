@@ -7,3 +7,10 @@ export PYBUILD_NAME=picamera
 
 %:
 	dh $@ --with python2,python3,sphinxdoc --buildsystem=pybuild
+
+override_dh_auto_test:
+	# Don't run the tests!
+
+override_dh_installdocs:
+	python setup.py build_sphinx -b html
+	dh_installdocs

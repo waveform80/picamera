@@ -1,0 +1,10 @@
+Document: python-picamera
+Title: Picamera Reference
+Author: Dave Hughes <dave@waveform.org.uk>
+Abstract: Documentation for the Python interface to the Raspberry Pi's camera
+ module.
+Section: Programming/Python
+
+Format: HTML
+Index: /usr/share/doc/python-picamera-docs/html/index.html
+Files: /usr/share/doc/python-picamera-docs/html/*

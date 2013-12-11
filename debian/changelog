@@ -1,0 +1,5 @@
+picamera (0.8-1) stable; urgency=low
+
+  * Initial release.
+
+ -- Dave Hughes <dave@waveform.org.uk>  Wed, 11 Dec 2013 03:07:47 +0000

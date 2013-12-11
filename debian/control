@@ -12,7 +12,7 @@ Package: python-picamera
 Architecture: any
 Depends: ${misc:Depends}, ${python:Depends}
 Suggests: python-picamera-docs
-Description: A pure Python interface to the Raspberry Pi's camera module.
+Description: Pure Python interface to the Raspberry Pi's camera module.
  picamera is a library for working with the Raspberry Pi's camera module from
  within Python without having to resort to subprocesses. The majority of the
  functionality of raspistill and raspivid is replicated by the library.
@@ -23,7 +23,7 @@ Package: python3-picamera
 Architecture: any
 Depends: ${misc:Depends}, ${python3:Depends}
 Suggests: python-picamera-docs
-Description: A pure Python interface to the Raspberry Pi's camera module.
+Description: Pure Python interface to the Raspberry Pi's camera module.
  picamera is a library for working with the Raspberry Pi's camera module from
  within Python without having to resort to subprocesses. The majority of the
  functionality of raspistill and raspivid is replicated by the library.
