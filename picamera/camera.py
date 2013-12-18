@@ -1908,7 +1908,7 @@ class PiCamera(object):
     color_effects = property(_get_color_effects, _set_color_effects, doc="""
         Retrieves or sets the current color effect applied by the camera.
 
-        When queried, the :attr:`color_effect` property either returns ``None``
+        When queried, the :attr:`color_effects` property either returns ``None``
         which indicates that the camera is using normal color settings, or a
         ``(u, v)`` tuple where ``u`` and ``v`` are integer values between 0 and
         255.
