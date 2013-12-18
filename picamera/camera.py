@@ -806,6 +806,7 @@ class PiCamera(object):
           to ``(64, 48, 35)``.
 
         .. note::
+
             Note that when capturing with *format* set to ``'raw'``, and
             *use_video_port* set to True, only YUV format is supported. If
             :attr:`raw_format` is set to ``'rgb'``, the capture will still be
@@ -1087,6 +1088,7 @@ class PiCamera(object):
         Holds a mapping of the Exif tags to apply to captured images.
 
         .. note::
+
             Please note that Exif tagging is only supported with the ``jpeg``
             format.
 
@@ -1111,6 +1113,7 @@ class PiCamera(object):
             camera.exif_tags['EXIF.UserComment'] = b'Something containing\\x00NULL characters'
 
         .. warning::
+
             Binary Exif values are currently ignored; this appears to be a
             libmmal or firmware bug.
 
@@ -1188,6 +1191,7 @@ class PiCamera(object):
         off).
 
         .. note::
+
             This is a write-only property. While it can be used to control the
             camera's LED, you cannot query the state of the camera's LED using
             this property.
@@ -1230,6 +1234,7 @@ class PiCamera(object):
         * ``'rgb'`` - Capture data in 24-bit RGB format (8 bits per color).
 
         .. note::
+
             The camera is capable of other raw formats (e.g. NV12); if anyone
             is interested in the library providing access to these formats,
             please contact the author or file an enhancement ticket in the bug
@@ -1365,6 +1370,7 @@ class PiCamera(object):
         1080)``.
 
         .. note::
+
             Setting a resolution higher than 1080p will automatically cause
             previews to run at a reduced frame rate of 15fps (resolutions at or
             below 1080p use 30fps). This is due to GPU processing limits.
@@ -1595,6 +1601,7 @@ class PiCamera(object):
         to image-taking conditions.
 
         .. note::
+
             With ISO settings other than 0 (auto), the :attr:`exposure_mode`
             property becomes non-functional.
 
@@ -1697,6 +1704,7 @@ class PiCamera(object):
         The default value is ``False``.
 
         .. warning::
+
             The built-in video stabilization only accounts for `vertical and
             horizontal motion`_, not rotation.
 
@@ -1782,6 +1790,7 @@ class PiCamera(object):
         default value is ``'auto'``.
 
         .. warning::
+
             Currently, the "verylong" exposure mode can `lock up the camera`_
             under certain conditions.
 
@@ -2121,6 +2130,7 @@ class PiCamera(object):
         in progress.
 
         .. note::
+
             If the preview is not running, the property will not reflect
             changes to it, but they will be in effect next time the preview is
             started. In other words, you can set preview_alpha to 128, but
@@ -2168,6 +2178,7 @@ class PiCamera(object):
         set while recordings or previews are active.
 
         .. note::
+
             The :attr:`preview_fullscreen` attribute is afflicted by the same
             issue as :attr:`preview_alpha` with regards to changes while the
             preview is not running.
@@ -2216,6 +2227,7 @@ class PiCamera(object):
         previews are active.
 
         .. note::
+
             The :attr:`preview_window` attribute is afflicted by the same issue
             as :attr:`preview_alpha` with regards to changes while the preview
             is not running.
