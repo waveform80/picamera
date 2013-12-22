@@ -5,6 +5,21 @@ Change log
 ==========
 
 
+Release 1.0
+===========
+
+In 1.0 the major features added were:
+
+* The new :attr:`~picamera.PiCamera.frame` attribute permits querying the
+  current frame number of the active video recording
+* Debian packaging!
+
+As this is a new major-version, all deprecated elements were removed:
+
+* The continuous method was removed; this was replaced by capture_continuous
+  in 0.5
+
+
 Release 0.8
 ===========
 

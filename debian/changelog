@@ -1,5 +1,89 @@
-picamera (0.8-1) wheezy; urgency=low
+picamera (1.0-1) stable; urgency=low
 
-  * Initial release.
+  * The new frame attribute permits querying the current frame number of the
+    active video recording
+  * Debian packaging!
+  * Removed deprecated continuous method
 
- -- Dave Hughes <dave@waveform.org.uk>  Wed, 11 Dec 2013 03:07:47 +0000
+ -- Dave Hughes <dave@waveform.org.uk>  Mon, 09 Dec 2013 05:15:00 +0000
+
+picamera (0.8-1) UNRELEASED; urgency=low
+
+  * Added capture of images whilst recording without frame-drop. Previously,
+    images could be captured whilst recording but only from the still port
+    which resulting in dropped frames in the recorded video due to the mode
+    switch. In 0.8, use_video_port=True can be specified on capture methods
+    whilst recording to avoid this.
+  * Splitting of video recordings into multiple files. This is done via the
+    new split_recording() method, and requires that the start_recording()
+    method was called with inline_headers set to True. The latter has now been
+    made the default (technically this is a backwards incompatible change, but
+    it's relatively trivial and I don't anticipate anyone's code breaking
+    because of this change).
+  * Documentation updates that were missing from 0.7 (specifically the new
+    video recording parameters)
+  * The ability to perform raw captures through the video port
+  * Missing exception imports in the encoders module (which caused very
+    confusion errors in the case than an exception was raised within an
+    encoder thread)
+
+ -- Dave Hughes <dave@waveform.org.uk>  Mon, 09 Dec 2013 05:15:00 +0000
+
+picamera (0.7-1) UNRELEASED; urgency=low
+
+  * Added quantisation and inline_headers options to start_recording() method
+  * Fixed bugs in the crop property
+  * The issue of captures fading to black over time when the preview is not
+    running has been resolved. This solution was to permanently activate the
+    preview, but pipe it to a null-sink when not required. Note that this
+    means rapid capture gets even slower when not using the video port
+  * LED support is via RPi.GPIO only; the RPIO library simply doesn't support
+    it at this time
+  * Numerous documentation fixes
+
+ --  <dave@kermit.waveform.org.uk>  Thu, 14 Nov 2013 20:03:00 +0000
+
+picamera (0.6-1) UNRELEASED; urgency=low
+
+  * New raw format added to all capture methods (capture, capture_continuous,
+    and capture_sequence) to permit capturing of raw sensor data
+  * New raw_format attribute to permit control of raw format (defaults to
+    'yuv', only other setting currently is 'rgb')
+  * New shutter_speed attribute to permit manual control of shutter speed
+    (defaults to 0 for automatic shutter speed, and requires latest firmware
+    to operate - use sudo rpi-update to upgrade)
+  * New "Recipes" chapter in the documentation which demonstrates a wide
+    variety of capture techniques ranging from trivial to complex
+
+ --  <dave@kermit.waveform.org.uk>  Wed, 30 Oct 2013 01:28:00 +0000
+
+picamera (0.5-1) UNRELEASED; urgency=low
+
+  * New capture_sequence() method
+  * continuous() method renamed to capture_continuous(). Old method name
+    retained for compatibility until 1.0
+  * use_video_port option for capture_sequence() and capture_continuous() to
+    allow rapid capture of JPEGs via video port
+  * New framerate attribute to control video and rapid-image capture frame
+    rates
+  * Default value for ISO changed from 400 to 0 (auto) which fixes
+    exposure_mode not working by default
+  * intraperiod and profile options for start_recording()
+
+ --  <dave@kermit.waveform.org.uk>  Mon, 21 Oct 2013 02:06:00 +0000
+
+picamera (0.4-1) UNRELEASED; urgency=low
+
+  * Added new attributes preview_alpha, preview_fullscreen, and preview_window
+    for controlling the preview window
+  * Added new continous() method for rapid capture of still images
+
+ --  <dave@kermit.waveform.org.uk>  Fri, 11 Oct 2013 01:37:00 +0000
+
+picamera (0.3-1) UNRELEASED; urgency=low
+
+  * Added custom Exif tagging for captured images
+  * Fixed silly bug which prevented more than one image being captured during
+    the lifetime of a PiCamera instance
+
+ --  <dave@kermit.waveform.org.uk>  Fri, 04 Oct 2013 00:48:00 +0000
