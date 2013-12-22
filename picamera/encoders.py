@@ -305,6 +305,7 @@ class PiVideoEncoder(PiEncoder):
     def __init__(self, parent, port, format, **options):
         super(PiVideoEncoder, self).__init__(parent, port, format, **options)
         self._next_output = []
+        self.frame = 0
 
     def _create_encoder(
             self, format, bitrate=17000000, intra_period=0, profile='high',
@@ -405,6 +406,10 @@ class PiVideoEncoder(PiEncoder):
             mmal.mmal_component_enable(self.encoder),
             prefix="Unable to enable video encoder component")
 
+    def start(self, output):
+        super(PiVideoEncoder, self).start(output)
+        self.frame = 1
+
     def split(self, output):
         with self.lock:
             if self._next_output is None:
@@ -418,6 +423,8 @@ class PiVideoEncoder(PiEncoder):
         self.event.clear()
 
     def _callback_write(self, buf):
+        if buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_FRAME_END:
+            self.frame += 1
         if buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_CONFIG:
             new_output = None
             with self.lock:

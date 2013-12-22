@@ -1256,6 +1256,27 @@ class PiCamera(object):
         no recording must be active when the property is set.
         """)
 
+    def _get_frame(self):
+        if not self._video_encoder:
+            raise PiCameraRuntimeError(
+                "Cannot query frame number when camera is not recording video")
+        return self._video_encoder.frame
+    frame = property(_get_frame, doc="""
+        Retrieves the current frame number being recorded by the camera.
+
+        When video recording is active (after a call to
+        :meth:`start_recording`), this attribute will return the current frame
+        number that the camera is recording. Querying this property when the
+        camera is not recording will result in an exception.
+
+        .. note::
+
+            The frame number is 1-based, which is to say that the first actual
+            frame will be numbered 1. If you query this property and it returns
+            0, this means that the video encoder has been initialized, but the
+            camera has not yet returned any frames.
+        """)
+
     def _get_framerate(self):
         self._check_camera_open()
         return (
