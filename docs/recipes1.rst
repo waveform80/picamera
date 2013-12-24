@@ -513,6 +513,40 @@ recipe above to permit the server to control some aspects of the client's video
 stream.
 
 
+.. _led_control:
+
+Controlling the LED
+===================
+
+In certain circumstances, you may find the camera module's red LED a hindrance.
+For example, in the case of automated close-up wild-life photography, the LED
+may scare off animals. It can also cause unwanted reflected red glare with
+close-up subjects.
+
+One trivial way to deal with is simply to place some opaque covering on the LED
+(e.g. bluetack or electricians tape). However, provided you have the
+`RPi.GPIO`_ package installed, and provided your Python process is running with
+sufficient privileges (typically this means running as root with ``sudo
+python``), you can also control the LED via the :attr:`~picamera.PiCamera.led`
+attribute::
+
+    import picamera
+
+    with picamera.PiCamera() as camera:
+        # Turn the camera's LED off
+        camera.led = False
+        # Take a picture while the LED remains off
+        camera.capture('foo.jpg')
+
+.. warning::
+
+    Be aware when you first use the LED property it will set the GPIO library
+    to Broadcom mode with ``GPIO.setmode(GPIO.BCM)`` and disable warnings
+    with ``GPIO.setwarnings(False)``.
+
+
 .. _PIL: http://effbot.org/imagingbook/pil-index.htm
 .. _OpenCV: http://opencv.org/
 .. _x264dev blog: http://x264dev.multimedia.cx/archives/249
+.. _RPi.GPIO: https://pypi.python.org/pypi/RPi.GPIO
+

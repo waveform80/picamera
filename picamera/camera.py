@@ -221,6 +221,7 @@ class PiCamera(object):
             raise PiCameraRuntimeError(
                 "Only one PiCamera object can be in existence at a time")
         _CAMERA = self
+        self._used_led = False
         self._camera = None
         self._camera_config = None
         self._preview = None
@@ -233,7 +234,6 @@ class PiCamera(object):
             'IFD0.Model': 'RP_OV5647',
             'IFD0.Make': 'RaspberryPi',
             }
-        self._init_led()
         try:
             self._init_camera()
             self._init_defaults()
@@ -250,10 +250,10 @@ class PiCamera(object):
                 GPIO.setmode(GPIO.BCM)
                 GPIO.setwarnings(False)
                 GPIO.setup(5, GPIO.OUT, initial=GPIO.LOW)
+                self._used_led = True
             except RuntimeError:
-                # We're probably not running as root. In this case, cleanup and
-                # forget the GPIO reference so we don't try anything further
-                GPIO.cleanup()
+                # We're probably not running as root. In this case, forget the
+                # GPIO reference so we don't try anything further
                 GPIO = None
 
     def _init_camera(self):
@@ -579,8 +579,6 @@ class PiCamera(object):
         if self._camera:
             mmal.mmal_component_destroy(self._camera)
             self._camera = None
-        if GPIO:
-            GPIO.cleanup()
         _CAMERA = None
 
     def __enter__(self):
@@ -1180,6 +1178,8 @@ class PiCamera(object):
             raise PiCameraRuntimeError(
                 "GPIO library not found, or not accessible; please install "
                 "RPi.GPIO and run the script as root")
+        if not self._used_led:
+            self._init_led()
         GPIO.output(5, bool(value))
     led = property(None, _set_led, doc="""
         Sets the state of the camera's LED via GPIO.
