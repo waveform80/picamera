@@ -220,8 +220,8 @@ class PiEncoder(object):
         with self.lock:
             self.opened = isinstance(output, (bytes, str))
             if self.opened:
-                # Open files in binary mode with a *big* (1Mb) buffer
-                self.output = io.open(output, 'wb', buffering=1048576)
+                # Open files in binary mode with a decent buffer size
+                self.output = io.open(output, 'wb', buffering=65536)
             else:
                 self.output = output
 
