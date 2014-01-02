@@ -1041,17 +1041,6 @@ class PiCamera(object):
         finally:
             encoder.close()
 
-    def continuous(self, output, format, **options):
-        """
-        .. deprecated:: 0.5
-
-            Please use :meth:`capture_continuous` instead. This method will be
-            removed in 1.0.
-
-        """
-        for result in self.capture_continuous(output, format, **options):
-            yield result
-
     @property
     def closed(self):
         """
