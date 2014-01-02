@@ -42,6 +42,7 @@ import datetime
 import threading
 import warnings
 import ctypes as ct
+from collections import namedtuple
 
 import picamera.mmal as mmal
 from picamera.exc import (
@@ -61,6 +62,16 @@ __all__ = [
     'PiOneImageEncoder',
     'PiMultiImageEncoder',
     ]
+
+
+PiVideoFrame = namedtuple('PiVideoFrame', (
+    'index',         # the frame number, where the first frame is 0
+    'keyframe',      # True when the frame is a keyframe
+    'frame_size',    # the size (in bytes) of the frame's data
+    'video_size',    # the size (in bytes) of the video so far
+    'split_size',    # the size (in bytes) of the video since the last split
+    'timestamp',     # the presentation timestamp (PTS) of the frame
+    ))
 
 
 def _encoder_callback(port, buf):
@@ -305,7 +316,7 @@ class PiVideoEncoder(PiEncoder):
     def __init__(self, parent, port, format, **options):
         super(PiVideoEncoder, self).__init__(parent, port, format, **options)
         self._next_output = []
-        self.frame = 0
+        self.frame = None
 
     def _create_encoder(
             self, format, bitrate=17000000, intra_period=0, profile='high',
@@ -408,7 +419,15 @@ class PiVideoEncoder(PiEncoder):
 
     def start(self, output):
         super(PiVideoEncoder, self).start(output)
-        self.frame = 1
+        self._size = 0 # internal counter for frame size
+        self.frame = PiVideoFrame(
+                index=0,
+                keyframe=False,
+                frame_size=0,
+                video_size=0,
+                split_size=0,
+                timestamp=0,
+                )
 
     def split(self, output):
         with self.lock:
@@ -423,8 +442,17 @@ class PiVideoEncoder(PiEncoder):
         self.event.clear()
 
     def _callback_write(self, buf):
+        self._size += buf[0].length
         if buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_FRAME_END:
-            self.frame += 1
+            self.frame = PiVideoFrame(
+                    index=self.frame.index + 1,
+                    keyframe=bool(buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_KEYFRAME),
+                    frame_size=self._size,
+                    video_size=self.frame.video_size + self._size,
+                    split_size=self.frame.split_size + self._size,
+                    timestamp=None if buf[0].pts in (0, mmal.MMAL_TIME_UNKNOWN) else buf[0].pts,
+                    )
+            self._size = 0
         if buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_CONFIG:
             new_output = None
             with self.lock:
@@ -432,6 +460,14 @@ class PiVideoEncoder(PiEncoder):
                     new_output = self._next_output.pop(0)
             if new_output:
                 self._close_output()
+                self.frame = PiVideoFrame(
+                        index=self.frame.index,
+                        keyframe=self.frame.keyframe,
+                        frame_size=self.frame.frame_size,
+                        video_size=self.frame.video_size,
+                        split_size=0,
+                        timestamp=self.frame.timestamp,
+                        )
                 self._open_output(new_output)
                 self.event.set()
         super(PiVideoEncoder, self)._callback_write(buf)
