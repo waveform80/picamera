@@ -649,6 +649,7 @@ class PiCamera(object):
         one of the following strings:
 
         * ``'h264'`` - Write an H.264 video stream
+        * ``'mjpeg'`` - Write an M-JPEG video stream
 
         Certain formats accept additional options which can be specified
         as keyword arguments. The ``'h264'`` format accepts the following
@@ -662,6 +663,15 @@ class PiCamera(object):
           32-bit integer value representing the number of frames between
           successive I-frames.
 
+        * *inline_headers* - When True, specifies that the encoder should
+          output SPS/PPS headers within the stream to ensure GOPs (groups of
+          pictures) are self describing. This is important for streaming
+          applications where the client may wish to seek within the stream, and
+          enables the use of :meth:`split_recording`. Defaults to True if not
+          specified.
+
+        All formats accept the following additional options:
+
         * *bitrate* - The bitrate at which video will be encoded. Defaults to
           17000000 (17Mbps) if not specified. A value of 0 implies VBR
           (variable bitrate) encoding. The maximum value is 25000000 (25Mbps).
@@ -670,15 +680,9 @@ class PiCamera(object):
           encodings), this parameter specifies the quality that the encoder
           should attempt to maintain. Use values between 10 and 40 where 10 is
           extremely high quality, and 40 is extremely low (20-25 is usually a
-          reasonable range). Note that :meth:`split_recording` cannot be used
-          in VBR mode.
+          reasonable range for H.264 encoding). Note that
+          :meth:`split_recording` cannot be used in VBR mode.
 
-        * *inline_headers* - When True, specifies that the encoder should
-          output SPS/PPS headers within the stream to ensure GOPs (groups of
-          pictures) are self describing. This is important for streaming
-          applications where the client may wish to seek within the stream, and
-          enables the use of :meth:`split_recording`. Defaults to True if not
-          specified.
         """
         if self.recording:
             raise PiCameraRuntimeError('The camera is already recording')
@@ -2245,5 +2249,7 @@ class PiCamera(object):
         """)
 
 bcm_host.bcm_host_init()
-mimetypes.add_type('application/h264', '.h264', False)
+mimetypes.add_type('application/h264',  '.h264',  False)
+mimetypes.add_type('application/mjpeg', '.mjpg',  False)
+mimetypes.add_type('application/mjpeg', '.mjpeg', False)
 

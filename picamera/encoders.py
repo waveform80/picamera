@@ -269,9 +269,10 @@ class PiEncoder(object):
         """
         result = self.event.wait(timeout)
         if result:
-            mmal_check(
-                mmal.mmal_port_disable(self.output_port),
-                prefix="Failed to disable encoder output port")
+            if self.output_port[0].is_enabled:
+                mmal_check(
+                    mmal.mmal_port_disable(self.output_port),
+                    prefix="Failed to disable encoder output port")
             self._close_output()
             # Check whether the callback set an exception
             if self.exception:
@@ -317,6 +318,7 @@ class PiVideoEncoder(PiEncoder):
         super(PiVideoEncoder, self).__init__(parent, port, format, **options)
         self._next_output = []
         self.frame = None
+        self.format = format
 
     def _create_encoder(
             self, format, bitrate=17000000, intra_period=0, profile='high',
@@ -325,7 +327,8 @@ class PiVideoEncoder(PiEncoder):
 
         try:
             self.output_port[0].format[0].encoding = {
-                'h264': mmal.MMAL_ENCODING_H264,
+                'h264':  mmal.MMAL_ENCODING_H264,
+                'mjpeg': mmal.MMAL_ENCODING_MJPEG,
                 }[format]
         except KeyError:
             raise PiCameraValueError('Unrecognized format %s' % format)
@@ -340,17 +343,50 @@ class PiVideoEncoder(PiEncoder):
             mmal.mmal_port_format_commit(self.output_port),
             prefix="Unable to set format on encoder output port")
 
-        if intra_period:
-            mp = mmal.MMAL_PARAMETER_UINT32_T(
+        if format == 'h264':
+            mp = mmal.MMAL_PARAMETER_VIDEO_PROFILE_T(
                     mmal.MMAL_PARAMETER_HEADER_T(
-                        mmal.MMAL_PARAMETER_INTRAPERIOD,
-                        ct.sizeof(mmal.MMAL_PARAMETER_UINT32_T),
+                        mmal.MMAL_PARAMETER_PROFILE,
+                        ct.sizeof(mmal.MMAL_PARAMETER_VIDEO_PROFILE_T),
                         ),
-                    intra_period
                     )
+            try:
+                mp.profile[0].profile = {
+                    'baseline':    mmal.MMAL_VIDEO_PROFILE_H264_BASELINE,
+                    'main':        mmal.MMAL_VIDEO_PROFILE_H264_MAIN,
+                    'high':        mmal.MMAL_VIDEO_PROFILE_H264_HIGH,
+                    'constrained': mmal.MMAL_VIDEO_PROFILE_H264_CONSTRAINED_BASELINE,
+                }[profile]
+            except KeyError:
+                raise PiCameraValueError("Invalid H.264 profile %s" % profile)
+            mp.profile[0].level = mmal.MMAL_VIDEO_LEVEL_H264_4
             mmal_check(
                 mmal.mmal_port_parameter_set(self.output_port, mp.hdr),
-                prefix="Unable to set encoder intra_period")
+                prefix="Unable to set encoder H.264 profile")
+
+            mmal_check(
+                mmal.mmal_port_parameter_set_boolean(
+                    self.output_port,
+                    mmal.MMAL_PARAMETER_VIDEO_ENCODE_INLINE_HEADER,
+                    int(inline_headers)),
+                prefix="Unable to set inline_headers")
+
+            if not (bitrate and inline_headers):
+                # If inline_headers is disabled, or VBR encoding is configured,
+                # disable the split function
+                self._next_output = None
+
+            if intra_period:
+                mp = mmal.MMAL_PARAMETER_UINT32_T(
+                        mmal.MMAL_PARAMETER_HEADER_T(
+                            mmal.MMAL_PARAMETER_INTRAPERIOD,
+                            ct.sizeof(mmal.MMAL_PARAMETER_UINT32_T),
+                            ),
+                        intra_period
+                        )
+                mmal_check(
+                    mmal.mmal_port_parameter_set(self.output_port, mp.hdr),
+                    prefix="Unable to set encoder intra_period")
 
         if quantization:
             mp = mmal.MMAL_PARAMETER_UINT32_T(
@@ -374,26 +410,6 @@ class PiVideoEncoder(PiEncoder):
                 mmal.mmal_port_parameter_set(self.output_port, mp.hdr),
                 prefix="Unable to set quantization")
 
-        mp = mmal.MMAL_PARAMETER_VIDEO_PROFILE_T(
-                mmal.MMAL_PARAMETER_HEADER_T(
-                    mmal.MMAL_PARAMETER_PROFILE,
-                    ct.sizeof(mmal.MMAL_PARAMETER_VIDEO_PROFILE_T),
-                    ),
-                )
-        try:
-            mp.profile[0].profile = {
-                'baseline':    mmal.MMAL_VIDEO_PROFILE_H264_BASELINE,
-                'main':        mmal.MMAL_VIDEO_PROFILE_H264_MAIN,
-                'high':        mmal.MMAL_VIDEO_PROFILE_H264_HIGH,
-                'constrained': mmal.MMAL_VIDEO_PROFILE_H264_CONSTRAINED_BASELINE,
-            }[profile]
-        except KeyError:
-            raise PiCameraValueError("Invalid H.264 profile %s" % profile)
-        mp.profile[0].level = mmal.MMAL_VIDEO_LEVEL_H264_4
-        mmal_check(
-            mmal.mmal_port_parameter_set(self.output_port, mp.hdr),
-            prefix="Unable to set encoder H.264 profile")
-
         mmal_check(
             mmal.mmal_port_parameter_set_boolean(
                 self.input_port,
@@ -402,23 +418,10 @@ class PiVideoEncoder(PiEncoder):
             prefix="Unable to set immutable flag on encoder input port")
 
         mmal_check(
-            mmal.mmal_port_parameter_set_boolean(
-                self.output_port,
-                mmal.MMAL_PARAMETER_VIDEO_ENCODE_INLINE_HEADER,
-                int(inline_headers)),
-            prefix="Unable to set inline_headers")
-
-        if not (bitrate and inline_headers):
-            # If inline_headers is disabled, or VBR encoding is configured,
-            # disable the split function
-            self._next_output = None
-
-        mmal_check(
             mmal.mmal_component_enable(self.encoder),
             prefix="Unable to enable video encoder component")
 
     def start(self, output):
-        super(PiVideoEncoder, self).start(output)
         self._size = 0 # internal counter for frame size
         self.frame = PiVideoFrame(
                 index=-1,
@@ -428,6 +431,7 @@ class PiVideoEncoder(PiEncoder):
                 split_size=0,
                 timestamp=0,
                 )
+        super(PiVideoEncoder, self).start(output)
 
     def split(self, output):
         with self.lock:
@@ -453,7 +457,7 @@ class PiVideoEncoder(PiEncoder):
                     timestamp=None if buf[0].pts in (0, mmal.MMAL_TIME_UNKNOWN) else buf[0].pts,
                     )
             self._size = 0
-        if buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_CONFIG:
+        if self.format != 'h264' or (buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_CONFIG):
             new_output = None
             with self.lock:
                 if self._next_output:
