@@ -45,37 +45,34 @@ import tempfile
 import picamera
 import pytest
 from PIL import Image
+from collections import namedtuple
+
+
+TestCase = namedtuple('TestCase', ('format', 'ext', 'options'))
+
+TEST_CASES = (
+    TestCase('jpeg', '.jpg', {'quality': 95}),
+    TestCase('jpeg', '.jpg', {}),
+    TestCase('jpeg', '.jpg', {'quality': 50}),
+    #TestCase('gif',  '.gif', {}),
+    TestCase('png',  '.png', {}),
+    #TestCase('bmp',  '.bmp', {}),
+    )
 
 
 # Run tests with a variety of file suffixes and expected formats
-@pytest.fixture(scope='module', params=(
-    ('.jpg', 'JPEG', (('quality', 95),)),
-    ('.jpg', 'JPEG', ()),
-    ('.jpg', 'JPEG', (('quality', 50),)),
-    #('.gif', 'GIF',  ()),
-    ('.png', 'PNG',  ()),
-    #('.bmp', 'BMP',  ()),
-    ))
+@pytest.fixture(scope='module', params=TEST_CASES)
 def filename_format_options(request):
-    suffix, format, options = request.param
-    filename = tempfile.mkstemp(suffix=suffix)[1]
+    filename = tempfile.mkstemp(suffix=request.param.ext)[1]
     def fin():
         os.unlink(filename)
     request.addfinalizer(fin)
-    return filename, format, dict(options)
+    return filename, request.param.format, request.param.options
 
 # Run tests with a variety of format specs
-@pytest.fixture(scope='module', params=(
-    ('jpeg', (('quality', 95),)),
-    ('jpeg', ()),
-    ('jpeg', (('quality', 50),)),
-    #('gif',  ()),
-    ('png',  ()),
-    #('bmp',  ()),
-    ))
+@pytest.fixture(scope='module', params=TEST_CASES)
 def format_options(request):
-    format, options = request.param
-    return format, dict(options)
+    return request.param.format, request.param.options
 
 # Run tests with one of the two supported raw formats
 @pytest.fixture(scope='module', params=('yuv', 'rgb'))
@@ -98,7 +95,7 @@ def test_capture_to_file(
     camera.capture(filename, use_video_port=use_video_port, **options)
     img = Image.open(filename)
     assert img.size == resolution
-    assert img.format == format
+    assert img.format.lower() == format
     img.verify()
 
 def test_capture_to_stream(
@@ -109,7 +106,7 @@ def test_capture_to_stream(
     stream.seek(0)
     img = Image.open(stream)
     assert img.size == resolution
-    assert img.format == format.upper()
+    assert img.format.lower() == format
     img.verify()
 
 def test_capture_continuous_to_file(
