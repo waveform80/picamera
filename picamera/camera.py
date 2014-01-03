@@ -2082,10 +2082,10 @@ class PiCamera(object):
                 ct.sizeof(mmal.MMAL_PARAMETER_INPUT_CROP_T)
                 ),
             mmal.MMAL_RECT_T(
-                int(65535 * x),
-                int(65535 * y),
-                int(65535 * w),
-                int(65535 * h)
+                max(0, min(65535, int(65535 * x))),
+                max(0, min(65535, int(65535 * y))),
+                max(0, min(65535, int(65535 * w))),
+                max(0, min(65535, int(65535 * h))),
                 ),
             )
         mmal_check(
