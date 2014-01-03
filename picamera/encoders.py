@@ -421,7 +421,7 @@ class PiVideoEncoder(PiEncoder):
         super(PiVideoEncoder, self).start(output)
         self._size = 0 # internal counter for frame size
         self.frame = PiVideoFrame(
-                index=0,
+                index=-1,
                 keyframe=False,
                 frame_size=0,
                 video_size=0,
