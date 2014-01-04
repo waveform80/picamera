@@ -39,35 +39,37 @@ str = type('')
 
 import io
 import os
+import re
 import time
 import tempfile
 import picamera
 import pytest
+import subprocess
 from collections import namedtuple
 
 
-TestCase = namedtuple('TestCase', ('format', 'ext', 'options'))
+RecordingCase = namedtuple('TestCase', ('format', 'ext', 'options'))
 
-TEST_CASES = (
-    TestCase('h264',  '.h264', {'profile': 'baseline'}),
-    TestCase('h264',  '.h264', {'profile': 'main'}),
-    TestCase('h264',  '.h264', {'profile': 'high'}),
-    TestCase('h264',  '.h264', {'profile': 'constrained'}),
-    TestCase('h264',  '.h264', {'bitrate': 0, 'quantization': 10}),
-    TestCase('h264',  '.h264', {'bitrate': 0, 'quantization': 20}),
-    TestCase('h264',  '.h264', {'bitrate': 0, 'quantization': 30}),
-    TestCase('h264',  '.h264', {'bitrate': 0, 'quantization': 40}),
-    TestCase('h264',  '.h264', {'bitrate': 10000000, 'intra_period': 15}),
-    TestCase('h264',  '.h264', {'bitrate': 10000000, 'inline_headers': False}),
-    TestCase('h264',  '.h264', {'bitrate': 15000000}),
-    TestCase('h264',  '.h264', {'bitrate': 20000000, 'profile': 'main'}),
-    TestCase('mjpeg', '.mjpg', {}),
-    TestCase('mjpeg', '.mjpg', {'bitrate': 10000000}),
-    TestCase('mjpeg', '.mjpg', {'bitrate': 0, 'quantization': 20}),
+RECORDING_CASES = (
+    RecordingCase('h264',  '.h264', {'profile': 'baseline'}),
+    RecordingCase('h264',  '.h264', {'profile': 'main'}),
+    RecordingCase('h264',  '.h264', {'profile': 'high'}),
+    RecordingCase('h264',  '.h264', {'profile': 'constrained'}),
+    RecordingCase('h264',  '.h264', {'bitrate': 0, 'quantization': 10}),
+    RecordingCase('h264',  '.h264', {'bitrate': 0, 'quantization': 20}),
+    RecordingCase('h264',  '.h264', {'bitrate': 0, 'quantization': 30}),
+    RecordingCase('h264',  '.h264', {'bitrate': 0, 'quantization': 40}),
+    RecordingCase('h264',  '.h264', {'bitrate': 10000000, 'intra_period': 15}),
+    RecordingCase('h264',  '.h264', {'bitrate': 10000000, 'inline_headers': False}),
+    RecordingCase('h264',  '.h264', {'bitrate': 15000000}),
+    RecordingCase('h264',  '.h264', {'bitrate': 20000000, 'profile': 'main'}),
+    RecordingCase('mjpeg', '.mjpg', {}),
+    RecordingCase('mjpeg', '.mjpg', {'bitrate': 10000000}),
+    RecordingCase('mjpeg', '.mjpg', {'bitrate': 0, 'quantization': 20}),
     )
 
 
-@pytest.fixture(scope='module', params=TEST_CASES)
+@pytest.fixture(scope='module', params=RECORDING_CASES)
 def filenames_format_options(request):
     filename1 = tempfile.mkstemp(suffix=request.param.ext)[1]
     filename2 = tempfile.mkstemp(suffix=request.param.ext)[1]
@@ -78,9 +80,45 @@ def filenames_format_options(request):
     return filename1, filename2, request.param.format, request.param.options
 
 # Run tests with a variety of format specs
-@pytest.fixture(scope='module', params=TEST_CASES)
+@pytest.fixture(scope='module', params=RECORDING_CASES)
 def format_options(request):
     return request.param.format, request.param.options
+
+def verify_video(filename_or_obj, format, resolution):
+    width, height = resolution
+    if isinstance(filename_or_obj, str):
+        p = subprocess.Popen([
+            'avconv',
+            '-f', format,
+            '-i', filename_or_obj,
+            ], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    else:
+        p = subprocess.Popen([
+            'avconv',
+            '-f', format,
+            '-i', '-',
+            ], stdin=filename_or_obj, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    out = p.communicate()[0]
+    assert p.returncode == 1, 'avconv returned unexpected code %d' % p.returncode
+    state = 'start'
+    for line in out.splitlines():
+        line = line.decode('utf-8').strip()
+        if state == 'start' and re.match(r'^Input #0', line):
+            state = 'input'
+        elif state == 'input' and re.match(r'^Duration', line):
+            state = 'dur'
+        elif state == 'dur' and re.match(r'^Stream #0\.0', line):
+            assert re.match(
+                r'^Stream #0\.0: '
+                r'Video: %s( \(.*\))?, '
+                r'yuvj?420p, '
+                r'%dx%d( \[PAR \d+:\d+ DAR \d+:\d+\])?, '
+                r'\d+ fps, \d+ tbr, \d+k? tbn, \d+k? tbc$' % (
+                    format, width, height),
+                line
+                ), 'Unexpected avconv output: %s' % line
+            return
+    assert False, 'Failed to locate stream analysis in avconv output'
 
 
 # TODO We don't yet test that the recordings are actually valid in any way, so
@@ -93,34 +131,50 @@ def test_record_to_file(camera, previewing, resolution, filenames_format_options
     camera.start_recording(filename1, **options)
     try:
         camera.wait_recording(1)
-        if format == 'h264' and not (options.get('inline_headers', True) and options.get('bitrate', 1)):
-            with pytest.raises(picamera.PiCameraRuntimeError):
-                camera.split_recording(filename2)
-        else:
+        verify2 = (
+                format != 'h264' or (
+                    options.get('inline_headers', True) and
+                    options.get('bitrate', 1)
+                    )
+                )
+        if verify2:
             camera.split_recording(filename2)
             camera.wait_recording(1)
+        else:
+            with pytest.raises(picamera.PiCameraRuntimeError):
+                camera.split_recording(filename2)
     finally:
         camera.stop_recording()
-    # TODO verify the files
+    verify_video(filename1, format, resolution)
+    if verify2:
+        verify_video(filename2, format, resolution)
 
 def test_record_to_stream(camera, previewing, resolution, format_options):
     if resolution == (2592, 1944):
         pytest.xfail('Cannot encode video at max resolution')
     format, options = format_options
-    stream1 = io.BytesIO()
-    stream2 = io.BytesIO()
+    stream1 = tempfile.SpooledTemporaryFile()
+    stream2 = tempfile.SpooledTemporaryFile()
     camera.start_recording(stream1, format, **options)
     try:
         camera.wait_recording(1)
-        if format == 'h264' and not (options.get('inline_headers', True) and options.get('bitrate', 1)):
-            with pytest.raises(picamera.PiCameraRuntimeError):
-                camera.split_recording(stream2)
-        else:
+        verify2 = (
+                format != 'h264' or (
+                    options.get('inline_headers', True) and
+                    options.get('bitrate', 1)
+                    )
+                )
+        if verify2:
             camera.split_recording(stream2)
             camera.wait_recording(1)
+        else:
+            with pytest.raises(picamera.PiCameraRuntimeError):
+                camera.split_recording(stream2)
     finally:
         camera.stop_recording()
     stream1.seek(0)
-    stream2.seek(0)
-    # TODO verify the stream
+    verify_video(stream1, format, resolution)
+    if verify2:
+        stream2.seek(0)
+        verify_video(stream2, format, resolution)
 

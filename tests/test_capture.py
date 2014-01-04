@@ -48,20 +48,20 @@ from PIL import Image
 from collections import namedtuple
 
 
-TestCase = namedtuple('TestCase', ('format', 'ext', 'options'))
+CaptureCase = namedtuple('TestCase', ('format', 'ext', 'options'))
 
-TEST_CASES = (
-    TestCase('jpeg', '.jpg', {'quality': 95}),
-    TestCase('jpeg', '.jpg', {}),
-    TestCase('jpeg', '.jpg', {'quality': 50}),
-    #TestCase('gif',  '.gif', {}),
-    TestCase('png',  '.png', {}),
-    #TestCase('bmp',  '.bmp', {}),
+CAPTURE_CASES = (
+    CaptureCase('jpeg', '.jpg', {'quality': 95}),
+    CaptureCase('jpeg', '.jpg', {}),
+    CaptureCase('jpeg', '.jpg', {'quality': 50}),
+    #CaptureCase('gif',  '.gif', {}),
+    CaptureCase('png',  '.png', {}),
+    #CaptureCase('bmp',  '.bmp', {}),
     )
 
 
 # Run tests with a variety of file suffixes and expected formats
-@pytest.fixture(scope='module', params=TEST_CASES)
+@pytest.fixture(scope='module', params=CAPTURE_CASES)
 def filename_format_options(request):
     filename = tempfile.mkstemp(suffix=request.param.ext)[1]
     def fin():
@@ -70,7 +70,7 @@ def filename_format_options(request):
     return filename, request.param.format, request.param.options
 
 # Run tests with a variety of format specs
-@pytest.fixture(scope='module', params=TEST_CASES)
+@pytest.fixture(scope='module', params=CAPTURE_CASES)
 def format_options(request):
     return request.param.format, request.param.options
 
