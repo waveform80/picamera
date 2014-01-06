@@ -1193,7 +1193,7 @@ class PiCamera(object):
     def _get_raw_format(self):
         self._check_camera_open()
         return self._RAW_FORMATS_R[
-            self._camera[0].output[1][0].format[0].encoding]
+            self._camera[0].output[1][0].format[0].encoding.value]
     def _set_raw_format(self, value):
         self._check_camera_open()
         self._check_recording_stopped()
