@@ -128,15 +128,24 @@ class MMAL_RECT_T(ct.Structure):
         ('height', ct.c_int32),
         ]
 
+    def __repr__(self):
+        return '(%d, %d)->(%d, %d)' % (
+                self.x, self.y, self.x + self.width, self.y + self.height)
+
 class MMAL_RATIONAL_T(ct.Structure):
     _fields_ = [
         ('num',  ct.c_int32),
         ('den',  ct.c_int32),
         ]
 
+    def __repr__(self):
+        return '%d/%d' % (self.num, self.den)
+
 MMAL_TIME_UNKNOWN = ct.c_int64(1<<63)
 
-MMAL_FOURCC_T = ct.c_uint32
+class MMAL_FOURCC_T(ct.c_uint32):
+    def __repr__(self):
+        return "'%s'" % ''.join(chr(self.value >> i & 0xFF) for i in range(0, 32, 8))
 
 # mmal_format.h ##############################################################
 
@@ -159,6 +168,10 @@ class MMAL_VIDEO_FORMAT_T(ct.Structure):
         ('color_space', MMAL_FOURCC_T),
         ]
 
+    def __repr__(self):
+        return '<MMAL_VIDEO_FORMAT_T width=%d, height=%d, crop=%r, frame_rate=%r, par=%r, color_space=%r>' % (
+                self.width, self.height, self.crop, self.frame_rate, self.par, self.color_space)
+
 class MMAL_AUDIO_FORMAT_T(ct.Structure):
     _fields_ = [
         ('channels',        ct.c_uint32),
@@ -167,11 +180,19 @@ class MMAL_AUDIO_FORMAT_T(ct.Structure):
         ('block_align',     ct.c_uint32),
         ]
 
+    def __repr__(self):
+        return '<MMAL_AUDIO_FORMAT_T channels=%d, sample_rate=%d, bits_per_sample=%d, block_align=%d>' % (
+                self.channels, self.sample_rate, self.bits_per_sample, self.block_align)
+
 class MMAL_SUBPICTURE_FORMAT_T(ct.Structure):
     _fields_ = [
         ('x_offset', ct.c_uint32),
         ('y_offset', ct.c_uint32),
         ]
+
+    def __repr__(self):
+        return '<MMAL_SUBPICTURE_FORMAT_T x_offset=%d, y_offset=%d>' % (
+                self.x_offset, self.y_offset)
 
 class MMAL_ES_SPECIFIC_FORMAT_T(ct.Union):
     _fields_ = [
@@ -195,6 +216,9 @@ class MMAL_ES_FORMAT_T(ct.Structure):
         ('extradata_size',   ct.c_uint32),
         ('extradata',        ct.POINTER(ct.c_uint8)),
         ]
+
+    def __repr__(self):
+        return '<MMAL_ES_FORMAT_T type=%r, encoding=%r, ...>' % (self.type, self.encoding)
 
 mmal_format_alloc = _lib.mmal_format_alloc
 mmal_format_alloc.argtypes = []
