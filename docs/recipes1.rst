@@ -329,7 +329,7 @@ full sensor area. This can be done by setting
         time.sleep(2)
         camera.capture('foo.jpg')
 
-When the preview runs at full resolution, you may notice that the framerate is
+When the preview runs at full resolution, you may notice that the frame-rate is
 a little lower (specifically it is set to 15fps), however captures will show
 the same content as the preview before hand. The main downside to this method
 is that captured images are obviously full resolution. If you want something
@@ -342,8 +342,7 @@ required.
 Recording video to a file
 =========================
 
-Recording a video to a file is simple, provided you remember that the only
-format (currently) supported is a raw H264 stream::
+Recording a video to a file is simple::
 
     import picamera
 
@@ -384,10 +383,10 @@ This is very similar to :ref:`file_record`::
 Here, we've set the *quantization* parameter which will cause the video encoder
 to use VBR (variable bit-rate) encoding. This can be considerably more
 efficient especially in mostly static scenes (which can be important when
-recording to memory, as in the example above). Quantization values can be
-between 0 and 40, where 0 represents the highest possible quality, and 40 the
-lowest.  Typically, a value in the range of 20-25 provides reasonable quality
-for reasonable bandwidth.
+recording to memory, as in the example above). Quantization values (for the
+H.264 format) can be between 0 and 40, where 0 represents the highest possible
+quality, and 40 the lowest. Typically, a value in the range of 20-25 provides
+reasonable quality for reasonable bandwidth.
 
 
 .. _split_record:
@@ -412,7 +411,7 @@ If you wish split your recording over multiple files, you can use the
 This should produce 10 video files named ``1.h264``, ``2.h264``, etc. each of
 which is approximately 5 seconds long (approximately because the
 :meth:`~picamera.PiCamera.split_recording` method will only split files at a
-keyframe).
+key-frame).
 
 .. versionadded:: 0.8
 
@@ -501,7 +500,7 @@ network streams. Low latency video streaming requires rather more effort (the
 `x264dev blog`_ provides some insight into the complexity involved)!
 
 It should also be noted that the effect of the above is much more easily
-achived (at least on Linux) with a combination of ``netcat`` and the
+achieved (at least on Linux) with a combination of ``netcat`` and the
 ``raspivid`` executable. For example::
 
     server-side: nc -l 8000 | vlc --demux h264 -
@@ -523,8 +522,8 @@ For example, in the case of automated close-up wild-life photography, the LED
 may scare off animals. It can also cause unwanted reflected red glare with
 close-up subjects.
 
-One trivial way to deal with is simply to place some opaque covering on the LED
-(e.g. bluetack or electricians tape). However, provided you have the
+One trivial way to deal with this is simply to place some opaque covering on
+the LED (e.g. blue-tack or electricians tape). However, provided you have the
 `RPi.GPIO`_ package installed, and provided your Python process is running with
 sufficient privileges (typically this means running as root with ``sudo
 python``), you can also control the LED via the :attr:`~picamera.PiCamera.led`
@@ -541,8 +540,9 @@ attribute::
 .. warning::
 
     Be aware when you first use the LED property it will set the GPIO library
-    to Broadcom mode with ``GPIO.setmode(GPIO.BCM)`` and disable warnings
-    with ``GPIO.setwarnings(False)``.
+    to Broadcom (BCM) mode with ``GPIO.setmode(GPIO.BCM)`` and disable warnings
+    with ``GPIO.setwarnings(False)``. The LED cannot be controlled when the
+    library is in BOARD mode.
 
 
 .. _PIL: http://effbot.org/imagingbook/pil-index.htm
