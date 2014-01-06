@@ -75,7 +75,7 @@ def format_options(request):
     return request.param.format, request.param.options
 
 # Run tests with one of the two supported raw formats
-@pytest.fixture(scope='module', params=('yuv', 'rgb'))
+@pytest.fixture(scope='function', params=('yuv', 'rgb'))
 def raw_format(request, camera):
     save_format = camera.raw_format
     camera.raw_format = request.param
