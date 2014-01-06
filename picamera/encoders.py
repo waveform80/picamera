@@ -87,14 +87,15 @@ class PiEncoder(object):
 
     encoder_type = None
 
-    def __init__(self, parent, port, format, **options):
+    def __init__(self, parent, port, format, resize, **options):
         self.parent = parent
         self.encoder = None
+        self.resizer = None
+        self.encoder_connection = None
+        self.resizer_connection = None
         self.camera_port = port
-        self.input_port = None
         self.output_port = None
         self.pool = None
-        self.connection = None
         self.opened = False
         self.output = None
         self.lock = threading.Lock() # protects access to self.output
@@ -104,6 +105,8 @@ class PiEncoder(object):
         try:
             if parent.closed:
                 raise PiCameraRuntimeError("Camera is closed")
+            if resize:
+                self._create_resizer(*resize)
             self._create_encoder(format, **options)
             self._create_pool()
             self._create_connection()
@@ -126,9 +129,11 @@ class PiEncoder(object):
             raise PiCameraError("No output ports on encoder component")
         # Ensure output format is the same as the input
         self.output_port = self.encoder[0].output[0]
-        self.input_port = self.encoder[0].input[0]
+        if self.resizer:
+            mmal.mmal_format_copy(
+                self.encoder[0].input[0][0].format, self.resizer[0].output[0][0].format)
         mmal.mmal_format_copy(
-            self.output_port[0].format, self.input_port[0].format)
+            self.output_port[0].format, self.encoder[0].input[0][0].format)
         # Set buffer size and number to appropriate values
         self.output_port[0].buffer_size = max(
             self.output_port[0].buffer_size_recommended,
@@ -136,6 +141,36 @@ class PiEncoder(object):
         self.output_port[0].buffer_num = max(
             self.output_port[0].buffer_num_recommended,
             self.output_port[0].buffer_num_min)
+
+    def _create_resizer(self, width, height):
+        self.resizer = ct.POINTER(mmal.MMAL_COMPONENT_T)()
+        mmal_check(
+            mmal.mmal_component_create(
+                mmal.MMAL_COMPONENT_DEFAULT_RESIZER, self.resizer),
+            prefix="Failed to create resizer component")
+        if not self.resizer[0].input_num:
+            raise PiCameraError("No input ports on resizer component")
+        if not self.resizer[0].output_num:
+            raise PiCameraError("No output ports on resizer component")
+        # Copy the original output port's format to the resizer's input,
+        # then the resizer's input format to the output, and configure it
+        mmal.mmal_format_copy(
+            self.resizer[0].input[0][0].format, self.camera_port[0].format)
+        mmal_check(
+            mmal.mmal_port_format_commit(self.resizer[0].input[0]),
+            prefix="Failed to set resizer input port format")
+        mmal.mmal_format_copy(
+            self.resizer[0].output[0][0].format, self.resizer[0].input[0][0].format)
+        fmt = self.resizer[0].output[0][0].format
+        fmt[0].es[0].video.width = width
+        fmt[0].es[0].video.height = height
+        fmt[0].es[0].video.crop.x = 0
+        fmt[0].es[0].video.crop.y = 0
+        fmt[0].es[0].video.crop.width = width
+        fmt[0].es[0].video.crop.height = height
+        mmal_check(
+            mmal.mmal_port_format_commit(self.resizer[0].output[0]),
+            prefix="Failed to set resizer output port format")
 
     def _create_pool(self):
         """
@@ -154,9 +189,15 @@ class PiEncoder(object):
         """
         Connects the camera to the encoder object
         """
-        assert not self.connection
-        self.connection = self.parent._connect_ports(
-            self.camera_port, self.input_port)
+        assert not self.encoder_connection
+        if self.resizer:
+            self.resizer_connection = self.parent._connect_ports(
+                self.camera_port, self.resizer[0].input[0])
+            self.encoder_connection = self.parent._connect_ports(
+                self.resizer[0].output[0], self.encoder[0].input[0])
+        else:
+            self.encoder_connection = self.parent._connect_ports(
+                self.camera_port, self.encoder[0].input[0])
 
     def _callback(self, port, buf):
         """
@@ -296,26 +337,33 @@ class PiEncoder(object):
         Finalizes the encoder and deallocates all structures
         """
         self.stop()
-        if self.connection:
-            mmal.mmal_connection_destroy(self.connection)
-            self.connection = None
+        if self.encoder_connection:
+            mmal.mmal_connection_destroy(self.encoder_connection)
+            self.encoder_connection = None
         if self.pool:
             mmal.mmal_port_pool_destroy(self.output_port, self.pool)
             self.pool = None
+        if self.resizer_connection:
+            mmal.mmal_connection_destroy(self.resizer_connection)
         if self.encoder:
             if self.encoder[0].is_enabled:
                 mmal.mmal_component_disable(self.encoder)
             mmal.mmal_component_destroy(self.encoder)
             self.encoder = None
-            self.output_port = None
-            self.input_port = None
+        if self.resizer:
+            if self.resizer[0].is_enabled:
+                mmal.mmal_component_disable(self.resizer)
+            mmal.mmal_component_destroy(self.resizer)
+            self.resizer = None
+        self.output_port = None
 
 
 class PiVideoEncoder(PiEncoder):
     encoder_type = mmal.MMAL_COMPONENT_DEFAULT_VIDEO_ENCODER
 
-    def __init__(self, parent, port, format, **options):
-        super(PiVideoEncoder, self).__init__(parent, port, format, **options)
+    def __init__(self, parent, port, format, resize, **options):
+        super(PiVideoEncoder, self).__init__(
+            parent, port, format, resize, **options)
         self._next_output = []
         self.frame = None
         self.format = format
@@ -412,7 +460,7 @@ class PiVideoEncoder(PiEncoder):
 
         mmal_check(
             mmal.mmal_port_parameter_set_boolean(
-                self.input_port,
+                self.encoder[0].input[0],
                 mmal.MMAL_PARAMETER_VIDEO_IMMUTABLE_INPUT,
                 1),
             prefix="Unable to set immutable flag on encoder input port")
@@ -542,14 +590,19 @@ class PiOneImageEncoder(PiImageEncoder):
 class PiRawOneImageEncoder(PiOneImageEncoder):
     def _create_encoder(self, format, **options):
         # Overridden to skip creating an encoder. Instead we simply use the
-        # camera's still port as the output port
-        self.input_port = None
-        self.output_port = self.camera_port
+        # camera's port as the output port (or the resizer, if one has been
+        # created)
+        if self.resizer:
+            self.output_port = self.resizer[0].output[0]
+        else:
+            self.output_port = self.camera_port
 
     def _create_connection(self):
         # Overridden to skip creating a connection; there's no encoder so
-        # there's no connection
-        pass
+        # there's no connection (unless there's a resizer)
+        if self.resizer:
+            self.resizer_connection = self.parent._connect_ports(
+                self.camera_port, self.resizer[0].input[0])
 
 
 class PiCookedOneImageEncoder(PiOneImageEncoder):
@@ -629,14 +682,19 @@ class PiMultiImageEncoder(PiImageEncoder):
 class PiRawMultiImageEncoder(PiMultiImageEncoder):
     def _create_encoder(self, format, **options):
         # Overridden to skip creating an encoder. Instead we simply use the
-        # camera's still port as the output port
-        self.input_port = None
-        self.output_port = self.camera_port
+        # camera's port as the output port (or the resizer, if one has been
+        # created)
+        if self.resizer:
+            self.output_port = self.resizer[0].output[0]
+        else:
+            self.output_port = self.camera_port
 
     def _create_connection(self):
         # Overridden to skip creating a connection; there's no encoder so
-        # there's no connection
-        pass
+        # there's no connection (unless there's a resizer)
+        if self.resizer:
+            self.resizer_connection = self.parent._connect_ports(
+                self.camera_port, self.resizer[0].input[0])
 
 
 class PiCookedMultiImageEncoder(PiMultiImageEncoder):

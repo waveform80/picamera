@@ -53,6 +53,7 @@ CaptureCase = namedtuple('TestCase', ('format', 'ext', 'options'))
 CAPTURE_CASES = (
     CaptureCase('jpeg', '.jpg', {'quality': 95}),
     CaptureCase('jpeg', '.jpg', {}),
+    CaptureCase('jpeg', '.jpg', {'resize': (640, 480)}),
     CaptureCase('jpeg', '.jpg', {'quality': 50}),
     #CaptureCase('gif',  '.gif', {}),
     CaptureCase('png',  '.png', {}),
@@ -94,6 +95,8 @@ def test_capture_to_file(
     filename, format, options = filename_format_options
     camera.capture(filename, use_video_port=use_video_port, **options)
     img = Image.open(filename)
+    if 'resize' in options:
+        resolution = options['resize']
     assert img.size == resolution
     assert img.format.lower() == format
     img.verify()
@@ -102,6 +105,8 @@ def test_capture_to_stream(
         camera, previewing, resolution, format_options, use_video_port):
     stream = io.BytesIO()
     format, options = format_options
+    if 'resize' in options:
+        resolution = options['resize']
     camera.capture(stream, format, use_video_port=use_video_port, **options)
     stream.seek(0)
     img = Image.open(stream)

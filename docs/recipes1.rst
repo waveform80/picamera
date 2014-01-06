@@ -333,8 +333,23 @@ When the preview runs at full resolution, you may notice that the frame-rate is
 a little lower (specifically it is set to 15fps), however captures will show
 the same content as the preview before hand. The main downside to this method
 is that captured images are obviously full resolution. If you want something
-smaller than full resolution, post scaling and/or cropping (e.g. in `PIL`_) is
-required.
+smaller than full resolution, you will need to use the ``resize`` parameter
+for whatever capture method you choose::
+
+    import time
+    import picamera
+
+    with picamera.PiCamera() as camera:
+        camera.resolution = (2592, 1944)
+        camera.start_preview()
+        time.sleep(2)
+        camera.capture('foo.jpg', resize=(1024, 768))
+
+Bear in mind that the full resolution of the sensor has an aspect ratio of 4:3
+(i.e. not wide-screen), so if you specify a resize area with a different aspect
+ratio, the result will appear stretched.
+
+.. versionchanged:: 1.0
 
 
 .. _file_record:
@@ -414,6 +429,31 @@ which is approximately 5 seconds long (approximately because the
 key-frame).
 
 .. versionadded:: 0.8
+
+
+.. _full_res_record:
+
+Recording full-resolution video
+===============================
+
+As noted in the :ref:`preview_still_resolution` section above, video recording
+typically only uses the center 1920x1080 pixels of the camera's sensor.
+However, it is possible to record video using the full area of the camera's
+sensor although due to GPU limitations the output must be down-scaled prior to
+encoding and the frame-rate will be limited to 15fps. To achieve this, simply
+specify the down-scaled resolution as the *resize* parameter to the
+:meth:`~picamera.PiCamera.start_recording` method, after setting the camera's
+resolution::
+
+    import picamera
+
+    with picamera.PiCamera() as camera:
+        camera.resolution = (2592, 1944)
+        camera.start_recording('full_res.h264', resize=(1024, 768))
+        camera.wait_recording(60)
+        camera.stop_recording()
+
+.. versionadded:: 1.0
 
 
 .. _streaming_record:

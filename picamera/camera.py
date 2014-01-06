@@ -628,7 +628,7 @@ class PiCamera(object):
             self._camera[0].output[self.CAMERA_PREVIEW_PORT],
             self._null_sink[0].input[0])
 
-    def start_recording(self, output, format=None, **options):
+    def start_recording(self, output, format=None, resize=None, **options):
         """
         Start recording video from the camera, storing it in *output*.
 
@@ -650,6 +650,12 @@ class PiCamera(object):
 
         * ``'h264'`` - Write an H.264 video stream
         * ``'mjpeg'`` - Write an M-JPEG video stream
+
+        If *resize* is not ``None`` (the default), it must be a two-element
+        tuple specifying the width and height that the video recording should
+        be resized to. This is particularly useful for recording video using
+        the full area of the camera sensor (which is not possible without
+        down-sizing the output).
 
         Certain formats accept additional options which can be specified
         as keyword arguments. The ``'h264'`` format accepts the following
@@ -689,7 +695,8 @@ class PiCamera(object):
         camera_port, enc_port = self._get_ports(
                 for_video=True, from_video_port=True)
         format = self._get_video_format(output, format)
-        self._video_encoder = PiVideoEncoder(self, enc_port, format, **options)
+        self._video_encoder = PiVideoEncoder(
+            self, enc_port, format, resize, **options)
         try:
             self._video_encoder.start(output)
             self._enable_port(camera_port)
@@ -758,7 +765,9 @@ class PiCamera(object):
                 self._video_encoder.close()
                 self._video_encoder = None
 
-    def capture(self, output, format=None, use_video_port=False, **options):
+    def capture(
+            self, output, format=None, use_video_port=False, resize=None,
+            **options):
         """
         Capture an image from the camera, storing it in *output*.
 
@@ -795,6 +804,10 @@ class PiCamera(object):
         * ``'raw'`` - Write the raw sensor data to a file (set
           :attr:`raw_format` to determine the raw format)
 
+        If *resize* is not ``None`` (the default), it must be a two-element
+        tuple specifying the width and height that the image should be resized
+        to.
+
         Certain file formats accept additional options which can be specified
         as keyword arguments. Currently, only the ``'jpeg'`` encoder accepts
         additional options, which are:
@@ -822,7 +835,7 @@ class PiCamera(object):
         enc_class = (
                 PiRawOneImageEncoder if format == 'raw' else
                 PiCookedOneImageEncoder)
-        encoder = enc_class(self, enc_port, format, **options)
+        encoder = enc_class(self, enc_port, format, resize, **options)
         try:
             encoder.start(output)
             self._enable_port(camera_port)
@@ -834,7 +847,8 @@ class PiCamera(object):
             encoder = None
 
     def capture_sequence(
-            self, outputs, format='jpeg', use_video_port=False, **options):
+            self, outputs, format='jpeg', use_video_port=False, resize=None,
+            **options):
         """
         Capture a sequence of consecutive images from the camera.
 
@@ -844,7 +858,7 @@ class PiCamera(object):
         or iterator of outputs, the camera captures a single image as fast as
         it can.
 
-        The *format* and *options* parameters are the same as in
+        The *format*, *resize*, and *options* parameters are the same as in
         :meth:`capture`, but *format* defaults to ``'jpeg'``. The format is
         _not_ derived from the filenames in *outputs* by this method.
 
@@ -893,7 +907,7 @@ class PiCamera(object):
             enc_class = (
                     PiRawMultiImageEncoder if format == 'raw' else
                     PiCookedMultiImageEncoder)
-            encoder = enc_class(self, enc_port, format, **options)
+            encoder = enc_class(self, enc_port, format, resize, **options)
             try:
                 encoder.start(outputs)
                 self._enable_port(camera_port)
@@ -904,7 +918,7 @@ class PiCamera(object):
             enc_class = (
                     PiRawOneImageEncoder if format == 'raw' else
                     PiCookedOneImageEncoder)
-            encoder = enc_class(self, enc_port, format, **options)
+            encoder = enc_class(self, enc_port, format, resize, **options)
             try:
                 for output in outputs:
                     encoder.start(output)
@@ -914,7 +928,8 @@ class PiCamera(object):
                 encoder.close()
 
     def capture_continuous(
-            self, output, format=None, use_video_port=False, **options):
+            self, output, format=None, use_video_port=False, resize=None,
+            **options):
         """
         Capture images continuously from the camera as an infinite iterator.
 
@@ -964,7 +979,7 @@ class PiCamera(object):
         between the images to distinguish them, or clear the object between
         iterations.
 
-        The *format* and *options* parameters are the same as in
+        The *format*, *resize*, and *options* parameters are the same as in
         :meth:`capture`.
 
         The *use_video_port* parameter controls whether the camera's image or
@@ -1013,7 +1028,7 @@ class PiCamera(object):
         enc_class = (
                 PiRawOneImageEncoder if format == 'raw' else
                 PiCookedOneImageEncoder)
-        encoder = enc_class(self, enc_port, format, **options)
+        encoder = enc_class(self, enc_port, format, resize, **options)
         try:
             if isinstance(output, bytes):
                 # If we're fed a bytes string, assume it's UTF-8 encoded and

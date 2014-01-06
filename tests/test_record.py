@@ -55,6 +55,7 @@ RECORDING_CASES = (
     RecordingCase('h264',  '.h264', {'profile': 'main'}),
     RecordingCase('h264',  '.h264', {'profile': 'high'}),
     RecordingCase('h264',  '.h264', {'profile': 'constrained'}),
+    RecordingCase('h264',  '.h264', {'resize': (640, 480)}),
     RecordingCase('h264',  '.h264', {'bitrate': 0, 'quantization': 10}),
     RecordingCase('h264',  '.h264', {'bitrate': 0, 'quantization': 20}),
     RecordingCase('h264',  '.h264', {'bitrate': 0, 'quantization': 30}),
@@ -125,9 +126,9 @@ def verify_video(filename_or_obj, format, resolution):
 # at the moment this is little more than making sure exceptions don't occur
 
 def test_record_to_file(camera, previewing, resolution, filenames_format_options):
-    if resolution == (2592, 1944):
-        pytest.xfail('Cannot encode video at max resolution')
     filename1, filename2, format, options = filenames_format_options
+    if resolution == (2592, 1944) and 'resize' not in options:
+        pytest.xfail('Cannot encode video at max resolution')
     camera.start_recording(filename1, **options)
     try:
         camera.wait_recording(1)
@@ -145,14 +146,16 @@ def test_record_to_file(camera, previewing, resolution, filenames_format_options
                 camera.split_recording(filename2)
     finally:
         camera.stop_recording()
+    if 'resize' in options:
+        resolution = options['resize']
     verify_video(filename1, format, resolution)
     if verify2:
         verify_video(filename2, format, resolution)
 
 def test_record_to_stream(camera, previewing, resolution, format_options):
-    if resolution == (2592, 1944):
-        pytest.xfail('Cannot encode video at max resolution')
     format, options = format_options
+    if resolution == (2592, 1944) and 'resize' not in options:
+        pytest.xfail('Cannot encode video at max resolution')
     stream1 = tempfile.SpooledTemporaryFile()
     stream2 = tempfile.SpooledTemporaryFile()
     camera.start_recording(stream1, format, **options)
@@ -173,6 +176,8 @@ def test_record_to_stream(camera, previewing, resolution, format_options):
     finally:
         camera.stop_recording()
     stream1.seek(0)
+    if 'resize' in options:
+        resolution = options['resize']
     verify_video(stream1, format, resolution)
     if verify2:
         stream2.seek(0)
