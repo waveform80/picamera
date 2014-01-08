@@ -778,10 +778,10 @@ class PiCamera(object):
         other methods will be called).
 
         The *use_video_port* parameter controls whether the camera's image or
-        video port is used to capture images. It defaults to False which means
-        that the camera's image port is used. This port is slow but produces
-        better quality pictures. If you need rapid capture up to the rate of
-        video frames, set this to True.
+        video port is used to capture images. It defaults to ``False`` which
+        means that the camera's image port is used. This port is slow but
+        produces better quality pictures. If you need rapid capture up to the
+        rate of video frames, set this to ``True``.
 
         If *format* is ``None`` (the default), the method will attempt to guess
         the required image format from the extension of *output* (if it's a
@@ -1332,10 +1332,10 @@ class PiCamera(object):
         as a simple integer.  The camera must not be closed, and no recording
         must be active when the property is set.
 
-        The property defaults to 30fps at resolutions of 1080p (1920x1080) or
-        below. Above this resolution, the property defaults to 15fps. These
-        are the maximum framerates of the camera and attempting to set higher
-        rates will result in a PiCameraValueError.
+        The property defaults to 30fps, except when the :attr:`resolution`
+        property is set to 2592x1944 (the maximum resolution of the camera).
+        At the maximum resolution, framerate is automatically limited to 15fps.
+        Attempting to set higher rates will result in a PiCameraValueError.
         """)
 
     def _get_resolution(self):
@@ -1401,9 +1401,10 @@ class PiCamera(object):
 
         .. note::
 
-            Setting a resolution higher than 1080p will automatically cause
-            previews to run at a reduced frame rate of 15fps (resolutions at or
-            below 1080p use 30fps). This is due to GPU processing limits.
+            Setting the resolution to 2592x1944 (the maximum) will
+            automatically cause previews to run at a reduced frame rate of
+            15fps (resolutions below use 30fps). This is due to GPU processing
+            limits.
         """)
 
     def _get_saturation(self):
