@@ -99,7 +99,7 @@ class PiCamera(object):
 
     Several attributes are provided to adjust the camera's configuration. Some
     of these can be adjusted while a recording is running, like
-    :attr:`brightness`. Others, like :attr:`resolution` can only be adjusted
+    :attr:`brightness`. Others, like :attr:`resolution`, can only be adjusted
     when the camera is idle.
 
     When you are finished with the camera, you should ensure you call the
@@ -109,6 +109,7 @@ class PiCamera(object):
         camera = PiCamera()
         try:
             # do something with the camera
+            pass
         finally:
             camera.close()
 
@@ -118,6 +119,7 @@ class PiCamera(object):
 
         with PiCamera() as camera:
             # do something with the camera
+            pass
     """
 
     CAMERA_PREVIEW_PORT = 0
@@ -691,11 +693,17 @@ class PiCamera(object):
 
         * *quantization* - When *bitrate* is zero (for variable bitrate
           encodings), this parameter specifies the quality that the encoder
-          should attempt to maintain. Use values between 10 and 40 where 10 is
+          should attempt to maintain.
+
+          For the ``'h264'`` format, use values between 10 and 40 where 10 is
           extremely high quality, and 40 is extremely low (20-25 is usually a
           reasonable range for H.264 encoding). Note that
           :meth:`split_recording` cannot be used in VBR mode.
 
+        .. versionchanged:: 1.0
+
+            The *resize* parameter was added, and ``'mjpeg'`` was added as a
+            recording format
         """
         if self.recording:
             raise PiCameraRuntimeError('The camera is already recording')
@@ -832,6 +840,11 @@ class PiCamera(object):
           in the Exif data. Specifying ``None`` disables thumbnail generation.
           Otherwise, specify a tuple of ``(width, height, quality)``. Defaults
           to ``(64, 48, 35)``.
+
+        .. versionchanged:: 1.0
+
+            The *resize* parameter was added, and raw capture formats can now
+            be specified directly
         """
         camera_port, enc_port = self._get_ports(
                 for_video=False, from_video_port=use_video_port)
@@ -905,6 +918,11 @@ class PiCamera(object):
 
         More complex effects can be obtained by using a generator function to
         provide the filenames or output objects.
+
+        .. versionchanged:: 1.0
+
+            The *resize* parameter was added, and raw capture formats can now
+            be specified directly
         """
         camera_port, enc_port = self._get_ports(
                 for_video=False, from_video_port=use_video_port)
@@ -1029,6 +1047,11 @@ class PiCamera(object):
                     stream.seek(0)
                     if process(stream):
                         break
+
+        .. versionchanged:: 1.0
+
+            The *resize* parameter was added, and raw capture formats can now
+            be specified directly
         """
         camera_port, enc_port = self._get_ports(
                 for_video=False, from_video_port=use_video_port)
