@@ -845,7 +845,9 @@ class PiCamera(object):
             self._enable_port(camera_port)
             # Wait for the callback to set the event indicating the end of
             # image capture
-            encoder.wait()
+            if not encoder.wait(30):
+                raise PiCameraRuntimeError(
+                    'Timed out waiting for capture to end')
         finally:
             encoder.close()
             encoder = None
@@ -927,7 +929,9 @@ class PiCamera(object):
                 for output in outputs:
                     encoder.start(output)
                     self._enable_port(camera_port)
-                    encoder.wait()
+                    if not encoder.wait(30):
+                        raise PiCameraRuntimeError(
+                            'Timed out waiting for capture to end')
             finally:
                 encoder.close()
 
@@ -1051,14 +1055,18 @@ class PiCamera(object):
                         )
                     encoder.start(filename)
                     self._enable_port(camera_port)
-                    encoder.wait()
+                    if not encoder.wait(30):
+                        raise PiCameraRuntimeError(
+                            'Timed out waiting for capture to end')
                     yield filename
                     counter += 1
             else:
                 while True:
                     encoder.start(output)
                     self._enable_port(camera_port)
-                    encoder.wait()
+                    if not encoder.wait(30):
+                        raise PiCameraRuntimeError(
+                            'Timed out waiting for capture to end')
                     yield output
         finally:
             encoder.close()
