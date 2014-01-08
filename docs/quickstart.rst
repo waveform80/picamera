@@ -149,8 +149,7 @@ This example demonstrates capturing an image in raw RGB format::
 
     with picamera.PiCamera() as camera:
         camera.resolution = (1024, 768)
-        camera.raw_format = 'rgb'
         camera.start_preview()
         time.sleep(2)
-        camera.capture('image.data', 'raw')
+        camera.capture('image.data', 'rgb')
 

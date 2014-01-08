@@ -76,13 +76,8 @@ def format_options(request):
     return request.param.format, request.param.options
 
 # Run tests with one of the two supported raw formats
-@pytest.fixture(scope='function', params=('yuv', 'rgb'))
-def raw_format(request, camera):
-    save_format = camera.raw_format
-    camera.raw_format = request.param
-    def fin():
-        camera.raw_format = save_format
-    request.addfinalizer(fin)
+@pytest.fixture(scope='module', params=('yuv', 'rgb', 'rgba', 'bgr', 'bgra'))
+def raw_format(request):
     return request.param
 
 @pytest.fixture(scope='module', params=(False, True))
@@ -174,16 +169,14 @@ def test_capture_raw(camera, resolution, raw_format, use_video_port):
     # multiple of 32, and vertical to the nearest multiple of 16 by the
     # camera for raw data. RGB format holds 3 bytes per pixel, YUV format
     # holds 1.5 bytes per pixel (1 byte of Y per pixel, and 2 bytes of Cb
-    # and Cr per 4 pixels)
-    if raw_format == 'rgb' and use_video_port:
-        pytest.xfail('Cannot capture raw-RGB from video port')
+    # and Cr per 4 pixels), etc.
     size = (
             math.ceil(resolution[0] / 32) * 32
             * math.ceil(resolution[1] / 16) * 16
-            * {'yuv': 1.5, 'rgb': 3}[raw_format])
+            * {'yuv': 1.5, 'rgb': 3, 'bgr': 3, 'rgba': 4, 'bgra': 4}[raw_format])
     stream = io.BytesIO()
-    camera.capture(stream, format='raw', use_video_port=use_video_port)
-    # Check the output stream has 3-bytes (24-bits) per pixel
+    camera.capture(stream, format=raw_format, use_video_port=use_video_port)
+    # Check the output stream has the correct number of bytes
     assert stream.tell() == size
 
 def test_exif_ascii(camera, previewing, resolution):

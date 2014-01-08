@@ -37,6 +37,7 @@ from __future__ import (
 # Make Py2's str equivalent to Py3's
 str = type('')
 
+import warnings
 import datetime
 import mimetypes
 import ctypes as ct
@@ -205,8 +206,11 @@ class PiCamera(object):
         }
 
     RAW_FORMATS = {
-        'yuv': mmal.MMAL_ENCODING_I420,
-        'rgb': mmal.MMAL_ENCODING_BGR24,
+        'yuv':  mmal.MMAL_ENCODING_I420,
+        'rgb':  mmal.MMAL_ENCODING_RGB24,
+        'rgba': mmal.MMAL_ENCODING_RGBA,
+        'bgr':  mmal.MMAL_ENCODING_BGR24,
+        'bgra': mmal.MMAL_ENCODING_BGRA,
         }
 
     _METER_MODES_R    = {v: k for (k, v) in METER_MODES.items()}
@@ -230,6 +234,7 @@ class PiCamera(object):
         self._video_encoder = None
         self._splitter = None
         self._splitter_connection = None
+        self._raw_format = 'yuv'
         self._exif_tags = {
             'IFD0.Model': 'RP_OV5647',
             'IFD0.Make': 'RaspberryPi',
@@ -537,6 +542,8 @@ class PiCamera(object):
             format)
         if format == 'x-ms-bmp':
             format = 'bmp'
+        if format == 'raw':
+            format = self.raw_format
         return format
 
     def _get_video_format(self, output, format):
@@ -801,8 +808,14 @@ class PiCamera(object):
 
         * ``'bmp'`` - Write a Windows bitmap file
 
-        * ``'raw'`` - Write the raw sensor data to a file (set
-          :attr:`raw_format` to determine the raw format)
+        * ``'yuv'`` - Write the raw image data to a file in YUV420 format
+
+        * ``'rgb'`` - Write the raw image data to a file in 24-bit RGB format
+
+        * ``'rgba'`` - Write the raw image data to a file in 32-bit RGBA format
+
+        * ``'raw'`` - Deprecated option for raw captures; the format is taken
+          from the deprecated :attr:`raw_format` attribute
 
         If *resize* is not ``None`` (the default), it must be a two-element
         tuple specifying the width and height that the image should be resized
@@ -819,21 +832,12 @@ class PiCamera(object):
           in the Exif data. Specifying ``None`` disables thumbnail generation.
           Otherwise, specify a tuple of ``(width, height, quality)``. Defaults
           to ``(64, 48, 35)``.
-
-        .. note::
-
-            Note that when capturing with *format* set to ``'raw'``, and
-            *use_video_port* set to True, only YUV format is supported. If
-            :attr:`raw_format` is set to ``'rgb'``, the capture will still be
-            in YUV format. This is due to a firmware limitation (the video
-            splitter does not support RGB format). Workarounds are being
-            investigated.
         """
         camera_port, enc_port = self._get_ports(
                 for_video=False, from_video_port=use_video_port)
         format = self._get_image_format(output, format)
         enc_class = (
-                PiRawOneImageEncoder if format == 'raw' else
+                PiRawOneImageEncoder if format in self.RAW_FORMATS else
                 PiCookedOneImageEncoder)
         encoder = enc_class(self, enc_port, format, resize, **options)
         try:
@@ -905,7 +909,7 @@ class PiCamera(object):
         format = self._get_image_format('', format)
         if use_video_port:
             enc_class = (
-                    PiRawMultiImageEncoder if format == 'raw' else
+                    PiRawMultiImageEncoder if format in self.RAW_FORMATS else
                     PiCookedMultiImageEncoder)
             encoder = enc_class(self, enc_port, format, resize, **options)
             try:
@@ -916,7 +920,7 @@ class PiCamera(object):
                 encoder.close()
         else:
             enc_class = (
-                    PiRawOneImageEncoder if format == 'raw' else
+                    PiRawOneImageEncoder if format in self.RAW_FORMATS else
                     PiCookedOneImageEncoder)
             encoder = enc_class(self, enc_port, format, resize, **options)
             try:
@@ -1026,7 +1030,7 @@ class PiCamera(object):
                 for_video=False, from_video_port=use_video_port)
         format = self._get_image_format(output, format)
         enc_class = (
-                PiRawOneImageEncoder if format == 'raw' else
+                PiRawOneImageEncoder if format in self.RAW_FORMATS else
                 PiCookedOneImageEncoder)
         encoder = enc_class(self, enc_port, format, resize, **options)
         try:
@@ -1206,62 +1210,23 @@ class PiCamera(object):
         """)
 
     def _get_raw_format(self):
-        self._check_camera_open()
-        return self._RAW_FORMATS_R[
-            self._camera[0].output[self.CAMERA_CAPTURE_PORT][0].format[0].encoding.value]
+        return self._raw_format
     def _set_raw_format(self, value):
-        self._check_camera_open()
-        self._check_recording_stopped()
+        warnings.warn(
+            'PiCamera.raw_format is deprecated; use required format directly '
+            'with capture methods instead', DeprecationWarning)
         try:
-            value = self.RAW_FORMATS[value]
+            self.RAW_FORMATS[value]
         except KeyError:
             raise PiCameraValueError("Invalid raw format: %s" % value)
-        self._disable_camera()
-        for port in (self.CAMERA_CAPTURE_PORT,):
-            fmt = self._camera[0].output[port][0].format[0]
-            fmt.encoding = value
-            fmt.encoding_variant = value
-            mmal_check(
-                mmal.mmal_port_format_commit(self._camera[0].output[port]),
-                prefix="Camera port format couldn't be set")
-        self._enable_camera()
+        self._raw_format = value
     raw_format = property(_get_raw_format, _set_raw_format, doc="""
         Retrieves or sets the raw format of the camera's ports.
 
-        This property is only of interest to those wishing to :meth:`capture`
-        images with `format='raw'`. It configures the raw output format of the
-        image and video capture ports of the camera. By default, these are set
-        to ``'yuv'``, and this is the only format which is compatible with the
-        encoders for JPEG, PNG, etc. (attempting to use :meth:`capture` while
-        :attr:`raw_format` is set to something other than ``'yuv'`` will result
-        in an exception). Currently the only settings supported by this
-        attribute are:
+        .. deprecated:: 1.0
 
-        * ``'yuv'`` - Capture data in planar YUV 4:2:0 format (FOURCC=I420).
-
-        * ``'rgb'`` - Capture data in 24-bit RGB format (8 bits per color).
-
-        .. note::
-
-            The camera is capable of other raw formats (e.g. NV12); if anyone
-            is interested in the library providing access to these formats,
-            please contact the author or file an enhancement ticket in the bug
-            tracker.
-
-        For example, if you wish to capture raw images in RGB format (8 bits
-        of red, 8 bits of green, 8 bits of blue) you would do the following::
-
-            import time
-            import picamera
-            with picamera.PiCamera() as camera:
-                camera.raw_format = 'rgb'
-                camera.start_preview()
-                time.sleep(1)
-                camera.capture('foo.raw', format='raw')
-
-        All available raw formats can be queried from the
-        ``PiCamera.RAW_FORMATS`` attribute. The camera must not be closed, and
-        no recording must be active when the property is set.
+            Please use ``'yuv'`` or ``'rgb'`` directly as a format in the
+            various capture methods instead.
         """)
 
     def _get_frame(self):

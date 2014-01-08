@@ -89,6 +89,7 @@ class PiEncoder(object):
 
     def __init__(self, parent, port, format, resize, **options):
         self.parent = parent
+        self.format = format
         self.encoder = None
         self.resizer = None
         self.encoder_connection = None
@@ -107,14 +108,14 @@ class PiEncoder(object):
                 raise PiCameraRuntimeError("Camera is closed")
             if resize:
                 self._create_resizer(*resize)
-            self._create_encoder(format, **options)
+            self._create_encoder(**options)
             self._create_pool()
             self._create_connection()
         except:
             self.close()
             raise
 
-    def _create_encoder(self, format, **options):
+    def _create_encoder(self, **options):
         """
         Creates and configures the encoder itself
         """
@@ -366,20 +367,19 @@ class PiVideoEncoder(PiEncoder):
             parent, port, format, resize, **options)
         self._next_output = []
         self.frame = None
-        self.format = format
 
     def _create_encoder(
-            self, format, bitrate=17000000, intra_period=0, profile='high',
+            self, bitrate=17000000, intra_period=0, profile='high',
             quantization=0, inline_headers=True, **options):
-        super(PiVideoEncoder, self)._create_encoder(format, **options)
+        super(PiVideoEncoder, self)._create_encoder(**options)
 
         try:
             self.output_port[0].format[0].encoding = {
                 'h264':  mmal.MMAL_ENCODING_H264,
                 'mjpeg': mmal.MMAL_ENCODING_MJPEG,
-                }[format]
+                }[self.format]
         except KeyError:
-            raise PiCameraValueError('Unrecognized format %s' % format)
+            raise PiCameraValueError('Unrecognized format %s' % self.format)
 
         if not (0 <= bitrate <= 25000000):
             raise PiCameraValueError('bitrate must be between 0 (VBR) and 25Mbps')
@@ -391,7 +391,7 @@ class PiVideoEncoder(PiEncoder):
             mmal.mmal_port_format_commit(self.output_port),
             prefix="Unable to set format on encoder output port")
 
-        if format == 'h264':
+        if self.format == 'h264':
             mp = mmal.MMAL_PARAMETER_VIDEO_PROFILE_T(
                     mmal.MMAL_PARAMETER_HEADER_T(
                         mmal.MMAL_PARAMETER_PROFILE,
@@ -528,9 +528,8 @@ class PiVideoEncoder(PiEncoder):
 class PiImageEncoder(PiEncoder):
     encoder_type = mmal.MMAL_COMPONENT_DEFAULT_IMAGE_ENCODER
 
-    def _create_encoder(
-            self, format, quality=85, thumbnail=(64, 48, 35), **options):
-        super(PiImageEncoder, self)._create_encoder(format, **options)
+    def _create_encoder(self, quality=85, thumbnail=(64, 48, 35), **options):
+        super(PiImageEncoder, self)._create_encoder(**options)
 
         try:
             self.output_port[0].format[0].encoding = {
@@ -538,14 +537,14 @@ class PiImageEncoder(PiEncoder):
                 'png':  mmal.MMAL_ENCODING_PNG,
                 'gif':  mmal.MMAL_ENCODING_GIF,
                 'bmp':  mmal.MMAL_ENCODING_BMP,
-                }[format]
+                }[self.format]
         except KeyError:
-            raise PiCameraValueError("Unrecognized format %s" % format)
+            raise PiCameraValueError("Unrecognized format %s" % self.format)
         mmal_check(
             mmal.mmal_port_format_commit(self.output_port),
             prefix="Unable to set format on encoder output port")
 
-        if format == 'jpeg':
+        if self.format == 'jpeg':
             mmal_check(
                 mmal.mmal_port_parameter_set_uint32(
                     self.output_port,
@@ -587,22 +586,29 @@ class PiOneImageEncoder(PiImageEncoder):
             )
 
 
-class PiRawOneImageEncoder(PiOneImageEncoder):
-    def _create_encoder(self, format, **options):
-        # Overridden to skip creating an encoder. Instead we simply use the
-        # camera's port as the output port (or the resizer, if one has been
-        # created)
-        if self.resizer:
-            self.output_port = self.resizer[0].output[0]
-        else:
-            self.output_port = self.camera_port
+class PiMultiImageEncoder(PiImageEncoder):
+    def _open_output(self, outputs):
+        self._output_iter = iter(outputs)
+        self._next_output()
 
-    def _create_connection(self):
-        # Overridden to skip creating a connection; there's no encoder so
-        # there's no connection (unless there's a resizer)
-        if self.resizer:
-            self.resizer_connection = self.parent._connect_ports(
-                self.camera_port, self.resizer[0].input[0])
+    def _next_output(self):
+        if self.output:
+            self._close_output()
+        super(PiMultiImageEncoder, self)._open_output(next(self._output_iter))
+
+    def _callback_write(self, buf):
+        try:
+            if (
+                super(PiMultiImageEncoder, self)._callback_write(buf)
+                ) or bool(
+                buf[0].flags & (
+                    mmal.MMAL_BUFFER_HEADER_FLAG_FRAME_END |
+                    mmal.MMAL_BUFFER_HEADER_FLAG_TRANSMISSION_FAILED)
+                ):
+                self._next_output()
+            return False
+        except StopIteration:
+            return True
 
 
 class PiCookedOneImageEncoder(PiOneImageEncoder):
@@ -654,49 +660,91 @@ class PiCookedOneImageEncoder(PiOneImageEncoder):
         super(PiCookedOneImageEncoder, self).start(output)
 
 
-class PiMultiImageEncoder(PiImageEncoder):
-    def _open_output(self, outputs):
-        self._output_iter = iter(outputs)
-        self._next_output()
-
-    def _next_output(self):
-        if self.output:
-            self._close_output()
-        super(PiMultiImageEncoder, self)._open_output(next(self._output_iter))
-
-    def _callback_write(self, buf):
-        try:
-            if (
-                super(PiMultiImageEncoder, self)._callback_write(buf)
-                ) or bool(
-                buf[0].flags & (
-                    mmal.MMAL_BUFFER_HEADER_FLAG_FRAME_END |
-                    mmal.MMAL_BUFFER_HEADER_FLAG_TRANSMISSION_FAILED)
-                ):
-                self._next_output()
-            return False
-        except StopIteration:
-            return True
-
-
-class PiRawMultiImageEncoder(PiMultiImageEncoder):
-    def _create_encoder(self, format, **options):
-        # Overridden to skip creating an encoder. Instead we simply use the
-        # camera's port as the output port (or the resizer, if one has been
-        # created)
-        if self.resizer:
-            self.output_port = self.resizer[0].output[0]
-        else:
-            self.output_port = self.camera_port
-
-    def _create_connection(self):
-        # Overridden to skip creating a connection; there's no encoder so
-        # there's no connection (unless there's a resizer)
-        if self.resizer:
-            self.resizer_connection = self.parent._connect_ports(
-                self.camera_port, self.resizer[0].input[0])
-
-
 class PiCookedMultiImageEncoder(PiMultiImageEncoder):
+    # No Exif stuff here as video-port encodes (which is all
+    # PiCookedMultiImageEncoder gets called for) don't support Exif output
     pass
 
+
+class PiRawEncoderMixin(PiImageEncoder):
+    def __init__(self, parent, port, format, resize, **options):
+        # Force the use of a resizer if one has not been requested
+        if not resize:
+            resize = parent.resolution
+        self._strip_alpha = False
+        self._image_size = 0
+        super(PiRawEncoderMixin, self).__init__(
+            parent, port, format, resize, **options)
+
+    def _create_resizer(self, width, height):
+        super(PiRawEncoderMixin, self)._create_resizer(width, height)
+        # Set the resizer's output encoding to the requested format. If a
+        # non-alpha format is requested, use the alpha-inclusive format and set
+        # a flag to get the callback to strip the alpha bytes
+        encoding, bytes_per_pixel = {
+            'yuv':  (mmal.MMAL_ENCODING_I420, 1.5),
+            'rgb':  (mmal.MMAL_ENCODING_RGBA, 3),
+            'rgba': (mmal.MMAL_ENCODING_RGBA, 4),
+            'bgr':  (mmal.MMAL_ENCODING_BGRA, 3),
+            'bgra': (mmal.MMAL_ENCODING_BGRA, 4),
+            }[self.format]
+        self._strip_alpha = self.format in ('rgb', 'bgr')
+        port = self.resizer[0].output[0]
+        port[0].format[0].encoding = encoding
+        port[0].format[0].encoding_variant = encoding
+        mmal_check(
+            mmal.mmal_port_format_commit(port),
+            prefix="Failed to set resizer output port format")
+        # Calculate the expected image size, to be used by the callback to
+        # decide when a frame ends. This is to work around a firmware bug that
+        # causes the raw image to be returned twice when the maximum camera
+        # resolution is requested
+        width, height = self.parent.resolution
+        self._image_size = int(
+            ((width + 31) // 32 * 32) *  # round up width to nearest multiple of 32
+            ((height + 15) // 16 * 16) * # round up height to nearest multiple of 16
+            bytes_per_pixel)
+
+    def _create_encoder(self, **options):
+        # Overridden to skip creating an encoder. Instead we simply use the
+        # resizer's port as the output port
+        self.output_port = self.resizer[0].output[0]
+
+    def _create_connection(self):
+        # Overridden to skip creating an encoder connection; we only need the
+        # resizer connection
+        self.resizer_connection = self.parent._connect_ports(
+            self.camera_port, self.resizer[0].input[0])
+
+    def _callback_write(self, buf):
+        # Overridden to strip alpha bytes when necessary, and manually
+        # calculate the frame end
+        if buf[0].length and self._image_size:
+            mmal_check(
+                mmal.mmal_buffer_header_mem_lock(buf),
+                prefix="Unable to lock buffer header memory")
+            try:
+                s = ct.string_at(buf[0].data, buf[0].length)
+                if self._strip_alpha:
+                    s = b''.join(s[i:i+3] for i in range(0, len(s), 4))
+                with self.lock:
+                    if self.output:
+                        written = self.output.write(s)
+                        # Ignore None return value; most Python 2 streams have
+                        # no return value for write()
+                        if (written is not None) and (written != len(s)):
+                            raise PiCameraError(
+                                "Unable to write buffer to file - aborting")
+                        self._image_size -= len(s)
+                        assert self._image_size >= 0
+            finally:
+                mmal.mmal_buffer_header_mem_unlock(buf)
+        return not self._image_size
+
+
+class PiRawOneImageEncoder(PiRawEncoderMixin, PiOneImageEncoder):
+    pass
+
+
+class PiRawMultiImageEncoder(PiRawEncoderMixin, PiMultiImageEncoder):
+    pass

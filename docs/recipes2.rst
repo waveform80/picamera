@@ -17,7 +17,7 @@ If you want images captured without loss of detail (due to JPEG's lossy
 compression), you are probably better off exploring PNG as an alternate image
 format (PNG uses lossless compression). However, some applications
 (particularly scientific ones) simply require the raw sensor data in numeric
-form. For this, the ``raw`` format is provided::
+form. For this, the ``'yuv'`` format is provided::
 
     import time
     import picamera
@@ -26,14 +26,14 @@ form. For this, the ``raw`` format is provided::
         camera.resolution = (100, 100)
         camera.start_preview()
         time.sleep(2)
-        camera.capture('image.data', 'raw')
+        camera.capture('image.data', 'yuv')
 
-By default raw output is in `YUV`_ format, specifically YUV420 (planar). This
-means that the Y (luminance) values occur first in the resulting data and have
-full resolution (one 1-byte Y value for each pixel in the image). The Y values
-are followed by the U (chrominance) values, and finally the V (chrominance)
-values.  The UV values have one quarter the resolution of the Y components (4
-1-byte Y values in a square for each 1-byte U and 1-byte V value).
+The specific `YUV`_ format used is YUV420 (planar). This means that the Y
+(luminance) values occur first in the resulting data and have full resolution
+(one 1-byte Y value for each pixel in the image). The Y values are followed by
+the U (chrominance) values, and finally the V (chrominance) values.  The UV
+values have one quarter the resolution of the Y components (4 1-byte Y values
+in a square for each 1-byte U and 1-byte V value).
 
 It is also important to note that when outputting to raw format, the camera
 rounds the requested resolution. The horizontal resolution is rounded up to the
@@ -74,10 +74,9 @@ in an efficient manner::
     # Capture the image in raw YUV format
     with picamera.PiCamera() as camera:
         camera.resolution = (width, height)
-        camera.raw_format = 'yuv'
         camera.start_preview()
         time.sleep(2)
-        camera.capture(stream, 'raw')
+        camera.capture(stream, 'yuv')
     # Rewind the stream for reading
     stream.seek(0)
     # Calculate the actual image size in the stream (accounting for rounding
@@ -111,7 +110,12 @@ in an efficient manner::
 Alternatively, see :ref:`rgb_capture` for a method of having the camera output
 RGB data directly.
 
-.. versionadded:: 0.6
+.. versionchanged:: 1.0
+
+    The :attr:`~picamera.PiCamera.raw_format` attribute is now deprecated, as
+    is the ``'raw'`` format specification for the
+    :meth:`~picamera.PiCamera.capture` method. Simply use the ``'yuv'`` format
+    instead, as shown in the code above.
 
 
 .. _rgb_capture:
@@ -121,24 +125,17 @@ Raw image capture (RGB format)
 
 The RGB format is rather larger than the `YUV`_ format discussed in the section
 above, but is more useful for most analyses. To have the camera produce raw
-output in `RGB`_ format, you simply need to adjust the
-:attr:`~picamera.PiCamera.raw_format` attribute prior to capturing the image::
+output in `RGB`_ format, you simply need to specify ``'rgb'`` as the format
+for the :meth:`~picamera.PiCamera.capture` method instead::
 
     import time
     import picamera
 
     with picamera.PiCamera() as camera:
         camera.resolution = (100, 100)
-        camera.raw_format = 'rgb'
         camera.start_preview()
         time.sleep(2)
-        camera.capture('image.data', 'raw')
-
-Note that this attribute can only be adjusted while the camera is idle (hence
-why the above code does so before starting the preview). Also note that
-capturing to "ordinary" formats (JPEG, PNG, etc.) and video recording will
-*not* work when :attr:`~picamera.PiCamera.raw_format` is set to ``rgb``. This
-is because the encoders used for these formats all expect YUV input.
+        camera.capture('image.data', 'rgb')
 
 The size of raw RGB data can be calculated similarly to YUV captures. Firstly
 round the resolution appropriately (see :ref:`yuv_capture` for the specifics),
@@ -170,10 +167,9 @@ Loading the resulting RGB data into a `numpy`_ array is simple::
     # Capture the image in raw RGB format
     with picamera.PiCamera() as camera:
         camera.resolution = (width, height)
-        camera.raw_format = 'rgb'
         camera.start_preview()
         time.sleep(2)
-        camera.capture(stream, 'raw')
+        camera.capture(stream, 'rgb')
     # Rewind the stream for reading
     stream.seek(0)
     # Calculate the actual image size in the stream (accounting for rounding
@@ -190,7 +186,21 @@ Loading the resulting RGB data into a `numpy`_ array is simple::
     image = image.astype(np.float, copy=False)
     image = image / 255.0
 
-.. versionadded:: 0.6
+.. versionchanged:: 1.0
+
+    The :attr:`~picamera.PiCamera.raw_format` attribute is now deprecated, as
+    is the ``'raw'`` format specification for the
+    :meth:`~picamera.PiCamera.capture` method. Simply use the ``'yuv'`` format
+    instead, as shown in the code above.
+
+.. warning::
+
+    You may find RGB captures rather slow. If this is the case, please try the
+    ``'rgba'`` format instead. The reason for this is that GPU component that
+    picamera uses to perform RGB conversion doesn't support RGB output, only
+    RGBA. As a result, RGBA data can be written directly, but picamera has to
+    spend time stripping out the (unused) alpha byte from RGBA if RGB format
+    is requested. A similar situation exists for the BGR and BGRA formats.
 
 
 .. _rapid_capture:
