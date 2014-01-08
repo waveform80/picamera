@@ -166,6 +166,8 @@ def test_capture_sequence_to_stream(
 def test_capture_raw(camera, resolution, raw_format, use_video_port):
     if resolution == (2592, 1944) and raw_format in ('rgba', 'bgra') and not use_video_port:
         pytest.xfail('Camera crashes with this combination')
+    if resolution == (100, 100) and raw_format in ('rgb', 'rgba', 'bgr', 'bgra'):
+        pytest.xfail('Camera fails to set resizer output port format')
     # Calculate the expected size of the streams for the current
     # resolution; horizontal resolution is rounded up to the nearest
     # multiple of 32, and vertical to the nearest multiple of 16 by the
