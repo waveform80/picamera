@@ -47,6 +47,11 @@ Classes
         buffer. As a consequence, this attribute cannot be used to detect
         dropped frames.
 
+    .. attribute:: position
+
+        Returns the zero-based position of the frame in the stream containing
+        it.
+
     .. attribute:: keyframe
 
         Returns a bool indicating whether the current frame is a keyframe (an
@@ -89,6 +94,12 @@ Classes
             values in this field which picamera represents as ``None``. If you
             are querying this property you will need to check the value is not
             ``None`` before using it.
+
+    .. attribute:: header
+
+        Contains a bool indicating whether the current frame is actually an
+        SPS/PPS header. Typically it is best to split an H.264 stream so that
+        it starts with an SPS/PPS header.
 
 
 Exceptions

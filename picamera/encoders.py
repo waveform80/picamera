@@ -64,14 +64,19 @@ __all__ = [
     ]
 
 
-PiVideoFrame = namedtuple('PiVideoFrame', (
+class PiVideoFrame(namedtuple('PiVideoFrame', (
     'index',         # the frame number, where the first frame is 0
     'keyframe',      # True when the frame is a keyframe
     'frame_size',    # the size (in bytes) of the frame's data
     'video_size',    # the size (in bytes) of the video so far
     'split_size',    # the size (in bytes) of the video since the last split
     'timestamp',     # the presentation timestamp (PTS) of the frame
-    ))
+    'header',        # the frame is an SPS/PPS header
+    ))):
+
+    @property
+    def position(self):
+        return self.split_size - self.frame_size
 
 
 def _encoder_callback(port, buf):
@@ -478,6 +483,7 @@ class PiVideoEncoder(PiEncoder):
                 video_size=0,
                 split_size=0,
                 timestamp=0,
+                header=False,
                 )
         super(PiVideoEncoder, self).start(output)
 
@@ -503,6 +509,7 @@ class PiVideoEncoder(PiEncoder):
                     video_size=self.frame.video_size + self._size,
                     split_size=self.frame.split_size + self._size,
                     timestamp=None if buf[0].pts in (0, mmal.MMAL_TIME_UNKNOWN) else buf[0].pts,
+                    header=bool(buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_CONFIG),
                     )
             self._size = 0
         if self.format != 'h264' or (buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_CONFIG):
@@ -519,6 +526,7 @@ class PiVideoEncoder(PiEncoder):
                         video_size=self.frame.video_size,
                         split_size=0,
                         timestamp=self.frame.timestamp,
+                        header=self.frame.header,
                         )
                 self._open_output(new_output)
                 self.event.set()
