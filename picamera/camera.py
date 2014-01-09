@@ -678,12 +678,12 @@ class PiCamera(object):
           32-bit integer value representing the number of frames between
           successive I-frames.
 
-        * *inline_headers* - When True, specifies that the encoder should
+        * *inline_headers* - When ``True``, specifies that the encoder should
           output SPS/PPS headers within the stream to ensure GOPs (groups of
           pictures) are self describing. This is important for streaming
           applications where the client may wish to seek within the stream, and
-          enables the use of :meth:`split_recording`. Defaults to True if not
-          specified.
+          enables the use of :meth:`split_recording`. Defaults to ``True`` if
+          not specified.
 
         All formats accept the following additional options:
 
@@ -701,7 +701,6 @@ class PiCamera(object):
           :meth:`split_recording` cannot be used in VBR mode.
 
         .. versionchanged:: 1.0
-
             The *resize* parameter was added, and ``'mjpeg'`` was added as a
             recording format
         """
@@ -738,7 +737,7 @@ class PiCamera(object):
         Note that unlike :meth:`start_recording`, you cannot specify format or
         options as these cannot be changed in the middle of recording. Only the
         new *output* can be specified. Furthermore, the format of the recording
-        is currently limited to H264, *inline_headers* must be True, and
+        is currently limited to H264, *inline_headers* must be ``True``, and
         *bitrate* must be non-zero (CBR mode) when :meth:`start_recording` is
         called (this is the default).
         """
@@ -842,7 +841,6 @@ class PiCamera(object):
           to ``(64, 48, 35)``.
 
         .. versionchanged:: 1.0
-
             The *resize* parameter was added, and raw capture formats can now
             be specified directly
         """
@@ -879,13 +877,13 @@ class PiCamera(object):
 
         The *format*, *resize*, and *options* parameters are the same as in
         :meth:`capture`, but *format* defaults to ``'jpeg'``. The format is
-        _not_ derived from the filenames in *outputs* by this method.
+        **not** derived from the filenames in *outputs* by this method.
 
         The *use_video_port* parameter controls whether the camera's image or
-        video port is used to capture images. It defaults to False which means
-        that the camera's image port is used. This port is slow but produces
-        better quality pictures. If you need rapid capture up to the rate of
-        video frames, set this to True.
+        video port is used to capture images. It defaults to ``False`` which
+        means that the camera's image port is used. This port is slow but
+        produces better quality pictures. If you need rapid capture up to the
+        rate of video frames, set this to ``True``.
 
         For example, to capture 3 consecutive images::
 
@@ -920,7 +918,6 @@ class PiCamera(object):
         provide the filenames or output objects.
 
         .. versionchanged:: 1.0
-
             The *resize* parameter was added, and raw capture formats can now
             be specified directly
         """
@@ -1009,10 +1006,10 @@ class PiCamera(object):
         :meth:`capture`.
 
         The *use_video_port* parameter controls whether the camera's image or
-        video port is used to capture images. It defaults to False which means
-        that the camera's image port is used. This port is slow but produces
-        better quality pictures. If you need rapid capture up to the rate of
-        video frames, set this to True.
+        video port is used to capture images. It defaults to ``False`` which
+        means that the camera's image port is used. This port is slow but
+        produces better quality pictures. If you need rapid capture up to the
+        rate of video frames, set this to ``True``.
 
         For example, to capture 60 images with a one second delay between them,
         writing the output to a series of JPEG files named image01.jpg,
@@ -1049,7 +1046,6 @@ class PiCamera(object):
                         break
 
         .. versionchanged:: 1.0
-
             The *resize* parameter was added, and raw capture formats can now
             be specified directly
         """
@@ -1097,14 +1093,14 @@ class PiCamera(object):
     @property
     def closed(self):
         """
-        Returns True if the :meth:`close` method has been called.
+        Returns ``True`` if the :meth:`close` method has been called.
         """
         return not self._camera
 
     @property
     def recording(self):
         """
-        Returns True if the :meth:`start_recording` method has been called,
+        Returns ``True`` if the :meth:`start_recording` method has been called,
         and no :meth:`stop_recording` call has been made yet.
         """
         # XXX Should probably check this is actually enabled...
@@ -1113,7 +1109,7 @@ class PiCamera(object):
     @property
     def previewing(self):
         """
-        Returns True if the :meth:`start_preview` method has been called,
+        Returns ``True`` if the :meth:`start_preview` method has been called,
         and no :meth:`stop_preview` call has been made yet.
         """
         return (
@@ -1230,8 +1226,8 @@ class PiCamera(object):
         If a GPIO library is available (only RPi.GPIO is currently supported),
         and if the python process has the necessary privileges (typically this
         means running as root via sudo), this property can be used to set the
-        state of the camera's LED as a boolean value (True is on, False is
-        off).
+        state of the camera's LED as a boolean value (``True`` is on, ``False``
+        is off).
 
         .. note::
 
@@ -1255,7 +1251,6 @@ class PiCamera(object):
         Retrieves or sets the raw format of the camera's ports.
 
         .. deprecated:: 1.0
-
             Please use ``'yuv'`` or ``'rgb'`` directly as a format in the
             various capture methods instead.
         """)
@@ -1278,8 +1273,8 @@ class PiCamera(object):
 
             There is a small window of time when querying this attribute will
             return ``None`` after calling :meth:`start_recording`. If this
-            attribute returns None, this means that the video encoder has been
-            initialized, but the camera has not yet returned any frames.
+            attribute returns ``None``, this means that the video encoder has
+            been initialized, but the camera has not yet returned any frames.
         """)
 
     def _get_framerate(self):
@@ -1944,10 +1939,10 @@ class PiCamera(object):
     color_effects = property(_get_color_effects, _set_color_effects, doc="""
         Retrieves or sets the current color effect applied by the camera.
 
-        When queried, the :attr:`color_effects` property either returns ``None``
-        which indicates that the camera is using normal color settings, or a
-        ``(u, v)`` tuple where ``u`` and ``v`` are integer values between 0 and
-        255.
+        When queried, the :attr:`color_effects` property either returns
+        ``None`` which indicates that the camera is using normal color
+        settings, or a ``(u, v)`` tuple where ``u`` and ``v`` are integer
+        values between 0 and 255.
 
         When set, the property changes the color effect applied by the camera.
         The property can be set while recordings or previews are in progress.
@@ -2200,7 +2195,7 @@ class PiCamera(object):
 
         The :attr:`preview_fullscreen` property is a bool which controls
         whether the preview window takes up the entire display or not. When
-        set to False, the :attr:`preview_window` property can be used to
+        set to ``False``, the :attr:`preview_window` property can be used to
         control the precise size of the preview display. The property can be
         set while recordings or previews are active.
 
@@ -2247,7 +2242,7 @@ class PiCamera(object):
     preview_window = property(_get_preview_window, _set_preview_window, doc="""
         Retrieves or sets the size of the preview window.
 
-        When the :attr:`preview_fullscreen` property is set to False, the
+        When the :attr:`preview_fullscreen` property is set to ``False``, the
         :attr:`preview_window` property specifies the size and position of the
         preview window on the display. The property is a 4-tuple consisting of
         ``(x, y, width, height)``. The property can be set while recordings or
