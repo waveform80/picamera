@@ -9,15 +9,39 @@ with their own advantages and disadvantages. Have a read of the sections below
 and select an installation method which conforms to your needs.
 
 
+.. _raspbian_install2:
+
+Raspbian installation
+=====================
+
+If you are using the Raspbian distro, it is best to install picamera using the
+system's package manager: apt. This will ensure that picamera is easy to keep
+up to date, and easy to remove should you wish to do so. It will also make
+picamera available for all users on the system. To install picamera
+using apt simply::
+
+    $ sudo apt-get install python-picamera
+
+To upgrade your installation when new releases are made you can simply use apt's
+normal upgrade procedure::
+
+    $ sudo apt-get update
+    $ sudo apt-get upgrade
+
+If you ever need to remove your installation::
+
+    $ sudo apt-get remove python-picamera
+
+
 .. _user_install2:
 
 User installation
 =================
 
-This is by far the simplest form of installation, but bear in mind that it will
-only work for the user you install under. For example, if you install as the
-``pi`` user, you will only be able to use picamera as the ``pi`` user. If you
-run python as root (e.g. with ``sudo python``) it will not find the module.
+This is the simplest (non-apt) form of installation, but bear in mind that it
+will only work for the user you install under. For example, if you install as
+the ``pi`` user, you will only be able to use picamera as the ``pi`` user. If
+you run python as root (e.g. with ``sudo python``) it will not find the module.
 See :ref:`system_install2` below if you require a root installation.
 
 To install as your current user::
