@@ -350,6 +350,7 @@ Bear in mind that the full resolution of the sensor has an aspect ratio of 4:3
 ratio, the result will appear stretched.
 
 .. versionchanged:: 1.0
+    The *resize* parameter was first added in 1.0
 
 
 .. _file_record:

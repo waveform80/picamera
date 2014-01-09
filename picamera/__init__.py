@@ -38,6 +38,12 @@ Classes
 .. autoclass:: PiCamera()
     :members:
 
+.. autoclass:: PiCameraCircularIO
+    :members:
+
+.. autoclass:: CircularIO
+    :members:
+
 .. class:: PiVideoFrame(index, key, frame_size, video_size, split_size, timestamp)
 
     .. attribute:: index
@@ -125,6 +131,7 @@ str = type('')
 
 from picamera.exc import PiCameraError, PiCameraRuntimeError, PiCameraValueError
 from picamera.camera import PiCamera, PiVideoFrame
+from picamera.streams import PiCameraCircularIO, CircularIO
 
 
 __all__ = [
@@ -133,5 +140,7 @@ __all__ = [
     'PiCameraError',
     'PiCameraRuntimeError',
     'PiCameraValueError',
+    'PiCameraCircularIO',
+    'CircularIO',
     ]
 
