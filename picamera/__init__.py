@@ -32,17 +32,29 @@ This package primarily provides the :class:`PiCamera` class which is a pure
 Python interface to the Raspberry Pi's camera module.
 
 
-Classes
-=======
+PiCamera
+========
 
 .. autoclass:: PiCamera()
     :members:
 
+
+PiCameraCircularIO
+==================
+
 .. autoclass:: PiCameraCircularIO
     :members:
 
+
+CircularIO
+==========
+
 .. autoclass:: CircularIO
     :members:
+
+
+PiVideoFrame
+============
 
 .. class:: PiVideoFrame(index, key, frame_size, video_size, split_size, timestamp)
 
