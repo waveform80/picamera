@@ -5,23 +5,52 @@ Change log
 ==========
 
 
-Release 1.0
-===========
+Release 1.0 (2014-01-11)
+========================
 
 In 1.0 the major features added were:
 
-* The new :attr:`~picamera.PiCamera.frame` attribute permits querying the
-  current frame number of the active video recording
 * Debian packaging!
+* The new :attr:`~picamera.PiCamera.frame` attribute permits querying
+  information about the frame last written to the output stream (number,
+  timestamp, size, keyframe, etc.) (`#34`_, `#36`_)
+* All capture methods (:meth:`~picamera.PiCamera.capture` et al), and the
+  :meth:`~picamera.PiCamera.start_recording` method now accept a ``resize``
+  parameter which invokes a resizer prior to the encoding step. This can be
+  used to :ref:`record video with full field-of-view <full_res_record>`
+  (`#21`_)
+* A new :class:`~picamera.PiCameraCircularIO` stream class is provided to
+  permit holding the last *n* seconds of video in memory, ready for writing out
+  to disk (or whatever you like) (`#39`_)
+* There's a new way to specify raw captures - simply use the format you require
+  with the capture method of your choice. As a result of this, the
+  :attr:`~picamera.PiCamera.raw_format` attribute is now deprecated (`#32`_)
+
+Some bugs were also fixed:
+
+* GPIO.cleanup is no longer called on :meth:`~picamera.PiCamera.close`
+  (`#35`_), and GPIO set up is only done on first use of the
+  :attr:`~picamera.PiCamera.led` attribute which should resolve issues that
+  users have been having with using picamera in conjunction with GPIO
+* Raw RGB video-port based image captures are now working again too (`#32`_)
 
 As this is a new major-version, all deprecated elements were removed:
 
-* The continuous method was removed; this was replaced by capture_continuous
-  in 0.5
+* The continuous method was removed; this was replaced by
+  :meth:`~picamera.PiCamera.capture_continuous` in 0.5 (`#7`_)
 
 
-Release 0.8
-===========
+.. _#7: https://github.com/waveform80/picamera/issues/7
+.. _#21: https://github.com/waveform80/picamera/issues/21
+.. _#32: https://github.com/waveform80/picamera/issues/32
+.. _#34: https://github.com/waveform80/picamera/issues/34
+.. _#35: https://github.com/waveform80/picamera/issues/35
+.. _#36: https://github.com/waveform80/picamera/issues/36
+.. _#39: https://github.com/waveform80/picamera/issues/39
+
+
+Release 0.8 (2013-12-09)
+========================
 
 In 0.8 the major features added were:
 
@@ -47,8 +76,8 @@ In addition a few bugs were fixed:
   errors in the case that an exception was raised within an encoder thread)
 
 
-Release 0.7
-===========
+Release 0.7 (2013-11-14)
+========================
 
 0.7 is mostly a bug fix release, with a few new video recording features:
 
@@ -63,8 +92,8 @@ Release 0.7
   at this time
 * Numerous documentation fixes
 
-Release 0.6
-===========
+Release 0.6 (2013-10-30)
+========================
 
 In 0.6, the major features added were:
 
@@ -82,8 +111,8 @@ In 0.6, the major features added were:
   of capture techniques ranging from trivial to complex
 
 
-Release 0.5
-===========
+Release 0.5 (2013-10-21)
+========================
 
 In 0.5, the major features added were:
 
@@ -108,8 +137,8 @@ In addition a few bugs were fixed:
 
 Many thanks to the community for the bug reports!
 
-Release 0.4
-===========
+Release 0.4 (2013-10-11)
+========================
 
 In 0.4, several new attributes were introduced for configuration of the preview
 window:
@@ -121,8 +150,8 @@ window:
 Also, a new method for rapid continual capture of still images was introduced:
 :meth:`~picamera.PiCamera.continuous`.
 
-Release 0.3
-===========
+Release 0.3 (2013-10-04)
+========================
 
 The major change in 0.3 was the introduction of custom Exif tagging for
 captured images, and fixing a silly bug which prevented more than one image
@@ -134,4 +163,5 @@ Release 0.2
 The major change in 0.2 was support for video recording, along with the new
 :attr:`~picamera.PiCamera.resolution` property which replaced the separate
 ``preview_resolution`` and ``stills_resolution`` properties.
+
 

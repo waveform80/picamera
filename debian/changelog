@@ -1,11 +1,26 @@
 picamera (1.0-1) stable; urgency=low
 
-  * The new frame attribute permits querying the current frame number of the
-    active video recording
   * Debian packaging!
-  * Removed deprecated continuous method
+  * The new frame attribute permits querying information about the frame last
+    written to the output stream (number, timestamp, size, keyframe, etc.)
+    (#34, #36)
+  * All capture methods, and the start_recording method now accept a resize
+    parameter which invokes a resizer prior to the encoding step. This can be
+    used to record video with full field-of-view (#21)
+  * A new PiCameraCircularIO stream class is provided to permit holding the
+    last n seconds of video in memory, ready for writing out to disk (or
+    whatever you like) (#39)
+  * There's a new way to specify raw captures - simply use the format you
+    require with the capture method of your choice. As a result of this, the
+    raw_format attribute is now deprecated (#32)
+  * GPIO.cleanup is no longer called on close (#35), and GPIO set up is only
+    done on first use of the led attribute which should resolve issues that
+    users have been having with using picamera in conjunction with GPIO
+  * Raw RGB video-port based image captures are now working again too (#32)
+  * The continuous method was removed; this was replaced by capture_continuous
+    in 0.5 (#7)
 
- -- Dave Hughes <dave@waveform.org.uk>  Mon, 09 Dec 2013 05:15:00 +0000
+ -- Dave Hughes <dave@waveform.org.uk>  Mon, 11 Jan 2014 09:00:00 +0000
 
 picamera (0.8-1) UNRELEASED; urgency=low
 
@@ -41,7 +56,7 @@ picamera (0.7-1) UNRELEASED; urgency=low
     it at this time
   * Numerous documentation fixes
 
- --  <dave@kermit.waveform.org.uk>  Thu, 14 Nov 2013 20:03:00 +0000
+ --  Dave Hughes <dave@waveform.org.uk>  Thu, 14 Nov 2013 20:03:00 +0000
 
 picamera (0.6-1) UNRELEASED; urgency=low
 
@@ -55,7 +70,7 @@ picamera (0.6-1) UNRELEASED; urgency=low
   * New "Recipes" chapter in the documentation which demonstrates a wide
     variety of capture techniques ranging from trivial to complex
 
- --  <dave@kermit.waveform.org.uk>  Wed, 30 Oct 2013 01:28:00 +0000
+ --  Dave Hughes <dave@waveform.org.uk>  Wed, 30 Oct 2013 01:28:00 +0000
 
 picamera (0.5-1) UNRELEASED; urgency=low
 
@@ -70,7 +85,7 @@ picamera (0.5-1) UNRELEASED; urgency=low
     exposure_mode not working by default
   * intraperiod and profile options for start_recording()
 
- --  <dave@kermit.waveform.org.uk>  Mon, 21 Oct 2013 02:06:00 +0000
+ --  Dave Hughes <dave@waveform.org.uk>  Mon, 21 Oct 2013 02:06:00 +0000
 
 picamera (0.4-1) UNRELEASED; urgency=low
 
@@ -78,7 +93,7 @@ picamera (0.4-1) UNRELEASED; urgency=low
     for controlling the preview window
   * Added new continous() method for rapid capture of still images
 
- --  <dave@kermit.waveform.org.uk>  Fri, 11 Oct 2013 01:37:00 +0000
+ --  Dave Hughes <dave@waveform.org.uk>  Fri, 11 Oct 2013 01:37:00 +0000
 
 picamera (0.3-1) UNRELEASED; urgency=low
 
@@ -86,4 +101,4 @@ picamera (0.3-1) UNRELEASED; urgency=low
   * Fixed silly bug which prevented more than one image being captured during
     the lifetime of a PiCamera instance
 
- --  <dave@kermit.waveform.org.uk>  Fri, 04 Oct 2013 00:48:00 +0000
+ --  Dave Hughes <dave@waveform.org.uk>  Fri, 04 Oct 2013 00:48:00 +0000
