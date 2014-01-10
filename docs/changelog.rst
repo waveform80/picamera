@@ -10,7 +10,7 @@ Release 1.0 (2014-01-11)
 
 In 1.0 the major features added were:
 
-* Debian packaging!
+* Debian packaging! (`#12`_)
 * The new :attr:`~picamera.PiCamera.frame` attribute permits querying
   information about the frame last written to the output stream (number,
   timestamp, size, keyframe, etc.) (`#34`_, `#36`_)
@@ -41,6 +41,7 @@ As this is a new major-version, all deprecated elements were removed:
 
 
 .. _#7: https://github.com/waveform80/picamera/issues/7
+.. _#12: https://github.com/waveform80/picamera/issues/12
 .. _#21: https://github.com/waveform80/picamera/issues/21
 .. _#32: https://github.com/waveform80/picamera/issues/32
 .. _#34: https://github.com/waveform80/picamera/issues/34

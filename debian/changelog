@@ -1,6 +1,6 @@
 picamera (1.0-1) stable; urgency=low
 
-  * Debian packaging!
+  * Debian packaging! (#12)
   * The new frame attribute permits querying information about the frame last
     written to the output stream (number, timestamp, size, keyframe, etc.)
     (#34, #36)
