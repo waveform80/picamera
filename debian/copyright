@@ -3,7 +3,7 @@ Upstream-Name: picamera
 Source: http://pypi.python.org/pypi/picamera
 
 Files: *
-Copyright: 2013 Dave Hughes <dave@waveform.org.uk>
+Copyright: 2013,2014 Dave Hughes <dave@waveform.org.uk>
 License: BSD-3-Clause
 
 License: BSD-3-Clause
