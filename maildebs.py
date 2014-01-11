@@ -47,7 +47,7 @@ def send_email(message, host='localhost', port=25):
 
 def main():
     config = configparser.ConfigParser()
-    config.read(os.path.join(HERE, 'maildebs.conf'))
+    config.read(os.path.expanduser('~/.maildebs.conf'))
     project = __project__
     version = __version__
     recipient = config['message']['recipient']
