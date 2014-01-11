@@ -122,9 +122,6 @@ def verify_video(filename_or_obj, format, resolution):
     assert False, 'Failed to locate stream analysis in avconv output'
 
 
-# TODO We don't yet test that the recordings are actually valid in any way, so
-# at the moment this is little more than making sure exceptions don't occur
-
 def test_record_to_file(camera, previewing, resolution, filenames_format_options):
     filename1, filename2, format, options = filenames_format_options
     if resolution == (2592, 1944) and 'resize' not in options:
@@ -182,4 +179,32 @@ def test_record_to_stream(camera, previewing, resolution, format_options):
     if verify2:
         stream2.seek(0)
         verify_video(stream2, format, resolution)
+
+def test_circular_record(camera, previewing, resolution):
+    if resolution == (2592, 1944):
+        pytest.xfail('Cannot encode video at max resolution')
+    stream = picamera.PiCameraCircularIO(camera, seconds=4)
+    camera.start_recording(stream, format='h264')
+    try:
+        # Keep recording until the stream is definitely full and starts
+        # removing earlier bits, or until 20 seconds
+        start = time.time()
+        while stream._length < stream._size and time.time() - start < 20:
+            camera.wait_recording(1)
+        # Record one more second, then test the result
+        camera.wait_recording(1)
+    finally:
+        camera.stop_recording()
+    temp = tempfile.SpooledTemporaryFile()
+    for frame in stream.frames:
+        if frame.header:
+            stream.seek(frame.position)
+            break
+    while True:
+        buf = stream.read1()
+        if not buf:
+            break
+        temp.write(buf)
+    temp.seek(0)
+    verify_video(temp, 'h264', resolution)
 

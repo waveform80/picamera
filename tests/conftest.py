@@ -75,7 +75,11 @@ def resolution(request, camera):
     save_resolution = camera.resolution
     camera.resolution = request.param
     def fin():
-        camera.resolution = save_resolution
+        try:
+            if camera.recording:
+                camera.stop_recording()
+        finally:
+            camera.resolution = save_resolution
     request.addfinalizer(fin)
     return request.param
 
