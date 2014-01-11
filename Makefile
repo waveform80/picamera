@@ -98,7 +98,7 @@ $(DIST_DEB): $(PY_SOURCES) $(DEB_SOURCES)
 	# project_version.orig.tar.gz
 	$(PYTHON) $(PYFLAGS) setup.py sdist --dist-dir=../
 	rename -f 's/$(NAME)-(.*)\.tar\.gz/$(NAME)_$$1\.orig\.tar\.gz/' ../*
-	debuild -b -i -I -Idist -Ibuild -Ihtmlcov -I__pycache__ -I.coverage -Itags -I*.pyc -I.*xcf -rfakeroot
+	debuild -b -i -I -Idist -Ibuild -Ihtmlcov -I__pycache__ -I.coverage -Itags -I*.pyc -I*.xcf -rfakeroot
 	mkdir -p dist/
 	cp ../python-$(NAME)_$(VER)-1_armhf.deb dist/
 	cp ../python3-$(NAME)_$(VER)-1_armhf.deb dist/
@@ -109,7 +109,7 @@ $(DIST_DSC): $(PY_SOURCES) $(DEB_SOURCES)
 	# project_version.orig.tar.gz
 	$(PYTHON) $(PYFLAGS) setup.py sdist --dist-dir=../
 	rename -f 's/$(NAME)-(.*)\.tar\.gz/$(NAME)_$$1\.orig\.tar\.gz/' ../*
-	debuild -S -i -I -Idist -Ibuild -Ihtmlcov -I__pycache__ -I.coverage -Itags -I*.pyc -I.*xcf -rfakeroot
+	debuild -S -i -I -Idist -Ibuild -Ihtmlcov -I__pycache__ -I.coverage -Itags -I*.pyc -I*.xcf -rfakeroot
 	mkdir -p dist/
 	cp ../$(NAME)_$(VER)-1_source.changes dist/
 	cp ../$(NAME)_$(VER)-1.dsc dist/
