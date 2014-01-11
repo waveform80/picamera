@@ -71,7 +71,7 @@ def main():
         }
     subject = config['message']['subject'].format(**subst)
     body = config['message']['body'].format(**subst)
-    attachments = sys.argv
+    attachments = sys.argv[1:]
     send_email(
         create_message(sender, recipient, subject, body, attachments),
         config['smtp'].get('host', 'localhost'),
