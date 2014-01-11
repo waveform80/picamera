@@ -20,7 +20,7 @@ VER:=$(shell $(PYTHON) $(PYFLAGS) setup.py --version)
 PYVER:=$(shell $(PYTHON) $(PYFLAGS) -c "import sys; print('py%d.%d' % sys.version_info[:2])")
 PY_SOURCES:=$(shell \
 	$(PYTHON) $(PYFLAGS) setup.py egg_info >/dev/null 2>&1 && \
-	cat $(NAME).egg-info/SOURCES.txt)
+	grep -v "\.egg-info" $(NAME).egg-info/SOURCES.txt)
 DEB_SOURCES:=debian/changelog \
 	debian/control \
 	debian/copyright \
@@ -32,7 +32,7 @@ DIST_EGG=dist/$(NAME)-$(VER)-$(PYVER).egg
 DIST_TAR=dist/$(NAME)-$(VER).tar.gz
 DIST_ZIP=dist/$(NAME)-$(VER).zip
 DIST_DEB=dist/python-$(NAME)_$(VER)-1_armhf.deb dist/python3-$(NAME)_$(VER)-1_armhf.deb dist/python-$(NAME)-docs_$(VER)-1_all.deb
-DIST_DSC=dist/$(NAME)_$(VER).orig.tar.gz dist/$(NAME)_$(VER)-1.dsc dist/$(NAME)_$(VER)-1_source.changes
+DIST_DSC=dist/$(NAME)_$(VER)-1.tar.gz dist/$(NAME)_$(VER)-1.dsc dist/$(NAME)_$(VER)-1_source.changes
 
 
 # Default target
