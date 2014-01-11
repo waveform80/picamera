@@ -32,6 +32,7 @@ DIST_EGG=dist/$(NAME)-$(VER)-$(PYVER).egg
 DIST_TAR=dist/$(NAME)-$(VER).tar.gz
 DIST_ZIP=dist/$(NAME)-$(VER).zip
 DIST_DEB=dist/python-$(NAME)_$(VER)-1_armhf.deb dist/python3-$(NAME)_$(VER)-1_armhf.deb dist/python-$(NAME)-docs_$(VER)-1_all.deb
+DIST_DSC=dist/$(NAME)_$(VER).orig.tar.gz dist/$(NAME)_$(VER)-1.dsc dist/$(NAME)_$(VER)-1_source.changes
 
 
 # Default target
@@ -64,9 +65,9 @@ zip: $(DIST_ZIP)
 
 tar: $(DIST_TAR)
 
-deb: $(DIST_DEB)
+deb: $(DIST_DEB) $(DIST_DSC)
 
-dist: $(DIST_EGG) $(DIST_DEB) $(DIST_TAR) $(DIST_ZIP)
+dist: $(DIST_EGG) $(DIST_DEB) $(DIST_DSC) $(DIST_TAR) $(DIST_ZIP)
 
 develop: tags
 	$(PYTHON) $(PYFLAGS) setup.py develop
@@ -97,11 +98,22 @@ $(DIST_DEB): $(PY_SOURCES) $(DEB_SOURCES)
 	# project_version.orig.tar.gz
 	$(PYTHON) $(PYFLAGS) setup.py sdist --dist-dir=../
 	rename -f 's/$(NAME)-(.*)\.tar\.gz/$(NAME)_$$1\.orig\.tar\.gz/' ../*
-	debuild -b -i -I -Idist -Idocs -Ibuild/sphinx/doctrees -rfakeroot
+	debuild -b -i -I -Idist -Ibuild -Ihtmlcov -I__pycache__ -I.coverage -Itags -I*.pyc -I.*xcf -rfakeroot
 	mkdir -p dist/
 	cp ../python-$(NAME)_$(VER)-1_armhf.deb dist/
 	cp ../python3-$(NAME)_$(VER)-1_armhf.deb dist/
 	cp ../python-$(NAME)-docs_$(VER)-1_all.deb dist/
+
+$(DIST_DSC): $(PY_SOURCES) $(DEB_SOURCES)
+	# build the source package in the parent directory then rename it to
+	# project_version.orig.tar.gz
+	$(PYTHON) $(PYFLAGS) setup.py sdist --dist-dir=../
+	rename -f 's/$(NAME)-(.*)\.tar\.gz/$(NAME)_$$1\.orig\.tar\.gz/' ../*
+	debuild -S -i -I -Idist -Ibuild -Ihtmlcov -I__pycache__ -I.coverage -Itags -I*.pyc -I.*xcf -rfakeroot
+	mkdir -p dist/
+	cp ../$(NAME)_$(VER)-1_source.changes dist/
+	cp ../$(NAME)_$(VER)-1.dsc dist/
+	cp ../$(NAME)_$(VER)-1.tar.gz dist/
 
 release: $(PY_SOURCES) $(DOC_SOURCES)
 	$(MAKE) clean
@@ -112,9 +124,10 @@ release: $(PY_SOURCES) $(DOC_SOURCES)
 	# update the package's registration on PyPI (in case any metadata's changed)
 	$(PYTHON) $(PYFLAGS) setup.py register
 
-upload: $(PY_SOURCES) $(DOC_SOURCES)
+upload: $(PY_SOURCES) $(DOC_SOURCES) $(DIST_DEB) $(DIST_DSC)
 	# build a source archive and upload to PyPI
 	$(PYTHON) $(PYFLAGS) setup.py sdist upload
+	./maildebs.py $(DIST_DEB) $(DIST_DSC)
 
 .PHONY: all install develop test doc source egg zip tar dist clean tags release upload
 
