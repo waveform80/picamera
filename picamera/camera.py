@@ -791,12 +791,6 @@ class PiCamera(object):
         implementation only assumes the object has a ``write()`` method - no
         other methods will be called).
 
-        The *use_video_port* parameter controls whether the camera's image or
-        video port is used to capture images. It defaults to ``False`` which
-        means that the camera's image port is used. This port is slow but
-        produces better quality pictures. If you need rapid capture up to the
-        rate of video frames, set this to ``True``.
-
         If *format* is ``None`` (the default), the method will attempt to guess
         the required image format from the extension of *output* (if it's a
         string), or from the *name* attribute of *output* (if it has one). In
@@ -823,6 +817,12 @@ class PiCamera(object):
 
         * ``'raw'`` - Deprecated option for raw captures; the format is taken
           from the deprecated :attr:`raw_format` attribute
+
+        The *use_video_port* parameter controls whether the camera's image or
+        video port is used to capture images. It defaults to ``False`` which
+        means that the camera's image port is used. This port is slow but
+        produces better quality pictures. If you need rapid capture up to the
+        rate of video frames, set this to ``True``.
 
         If *resize* is not ``None`` (the default), it must be a two-element
         tuple specifying the width and height that the image should be resized
@@ -875,15 +875,10 @@ class PiCamera(object):
         or iterator of outputs, the camera captures a single image as fast as
         it can.
 
-        The *format*, *resize*, and *options* parameters are the same as in
-        :meth:`capture`, but *format* defaults to ``'jpeg'``. The format is
-        **not** derived from the filenames in *outputs* by this method.
-
-        The *use_video_port* parameter controls whether the camera's image or
-        video port is used to capture images. It defaults to ``False`` which
-        means that the camera's image port is used. This port is slow but
-        produces better quality pictures. If you need rapid capture up to the
-        rate of video frames, set this to ``True``.
+        The *format*, *use_video_port*, *resize*, and *options* parameters are
+        the same as in :meth:`capture`, but *format* defaults to ``'jpeg'``.
+        The format is **not** derived from the filenames in *outputs* by this
+        method.
 
         For example, to capture 3 consecutive images::
 
@@ -1002,14 +997,8 @@ class PiCamera(object):
         between the images to distinguish them, or clear the object between
         iterations.
 
-        The *format*, *resize*, and *options* parameters are the same as in
-        :meth:`capture`.
-
-        The *use_video_port* parameter controls whether the camera's image or
-        video port is used to capture images. It defaults to ``False`` which
-        means that the camera's image port is used. This port is slow but
-        produces better quality pictures. If you need rapid capture up to the
-        rate of video frames, set this to ``True``.
+        The *format*, *use_video_port*, *resize*, and *options* parameters are
+        the same as in :meth:`capture`.
 
         For example, to capture 60 images with a one second delay between them,
         writing the output to a series of JPEG files named image01.jpg,
@@ -1387,8 +1376,8 @@ class PiCamera(object):
         specified as a ``(width, height)`` tuple, the camera must not be
         closed, and no recording must be active when the property is set.
 
-        The property defaults to the standard 1080p resolution of ``(1920,
-        1080)``.
+        The property defaults to the Pi's currently configured display
+        resolution.
 
         .. note::
 
@@ -1725,7 +1714,7 @@ class PiCamera(object):
         The property can be set while recordings or previews are in progress.
         The default value is ``False``.
 
-        .. warning::
+        .. note::
 
             The built-in video stabilization only accounts for `vertical and
             horizontal motion`_, not rotation.
@@ -1810,13 +1799,6 @@ class PiCamera(object):
         When set, the property adjusts the camera's exposure mode.  The
         property can be set while recordings or previews are in progress. The
         default value is ``'auto'``.
-
-        .. warning::
-
-            Currently, the "verylong" exposure mode can `lock up the camera`_
-            under certain conditions.
-
-        .. _lock up the camera: http://www.raspberrypi.org/phpBB3/viewtopic.php?p=429945#p429945
         """)
 
     def _get_awb_mode(self):
