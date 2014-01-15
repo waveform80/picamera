@@ -56,7 +56,7 @@ def main():
         subprocess.check_output(['git', 'config', '--global', 'user.email']).decode('utf-8').strip(),
         ))
     sender_match = re.match(r'(?P<name>[^<]+) <(?P<email>[^>]+)>', sender)
-    recipient_match = re.match(r'(?P<name>[^<]+) <(?P<email>[^>]+)>', sender)
+    recipient_match = re.match(r'(?P<name>[^<]+) <(?P<email>[^>]+)>', recipient)
     subst = {
         'project': project,
         'version': version,
