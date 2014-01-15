@@ -28,7 +28,7 @@ form. For this, the ``'yuv'`` format is provided::
         time.sleep(2)
         camera.capture('image.data', 'yuv')
 
-The specific `YUV`_ format used is YUV420 (planar). This means that the Y
+The specific `YUV`_ format used is `YUV420`_ (planar). This means that the Y
 (luminance) values occur first in the resulting data and have full resolution
 (one 1-byte Y value for each pixel in the image). The Y values are followed by
 the U (chrominance) values, and finally the V (chrominance) values.  The UV
@@ -42,7 +42,7 @@ nearest multiple of 16. For example, if the requested resolution is 100x100,
 a raw capture will actually contain 128x112 pixels worth of data, but pixels
 beyond 100x100 will be uninitialized.
 
-Given that the YUV420 format contains 1.5 bytes worth of data for each pixel
+Given that the `YUV420`_ format contains 1.5 bytes worth of data for each pixel
 (a 1-byte Y value for each pixel, and 1-byte U and V values for every 4 pixels),
 and taking into account the resolution rounding, the size of a 100x100 raw
 capture will be:
@@ -137,11 +137,11 @@ for the :meth:`~picamera.PiCamera.capture` method instead::
         time.sleep(2)
         camera.capture('image.data', 'rgb')
 
-The size of raw RGB data can be calculated similarly to YUV captures. Firstly
-round the resolution appropriately (see :ref:`yuv_capture` for the specifics),
-then multiply the number of pixels by 3 (1 byte of red, 1 byte of green, and
-1 byte of blue intensity). Hence, for a 100x100 capture, the amount of data
-produced is:
+The size of raw `RGB`_ data can be calculated similarly to `YUV`_ captures.
+Firstly round the resolution appropriately (see :ref:`yuv_capture` for the
+specifics), then multiply the number of pixels by 3 (1 byte of red, 1 byte of
+green, and 1 byte of blue intensity). Hence, for a 100x100 capture, the amount
+of data produced is:
 
 .. math::
 
@@ -150,12 +150,12 @@ produced is:
     \times & 3     \quad \text{bytes of data per pixel in RGB888 format} \\
     =      & 43008 \quad \text{bytes}
 
-The resulting RGB data is interleaved. That is to say that the red, green and
-blue values for a given pixel are grouped together, in that order. The first
-byte of the data is the red value for the pixel at (0, 0), the second byte is
-the green value for the same pixel, and the third byte is the blue value for
-that pixel. The fourth byte is the red value for the pixel at (1, 0), and so
-on.
+The resulting `RGB`_ data is interleaved. That is to say that the red, green
+and blue values for a given pixel are grouped together, in that order. The
+first byte of the data is the red value for the pixel at (0, 0), the second
+byte is the green value for the same pixel, and the third byte is the blue
+value for that pixel. The fourth byte is the red value for the pixel at (1, 0),
+and so on.
 
 Loading the resulting RGB data into a `numpy`_ array is simple::
 
@@ -190,17 +190,20 @@ Loading the resulting RGB data into a `numpy`_ array is simple::
 
     The :attr:`~picamera.PiCamera.raw_format` attribute is now deprecated, as
     is the ``'raw'`` format specification for the
-    :meth:`~picamera.PiCamera.capture` method. Simply use the ``'yuv'`` format
+    :meth:`~picamera.PiCamera.capture` method. Simply use the ``'rgb'`` format
     instead, as shown in the code above.
 
 .. warning::
 
-    You may find RGB captures rather slow. If this is the case, please try the
-    ``'rgba'`` format instead. The reason for this is that GPU component that
-    picamera uses to perform RGB conversion doesn't support RGB output, only
-    RGBA. As a result, RGBA data can be written directly, but picamera has to
-    spend time stripping out the (unused) alpha byte from RGBA if RGB format
-    is requested. A similar situation exists for the BGR and BGRA formats.
+    You may find `RGB`_ captures rather slow. If this is the case, please try
+    the ``'rgba'`` format instead. The reason for this is that GPU component
+    that picamera uses to perform RGB conversion doesn't support RGB output,
+    only `RGBA`_. As a result, RGBA data can be written directly, but picamera
+    has to spend time stripping out the (unused) alpha byte from RGBA if RGB
+    format is requested. A similar situation exists for the BGR and BGRA
+    formats.
+
+
 
 
 .. _rapid_capture:
@@ -229,7 +232,8 @@ All capture methods support the ``use_video_port`` option, but the methods
 differ in their ability to rapidly capture sequential frames. So, whilst
 :meth:`~picamera.PiCamera.capture` and
 :meth:`~picamera.PiCamera.capture_continuous` both support ``use_video_port``,
-:meth:`~picamera.PiCamera.capture_sequence` is by far the fastest method. Using
+:meth:`~picamera.PiCamera.capture_sequence` is by far the fastest method
+(because it does not re-initialize an encoder prior to each capture). Using
 this method, the author has managed 30fps JPEG captures at a resolution of
 1024x768.
 
@@ -701,7 +705,9 @@ still frame from 10 seconds into the video.
 
 
 .. _YUV: http://en.wikipedia.org/wiki/YUV
+.. _YUV420: http://en.wikipedia.org/wiki/YUV#Y.27UV420p_.28and_Y.27V12_or_YV12.29_to_RGB888_conversion
 .. _RGB: http://en.wikipedia.org/wiki/RGB
+.. _RGBA: http://en.wikipedia.org/wiki/RGBA_color_space
 .. _numpy: http://www.numpy.org/
 .. _ring buffer: http://en.wikipedia.org/wiki/Circular_buffer
 
