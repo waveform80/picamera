@@ -451,17 +451,27 @@ class PiVideoEncoder(PiEncoder):
                     )
             mmal_check(
                 mmal.mmal_port_parameter_set(self.output_port, mp.hdr),
-                prefix="Unable to set quantization")
+                prefix="Unable to set initial quantization")
             mp = mmal.MMAL_PARAMETER_UINT32_T(
                     mmal.MMAL_PARAMETER_HEADER_T(
-                        mmal.MMAL_PARAMETER_VIDEO_ENCODE_QP_P,
+                        mmal.MMAL_PARAMETER_VIDEO_ENCODE_MIN_QUANT,
                         ct.sizeof(mmal.MMAL_PARAMETER_UINT32_T),
                         ),
-                    quantization + 6,
+                    quantization,
                     )
             mmal_check(
                 mmal.mmal_port_parameter_set(self.output_port, mp.hdr),
-                prefix="Unable to set quantization")
+                prefix="Unable to set minimum quantization")
+            mp = mmal.MMAL_PARAMETER_UINT32_T(
+                    mmal.MMAL_PARAMETER_HEADER_T(
+                        mmal.MMAL_PARAMETER_VIDEO_ENCODE_MAX_QUANT,
+                        ct.sizeof(mmal.MMAL_PARAMETER_UINT32_T),
+                        ),
+                    quantization,
+                    )
+            mmal_check(
+                mmal.mmal_port_parameter_set(self.output_port, mp.hdr),
+                prefix="Unable to set maximum quantization")
 
         mmal_check(
             mmal.mmal_port_parameter_set_boolean(
