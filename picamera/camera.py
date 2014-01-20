@@ -1202,12 +1202,12 @@ class PiCamera(object):
         return self._exif_tags
 
     def _set_led(self, value):
+        if not self._used_led:
+            self._init_led()
         if not GPIO:
             raise PiCameraRuntimeError(
                 "GPIO library not found, or not accessible; please install "
                 "RPi.GPIO and run the script as root")
-        if not self._used_led:
-            self._init_led()
         GPIO.output(5, bool(value))
     led = property(None, _set_led, doc="""
         Sets the state of the camera's LED via GPIO.
