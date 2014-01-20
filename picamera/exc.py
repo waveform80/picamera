@@ -42,10 +42,11 @@ import picamera.mmal as mmal
 
 
 __all__ = [
+    'PiCameraWarning',
     'PiCameraError',
     'PiCameraRuntimeError',
     'PiCameraValueError',
-    'PiCameraWarning',
+    'PiCameraMMALError',
     'mmal_check',
     ]
 
@@ -74,16 +75,13 @@ class PiCameraValueError(PiCameraError, ValueError):
     """
 
 
-def mmal_check(status, prefix=""):
+class PiCameraMMALError(PiCameraError):
     """
-    Checks the return status of an mmal call and raises an exception on
-    failure.
-
-    The optional prefix parameter specifies a prefix message to place at the
-    start of the exception's message to provide some context.
+    Raised when an MMAL operation fails for whatever reason
     """
-    if status != mmal.MMAL_SUCCESS:
-        raise PiCameraError("%s%s%s" % (prefix, ": " if prefix else "", {
+    def __init__(self, status, prefix=""):
+        self.status = status
+        PiCameraError.__init__(self, "%s%s%s" % (prefix, ": " if prefix else "", {
             mmal.MMAL_ENOMEM:    "Out of memory",
             mmal.MMAL_ENOSPC:    "Out of resources (other than memory)",
             mmal.MMAL_EINVAL:    "Argument is invalid",
@@ -100,4 +98,16 @@ def mmal_check(status, prefix=""):
             mmal.MMAL_EAGAIN:    "Resource temporarily unavailable; try again later",
             mmal.MMAL_EFAULT:    "Bad address",
             }.get(status, "Unknown status error")))
+
+
+def mmal_check(status, prefix=""):
+    """
+    Checks the return status of an mmal call and raises an exception on
+    failure.
+
+    The optional prefix parameter specifies a prefix message to place at the
+    start of the exception's message to provide some context.
+    """
+    if status != mmal.MMAL_SUCCESS:
+        raise PiCameraMMALError(status, prefix)
 

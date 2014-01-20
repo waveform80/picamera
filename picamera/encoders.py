@@ -49,6 +49,7 @@ from picamera.exc import (
     mmal_check,
     PiCameraWarning,
     PiCameraError,
+    PiCameraMMALError,
     PiCameraValueError,
     PiCameraRuntimeError,
     )
@@ -209,18 +210,22 @@ class PiEncoder(object):
         """
         The encoder's main callback function
         """
-        stop = False
-        try:
+        if self.stopped:
+            mmal.mmal_buffer_header_release(buf)
+        else:
+            stop = False
             try:
-                stop = self._callback_write(buf) and not self.stopped
-            finally:
-                self._callback_recycle(port, buf)
-        except Exception as e:
-            stop = True
-            self.exception = e
-        if stop:
-            self.stopped = True
-            self.event.set()
+                try:
+                    stop = self._callback_write(buf)
+                finally:
+                    mmal.mmal_buffer_header_release(buf)
+                    self._callback_recycle(port, buf)
+            except Exception as e:
+                stop = True
+                self.exception = e
+            if stop:
+                self.stopped = True
+                self.event.set()
 
     def _callback_write(self, buf):
         """
@@ -249,15 +254,13 @@ class PiEncoder(object):
         """
         Recycles the buffer on behalf of the encoder callback function
         """
-        mmal.mmal_buffer_header_release(buf)
-        if port[0].is_enabled:
-            new_buf = mmal.mmal_queue_get(self.pool[0].queue)
-            if not new_buf:
-                raise PiCameraError(
-                    "Unable to get a buffer to return to the encoder port")
-            mmal_check(
-                mmal.mmal_port_send_buffer(port, new_buf),
-                prefix="Unable to return a buffer to the encoder port")
+        new_buf = mmal.mmal_queue_get(self.pool[0].queue)
+        if not new_buf:
+            raise PiCameraError(
+                "Unable to get a buffer to return to the encoder port")
+        mmal_check(
+            mmal.mmal_port_send_buffer(port, new_buf),
+            prefix="Unable to return a buffer to the encoder port")
 
     def _open_output(self, output):
         """
@@ -316,11 +319,14 @@ class PiEncoder(object):
         """
         result = self.event.wait(timeout)
         if result:
-            if self.output_port[0].is_enabled:
+            self._close_output()
+            try:
                 mmal_check(
                     mmal.mmal_port_disable(self.output_port),
                     prefix="Failed to disable encoder output port")
-            self._close_output()
+            except PiCameraMMALError as e:
+                if e.status != mmal.MMAL_EINVAL:
+                    raise
             # Check whether the callback set an exception
             if self.exception:
                 raise self.exception
@@ -330,10 +336,18 @@ class PiEncoder(object):
         """
         Stops the encoder, regardless of whether it's finished
         """
+        # The check on is_enabled below is not a race condition; we ignore the
+        # EINVAL error in the case the port turns out to be disabled when we
+        # disable below. The check exists purely to prevent stderr getting
+        # spammed by our continued attempts to disable an already disabled port
         if self.encoder and self.output_port[0].is_enabled:
-            mmal_check(
-                mmal.mmal_port_disable(self.output_port),
-                prefix="Failed to disable encoder output port")
+            try:
+                mmal_check(
+                    mmal.mmal_port_disable(self.output_port),
+                    prefix="Failed to disable encoder output port")
+            except PiCameraMMALError as e:
+                if e.status != mmal.MMAL_EINVAL:
+                    raise
         self.stopped = True
         self.event.set()
         self._close_output()
@@ -352,13 +366,9 @@ class PiEncoder(object):
         if self.resizer_connection:
             mmal.mmal_connection_destroy(self.resizer_connection)
         if self.encoder:
-            if self.encoder[0].is_enabled:
-                mmal.mmal_component_disable(self.encoder)
             mmal.mmal_component_destroy(self.encoder)
             self.encoder = None
         if self.resizer:
-            if self.resizer[0].is_enabled:
-                mmal.mmal_component_disable(self.resizer)
             mmal.mmal_component_destroy(self.resizer)
             self.resizer = None
         self.output_port = None
