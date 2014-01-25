@@ -457,6 +457,80 @@ resolution::
 .. versionadded:: 1.0
 
 
+.. _circular_record1:
+
+Recording to a circular stream
+==============================
+
+This is similar to :ref:`stream_record` but uses a special kind of in-memory
+stream provided by the picamera library. The
+:class:`~picamera.PiCameraCircularIO` class implements a `ring buffer`_ based
+stream, specifically for video recording.  This enables you to keep an
+in-memory stream containing the last *n* seconds of video recorded (where *n*
+is determined by the bitrate of the video recording and the size of the ring
+buffer underlying the stream).
+
+A typical use-case for this sort of storage is security applications where one
+wishes to detect motion and only record to disk the video where motion was
+detected. This example keeps 20 seconds of video in memory until the
+``write_now`` function returns ``True`` (in this implementation, this is random
+but one could, for example, replace this with some sort of motion detection
+algorithm). Once ``write_now`` returns ``True``, the script waits 10 more
+seconds (so that the buffer contains 10 seconds of video from before the event,
+and 10 seconds after) and writes the resulting video to disk before going back
+to waiting::
+
+    import io
+    import random
+    import picamera
+
+    def write_now():
+        # Randomly return True (like a fake motion detection routine)
+        return random.randint(0, 10) == 0
+
+    def write_video(stream):
+        print('Writing video!')
+        with stream.lock:
+            # Find the first header frame in the video
+            for frame in stream.frames:
+                if frame.header:
+                    stream.seek(frame.position)
+                    break
+            # Write the rest of the stream to disk
+            with io.open('motion.h264', 'wb') as output:
+                output.write(stream.read())
+
+    with picamera.PiCamera() as camera:
+        stream = picamera.PiCameraCircularIO(camera, seconds=20)
+        camera.start_recording(stream, format='h264')
+        try:
+            while True:
+                camera.wait_recording(1)
+                if write_now():
+                    # Keep recording for 10 seconds and only then write the
+                    # stream to disk
+                    camera.wait_recording(10)
+                    write_video(stream)
+        finally:
+            camera.stop_recording()
+
+In the above script we use the threading lock in the
+:attr:`~picamera.CircularIO.lock` attribute to prevent the camera's background
+writing thread from changing the stream while our own thread reads from it (as
+the stream is a circular buffer, a write can remove information that is about
+to be read). If we had stopped recording while writing we could eliminate the
+``with stream.lock`` line in the ``write_video`` function.
+
+.. note::
+
+    Note that *at least* 20 seconds of video are in the stream. This is an
+    estimate only; if the H.264 encoder requires less than the specified
+    bitrate (17Mbps by default) for recording the video, then more than 20
+    seconds of video will be available in the stream.
+
+.. versionadded:: 1.0
+
+
 .. _streaming_record:
 
 Recording to a network stream
@@ -590,4 +664,5 @@ attribute::
 .. _OpenCV: http://opencv.org/
 .. _x264dev blog: http://x264dev.multimedia.cx/archives/249
 .. _RPi.GPIO: https://pypi.python.org/pypi/RPi.GPIO
+.. _ring buffer: http://en.wikipedia.org/wiki/Circular_buffer
 

@@ -547,130 +547,6 @@ currently clear. Suggestions for further improvements are welcomed!
 .. versionadded:: 0.5
 
 
-.. _circular_record:
-
-Recording to a circular stream
-==============================
-
-This is similar to :ref:`stream_record` but uses a special kind of in-memory
-stream provided by the picamera library. The
-:class:`~picamera.PiCameraCircularIO` class implements a `ring buffer`_ based
-stream, specifically for video recording.  This enables you to keep an
-in-memory stream containing the last *n* seconds of video recorded (where *n*
-is determined by the bitrate of the video recording and the size of the ring
-buffer underlying the stream).
-
-For example, the following script keeps at least 10 seconds of video in the
-circular stream and then writes it to disk when the user presses a key::
-
-    import io
-    import sys
-    import picamera
-    from select import select
-
-    with picamera.PiCamera() as camera:
-        camera.resolution = (1280, 720)
-        stream = picamera.PiCameraCircularIO(camera, seconds=10)
-        camera.start_recording(stream, format='h264')
-        print('Press Enter to stop recording and write out the video')
-        while True:
-            camera.wait_recording(0.5)
-            # Wait half a second for a key press
-            r, w, x = select([sys.stdin], [], [], 0.5)
-            if r:
-                break
-        camera.stop_recording()
-        print('Writing the video to foo.h264')
-        # Find the first header frame in the video
-        for frame in stream.frames:
-            if frame.header:
-                stream.seek(frame.position)
-                break
-        # Write the rest of the stream to a disk file
-        with io.open('foo.h264', 'wb') as output:
-            output.write(stream.read())
-
-.. note::
-
-    Note that *at least* 10 seconds of video are in the stream. This is an
-    estimate only; if the H.264 encoder requires less than the specified
-    bitrate (17Mbps by default) for recording the video, then more than 10
-    seconds of video will be available in the stream.
-
-In the above script we stop the camera recording before writing the stream's
-content to disk. However, it is possible to read from the stream without
-stopping the recording. To do this one must use the threading lock in the
-:attr:`~picamera.CircularIO.lock` attribute to prevent the camera's background
-writing thread from changing the stream while your own thread reads from it (as
-the stream is a circular buffer, a write can remove information that is about
-to be read).
-
-Additionally, when reading from the stream, the
-:meth:`~picamera.CircularIO.read1` method should be used whenever possible (as
-opposed to :meth:`~picamera.CircularIO.read`) for greater efficiency. However,
-note that :meth:`~picamera.CircularIO.read1` does not guarantee to return the
-number of bytes requested even if they are available in the underlying stream -
-it simply returns as many as are available from a single chunk up to the limit
-specified.
-
-The following variant on the above script demonstrates both of these
-techniques::
-
-    # Py2 compatibility
-    from __future__ import print_function
-    try:
-        input = raw_input
-    except NameError:
-        pass
-
-    import io
-    import sys
-    import picamera
-    from select import select
-
-
-    with picamera.PiCamera() as camera:
-        camera.resolution = (1280, 720)
-        stream = picamera.PiCameraCircularIO(camera, seconds=10)
-        camera.start_recording(stream, format='h264')
-        print('Enter <w> to write the stream to disk')
-        print('Enter <q> to stop recording and exit')
-        while camera.recording:
-            while True:
-                camera.wait_recording(0.5)
-                # Wait half a second for a key press
-                r, w, x = select([sys.stdin], [], [], 0.5)
-                if r:
-                    break
-            c = input()
-            if c == 'q':
-                print('Exiting...')
-                camera.stop_recording()
-            elif c == 'w':
-                print('Writing the video to foo.h264...', end='')
-                # Lock the stream to prevent the camera mutating it while we
-                # read from it
-                with stream.lock:
-                    # Find the first header frame in the video
-                    for frame in stream.frames:
-                        if frame.header:
-                            stream.seek(frame.position)
-                            break
-                    # Write the rest of the stream to a disk file using read1
-                    # for speed
-                    with io.open('foo.h264', 'wb') as output:
-                        while True:
-                            buf = stream.read1()
-                            if not buf:
-                                break
-                            output.write(buf)
-                print('done')
-            else:
-                print('Unrecognized input: %s' % c)
-
-.. versionadded:: 1.0
-
-
 .. _record_and_capture:
 
 Capturing images whilst recording
@@ -702,6 +578,103 @@ The above code should produce a 20 second video with no dropped frames, and a
 still frame from 10 seconds into the video.
 
 .. versionadded:: 0.8
+
+
+.. _circular_record2:
+
+Splitting to/from a circular stream
+===================================
+
+This example builds on the one in :ref:`circular_record1` and the one in
+:ref:`record_and_capture` to demonstrate the beginnings of a security
+application. As before, a :class:`~picamera.PiCameraCircularIO` instance is
+used to keep the last few seconds of video recorded in memory. While the video
+is being recorded, video-port-based still captures are taken to provide a
+motion detection routine with some input (the actual motion detection algorithm
+is left as an exercise for the reader).
+
+Once motion is detected, the last 10 seconds of video are written to disk, and
+video recording is split to another disk file to proceed until motion is no
+longer detected. Once motion is no longer detected, we split the recording back
+to the in-memory ring-buffer::
+
+    import io
+    import random
+    import picamera
+    from PIL import Image
+
+    prior_image = None
+
+    def detect_motion(camera):
+        global prior_image
+        stream = io.BytesIO()
+        camera.capture(stream, format='jpeg', use_video_port=True)
+        stream.seek(0)
+        if prior_image is None:
+            prior_image = Image.open(stream)
+            return False
+        else:
+            current_image = Image.open(stream)
+            # Compare current_image to prior_image to detect motion. This is
+            # left as an exercise for the reader!
+            result = random.randint(0, 10) == 0
+            # Once motion detection is done, make the prior image the current
+            prior_image = current_image
+            return result
+
+    def write_before(stream):
+        # Write the entire content of the circular buffer to disk. No need to
+        # lock the stream here as we're definitely not writing to it
+        # simultaneously
+        with io.open('before.h264', 'wb') as output:
+            for frame in stream.frames:
+                if frame.header:
+                    stream.seek(frame.position)
+                    break
+            while True:
+                buf = stream.read1()
+                if not buf:
+                    break
+                output.write(buf)
+        # Wipe the circular stream once we're done
+        stream.seek(0)
+        stream.truncate()
+
+    with picamera.PiCamera() as camera:
+        camera.resolution = (1280, 720)
+        stream = picamera.PiCameraCircularIO(camera, seconds=10)
+        camera.start_recording(stream, format='h264')
+        try:
+            while True:
+                camera.wait_recording(1)
+                if detect_motion(camera):
+                    print('Motion detected!')
+                    # As soon as we detect motion, split the recording to
+                    # record the frames "after" motion
+                    camera.split_recording('after.h264')
+                    # Write the 10 seconds "before" motion to disk as well
+                    write_video(stream)
+                    # Wait until motion is no longer detected, then split
+                    # recording back to the in-memory circular buffer
+                    while detect_motion(camera):
+                        camera.wait_recording(1)
+                    print('Motion stopped!')
+                    camera.split_recording(stream)
+        finally:
+            camera.stop_recording()
+
+This example also demonstrates writing the circular buffer to disk in an
+efficient manner using the :meth:`~picamera.PiCameraCircularIO.read1` method
+(as opposed to :meth:`~picamera.CircularIO.read`).
+
+.. note::
+
+    Note that :meth:`~picamera.CircularIO.read1` does not guarantee to return
+    the number of bytes requested, even if they are available in the underlying
+    stream; it simply returns as many as are available from a single chunk up
+    to the limit specified.
+
+.. versionadded:: 1.0
 
 
 .. _YUV: http://en.wikipedia.org/wiki/YUV
