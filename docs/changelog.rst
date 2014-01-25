@@ -5,6 +5,23 @@ Change log
 ==========
 
 
+Release 1.1 (2014-01-25)
+========================
+
+1.1 was mostly a bug fix release:
+
+* A nasty race condition was discovered which led to crashes with long-running
+  processes (`#40`_)
+* An assertion error raised when performing raw captures with an active resize
+  parameter was fixed (`#46`_)
+* A couple of documentation enhancements made it in (`#41`_ and `#47`_)
+
+.. _#40: https://github.com/waveform80/picamera/issues/40
+.. _#41: https://github.com/waveform80/picamera/issues/41
+.. _#46: https://github.com/waveform80/picamera/issues/46
+.. _#47: https://github.com/waveform80/picamera/issues/47
+
+
 Release 1.0 (2014-01-11)
 ========================
 
@@ -38,7 +55,6 @@ As this is a new major-version, all deprecated elements were removed:
 
 * The continuous method was removed; this was replaced by
   :meth:`~picamera.PiCamera.capture_continuous` in 0.5 (`#7`_)
-
 
 .. _#7: https://github.com/waveform80/picamera/issues/7
 .. _#12: https://github.com/waveform80/picamera/issues/12

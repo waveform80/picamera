@@ -1,3 +1,13 @@
+picamera (1.1-1) stable; urgency=low
+
+  * A nasty race condition was discovered which led to crashes with
+    long-running processes (#40)
+  * An assertion error raised when performing raw captures with an active
+    resize parameter was fixed (#46)
+  * A couple of documentation enhancements made it in (#41 and #47)
+
+ -- Dave Hughes <dave@waveform.org.uk>  Sat, 25 Jan 2014 23:32:18 +0000
+
 picamera (1.0-1) stable; urgency=low
 
   * Debian packaging! (#12)
