@@ -538,13 +538,20 @@ object created from the network socket::
 You will probably notice several seconds of latency with this setup. This is
 normal and is because VLC buffers several seconds to guard against unreliable
 network streams. Low latency video streaming requires rather more effort (the
-`x264dev blog`_ provides some insight into the complexity involved)!
+`x264dev blog`_ provides some insight into the complexity involved)! (there is
+second option to use Mplayer instead of vlc. You can just change this :: 
+  vlc = subprocess.Popen(['vlc', '--demux', 'h264', '-'], stdin=subprocess.PIPE)
+with this 
+  mpl = subprocess.Popen(["mplayer", "-fps", "31", "-cache", "1024", "-"],
+    stdin=subprocess.PIPE)
+end now it works witout any significant latency (need to press rigth arrow 
+to wiev litest frames). )
 
 It should also be noted that the effect of the above is much more easily
 achieved (at least on Linux) with a combination of ``netcat`` and the
 ``raspivid`` executable. For example::
 
-    server-side: nc -l 8000 | vlc --demux h264 -
+    server-side: nc -l 8000 | vlc --demux h264 - 
     client-side: raspivid -w 640 -h 480 -t 60000 -o - | nc my_server 8000
 
 However, this recipe does serve as a starting point for video streaming
