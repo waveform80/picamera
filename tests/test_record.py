@@ -126,6 +126,8 @@ def test_record_to_file(camera, previewing, resolution, filenames_format_options
     filename1, filename2, format, options = filenames_format_options
     if resolution == (2592, 1944) and 'resize' not in options:
         pytest.xfail('Cannot encode video at max resolution')
+    if resolution == (1920, 1080) and format == 'mjpeg':
+        pytest.xfail('Locks up camera')
     camera.start_recording(filename1, **options)
     try:
         camera.wait_recording(1)
@@ -153,6 +155,8 @@ def test_record_to_stream(camera, previewing, resolution, format_options):
     format, options = format_options
     if resolution == (2592, 1944) and 'resize' not in options:
         pytest.xfail('Cannot encode video at max resolution')
+    if resolution == (1920, 1080) and format == 'mjpeg':
+        pytest.xfail('Locks up camera')
     stream1 = tempfile.SpooledTemporaryFile()
     stream2 = tempfile.SpooledTemporaryFile()
     camera.start_recording(stream1, format, **options)
