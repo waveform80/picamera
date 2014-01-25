@@ -435,27 +435,18 @@ class PiCamera(object):
 
     def _get_ports(self, for_video, from_video_port):
         """
-        Determine the camera and encoder ports for given capture options
+        Determine the camera and output ports for given capture options
         """
         camera_port = (
             self._camera[0].output[self.CAMERA_VIDEO_PORT] if from_video_port else
             self._camera[0].output[self.CAMERA_CAPTURE_PORT]
             )
-        encoder_port = (
+        output_port = (
             self._splitter[0].output[self.SPLITTER_VIDEO_PORT] if for_video else
             self._splitter[0].output[self.SPLITTER_CAPTURE_PORT] if from_video_port else
             camera_port
             )
-        return (camera_port, encoder_port)
-
-    def _enable_port(self, camera_port):
-        """
-        Tell the specified camera port to begin capture
-        """
-        mmal_check(
-            mmal.mmal_port_parameter_set_boolean(
-                camera_port, mmal.MMAL_PARAMETER_CAPTURE, mmal.MMAL_TRUE),
-            prefix="Failed to start capture")
+        return (camera_port, output_port)
 
     def _reconfigure_splitter(self):
         """
@@ -706,14 +697,13 @@ class PiCamera(object):
         """
         if self.recording:
             raise PiCameraRuntimeError('The camera is already recording')
-        camera_port, enc_port = self._get_ports(
+        camera_port, output_port = self._get_ports(
                 for_video=True, from_video_port=True)
         format = self._get_video_format(output, format)
         self._video_encoder = PiVideoEncoder(
-            self, enc_port, format, resize, **options)
+                self, camera_port, output_port, format, resize, **options)
         try:
             self._video_encoder.start(output)
-            self._enable_port(camera_port)
         except Exception as e:
             self._video_encoder.close()
             self._video_encoder = None
@@ -844,16 +834,16 @@ class PiCamera(object):
             The *resize* parameter was added, and raw capture formats can now
             be specified directly
         """
-        camera_port, enc_port = self._get_ports(
+        camera_port, output_port = self._get_ports(
                 for_video=False, from_video_port=use_video_port)
         format = self._get_image_format(output, format)
-        enc_class = (
+        encoder_class = (
                 PiRawOneImageEncoder if format in self.RAW_FORMATS else
                 PiCookedOneImageEncoder)
-        encoder = enc_class(self, enc_port, format, resize, **options)
+        encoder = encoder_class(
+                self, camera_port, output_port, format, resize, **options)
         try:
             encoder.start(output)
-            self._enable_port(camera_port)
             # Wait for the callback to set the event indicating the end of
             # image capture
             if not encoder.wait(30):
@@ -916,29 +906,29 @@ class PiCamera(object):
             The *resize* parameter was added, and raw capture formats can now
             be specified directly
         """
-        camera_port, enc_port = self._get_ports(
+        camera_port, output_port = self._get_ports(
                 for_video=False, from_video_port=use_video_port)
         format = self._get_image_format('', format)
         if use_video_port:
-            enc_class = (
+            encoder_class = (
                     PiRawMultiImageEncoder if format in self.RAW_FORMATS else
                     PiCookedMultiImageEncoder)
-            encoder = enc_class(self, enc_port, format, resize, **options)
+            encoder = encoder_class(
+                    self, camera_port, output_port, format, resize, **options)
             try:
                 encoder.start(outputs)
-                self._enable_port(camera_port)
                 encoder.wait()
             finally:
                 encoder.close()
         else:
-            enc_class = (
+            encoder_class = (
                     PiRawOneImageEncoder if format in self.RAW_FORMATS else
                     PiCookedOneImageEncoder)
-            encoder = enc_class(self, enc_port, format, resize, **options)
+            encoder = encoder_class(
+                    self, camera_port, output_port, format, resize, **options)
             try:
                 for output in outputs:
                     encoder.start(output)
-                    self._enable_port(camera_port)
                     if not encoder.wait(30):
                         raise PiCameraRuntimeError(
                             'Timed out waiting for capture to end')
@@ -1038,13 +1028,14 @@ class PiCamera(object):
             The *resize* parameter was added, and raw capture formats can now
             be specified directly
         """
-        camera_port, enc_port = self._get_ports(
+        camera_port, output_port = self._get_ports(
                 for_video=False, from_video_port=use_video_port)
         format = self._get_image_format(output, format)
-        enc_class = (
+        encoder_class = (
                 PiRawOneImageEncoder if format in self.RAW_FORMATS else
                 PiCookedOneImageEncoder)
-        encoder = enc_class(self, enc_port, format, resize, **options)
+        encoder = encoder_class(
+                self, camera_port, output_port, format, resize, **options)
         try:
             if isinstance(output, bytes):
                 # If we're fed a bytes string, assume it's UTF-8 encoded and
@@ -1062,7 +1053,6 @@ class PiCamera(object):
                         timestamp=datetime.datetime.now(),
                         )
                     encoder.start(filename)
-                    self._enable_port(camera_port)
                     if not encoder.wait(30):
                         raise PiCameraRuntimeError(
                             'Timed out waiting for capture to end')
@@ -1071,7 +1061,6 @@ class PiCamera(object):
             else:
                 while True:
                     encoder.start(output)
-                    self._enable_port(camera_port)
                     if not encoder.wait(30):
                         raise PiCameraRuntimeError(
                             'Timed out waiting for capture to end')
