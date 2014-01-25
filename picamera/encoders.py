@@ -742,7 +742,6 @@ class PiRawEncoderMixin(PiImageEncoder):
         # decide when a frame ends. This is to work around a firmware bug that
         # causes the raw image to be returned twice when the maximum camera
         # resolution is requested
-        width, height = self.parent.resolution
         self._image_size = int(
             ((width + 31) // 32 * 32) *  # round up width to nearest multiple of 32
             ((height + 15) // 16 * 16) * # round up height to nearest multiple of 16
@@ -782,7 +781,7 @@ class PiRawEncoderMixin(PiImageEncoder):
                         assert self._image_size >= 0
             finally:
                 mmal.mmal_buffer_header_mem_unlock(buf)
-        return not self._image_size
+        return self._image_size <= 0
 
 
 class PiRawOneImageEncoder(PiRawEncoderMixin, PiOneImageEncoder):
