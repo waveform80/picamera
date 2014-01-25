@@ -545,7 +545,7 @@ necessarily incorporates such information, albeit in a much more efficient
 form), so we can simply dump the recording straight to the network socket.
 
 Firstly, the server side script which will simply read the video stream and
-pipe it to VLC for display::
+pipe it to a media player for display::
 
     import socket
     import subprocess
@@ -559,26 +559,38 @@ pipe it to VLC for display::
     # Accept a single connection and make a file-like object out of it
     connection = server_socket.accept()[0].makefile('rb')
     try:
-        # Run VLC with the appropriately selected demuxer (as we're not giving
-        # it a filename which would allow it to guess correctly)
-        vlc = subprocess.Popen(
-            ['vlc', '--demux', 'h264', '-'],
-            stdin=subprocess.PIPE)
+        # Run a viewer with an appropriate command line. Uncomment the mplayer
+        # version if you would prefer to use mplayer instead of VLC
+        cmdline = 'vlc --demux h264 -'
+        #cmdline = 'mplayer -fps 31 -cache 1024 -'
+        player = subprocess.Popen(cmdline.split(), stdin=subprocess.PIPE)
         while True:
             # Repeatedly read 1k of data from the connection and write it to
-            # VLC's stdin
+            # the media player's stdin
             data = connection.read(1024)
             if not data:
                 break
-            vlc.stdin.write(data)
+            player.stdin.write(data)
     finally:
         connection.close()
         server_socket.close()
-        vlc.terminate()
+        player.terminate()
 
 .. note::
+
     If you run this script on Windows you will probably need to provide a
-    complete path to the VLC executable.
+    complete path to the VLC or mplayer executable.
+
+.. note::
+
+    You will probably notice several seconds of latency with this setup. This
+    is normal and is because media players buffer several seconds to guard
+    against unreliable network streams.
+
+    Some media players (notably mplayer in this case) permit the user to skip
+    to the end of the buffer (press the right cursor key in mplayer), reducing
+    the latency by increasing the risk that delayed / dropped network packets
+    will interrupt the playback.
 
 Now for the client side script which simply starts a recording over a file-like
 object created from the network socket::
@@ -608,11 +620,6 @@ object created from the network socket::
     finally:
         connection.close()
         client_socket.close()
-
-You will probably notice several seconds of latency with this setup. This is
-normal and is because VLC buffers several seconds to guard against unreliable
-network streams. Low latency video streaming requires rather more effort (the
-`x264dev blog`_ provides some insight into the complexity involved)!
 
 It should also be noted that the effect of the above is much more easily
 achieved (at least on Linux) with a combination of ``netcat`` and the
@@ -662,7 +669,6 @@ attribute::
 
 .. _PIL: http://effbot.org/imagingbook/pil-index.htm
 .. _OpenCV: http://opencv.org/
-.. _x264dev blog: http://x264dev.multimedia.cx/archives/249
 .. _RPi.GPIO: https://pypi.python.org/pypi/RPi.GPIO
 .. _ring buffer: http://en.wikipedia.org/wiki/Circular_buffer
 
