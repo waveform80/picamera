@@ -614,7 +614,7 @@ to the in-memory ring-buffer::
             prior_image = current_image
             return result
 
-    def write_before(stream):
+    def write_video(stream):
         # Write the entire content of the circular buffer to disk. No need to
         # lock the stream here as we're definitely not writing to it
         # simultaneously
