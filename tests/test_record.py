@@ -37,18 +37,16 @@ from __future__ import (
 # Make Py2's str equivalent to Py3's
 str = type('')
 
-import io
 import os
-import re
 import time
 import tempfile
 import picamera
 import pytest
-import subprocess
 from collections import namedtuple
+from verify import verify_video, verify_image
 
 
-RecordingCase = namedtuple('TestCase', ('format', 'ext', 'options'))
+RecordingCase = namedtuple('RecordingCase', ('format', 'ext', 'options'))
 
 RECORDING_CASES = (
     RecordingCase('h264',  '.h264', {'profile': 'baseline'}),
@@ -84,42 +82,6 @@ def filenames_format_options(request):
 @pytest.fixture(scope='module', params=RECORDING_CASES)
 def format_options(request):
     return request.param.format, request.param.options
-
-def verify_video(filename_or_obj, format, resolution):
-    width, height = resolution
-    if isinstance(filename_or_obj, str):
-        p = subprocess.Popen([
-            'avconv',
-            '-f', format,
-            '-i', filename_or_obj,
-            ], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    else:
-        p = subprocess.Popen([
-            'avconv',
-            '-f', format,
-            '-i', '-',
-            ], stdin=filename_or_obj, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    out = p.communicate()[0]
-    assert p.returncode == 1, 'avconv returned unexpected code %d' % p.returncode
-    state = 'start'
-    for line in out.splitlines():
-        line = line.decode('utf-8').strip()
-        if state == 'start' and re.match(r'^Input #0', line):
-            state = 'input'
-        elif state == 'input' and re.match(r'^Duration', line):
-            state = 'dur'
-        elif state == 'dur' and re.match(r'^Stream #0\.0', line):
-            assert re.match(
-                r'^Stream #0\.0: '
-                r'Video: %s( \(.*\))?, '
-                r'yuvj?420p, '
-                r'%dx%d( \[PAR \d+:\d+ DAR \d+:\d+\])?, '
-                r'\d+ fps, \d+ tbr, \d+k? tbn, \d+k? tbc$' % (
-                    format, width, height),
-                line
-                ), 'Unexpected avconv output: %s' % line
-            return
-    assert False, 'Failed to locate stream analysis in avconv output'
 
 
 def test_record_to_file(camera, previewing, resolution, filenames_format_options):
@@ -212,3 +174,23 @@ def test_circular_record(camera, previewing, resolution):
     temp.seek(0)
     verify_video(temp, 'h264', resolution)
 
+def test_split_and_capture(camera, previewing, resolution):
+    if resolution == (2592, 1944):
+        pytest.xfail('Cannot encode video at max resolution')
+    v_stream1 = tempfile.SpooledTemporaryFile()
+    v_stream2 = tempfile.SpooledTemporaryFile()
+    c_stream1 = tempfile.SpooledTemporaryFile()
+    camera.start_recording(v_stream1, format='h264')
+    try:
+        camera.wait_recording(1)
+        camera.capture(c_stream1, format='jpeg', use_video_port=True)
+        camera.split_recording(v_stream2)
+        camera.wait_recording(1)
+    finally:
+        camera.stop_recording()
+    v_stream1.seek(0)
+    v_stream2.seek(0)
+    c_stream1.seek(0)
+    verify_image(c_stream1, 'jpeg', resolution)
+    verify_video(v_stream1, 'h264', resolution)
+    verify_video(v_stream2, 'h264', resolution)

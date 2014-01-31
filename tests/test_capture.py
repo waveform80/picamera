@@ -46,9 +46,10 @@ import picamera
 import pytest
 from PIL import Image
 from collections import namedtuple
+from verify import verify_image
 
 
-CaptureCase = namedtuple('TestCase', ('format', 'ext', 'options'))
+CaptureCase = namedtuple('CaptureCase', ('format', 'ext', 'options'))
 
 CAPTURE_CASES = (
     CaptureCase('jpeg', '.jpg', {'quality': 95}),
@@ -89,12 +90,9 @@ def test_capture_to_file(
         camera, previewing, resolution, filename_format_options, use_video_port):
     filename, format, options = filename_format_options
     camera.capture(filename, use_video_port=use_video_port, **options)
-    img = Image.open(filename)
     if 'resize' in options:
         resolution = options['resize']
-    assert img.size == resolution
-    assert img.format.lower() == format
-    img.verify()
+    verify_image(filename, format, resolution)
 
 def test_capture_to_stream(
         camera, previewing, resolution, format_options, use_video_port):
@@ -104,10 +102,7 @@ def test_capture_to_stream(
         resolution = options['resize']
     camera.capture(stream, format, use_video_port=use_video_port, **options)
     stream.seek(0)
-    img = Image.open(stream)
-    assert img.size == resolution
-    assert img.format.lower() == format
-    img.verify()
+    verify_image(stream, format, resolution)
 
 def test_capture_continuous_to_file(
         camera, previewing, resolution, tmpdir, use_video_port):
@@ -115,12 +110,7 @@ def test_capture_continuous_to_file(
             camera.capture_continuous(os.path.join(
                 str(tmpdir), 'image{counter:02d}.jpg'),
                 use_video_port=use_video_port)):
-        img = Image.open(filename)
-        assert img.size == resolution
-        assert img.format == 'JPEG'
-        img.verify()
-        if not previewing:
-            time.sleep(0.5)
+        verify_image(filename, 'jpeg', resolution)
         if i == 3:
             break
 
@@ -132,13 +122,8 @@ def test_capture_continuous_to_stream(
                 use_video_port=use_video_port)):
         stream.truncate()
         stream.seek(0)
-        img = Image.open(stream)
-        assert img.size == resolution
-        assert img.format == 'JPEG'
-        img.verify()
+        verify_image(stream, 'jpeg', resolution)
         stream.seek(0)
-        if not previewing:
-            time.sleep(0.1)
         if i == 3:
             break
 
@@ -147,10 +132,7 @@ def test_capture_sequence_to_file(
     filenames = [os.path.join(str(tmpdir), 'image%d.jpg' % i) for i in range(3)]
     camera.capture_sequence(filenames, use_video_port=use_video_port)
     for filename in filenames:
-        img = Image.open(filename)
-        assert img.size == resolution
-        assert img.format == 'JPEG'
-        img.verify()
+        verify_image(filename, 'jpeg', resolution)
 
 def test_capture_sequence_to_stream(
         camera, previewing, resolution, use_video_port):
@@ -158,10 +140,7 @@ def test_capture_sequence_to_stream(
     camera.capture_sequence(streams, use_video_port=use_video_port)
     for stream in streams:
         stream.seek(0)
-        img = Image.open(stream)
-        assert img.size == resolution
-        assert img.format == 'JPEG'
-        img.verify()
+        verify_image(stream, 'jpeg', resolution)
 
 def test_capture_raw(camera, resolution, raw_format, use_video_port):
     if resolution == (2592, 1944) and raw_format in ('rgba', 'bgra') and not use_video_port:

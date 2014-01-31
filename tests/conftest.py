@@ -83,3 +83,4 @@ def resolution(request, camera):
     request.addfinalizer(fin)
     return request.param
 
+
