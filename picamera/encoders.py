@@ -105,7 +105,8 @@ class PiEncoder(object):
         self.input_port = input_port
         self.output_port = None
         self.pool = None
-        self.opened = False
+        self.started_capture = False
+        self.opened_output = False
         self.output = None
         self.lock = threading.Lock() # protects access to self.output
         self.exception = None
@@ -270,8 +271,8 @@ class PiEncoder(object):
         we were the one to open it.
         """
         with self.lock:
-            self.opened = isinstance(output, (bytes, str))
-            if self.opened:
+            self.opened_output = isinstance(output, (bytes, str))
+            if self.opened_output:
                 # Open files in binary mode with a decent buffer size
                 self.output = io.open(output, 'wb', buffering=65536)
             else:
@@ -284,12 +285,12 @@ class PiEncoder(object):
         """
         with self.lock:
             if self.output:
-                if self.opened:
+                if self.opened_output:
                     self.output.close()
                 elif hasattr(self.output, 'flush'):
                     self.output.flush()
                 self.output = None
-                self.opened = False
+                self.opened_output = False
 
     def start(self, output):
         """
@@ -314,10 +315,21 @@ class PiEncoder(object):
             mmal_check(
                 mmal.mmal_port_send_buffer(self.output_port, buf),
                 prefix="Unable to send a buffer to encoder output port")
+        b = mmal.MMAL_BOOL_T()
         mmal_check(
-            mmal.mmal_port_parameter_set_boolean(
-                self.camera_port, mmal.MMAL_PARAMETER_CAPTURE, mmal.MMAL_TRUE),
-            prefix="Failed to start capture")
+            mmal.mmal_port_parameter_get_boolean(
+                self.camera_port, 
+                mmal.MMAL_PARAMETER_CAPTURE,
+                b),
+            prefix="Failed to query capture status")
+        self.started_capture = not bool(b)
+        if self.started_capture:
+            mmal_check(
+                mmal.mmal_port_parameter_set_boolean(
+                    self.camera_port,
+                    mmal.MMAL_PARAMETER_CAPTURE,
+                    mmal.MMAL_TRUE),
+                prefix="Failed to start capture")
 
     def wait(self, timeout=None):
         """
@@ -325,10 +337,14 @@ class PiEncoder(object):
         """
         result = self.event.wait(timeout)
         if result:
-            mmal_check(
-                mmal.mmal_port_parameter_set_boolean(
-                    self.camera_port, mmal.MMAL_PARAMETER_CAPTURE, mmal.MMAL_FALSE),
-                prefix="Failed to stop capture")
+            if self.started_capture:
+                self.started_capture = False
+                mmal_check(
+                    mmal.mmal_port_parameter_set_boolean(
+                        self.camera_port,
+                        mmal.MMAL_PARAMETER_CAPTURE,
+                        mmal.MMAL_FALSE),
+                    prefix="Failed to stop capture")
             try:
                 mmal_check(
                     mmal.mmal_port_disable(self.output_port),
@@ -350,10 +366,14 @@ class PiEncoder(object):
         # disable below. The check exists purely to prevent stderr getting
         # spammed by our continued attempts to disable an already disabled port
         if self.encoder and self.output_port[0].is_enabled:
-            mmal_check(
-                mmal.mmal_port_parameter_set_boolean(
-                    self.camera_port, mmal.MMAL_PARAMETER_CAPTURE, mmal.MMAL_FALSE),
-                prefix="Failed to stop capture")
+            if self.started_capture:
+                self.started_capture = False
+                mmal_check(
+                    mmal.mmal_port_parameter_set_boolean(
+                        self.camera_port,
+                        mmal.MMAL_PARAMETER_CAPTURE,
+                        mmal.MMAL_FALSE),
+                    prefix="Failed to stop capture")
             try:
                 mmal_check(
                     mmal.mmal_port_disable(self.output_port),
