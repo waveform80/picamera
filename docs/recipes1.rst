@@ -286,73 +286,6 @@ The server script should be run first to ensure there's a listening socket
 ready to accept a connection from the client script.
 
 
-.. _preview_still_resolution:
-
-Preview vs Still resolution
-===========================
-
-One thing you may have noted while experimenting with the camera's preview mode
-is that captured images typically show more than the preview. The reason for
-this is that the camera does not (usually) use the full sensor area for preview
-or video captures, but does for image captures. Specifically, the camera's
-sensor has a resolution of 2592x1944 pixels (approximately 5 mega-pixels in
-area), but only the 1920x1080 pixels in the center of the sensor are used for
-previews or video:
-
-.. image:: sensor_area.png
-    :width: 640px
-    :align: center
-
-When still images are captured, the full sensor area is used and the resulting
-image is scaled to the requested resolution. This usually results in a
-considerably larger field of view being observed in the final image than was
-present in the preview shown before the capture. The following image shows the
-preview area for the 1920x1080 resolution, and the resulting capture area
-(which is scaled to 1920x1080 during capture):
-
-.. image:: capture_area.png
-    :width: 640px
-    :align: center
-
-The main method of mitigating this effect is to force the preview to use the
-full sensor area. This can be done by setting
-:attr:`~picamera.PiCamera.resolution` to 2592x1944::
-
-    import time
-    import picamera
-
-    with picamera.PiCamera() as camera:
-        camera.resolution = (2592, 1944)
-        # The following is equivalent
-        #camera.resolution = camera.MAX_IMAGE_RESOLUTION
-        camera.start_preview()
-        time.sleep(2)
-        camera.capture('foo.jpg')
-
-When the preview runs at full resolution, you may notice that the frame-rate is
-a little lower (specifically it is set to 15fps), however captures will show
-the same content as the preview before hand. The main downside to this method
-is that captured images are obviously full resolution. If you want something
-smaller than full resolution, you will need to use the ``resize`` parameter
-for whatever capture method you choose::
-
-    import time
-    import picamera
-
-    with picamera.PiCamera() as camera:
-        camera.resolution = (2592, 1944)
-        camera.start_preview()
-        time.sleep(2)
-        camera.capture('foo.jpg', resize=(1024, 768))
-
-Bear in mind that the full resolution of the sensor has an aspect ratio of 4:3
-(i.e. not wide-screen), so if you specify a resize area with a different aspect
-ratio, the result will appear stretched.
-
-.. versionchanged:: 1.0
-    The *resize* parameter was first added in 1.0
-
-
 .. _file_record:
 
 Recording video to a file
@@ -437,7 +370,7 @@ key-frame).
 Recording full-resolution video
 ===============================
 
-As noted in the :ref:`preview_still_resolution` section above, video recording
+As noted in the :ref:`preview_still_resolution` section, video recording
 typically only uses the center 1920x1080 pixels of the camera's sensor.
 However, it is possible to record video using the full area of the camera's
 sensor although due to GPU limitations the output must be down-scaled prior to

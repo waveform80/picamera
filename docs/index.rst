@@ -25,6 +25,7 @@ Table of Contents
    quickstart
    recipes1
    recipes2
+   fov
    api
    changelog
    license

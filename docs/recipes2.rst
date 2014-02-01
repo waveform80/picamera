@@ -107,7 +107,6 @@ Alternatively, see :ref:`rgb_capture` for a method of having the camera output
 RGB data directly.
 
 .. versionchanged:: 1.0
-
     The :attr:`~picamera.PiCamera.raw_format` attribute is now deprecated, as
     is the ``'raw'`` format specification for the
     :meth:`~picamera.PiCamera.capture` method. Simply use the ``'yuv'`` format
@@ -179,7 +178,6 @@ Loading the resulting RGB data into a `numpy`_ array is simple::
     image = image / 255.0
 
 .. versionchanged:: 1.0
-
     The :attr:`~picamera.PiCamera.raw_format` attribute is now deprecated, as
     is the ``'raw'`` format specification for the
     :meth:`~picamera.PiCamera.capture` method. Simply use the ``'rgb'`` format
