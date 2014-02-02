@@ -2078,10 +2078,10 @@ class PiCamera(object):
 
         When queried, the :attr:`crop` property returns a ``(x, y, w, h)``
         tuple of floating point values ranging from 0.0 to 1.0, indicating the
-        proportion of the image to include in the output. The default value is
-        ``(0.0, 0.0, 1.0, 1.0)`` which indicates that everything should be
-        included. The property can be set while recordings or previews are in
-        progress.
+        proportion of the image to include in the output (the "Region of
+        Interest" or ROI). The default value is ``(0.0, 0.0, 1.0, 1.0)`` which
+        indicates that everything should be included. The property can be set
+        while recordings or previews are in progress.
         """)
 
     def _get_preview_alpha(self):
@@ -2131,6 +2131,43 @@ class PiCamera(object):
             :meth:`start_preview` at which point the preview will appear
             semi-transparent and :attr:`preview_alpha` will suddenly return
             128. This appears to be a firmware issue.
+        """)
+
+    def _get_preview_layer(self):
+        mp = mmal.MMAL_DISPLAYREGION_T(
+            mmal.MMAL_PARAMETER_HEADER_T(
+                mmal.MMAL_PARAMETER_DISPLAYREGION,
+                ct.sizeof(mmal.MMAL_DISPLAYREGION_T)
+            ))
+        mmal_check(
+            mmal.mmal_port_parameter_get(self._preview[0].input[0], mp.hdr),
+            prefix="Failed to get preview alpha")
+        return mp.layer
+    def _set_preview_layer(self, value):
+        self._check_camera_open()
+        mp = mmal.MMAL_DISPLAYREGION_T(
+            mmal.MMAL_PARAMETER_HEADER_T(
+                mmal.MMAL_PARAMETER_DISPLAYREGION,
+                ct.sizeof(mmal.MMAL_DISPLAYREGION_T)
+                ),
+            set=mmal.MMAL_DISPLAY_SET_LAYER,
+            layer=value
+            )
+        mmal_check(
+            mmal.mmal_port_parameter_set(self._preview[0].input[0], mp.hdr),
+            prefix="Failed to set preview layer")
+    preview_layer = property(
+            _get_preview_layer, _set_preview_layer, doc="""
+        Retrieves of sets the layer of the preview window.
+
+        The :attr:`preview_layer` property is an integer which controls the
+        layer that the preview window occupies. It defaults to 2 which results
+        in the preview appearing above all other output.
+
+        .. warning::
+
+            Operation of this attribute is not yet fully understood. The
+            documentation above is incomplete and may be incorrect!
         """)
 
     def _get_preview_fullscreen(self):
