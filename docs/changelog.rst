@@ -5,6 +5,25 @@ Change log
 ==========
 
 
+Release 1.2 (2014-02-02)
+========================
+
+1.2 was mostly a bug fix release:
+
+* A bug introduced in 1.1 caused :meth:`~picamera.PiCamera.split_recording`
+  to fail if it was preceded by a video-port-based image capture (`#49`_)
+* The documentation was enhanced to try and full explain the discrepancy
+  between preview and capture resolution, and to provide some insight into
+  the underlying workings of the camera (`#23`_)
+* A new property was introduced for configuring the preview's layer at runtime
+  although this probably won't find use until OpenGL overlays are explored
+  (`#48`_)
+
+.. _#23: https://github.com/waveform80/picamera/issues/23
+.. _#48: https://github.com/waveform80/picamera/issues/48
+.. _#49: https://github.com/waveform80/picamera/issues/49
+
+
 Release 1.1 (2014-01-25)
 ========================
 

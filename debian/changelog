@@ -1,3 +1,16 @@
+picamera (1.2-1) stable; urgency=low
+
+  * A bug introduced in 1.1 caused split_recording to fail if it was preceded
+    by a video-port-based image capture (#49)
+  * The documentation was enhanced to try and full explain the discrepancy
+    between preview and capture resolution, and to provide some insight into
+    the underlying workings of the camera (#23)
+  * A new property was introduced for configuring the preview's layer at
+    runtime although this probably won't find use until OpenGL overlays are
+    explored (#48)
+
+ -- Dave Hughes <dave@waveform.org.uk>  Sun, 02 Feb 2014 03:18:19 +0000
+
 picamera (1.1-1) stable; urgency=low
 
   * A nasty race condition was discovered which led to crashes with

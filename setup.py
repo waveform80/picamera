@@ -53,7 +53,7 @@ except ImportError:
     pass
 
 __project__      = 'picamera'
-__version__      = '1.1'
+__version__      = '1.2'
 __author__       = 'Dave Hughes'
 __author_email__ = 'dave@waveform.org.uk'
 __url__          = 'https://pypi.python.org/pypi/picamera/'
