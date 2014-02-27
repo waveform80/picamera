@@ -37,7 +37,9 @@ from __future__ import (
 # Make Py2's str equivalent to Py3's
 str = type('')
 
+import os
 import re
+import math
 import subprocess
 from PIL import Image
 
@@ -92,4 +94,26 @@ def verify_image(filename_or_obj, format, resolution):
     assert img.size == resolution
     assert img.format.lower() == format.lower()
     img.verify()
+
+
+def verify_raw(stream, format, resolution):
+    # Calculate the expected size of the streams for the current
+    # resolution; horizontal resolution is rounded up to the nearest
+    # multiple of 32, and vertical to the nearest multiple of 16 by the
+    # camera for raw data. RGB format holds 3 bytes per pixel, YUV format
+    # holds 1.5 bytes per pixel (1 byte of Y per pixel, and 2 bytes of Cb
+    # and Cr per 4 pixels), etc.
+    size = (
+            math.ceil(resolution[0] / 32) * 32
+            * math.ceil(resolution[1] / 16) * 16
+            * {
+                'yuv': 1.5,
+                'rgb': 3,
+                'bgr': 3,
+                'rgba': 4,
+                'bgra': 4
+                }[format]
+            )
+    stream.seek(0, os.SEEK_END)
+    assert stream.tell() == size
 

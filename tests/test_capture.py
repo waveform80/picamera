@@ -40,13 +40,12 @@ str = type('')
 import io
 import os
 import time
-import math
 import tempfile
 import picamera
 import pytest
 from PIL import Image
 from collections import namedtuple
-from verify import verify_image
+from verify import verify_image, verify_raw
 
 
 CaptureCase = namedtuple('CaptureCase', ('format', 'ext', 'options'))
@@ -147,20 +146,32 @@ def test_capture_raw(camera, resolution, raw_format, use_video_port):
         pytest.xfail('Camera crashes with this combination')
     if resolution == (100, 100) and raw_format in ('rgb', 'rgba', 'bgr', 'bgra'):
         pytest.xfail('Camera fails to set resizer output port format')
-    # Calculate the expected size of the streams for the current
-    # resolution; horizontal resolution is rounded up to the nearest
-    # multiple of 32, and vertical to the nearest multiple of 16 by the
-    # camera for raw data. RGB format holds 3 bytes per pixel, YUV format
-    # holds 1.5 bytes per pixel (1 byte of Y per pixel, and 2 bytes of Cb
-    # and Cr per 4 pixels), etc.
-    size = (
-            math.ceil(resolution[0] / 32) * 32
-            * math.ceil(resolution[1] / 16) * 16
-            * {'yuv': 1.5, 'rgb': 3, 'bgr': 3, 'rgba': 4, 'bgra': 4}[raw_format])
     stream = io.BytesIO()
     camera.capture(stream, format=raw_format, use_video_port=use_video_port)
-    # Check the output stream has the correct number of bytes
-    assert stream.tell() == size
+    verify_raw(stream, raw_format, resolution)
+
+def test_capture_continuous_raw(camera, resolution, raw_format, use_video_port):
+    if resolution == (2592, 1944) and raw_format in ('rgba', 'bgra') and not use_video_port:
+        pytest.xfail('Camera crashes with this combination')
+    if resolution == (100, 100) and raw_format in ('rgb', 'rgba', 'bgr', 'bgra'):
+        pytest.xfail('Camera fails to set resizer output port format')
+    for i, stream in enumerate(camera.capture_continuous(
+            io.BytesIO(), format=raw_format, use_video_port=use_video_port)):
+        if i == 3:
+            break
+        verify_raw(stream, raw_format, resolution)
+        stream.seek(0)
+        stream.truncate()
+
+def test_capture_sequence_raw(camera, resolution, raw_format, use_video_port):
+    if resolution == (2592, 1944) and raw_format in ('rgba', 'bgra') and not use_video_port:
+        pytest.xfail('Camera crashes with this combination')
+    if resolution == (100, 100) and raw_format in ('rgb', 'rgba', 'bgr', 'bgra'):
+        pytest.xfail('Camera fails to set resizer output port format')
+    streams = [io.BytesIO() for i in range(3)]
+    camera.capture_sequence(streams, format=raw_format, use_video_port=use_video_port)
+    for stream in streams:
+        verify_raw(stream, raw_format, resolution)
 
 def test_exif_ascii(camera, previewing, resolution):
     camera.exif_tags['IFD0.Artist'] = 'Me!'

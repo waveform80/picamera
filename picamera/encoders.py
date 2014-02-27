@@ -318,7 +318,7 @@ class PiEncoder(object):
         b = mmal.MMAL_BOOL_T()
         mmal_check(
             mmal.mmal_port_parameter_get_boolean(
-                self.camera_port, 
+                self.camera_port,
                 mmal.MMAL_PARAMETER_CAPTURE,
                 b),
             prefix="Failed to query capture status")
@@ -735,6 +735,7 @@ class PiRawEncoderMixin(PiImageEncoder):
         if not resize:
             resize = parent.resolution
         self._strip_alpha = False
+        self._expected_size = 0
         self._image_size = 0
         super(PiRawEncoderMixin, self).__init__(
                 parent, camera_port, input_port, format, resize, **options)
@@ -762,7 +763,7 @@ class PiRawEncoderMixin(PiImageEncoder):
         # decide when a frame ends. This is to work around a firmware bug that
         # causes the raw image to be returned twice when the maximum camera
         # resolution is requested
-        self._image_size = int(
+        self._expected_size = int(
             ((width + 31) // 32 * 32) *  # round up width to nearest multiple of 32
             ((height + 15) // 16 * 16) * # round up height to nearest multiple of 16
             bytes_per_pixel)
@@ -803,10 +804,17 @@ class PiRawEncoderMixin(PiImageEncoder):
                 mmal.mmal_buffer_header_mem_unlock(buf)
         return self._image_size <= 0
 
+    def start(self, output):
+        self._image_size = self._expected_size
+        super(PiRawEncoderMixin, self).start(output)
 
-class PiRawOneImageEncoder(PiRawEncoderMixin, PiOneImageEncoder):
+
+class PiRawOneImageEncoder(PiOneImageEncoder, PiRawEncoderMixin):
     pass
 
 
-class PiRawMultiImageEncoder(PiRawEncoderMixin, PiMultiImageEncoder):
-    pass
+class PiRawMultiImageEncoder(PiMultiImageEncoder, PiRawEncoderMixin):
+    def _next_output(self):
+        super(PiRawMultiImageEncoder, self)._next_output()
+        self._image_size = self._expected_size
+
