@@ -144,7 +144,9 @@ def test_capture_sequence_to_stream(
 def test_capture_raw(camera, resolution, raw_format, use_video_port):
     if resolution == (2592, 1944) and raw_format in ('rgba', 'bgra') and not use_video_port:
         pytest.xfail('Camera crashes with this combination')
-    if resolution == (100, 100) and raw_format in ('rgb', 'rgba', 'bgr', 'bgra'):
+    if resolution == (2592, 1944) and raw_format in ('rgb', 'bgr'):
+        pytest.xfail('Camera times out with this combination')
+    if resolution == (100, 100) and raw_format != 'yuv':
         pytest.xfail('Camera fails to set resizer output port format')
     stream = io.BytesIO()
     camera.capture(stream, format=raw_format, use_video_port=use_video_port)
@@ -153,7 +155,9 @@ def test_capture_raw(camera, resolution, raw_format, use_video_port):
 def test_capture_continuous_raw(camera, resolution, raw_format, use_video_port):
     if resolution == (2592, 1944) and raw_format in ('rgba', 'bgra') and not use_video_port:
         pytest.xfail('Camera crashes with this combination')
-    if resolution == (100, 100) and raw_format in ('rgb', 'rgba', 'bgr', 'bgra'):
+    if resolution == (2592, 1944) and raw_format in ('rgb', 'bgr'):
+        pytest.xfail('Camera times out with this combination')
+    if resolution == (100, 100) and raw_format != 'yuv':
         pytest.xfail('Camera fails to set resizer output port format')
     for i, stream in enumerate(camera.capture_continuous(
             io.BytesIO(), format=raw_format, use_video_port=use_video_port)):
@@ -166,7 +170,9 @@ def test_capture_continuous_raw(camera, resolution, raw_format, use_video_port):
 def test_capture_sequence_raw(camera, resolution, raw_format, use_video_port):
     if resolution == (2592, 1944) and raw_format in ('rgba', 'bgra') and not use_video_port:
         pytest.xfail('Camera crashes with this combination')
-    if resolution == (100, 100) and raw_format in ('rgb', 'rgba', 'bgr', 'bgra'):
+    if resolution == (2592, 1944) and raw_format in ('rgb', 'bgr'):
+        pytest.xfail('Camera times out with this combination')
+    if resolution == (100, 100) and raw_format != 'yuv':
         pytest.xfail('Camera fails to set resizer output port format')
     streams = [io.BytesIO() for i in range(3)]
     camera.capture_sequence(streams, format=raw_format, use_video_port=use_video_port)
