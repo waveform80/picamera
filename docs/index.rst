@@ -5,7 +5,7 @@ Documentation for picamera
 ==========================
 
 This package provides a pure Python interface to the `Raspberry Pi`_ `camera`_
-module for Python 2.7 (or above) or Python 3.2 (or above).
+module for Python 2.7 (or above) and Python 3.2 (or above).
 
 The code is licensed under the `BSD license`_. Packages can be downloaded from
 the project `homepage`_ on PyPI. The `source code`_ can be obtained from
@@ -46,6 +46,5 @@ Indices and tables
 .. _documentation: http://picamera.readthedocs.org/
 .. _source code: https://github.com/waveform80/picamera
 .. _bug tracker: https://github.com/waveform80/picamera/issues
-.. _Python: http://python.org/
 .. _BSD license: http://opensource.org/licenses/BSD-3-Clause
 .. _Pull requests: https://github.com/waveform80/picamera.git
