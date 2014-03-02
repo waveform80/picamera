@@ -2,6 +2,8 @@
 
 # External utilities
 PYTHON=python
+PIP=pip
+PYTEST=py.test
 PYFLAGS=
 DEST_DIR=/
 
@@ -70,10 +72,10 @@ deb: $(DIST_DEB) $(DIST_DSC)
 dist: $(DIST_EGG) $(DIST_DEB) $(DIST_DSC) $(DIST_TAR) $(DIST_ZIP)
 
 develop: tags
-	$(PYTHON) $(PYFLAGS) setup.py develop
+	$(PIP) install -e .
 
 test:
-	$(PYTHON) $(PYFLAGS) setup.py test
+	$(PYTEST) -v tests/
 
 clean:
 	$(PYTHON) $(PYFLAGS) setup.py clean
