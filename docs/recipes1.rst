@@ -494,9 +494,9 @@ pipe it to a media player for display::
     try:
         # Run a viewer with an appropriate command line. Uncomment the mplayer
         # version if you would prefer to use mplayer instead of VLC
-        cmdline = 'vlc --demux h264 -'
-        #cmdline = 'mplayer -fps 31 -cache 1024 -'
-        player = subprocess.Popen(cmdline.split(), stdin=subprocess.PIPE)
+        cmdline = ['vlc', '--demux', 'h264', '-']
+        #cmdline = ['mplayer', '-fps', '31', '-cache', '1024', '-']
+        player = subprocess.Popen(cmdline, stdin=subprocess.PIPE)
         while True:
             # Repeatedly read 1k of data from the connection and write it to
             # the media player's stdin
@@ -512,7 +512,9 @@ pipe it to a media player for display::
 .. note::
 
     If you run this script on Windows you will probably need to provide a
-    complete path to the VLC or mplayer executable.
+    complete path to the VLC or mplayer executable. If you run this script
+    on Mac OS X, and are using Python installed from MacPorts, please ensure
+    you have also installed VLC or mplayer from MacPorts.
 
 .. note::
 
