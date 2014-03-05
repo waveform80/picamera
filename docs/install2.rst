@@ -102,7 +102,7 @@ the virtualenv before running Python::
     >>> import picamera
 
 To upgrade your installation, make sure the virtualenv is activated and just
-use easy_install::
+use pip::
 
     $ source sandbox/bin/activate
     (sandbox) $ pip install -U picamera
