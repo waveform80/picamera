@@ -194,3 +194,25 @@ def test_split_and_capture(camera, previewing, resolution):
     verify_image(c_stream1, 'jpeg', resolution)
     verify_video(v_stream1, 'h264', resolution)
     verify_video(v_stream2, 'h264', resolution)
+
+def test_multi_res_record(camera, previewing, resolution):
+    if resolution == (2592, 1944):
+        pytest.xfail('Cannot encode video at max resolution')
+    v_stream1 = tempfile.SpooledTemporaryFile()
+    v_stream2 = tempfile.SpooledTemporaryFile()
+    new_res = (resolution[0] // 2, resolution[1] // 2)
+    camera.start_recording(v_stream1, format='h264')
+    try:
+        camera.start_recording(v_stream2, resize=new_res, splitter_port=2)
+        try:
+            camera.wait_recording(1)
+            camera.wait_recording(1, splitter_port=2)
+        finally:
+            camera.stop_recording(splitter_port=2)
+    finally:
+        camera.stop_recording()
+    v_stream1.seek(0)
+    v_stream2.seek(0)
+    verify_video(v_stream1, 'h264', resolution)
+    verify_video(v_stream2, 'h264', new_res)
+

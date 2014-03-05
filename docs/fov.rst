@@ -178,9 +178,12 @@ Encoders
 
 The camera provides various encoders which can be attached to the still and
 video ports for the purpose of producing output (e.g. JPEG images or H.264
-encoded video). Encoders are connected directly to the still port. For example,
-when capturing a picture using the still port, the camera's state conceptually
-moves through these states:
+encoded video). A port can have a single encoder attached to it at any given
+time (or nothing if the port is not in use).
+
+Encoders are connected directly to the still port. For example, when capturing
+a picture using the still port, the camera's state conceptually moves through
+these states:
 
 .. image:: still_port_capture.svg
     :align: center
@@ -188,8 +191,9 @@ moves through these states:
 As you have probably noticed in the diagram above, the video port is a little
 more complex. In order to permit simultaneous video recording and image capture
 via the video port, a "splitter" component is permanently connected to the
-video port by picamera, and encoders are in turn attached to one of its
-outputs. Hence, when recording video the camera's setup looks like this:
+video port by picamera, and encoders are in turn attached to one of its four
+output ports (numbered 0, 1, 2, and 3). Hence, when recording video the
+camera's setup looks like this:
 
 .. image:: video_port_record.svg
     :align: center
