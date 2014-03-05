@@ -805,6 +805,10 @@ class PiCamera(object):
 
         * ``'rgba'`` - Write the raw image data to a file in 32-bit RGBA format
 
+        * ``'bgr'`` - Write the raw image data to a file in 24-bit BGR format
+
+        * ``'bgra'`` - Write the raw image data to a file in 32-bit BGRA format
+
         * ``'raw'`` - Deprecated option for raw captures; the format is taken
           from the deprecated :attr:`raw_format` attribute
 
