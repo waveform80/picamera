@@ -251,7 +251,7 @@ class PiEncoder(object):
                                 "Unable to write buffer to file - aborting")
             finally:
                 mmal.mmal_buffer_header_mem_unlock(buf)
-        return False
+        return bool(buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_EOS)
 
     def _callback_recycle(self, port, buf):
         """
@@ -352,6 +352,7 @@ class PiEncoder(object):
             except PiCameraMMALError as e:
                 if e.status != mmal.MMAL_EINVAL:
                     raise
+            self._close_output()
             # Check whether the callback set an exception
             if self.exception:
                 raise self.exception
