@@ -41,6 +41,7 @@ import warnings
 import datetime
 import mimetypes
 import ctypes as ct
+import fractions
 
 import picamera.mmal as mmal
 import picamera.bcm_host as bcm_host
@@ -81,6 +82,26 @@ _control_callback = mmal.MMAL_PORT_BH_CB_T(_control_callback)
 # Guardian variable set upon initialization of PiCamera and used to ensure that
 # no more than one PiCamera is instantiated at a given time
 _CAMERA = None
+
+
+class PiCameraFraction(fractions.Fraction):
+    """
+    Extends :class:`~fractions.Fraction` to act as a (numerator, denominator)
+    tuple when required.
+    """
+    def __len__(self):
+        return 2
+
+    def __getitem__(self, index):
+        if index == 0:
+            return self.numerator
+        elif index == 1:
+            return self.denominator
+        else:
+            raise IndexError('invalid index %d' % index)
+
+    def __contains__(self, value):
+        return value in (self.numerator, self.denominator)
 
 
 class PiCamera(object):
@@ -130,12 +151,11 @@ class PiCamera(object):
         CAMERA_VIDEO_PORT,
         CAMERA_CAPTURE_PORT,
         )
-    MAX_IMAGE_RESOLUTION = (2592, 1944)
-    MAX_VIDEO_RESOLUTION = (1920, 1080)
+    MAX_RESOLUTION = (2592, 1944)
+    MAX_IMAGE_RESOLUTION = (2592, 1944) # Deprecated - use MAX_RESOLUTION instead
+    MAX_VIDEO_RESOLUTION = (1920, 1080) # Deprecated - use MAX_RESOLUTION instead
     DEFAULT_FRAME_RATE_NUM = 30
     DEFAULT_FRAME_RATE_DEN = 1
-    FULL_FRAME_RATE_NUM = 15
-    FULL_FRAME_RATE_DEN = 1
     VIDEO_OUTPUT_BUFFERS_NUM = 3
 
     METER_MODES = {
@@ -304,8 +324,9 @@ class PiCamera(object):
             fmt[0].es[0].video.crop.y = 0
             fmt[0].es[0].video.crop.width = cc.max_preview_video_w
             fmt[0].es[0].video.crop.height = cc.max_preview_video_h
-            fmt[0].es[0].video.frame_rate.num = 3 if p == self.CAMERA_CAPTURE_PORT else self.DEFAULT_FRAME_RATE_NUM
-            fmt[0].es[0].video.frame_rate.den = 1 if p == self.CAMERA_CAPTURE_PORT else self.DEFAULT_FRAME_RATE_DEN
+            # 0 implies variable frame-rate
+            fmt[0].es[0].video.frame_rate.num = self.DEFAULT_FRAME_RATE_NUM if p != self.CAMERA_CAPTURE_PORT else 0
+            fmt[0].es[0].video.frame_rate.den = self.DEFAULT_FRAME_RATE_DEN
             mmal_check(
                 mmal.mmal_port_format_commit(self._camera[0].output[p]),
                 prefix="Camera %s format couldn't be set" % {
@@ -1353,26 +1374,31 @@ class PiCamera(object):
 
     def _get_framerate(self):
         self._check_camera_open()
-        return (
-            self._camera[0].output[1][0].format[0].es[0].video.frame_rate.num,
-            self._camera[0].output[1][0].format[0].es[0].video.frame_rate.den)
+        fmt = self._camera[0].output[self.CAMERA_VIDEO_PORT][0].format[0].es[0]
+        return PiCameraFraction(fmt.video.frame_rate.num, fmt.video.frame_rate.den)
     def _set_framerate(self, value):
         self._check_camera_open()
         self._check_recording_stopped()
         w, h = self.resolution
         try:
-            n, d = value
-        except (TypeError, ValueError) as e:
-            n = int(value)
-            d = 1
-        # At full frame, drop frame rate to 15fps
-        if (w, h) == self.MAX_IMAGE_RESOLUTION:
-            max_rate = 15
-        else:
-            max_rate = 30
-        if not (0 < n / d <= max_rate):
-            raise PiCameraValueError(
-                "Maximum framerate at the current resolution is %dfps" % max_rate)
+            # int, long, or fraction
+            n, d = value.numerator, value.denominator
+        except AttributeError:
+            try:
+                # float
+                n, d = value.as_integer_ratio()
+            except AttributeError:
+                try:
+                    # tuple
+                    n, d = value
+                except (TypeError, ValueError):
+                    # anything else...
+                    n = int(value)
+                    d = 1
+        if d == 0:
+            raise PiCameraValueError("Framerate denominator cannot be 0")
+        if not (0 <= n / d <= 90):
+            raise PiCameraValueError("Invalid framerate: %.2ffps" % (n/d))
         self._disable_camera()
         for port in (self.CAMERA_VIDEO_PORT, self.CAMERA_PREVIEW_PORT):
             fmt = self._camera[0].output[port][0].format[0].es[0]
@@ -1386,21 +1412,31 @@ class PiCamera(object):
         Retrieves or sets the framerate at which video-port based image
         captures, video recordings, and previews will run.
 
-        When queried, the :attr:`framerate` property returns the rate at
-        which the camera's video and preview ports will operate as a tuple of
-        ``(numerator, denominator)``. The true framerate can be calculated as
-        ``numerator / denominator``.
+        When queried, the :attr:`framerate` property returns the rate at which
+        the camera's video and preview ports will operate as a
+        :class:`~fractions.Fraction` instance which can be easily converted to
+        an :class:`int` or :class:`float`.
+
+        .. note::
+
+            For backwards compatibility, a derivative of the
+            :class:`~fractions.Fraction` class is actually used which permits
+            the value to be treated as a tuple of ``(numerator, denominator)``.
 
         When set, the property reconfigures the camera so that the next call to
         recording and previewing methods will use the new framerate.  The
-        framerate can be specified as a ``(numerator, denominator)`` tuple, or
-        as a simple integer.  The camera must not be closed, and no recording
-        must be active when the property is set.
+        framerate can be specified as an :class:`int`, :class:`float`,
+        :class:`~fractions.Fraction`, or a ``(numerator, denominator)`` tuple.
+        The camera must not be closed, and no recording must be active when the
+        property is set.
 
-        The property defaults to 30fps, except when the :attr:`resolution`
-        property is set to 2592x1944 (the maximum resolution of the camera).
-        At the maximum resolution, framerate is automatically limited to 15fps.
-        Attempting to set higher rates will result in a PiCameraValueError.
+        .. note::
+
+            This attribute, in combination with :attr:`resolution`, determines
+            the mode that the camera operates in. The actual sensor framerate
+            and resolution used by the camera is influenced, but not directly
+            set, by this property. See :ref:`camera_modes` for more
+            information.
         """)
 
     def _get_resolution(self):
@@ -1418,10 +1454,6 @@ class PiCamera(object):
         except (TypeError, ValueError) as e:
             raise PiCameraValueError(
                 "Invalid resolution (width, height) tuple: %s" % value)
-        # At full frame, drop the frame rate to 15fps
-        if ((w, h) == self.MAX_IMAGE_RESOLUTION) and (n / d > 15):
-            n = 15
-            d = 1
         self._disable_camera()
         self._camera_config.max_stills_w = w
         self._camera_config.max_stills_h = h
@@ -1452,9 +1484,8 @@ class PiCamera(object):
         When queried, the :attr:`resolution` property returns the resolution at
         which the camera will operate as a tuple of ``(width, height)``
         measured in pixels. This is the resolution that the :meth:`capture`
-        method will produce images at, the resolution that
-        :meth:`start_recording` will produce videos at, and the resolution that
-        :meth:`start_preview` will capture frames at.
+        method will produce images at, and the resolution that
+        :meth:`start_recording` will produce videos at.
 
         When set, the property reconfigures the camera so that the next call to
         these methods will use the new resolution.  The resolution must be
@@ -1466,10 +1497,11 @@ class PiCamera(object):
 
         .. note::
 
-            Setting the resolution to 2592x1944 (the maximum) will
-            automatically cause previews to run at a reduced frame rate of
-            15fps (resolutions below use 30fps). This is due to GPU processing
-            limits.
+            This attribute, in combination with :attr:`framerate`, determines
+            the mode that the camera operates in. The actual sensor framerate
+            and resolution used by the camera is influenced, but not directly
+            set, by this property. See :ref:`camera_modes` for more
+            information.
         """)
 
     def _get_saturation(self):

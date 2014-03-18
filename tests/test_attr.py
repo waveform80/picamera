@@ -39,6 +39,7 @@ str = type('')
 
 import picamera
 import pytest
+from fractions import Fraction
 
 
 def numeric_attr(camera, attr, value_min, value_max, step=1):
@@ -165,11 +166,22 @@ def test_vflip(camera, previewing):
     boolean_attr(camera, 'vflip')
 
 def test_shutter_speed(camera, previewing):
-    # When setting shutter speed manually, ensure the actual shutter speed is
-    # within 50usec of the specified amount
-    for value in range(0, 200000, 50):
-        camera.shutter_speed = value
-        assert (value - 50) <= camera.shutter_speed <= value
+    # Shutter speed is now clamped by frame-rate; set frame-rate to something
+    # nice and low to enable the test to run correctly
+    save_framerate = camera.framerate
+    camera.framerate = 1
+    try:
+        # When setting shutter speed manually, ensure the actual shutter speed
+        # is within 50usec of the specified amount
+        for value in range(0, 200000, 50):
+            camera.shutter_speed = value
+            assert (value - 50) <= camera.shutter_speed <= value
+        # Test the shutter speed clamping by framerate
+        camera.framerate = 30
+        assert 33000 <= camera.shutter_speed <= 33333
+    finally:
+        camera.framerate = save_framerate
+        camera.shutter_speed = 0
 
 def test_crop(camera, previewing):
     save_crop = camera.crop
@@ -230,22 +242,24 @@ def test_framerate(camera, previewing):
         camera.framerate = 30
         n, d = camera.framerate
         assert n/d == 30
-        camera.framerate = 15
+        camera.framerate = 15.0
         n, d = camera.framerate
         assert n/d == 15
-        camera.framerate = (30, 2)
+        camera.framerate = Fraction(30, 2)
         n, d = camera.framerate
         assert n/d == 15
-        camera.framerate = 5
+        camera.framerate = 60
         n, d = camera.framerate
-        assert n/d == 5
-        camera.framerate = 10
+        assert n/d == 60
+        camera.framerate = 90
         n, d = camera.framerate
-        assert n/d == 10
+        assert n/d == 90
+        with pytest.raises(picamera.PiCameraError):
+            camera.framerate = (30, 0)
         with pytest.raises(picamera.PiCameraError):
             camera.framerate = -1
         with pytest.raises(picamera.PiCameraError):
-            camera.framerate = 60
+            camera.framerate = 100
     finally:
         camera.framerate = save_framerate
 
