@@ -140,6 +140,32 @@ convert the stream to a numpy array and read the array with `OpenCV`_::
     image = image[:, :, ::-1]
 
 
+.. _resize_capture:
+
+Capturing resized images
+========================
+
+Sometimes, particularly in scripts which will perform some sort of analysis or
+processing on images, you may wish to capture smaller images than the current
+resolution of the camera. Although such resizing can be performed using
+libraries like PIL or OpenCV, it is considerably more efficient to have the
+Pi's GPU perform the resizing when capturing the image. This can be done with
+the *resize* parameter of the :meth:`~picamera.PiCamera.capture` methods::
+
+    import time
+    import picamera
+
+    with picamera.PiCamera() as camera:
+        camera.resolution = (1024, 768)
+        camera.start_preview()
+        # Camera warm-up time
+        time.sleep(2)
+        camera.capture('foo.jpg', resize=(320, 240))
+
+The *resize* parameter can also be specified when recording video with the
+:meth:`~picamera.PiCamera.start_recording` method.
+
+
 .. _timelapse_capture:
 
 Capturing timelapse sequences
@@ -363,31 +389,6 @@ which is approximately 5 seconds long (approximately because the
 key-frame).
 
 .. versionadded:: 0.8
-
-
-.. _full_res_record:
-
-Recording full-resolution video
-===============================
-
-As noted in the :ref:`preview_still_resolution` section, video recording
-typically only uses the center 1920x1080 pixels of the camera's sensor.
-However, it is possible to record video using the full area of the camera's
-sensor although due to GPU limitations the output must be down-scaled prior to
-encoding and the frame-rate will be limited to 15fps. To achieve this, simply
-specify the down-scaled resolution as the *resize* parameter to the
-:meth:`~picamera.PiCamera.start_recording` method, after setting the camera's
-resolution::
-
-    import picamera
-
-    with picamera.PiCamera() as camera:
-        camera.resolution = (2592, 1944)
-        camera.start_recording('full_res.h264', resize=(1024, 768))
-        camera.wait_recording(60)
-        camera.stop_recording()
-
-.. versionadded:: 1.0
 
 
 .. _circular_record1:

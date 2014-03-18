@@ -52,9 +52,7 @@ In 1.0 the major features added were:
   timestamp, size, keyframe, etc.) (`#34`_, `#36`_)
 * All capture methods (:meth:`~picamera.PiCamera.capture` et al), and the
   :meth:`~picamera.PiCamera.start_recording` method now accept a ``resize``
-  parameter which invokes a resizer prior to the encoding step. This can be
-  used to :ref:`record video with full field-of-view <full_res_record>`
-  (`#21`_)
+  parameter which invokes a resizer prior to the encoding step (`#21`_)
 * A new :class:`~picamera.PiCameraCircularIO` stream class is provided to
   permit holding the last *n* seconds of video in memory, ready for writing out
   to disk (or whatever you like) (`#39`_)

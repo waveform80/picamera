@@ -1,4 +1,4 @@
-.. _camera_theory:
+.. _camera_hardware:
 
 ===============
 Camera Hardware
@@ -9,86 +9,96 @@ under various conditions, as well as to provide an introduction to the low
 level software interface that picamera utilizes.
 
 
-.. _preview_still_resolution:
+.. _camera_modes:
 
-Field of View
-=============
+Camera Modes
+============
 
-One thing you may have noted while experimenting with the camera's preview mode
-is that captured images typically show more than the preview. The reason for
-this is that the camera does not (usually) use the full sensor area for preview
-or video captures, but does for image captures. Specifically, the camera's
-sensor has a resolution of 2592x1944 pixels (approximately 5 mega-pixels in
-area), but only the 1440x1080 pixels in the center of the sensor are used for
-previews or video (for resolutions with a 4:3 aspect ratio):
+The Pi's camera has a discrete set of input modes which are as follows:
 
-.. image:: pal_area.png
-    :width: 640px
-    :align: center
-
-When still images are captured, the full sensor area is used and the resulting
-image is scaled to the requested :attr:`~picamera.PiCamera.resolution`. This
-usually results in a considerably larger field of view being observed in the
-final image than was present in the preview shown before the capture.
-
-If a wide-screen 16:9 aspect ratio is configured (1280x720 for example), then
-the capture area and preview area will be as shown in the image below:
-
-.. image:: hd_area.png
-    :width: 640px
-    :align: center
-
-If you wish to ensure that previews and captures have the same field of view,
-set the camera's :attr:`~picamera.PiCamera.resolution` to the maximum
-(2592x1944). When the camera is set to its maximum resolution all operations
-will attempt to use the full field of view, including previews and video
-recording. Previews will work happily, albeit at a reduced frame rate of 15fps
-(due to hardware limitations), and will now have the same field of view as
-captured images::
-
-    import time
-    import picamera
-
-    with picamera.PiCamera() as camera:
-        camera.resolution = (2592, 1944)
-        # The following is equivalent
-        #camera.resolution = camera.MAX_IMAGE_RESOLUTION
-        camera.start_preview()
-        time.sleep(2)
-        camera.capture('foo.jpg')
-
-However, video recording does *not* work at this resolution (again, due to
-hardware limitations).  Thankfully, a simple solution is available: the
-``resize`` parameter. This can be used with all
-:meth:`~picamera.PiCamera.capture` methods and the
-:meth:`~picamera.PiCamera.start_recording` method. The ``resize`` parameter
-causes the camera's output to be resized prior to encoding, allowing you to
-produce full-frame captures and video recording at lower resolutions than
-2592x1944. For example, the following code will produce a 1024x768 video
-recording, captured from the full field of view of the camera::
-
-    import picamera
-
-    with picamera.PiCamera() as camera:
-        camera.resolution = (2592, 1944)
-        camera.start_preview()
-        camera.start_recording('foo.h264', resize=(1024, 768))
-        camera.wait_recording(30)
-        camera.stop_recording()
-
-Bear in mind that, as with the preview, full field of view video recordings
-will have a framerate of 15fps.
++------------+--------------+------------+-------+-------+---------+
+| Resolution | Aspect Ratio | Framerates | Video | Image | FoV     |
++============+==============+============+=======+=======+=========+
+| 2592x1944  | 4:3          | 1-15fps    | x     | x     | Full    |
++------------+--------------+------------+-------+-------+---------+
+| 1296x972   | 4:3          | 1-42fps    | x     |       | Full    |
++------------+--------------+------------+-------+-------+---------+
+| 1296x730   | 16:9         | 1-49fps    | x     |       | Full    |
++------------+--------------+------------+-------+-------+---------+
+| 640x480    | 4:3          | 42.1-60fps | x     |       | Full    |
++------------+--------------+------------+-------+-------+---------+
+| 640x480    | 4:3          | 60.1-90fps | x     |       | Full    |
++------------+--------------+------------+-------+-------+---------+
+| 1920x1080  | 16:9         | 1-30fps    | x     |       | Partial |
++------------+--------------+------------+-------+-------+---------+
 
 .. note::
 
-    One limitation to consider when using the ``resize`` parameter is that the
-    full resolution has an aspect ratio of 4:3 and at present there are no
-    facilities to crop this. Therefore, specifying any value for ``resize``
-    which doesn't also have an aspect ratio of 4:3 will result in the output
-    appearing squished.
+    This table is accurate as of firmware revision #656. Firmwares prior to
+    this had a more restricted set of modes, and all video modes had partial
+    FoV. Please use ``sudo rpi-update`` to upgrade to the latest firmware.
 
-.. versionchanged:: 1.0
-    The *resize* parameter was first added in 1.0
+Modes with full field of view (FoV) capture from the whole area of the
+camera's sensor (2592x1944 pixels). Modes with partial FoV only capture from
+the center 1920x1080 pixels. The difference between these areas is shown in the
+illustration below:
+
+.. image:: sensor_area.png
+    :width: 640px
+    :align: center
+
+Which input mode is used cannot be *directly* controlled, but is selected based
+on the requested :attr:`~picamera.PiCamera.resolution` and
+:attr:`~picamera.PiCamera.framerate`. The rules governing which input mode is
+selected are as follows:
+
+* The mode must be acceptable. Video modes can be used for video recording,
+  or for image captures from the video port (i.e. when *use_video_port* is
+  ``True`` in calls to the various capture methods). Image captures when
+  *use_video_port* is ``False`` must use an image mode (of which only one
+  currently exists).
+
+* The closer the requested :attr:`~picamera.PiCamera.resolution` is to the
+  mode's resolution the better, but downscaling from a higher input resolution
+  is preferable to upscaling from a lower input resolution.
+
+* The requested :attr:`~picamera.PiCamera.framerate` should be within the
+  range of the input mode. Note that this is not a hard restriction (it is
+  possible, but unlikely, for the camera to select a mode that does not support
+  the requested framerate).
+
+* The closer the aspect ratio of the requested
+  :attr:`~picamera.PiCamera.resolution` is to the mode's resolution, the
+  better. Attempts to set resolutions with aspect ratios other than 4:3 or 16:9
+  (which are the only ratios directly supported by the modes in the table
+  above) will choose the mode which maximizes the resulting FoV.
+
+A few examples are given below to clarify the operation of this heuristic:
+
+* If you set the :attr:`~picamera.PiCamera.resolution` to 1024x768 (a 4:3
+  aspect ratio), and :attr:`~picamera.PiCamera.framerate` to anything less than
+  42fps, the 1296x976 mode will be selected, and the camera will downscale the
+  result to 1024x768.
+
+* If you set the :attr:`~picamera.PiCamera.resolution` to 1280x720 (a 16:9
+  wide-screen aspect ratio), and :attr:`~picamera.PiCamera.framerate` to
+  anything less than 49fps, the 1296x730 mode will be selected and downscaled
+  appropriately.
+
+* Setting :attr:`~picamera.PiCamera.resolution` to 1920x1080 and
+  :attr:`~picamera.PiCamera.framerate` to 30fps exceeds the resolution of both
+  the 1296x730 and 1296x976 modes (i.e. they would require upscaling), so the
+  1920x1080 mode is selected instead, although it has a reduced FoV.
+
+* A :attr:`~picamera.PiCamera.resolution` of 800x600 and a
+  :attr:`~picamera.PiCamera.framerate` of 60fps will select the 640x480 60fps
+  mode, even though it requires upscaling because the algorithm considers the
+  framerate to take precedence in this case.
+
+* Any attempt to capture an image without using the video port will
+  (temporarily) select the 2592x1944 mode while the capture is performed (this
+  is what causes the flicker you sometimes see when a preview is running while
+  a still image is captured).
 
 
 .. _under_the_hood:
@@ -96,38 +106,10 @@ will have a framerate of 15fps.
 Under the Hood
 ==============
 
-For those that wish to understand exactly why this discrepancy exists, and how
-the methods mentioned above work, this section attempts to provide detail of
-what's going on "under the hood".
+This section attempts to provide detail of what picamera is doing "under the
+hood" in response to various method calls.
 
-Resolutions
------------
-
-From a software perspective, the Pi's camera has a couple of resolutions: the
-capture resolution, which you cannot (directly) configure, and the output
-resolution, which picamera exposes via the
-:attr:`~picamera.PiCamera.resolution` attribute.
-
-The camera's capture resolution defaults to the center 1440x1080 pixels of the
-sensor. If the output :attr:`~picamera.PiCamera.resolution` is set to the
-maximum (2592x1944), then the camera's capture resolution is also set to the
-maximum (and the camera's framerate is reduced to 15fps). If the output
-resolution is set to anything less, the capture resolution is set to the center
-1440x1080 pixels (and the camera's framerate is restored to the default 30fps).
-
-.. note::
-
-    The capture resolution is actually slightly more complex than this. For the
-    sake of simplicity the situation we're describing here applies when the
-    requested output resolution has an aspect ratio of 4:3 (e.g. 640x480,
-    1024x768, or the maximum resolution 2592x1944). When a wide-screen
-    output resolution is requested (e.g. 1280x720) the capture resolution
-    defaults to the center 1920x1080 pixels of the sensor.
-
-    In other words, the default capture resolution has a height of 1080 and a
-    width calculated from the aspect ratio of the configured output resolution.
-
-The camera also has three ports, the still port, the video port, and the
+The Pi's camera has three ports, the still port, the video port, and the
 preview port. The following sections describe how these ports are used by
 picamera and how they influence the camera's resolutions.
 
@@ -135,43 +117,33 @@ The Still Port
 --------------
 
 Firstly, the still port. Whenever this is used to capture images, it (briefly)
-forces the camera's capture resolution to the maximum so that images are
-captured using the full area of the sensor. Once the capture is complete the
-previous capture resolution is restored. If the preview is running at the time
-of the capture you will briefly see the field of view increase and then
-decrease again as this mode change occurs.
+forces the camera's mode to the only supported still mode (see
+:ref:`camera_modes`) so that images are captured using the full area of the
+sensor. It also appears to perform a considerable amount of post-processing on
+captured images so that they appear higher quality.
 
-The output is subsequently scaled to the camera's currently configured output
-:attr:`~picamera.PiCamera.resolution`. The still port is used by the various
-:meth:`~picamera.PiCamera.capture` methods when their ``use_video_port``
-parameter is ``False`` (which it is by default).
+The still port is used by the various :meth:`~picamera.PiCamera.capture`
+methods when their ``use_video_port`` parameter is ``False`` (which it is by
+default).
 
 The Video Port
 --------------
 
-The video port is somewhat simpler in that it never changes the camera's
-capture resolution. Hence, by default, it only captures using the 1440x1080
-pixels in the center of the camera's sensor, scaling the result to the camera's
-currently configured output :attr:`~picamera.PiCamera.resolution`.
-
-However, as described above, when the configured output resolution is the
-maximum, the capture resolution is also set to the maximum, causing the full
-area of the camera's sensor to be used (with a reduced framerate of 15fps).
-Unfortunately, at this resolution video recording does not work (due to
-hardware limitations) although still captures can work.
-
+The video port is somewhat simpler in that it never changes the camera's mode.
 The video port is used by the :meth:`~picamera.PiCamera.start_recording` method
 (for recording video), and is also used by the various
 :meth:`~picamera.PiCamera.capture` methods when their ``use_video_port``
-parameter is ``True``.
+parameter is ``True``. Images captured from the video port tend to have a
+"grainy" appearance, much more akin to a video frame than the images captured
+by the still port (the author suspects the still port may be taking an average
+of several frames).
 
 The Preview Port
 ----------------
 
-The preview port operates more or less identically to the video port (captures
-using the reduced area by default, but uses the full sensor when the camera is
-configured for maximum resolution, at a reduced framerate). As the preview port
-is never used for encoding we won't mention it further in this section.
+The preview port operates more or less identically to the video port. As the
+preview port is never used for encoding we won't mention it further in this
+section.
 
 Encoders
 --------

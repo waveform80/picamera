@@ -206,9 +206,9 @@ utilizing its video-capture capabilities with a JPEG encoder (via the
 ``use_video_port`` parameter). However, there are several things to note about
 using this technique:
 
-* When using video-port based capture only the preview area is captured; in
-  some cases this may be desirable (see the discussion under
-  :ref:`preview_still_resolution`).
+* When using video-port based capture only the video recording area is
+  captured; in some cases this may be smaller than the normal image capture
+  area (see dicussion in :ref:`camera_modes`).
 
 * No Exif information is embedded in JPEG images captured through the
   video-port.
