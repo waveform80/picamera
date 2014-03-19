@@ -148,6 +148,27 @@ def test_record_to_stream(camera, previewing, mode, format_options):
         stream2.seek(0)
         verify_video(stream2, format, resolution)
 
+def test_record_sequence_to_file(camera, previewing, mode, tmpdir):
+    resolution, framerate = mode
+    if resolution == (2592, 1944):
+        pytest.xfail('Cannot encode video at max resolution')
+    filenames = [os.path.join(str(tmpdir), 'clip%d.h264' % i) for i in range(3)]
+    for filename in camera.record_sequence(filenames):
+        camera.wait_recording(1)
+    for filename in filenames:
+        verify_video(filename, 'h264', resolution)
+
+def test_record_sequence_to_stream(camera, previewing, mode):
+    resolution, framerate = mode
+    if resolution == (2592, 1944):
+        pytest.xfail('Cannot encode video at max resolution')
+    streams = [tempfile.SpooledTemporaryFile() for i in range(3)]
+    for stream in camera.record_sequence(streams):
+        camera.wait_recording(1)
+    for stream in streams:
+        stream.seek(0)
+        verify_video(stream, 'h264', resolution)
+
 def test_circular_record(camera, previewing, mode):
     resolution, framerate = mode
     if resolution == (2592, 1944):
