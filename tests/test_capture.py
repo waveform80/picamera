@@ -86,17 +86,19 @@ def use_video_port(request):
 
 
 def test_capture_to_file(
-        camera, previewing, resolution, filename_format_options, use_video_port):
+        camera, previewing, mode, filename_format_options, use_video_port):
     filename, format, options = filename_format_options
+    resolution, framerate = mode
     camera.capture(filename, use_video_port=use_video_port, **options)
     if 'resize' in options:
         resolution = options['resize']
     verify_image(filename, format, resolution)
 
 def test_capture_to_stream(
-        camera, previewing, resolution, format_options, use_video_port):
+        camera, previewing, mode, format_options, use_video_port):
     stream = io.BytesIO()
     format, options = format_options
+    resolution, framerate = mode
     if 'resize' in options:
         resolution = options['resize']
     camera.capture(stream, format, use_video_port=use_video_port, **options)
@@ -104,7 +106,8 @@ def test_capture_to_stream(
     verify_image(stream, format, resolution)
 
 def test_capture_continuous_to_file(
-        camera, previewing, resolution, tmpdir, use_video_port):
+        camera, previewing, mode, tmpdir, use_video_port):
+    resolution, framerate = mode
     for i, filename in enumerate(
             camera.capture_continuous(os.path.join(
                 str(tmpdir), 'image{counter:02d}.jpg'),
@@ -114,7 +117,8 @@ def test_capture_continuous_to_file(
             break
 
 def test_capture_continuous_to_stream(
-        camera, previewing, resolution, use_video_port):
+        camera, previewing, mode, use_video_port):
+    resolution, framerate = mode
     stream = io.BytesIO()
     for i, foo in enumerate(
             camera.capture_continuous(stream, format='jpeg',
@@ -127,21 +131,24 @@ def test_capture_continuous_to_stream(
             break
 
 def test_capture_sequence_to_file(
-        camera, previewing, resolution, tmpdir, use_video_port):
+        camera, previewing, mode, tmpdir, use_video_port):
+    resolution, framerate = mode
     filenames = [os.path.join(str(tmpdir), 'image%d.jpg' % i) for i in range(3)]
     camera.capture_sequence(filenames, use_video_port=use_video_port)
     for filename in filenames:
         verify_image(filename, 'jpeg', resolution)
 
 def test_capture_sequence_to_stream(
-        camera, previewing, resolution, use_video_port):
+        camera, previewing, mode, use_video_port):
+    resolution, framerate = mode
     streams = [io.BytesIO() for i in range(3)]
     camera.capture_sequence(streams, use_video_port=use_video_port)
     for stream in streams:
         stream.seek(0)
         verify_image(stream, 'jpeg', resolution)
 
-def test_capture_raw(camera, resolution, raw_format, use_video_port):
+def test_capture_raw(camera, mode, raw_format, use_video_port):
+    resolution, framerate = mode
     if resolution == (2592, 1944) and raw_format in ('rgba', 'bgra') and not use_video_port:
         pytest.xfail('Camera crashes with this combination')
     if resolution == (2592, 1944) and raw_format in ('rgb', 'bgr'):
@@ -152,7 +159,8 @@ def test_capture_raw(camera, resolution, raw_format, use_video_port):
     camera.capture(stream, format=raw_format, use_video_port=use_video_port)
     verify_raw(stream, raw_format, resolution)
 
-def test_capture_continuous_raw(camera, resolution, raw_format, use_video_port):
+def test_capture_continuous_raw(camera, mode, raw_format, use_video_port):
+    resolution, framerate = mode
     if resolution == (2592, 1944) and raw_format in ('rgba', 'bgra') and not use_video_port:
         pytest.xfail('Camera crashes with this combination')
     if resolution == (2592, 1944) and raw_format in ('rgb', 'bgr'):
@@ -167,7 +175,8 @@ def test_capture_continuous_raw(camera, resolution, raw_format, use_video_port):
         stream.seek(0)
         stream.truncate()
 
-def test_capture_sequence_raw(camera, resolution, raw_format, use_video_port):
+def test_capture_sequence_raw(camera, mode, raw_format, use_video_port):
+    resolution, framerate = mode
     if resolution == (2592, 1944) and raw_format in ('rgba', 'bgra') and not use_video_port:
         pytest.xfail('Camera crashes with this combination')
     if resolution == (2592, 1944) and raw_format in ('rgb', 'bgr'):
@@ -179,7 +188,7 @@ def test_capture_sequence_raw(camera, resolution, raw_format, use_video_port):
     for stream in streams:
         verify_raw(stream, raw_format, resolution)
 
-def test_exif_ascii(camera, previewing, resolution):
+def test_exif_ascii(camera, previewing, mode):
     camera.exif_tags['IFD0.Artist'] = 'Me!'
     camera.exif_tags['IFD0.Copyright'] = 'Copyright (c) 2000 Foo'
     # Exif is only supported with JPEGs...
@@ -194,7 +203,7 @@ def test_exif_ascii(camera, previewing, resolution):
     assert exif[33432] == 'Copyright (c) 2000 Foo'
 
 @pytest.mark.xfail(reason="Exif binary values don't work")
-def test_exif_binary(camera, previewing, resolution):
+def test_exif_binary(camera, previewing, mode):
     camera.exif_tags['IFD0.Copyright'] = b'Photographer copyright (c) 2000 Foo\x00Editor copyright (c) 2002 Bar\x00'
     camera.exif_tags['IFD0.UserComment'] = b'UNICODE\x00\xff\xfeF\x00o\x00o\x00'
     # Exif is only supported with JPEGs...

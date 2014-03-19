@@ -84,11 +84,12 @@ def format_options(request):
     return request.param.format, request.param.options
 
 
-def test_record_to_file(camera, previewing, resolution, filenames_format_options):
+def test_record_to_file(camera, previewing, mode, filenames_format_options):
     filename1, filename2, format, options = filenames_format_options
+    resolution, framerate = mode
     if resolution == (2592, 1944) and 'resize' not in options:
         pytest.xfail('Cannot encode video at max resolution')
-    if resolution == (1920, 1080) and format == 'mjpeg':
+    if resolution[1] > 480 and format == 'mjpeg':
         pytest.xfail('Locks up camera')
     camera.start_recording(filename1, **options)
     try:
@@ -113,11 +114,12 @@ def test_record_to_file(camera, previewing, resolution, filenames_format_options
     if verify2:
         verify_video(filename2, format, resolution)
 
-def test_record_to_stream(camera, previewing, resolution, format_options):
+def test_record_to_stream(camera, previewing, mode, format_options):
     format, options = format_options
+    resolution, framerate = mode
     if resolution == (2592, 1944) and 'resize' not in options:
         pytest.xfail('Cannot encode video at max resolution')
-    if resolution == (1920, 1080) and format == 'mjpeg':
+    if resolution[1] > 480 and format == 'mjpeg':
         pytest.xfail('Locks up camera')
     stream1 = tempfile.SpooledTemporaryFile()
     stream2 = tempfile.SpooledTemporaryFile()
@@ -146,7 +148,8 @@ def test_record_to_stream(camera, previewing, resolution, format_options):
         stream2.seek(0)
         verify_video(stream2, format, resolution)
 
-def test_circular_record(camera, previewing, resolution):
+def test_circular_record(camera, previewing, mode):
+    resolution, framerate = mode
     if resolution == (2592, 1944):
         pytest.xfail('Cannot encode video at max resolution')
     stream = picamera.PiCameraCircularIO(camera, seconds=4)
@@ -174,7 +177,8 @@ def test_circular_record(camera, previewing, resolution):
     temp.seek(0)
     verify_video(temp, 'h264', resolution)
 
-def test_split_and_capture(camera, previewing, resolution):
+def test_split_and_capture(camera, previewing, mode):
+    resolution, framerate = mode
     if resolution == (2592, 1944):
         pytest.xfail('Cannot encode video at max resolution')
     v_stream1 = tempfile.SpooledTemporaryFile()
@@ -195,7 +199,8 @@ def test_split_and_capture(camera, previewing, resolution):
     verify_video(v_stream1, 'h264', resolution)
     verify_video(v_stream2, 'h264', resolution)
 
-def test_multi_res_record(camera, previewing, resolution):
+def test_multi_res_record(camera, previewing, mode):
+    resolution, framerate = mode
     if resolution == (2592, 1944):
         pytest.xfail('Cannot encode video at max resolution')
     v_stream1 = tempfile.SpooledTemporaryFile()
@@ -203,7 +208,7 @@ def test_multi_res_record(camera, previewing, resolution):
     new_res = (resolution[0] // 2, resolution[1] // 2)
     camera.start_recording(v_stream1, format='h264')
     try:
-        camera.start_recording(v_stream2, resize=new_res, splitter_port=2)
+        camera.start_recording(v_stream2, format='h264', resize=new_res, splitter_port=2)
         try:
             camera.wait_recording(1)
             camera.wait_recording(1, splitter_port=2)

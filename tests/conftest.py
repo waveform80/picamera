@@ -64,22 +64,26 @@ def previewing(request, camera):
     request.addfinalizer(fin)
     return request.param
 
-# Run tests at a variety of resolutions (and aspect ratios, 1:1, 4:3, 16:9)
+# Run tests at a variety of resolutions (and aspect ratios, 1:1, 4:3, 16:9) and
+# framerates (which dictate the input mode of the camera)
 @pytest.fixture(scope='module', params=(
-    (100, 100),
-    (320, 240),
-    (1920, 1080),
-    (2592, 1944),
+    ((100, 100), 60),
+    ((320, 240), 30),
+    ((1280, 720), 30),
+    ((1920, 1080), 24),
+    ((2592, 1944), 15),
     ))
-def resolution(request, camera):
+def mode(request, camera):
     save_resolution = camera.resolution
-    camera.resolution = request.param
+    save_framerate = camera.framerate
+    camera.resolution, camera.framerate = request.param
     def fin():
         try:
-            if camera.recording:
-                camera.stop_recording()
+            for port in camera._encoders:
+                camera.stop_recording(splitter_port=encoder)
         finally:
             camera.resolution = save_resolution
+            camera.framerate = save_framerate
     request.addfinalizer(fin)
     return request.param
 
