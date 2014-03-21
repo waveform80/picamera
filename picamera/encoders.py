@@ -142,6 +142,12 @@ class PiEncoder(object):
         if self.resizer:
             mmal.mmal_format_copy(
                 self.encoder[0].input[0][0].format, self.resizer[0].output[0][0].format)
+        else:
+            mmal.mmal_format_copy(
+                self.encoder[0].input[0][0].format, self.input_port[0].format)
+        mmal_check(
+            mmal.mmal_port_format_commit(self.encoder[0].input[0]),
+            prefix="Failed to set encoder input port format")
         mmal.mmal_format_copy(
             self.output_port[0].format, self.encoder[0].input[0][0].format)
         # Set buffer size and number to appropriate values
@@ -151,6 +157,10 @@ class PiEncoder(object):
         self.output_port[0].buffer_num = max(
             self.output_port[0].buffer_num_recommended,
             self.output_port[0].buffer_num_min)
+        # NOTE: We deliberately don't commit the output port format here as
+        # this is a base class and the output configuration is incomplete at
+        # this point. Descendents are expected to finish configuring the
+        # encoder and then commit the port format themselves
 
     def _create_resizer(self, width, height):
         self.resizer = ct.POINTER(mmal.MMAL_COMPONENT_T)()

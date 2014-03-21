@@ -316,7 +316,7 @@ class PiCamera(object):
         for p in self.CAMERA_PORTS:
             port = self._camera[0].output[p]
             fmt = port[0].format
-            fmt[0].encoding = mmal.MMAL_ENCODING_I420 if p != self.CAMERA_PREVIEW_PORT else mmal.MMAL_ENCODING_OPAQUE
+            fmt[0].encoding = mmal.MMAL_ENCODING_I420 if p == self.CAMERA_VIDEO_PORT else mmal.MMAL_ENCODING_OPAQUE
             fmt[0].encoding_variant = mmal.MMAL_ENCODING_I420
             fmt[0].es[0].video.width = cc.max_preview_video_w
             fmt[0].es[0].video.height = cc.max_preview_video_h
@@ -741,6 +741,7 @@ class PiCamera(object):
                     'port %d' % splitter_port)
         camera_port, output_port = self._get_ports(True, splitter_port)
         format = self._get_video_format(output, format)
+        self._still_encoding = mmal.MMAL_ENCODING_I420
         encoder = PiVideoEncoder(
                 self, camera_port, output_port, format, resize, **options)
         self._encoders[splitter_port] = encoder
@@ -914,6 +915,7 @@ class PiCamera(object):
                     'port %d' % splitter_port)
         camera_port, output_port = self._get_ports(True, splitter_port)
         format = self._get_video_format('', format)
+        self._still_encoding = mmal.MMAL_ENCODING_I420
         encoder = PiVideoEncoder(
                 self, camera_port, output_port, format, resize, **options)
         self._encoders[splitter_port] = encoder
@@ -993,6 +995,12 @@ class PiCamera(object):
         tuple specifying the width and height that the image should be resized
         to.
 
+        .. warning::
+
+            If *resize* is specified, or *use_video_port* is ``True``, Exif
+            metadata will **not** be included in JPEG output. This is due to an
+            underlying firmware limitation.
+
         Certain file formats accept additional options which can be specified
         as keyword arguments. Currently, only the ``'jpeg'`` encoder accepts
         additional options, which are:
@@ -1018,6 +1026,10 @@ class PiCamera(object):
                     'port %d' % splitter_port)
         camera_port, output_port = self._get_ports(use_video_port, splitter_port)
         format = self._get_image_format(output, format)
+        if format == 'jpeg' and not use_video_port and not resize:
+            self._still_encoding = mmal.MMAL_ENCODING_OPAQUE
+        else:
+            self._still_encoding = mmal.MMAL_ENCODING_I420
         encoder_class = (
                 PiRawOneImageEncoder if format in self.RAW_FORMATS else
                 PiCookedOneImageEncoder)
@@ -1096,6 +1108,10 @@ class PiCamera(object):
                     'port %d' % splitter_port)
         camera_port, output_port = self._get_ports(use_video_port, splitter_port)
         format = self._get_image_format('', format)
+        if format == 'jpeg' and not use_video_port and not resize:
+            self._still_encoding = mmal.MMAL_ENCODING_OPAQUE
+        else:
+            self._still_encoding = mmal.MMAL_ENCODING_I420
         if use_video_port:
             encoder_class = (
                     PiRawMultiImageEncoder if format in self.RAW_FORMATS else
@@ -1224,6 +1240,10 @@ class PiCamera(object):
                     'port %d' % splitter_port)
         camera_port, output_port = self._get_ports(use_video_port, splitter_port)
         format = self._get_image_format(output, format)
+        if format == 'jpeg' and not use_video_port and not resize:
+            self._still_encoding = mmal.MMAL_ENCODING_OPAQUE
+        else:
+            self._still_encoding = mmal.MMAL_ENCODING_I420
         encoder_class = (
                 PiRawOneImageEncoder if format in self.RAW_FORMATS else
                 PiCookedOneImageEncoder)
@@ -1594,6 +1614,28 @@ class PiCamera(object):
             and resolution used by the camera is influenced, but not directly
             set, by this property. See :ref:`camera_modes` for more
             information.
+        """)
+
+    def _get_still_encoding(self):
+        self._check_camera_open()
+        port = self._camera[0].output[self.CAMERA_CAPTURE_PORT]
+        return port[0].format[0].encoding
+    def _set_still_encoding(self, value):
+        self._check_camera_open()
+        if value == self._still_encoding.value:
+            return
+        self._check_recording_stopped()
+        self._disable_camera()
+        port = self._camera[0].output[self.CAMERA_CAPTURE_PORT]
+        port[0].format[0].encoding = value
+        mmal_check(
+            mmal.mmal_port_format_commit(port),
+            prefix="Couldn't set capture port encoding")
+        self._enable_camera()
+    _still_encoding = property(_get_still_encoding, _set_still_encoding, doc="""
+        Configures the encoding of the camera's still port.
+
+        This attribute is intended for internal use only.
         """)
 
     def _get_saturation(self):
