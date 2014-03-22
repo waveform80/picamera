@@ -1009,9 +1009,21 @@ class PiCamera(object):
           ranging from 1 to 100. Defaults to 85.
 
         * *thumbnail* - Defines the size and quality of the thumbnail to embed
-          in the Exif data. Specifying ``None`` disables thumbnail generation.
-          Otherwise, specify a tuple of ``(width, height, quality)``. Defaults
-          to ``(64, 48, 35)``.
+          in the Exif metadata. Specifying ``None`` disables thumbnail
+          generation.  Otherwise, specify a tuple of ``(width, height,
+          quality)``. Defaults to ``(64, 48, 35)``.
+
+        * *bayer* - If ``True``, the raw bayer data from the camera's sensor
+          is included in the Exif metadata.
+
+        .. note::
+
+            The so-called "raw" formats listed above (``'yuv'``, ``'rgb'``,
+            etc.) do not represent the raw bayer data from the camera's sensor.
+            Rather they provide access to the image data after GPU processing,
+            but before format encoding (JPEG, PNG, etc). Currently, the only
+            method of accessing the raw bayer data is via the *bayer* parameter
+            described above.
 
         .. versionchanged:: 1.0
             The *resize* parameter was added, and raw capture formats can now

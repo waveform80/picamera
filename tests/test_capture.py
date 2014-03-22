@@ -188,7 +188,15 @@ def test_capture_sequence_raw(camera, mode, raw_format, use_video_port):
     for stream in streams:
         verify_raw(stream, raw_format, resolution)
 
-def test_exif_ascii(camera, previewing, mode):
+def test_capture_bayer(camera, mode):
+    stream = io.BytesIO()
+    camera.capture(stream, format='jpeg', bayer=True)
+    # Bayer data is always the last 6404096 bytes of the stream, and starts
+    # with 'BRCM'
+    stream.seek(-6404096, io.SEEK_END)
+    assert stream.read(4) == 'BRCM'
+
+def test_exif_ascii(camera, mode):
     camera.exif_tags['IFD0.Artist'] = 'Me!'
     camera.exif_tags['IFD0.Copyright'] = 'Copyright (c) 2000 Foo'
     # Exif is only supported with JPEGs...
@@ -203,7 +211,7 @@ def test_exif_ascii(camera, previewing, mode):
     assert exif[33432] == 'Copyright (c) 2000 Foo'
 
 @pytest.mark.xfail(reason="Exif binary values don't work")
-def test_exif_binary(camera, previewing, mode):
+def test_exif_binary(camera, mode):
     camera.exif_tags['IFD0.Copyright'] = b'Photographer copyright (c) 2000 Foo\x00Editor copyright (c) 2002 Bar\x00'
     camera.exif_tags['IFD0.UserComment'] = b'UNICODE\x00\xff\xfeF\x00o\x00o\x00'
     # Exif is only supported with JPEGs...
