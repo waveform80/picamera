@@ -1030,7 +1030,9 @@ class PiCamera(object):
             be specified directly
 
         .. versionchanged:: 1.3
-            The *splitter_port* parameter was added
+            The *splitter_port* parameter was added, and *bayer* was added as
+            an option for the ``'jpeg'`` format
+
         """
         if use_video_port and (splitter_port in self._encoders):
             raise PiCameraRuntimeError(

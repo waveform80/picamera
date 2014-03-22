@@ -1,3 +1,22 @@
+picamera (1.3-1) stable; urgency=low
+
+  * The bayer parameter was added to the 'jpeg' format in the capture methods
+    to permit output of the camera's raw sensor data (#52)
+  * The record_sequence method was added to provide a cleaner interface for
+    recording multiple consecutive video clips (#53)
+  * The splitter_port parameter was added to all capture methods and
+    start_recording to permit recording multiple simultaneous video streams
+    (presumably with different options, primarily resize) (#56)
+  * The limits on the framerate attribute were increased after firmware #656
+    introduced numerous new camera modes including 90fps recording (at lower
+    resolutions) (#65)
+  * It was reported that Exif metadata (including thumbnails) wasn't fully
+    recorded in JPEG output (#59)
+  * Raw captures with capture_continuous and capture_sequence were broken
+    (#55)
+
+ -- Dave Hughes <dave@waveform.org.uk>  Sat, 22 Mar 2014 19:52:20 +0000
+
 picamera (1.2-1) stable; urgency=low
 
   * A bug introduced in 1.1 caused split_recording to fail if it was preceded

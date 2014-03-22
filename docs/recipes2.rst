@@ -10,14 +10,14 @@ friendly". Please feel free to suggest enhancements or additional recipes.
 
 .. _yuv_capture:
 
-Raw image capture (YUV format)
-==============================
+Unencoded image capture (YUV format)
+====================================
 
 If you want images captured without loss of detail (due to JPEG's lossy
 compression), you are probably better off exploring PNG as an alternate image
 format (PNG uses lossless compression). However, some applications
-(particularly scientific ones) simply require the raw sensor data in numeric
-form. For this, the ``'yuv'`` format is provided::
+(particularly scientific ones) simply require the image data in numeric form.
+For this, the ``'yuv'`` format is provided::
 
     import time
     import picamera
@@ -35,16 +35,16 @@ the U (chrominance) values, and finally the V (chrominance) values.  The UV
 values have one quarter the resolution of the Y components (4 1-byte Y values
 in a square for each 1-byte U and 1-byte V value).
 
-It is also important to note that when outputting to raw format, the camera
-rounds the requested resolution. The horizontal resolution is rounded up to the
-nearest multiple of 32, while the vertical resolution is rounded up to the
-nearest multiple of 16. For example, if the requested resolution is 100x100,
-a raw capture will actually contain 128x112 pixels worth of data, but pixels
-beyond 100x100 will be uninitialized.
+It is also important to note that when outputting to unencoded formats, the
+camera rounds the requested resolution. The horizontal resolution is rounded up
+to the nearest multiple of 32 pixels, while the vertical resolution is rounded
+up to the nearest multiple of 16 pixels. For example, if the requested
+resolution is 100x100, the capture will actually contain 128x112 pixels worth
+of data, but pixels beyond 100x100 will be uninitialized.
 
 Given that the `YUV420`_ format contains 1.5 bytes worth of data for each pixel
 (a 1-byte Y value for each pixel, and 1-byte U and V values for every 4 pixels),
-and taking into account the resolution rounding, the size of a 100x100 raw
+and taking into account the resolution rounding, the size of a 100x100 YUV
 capture will be:
 
 .. image:: yuv_math.svg
@@ -54,9 +54,9 @@ The first 14336 bytes of the data (128*112) will be Y values, the next 3584
 bytes (128*112/4) will be U values, and the final 3584 bytes will be the V
 values.
 
-The following code demonstrates capturing an image in raw YUV format, loading
-the data into a set of `numpy`_ arrays, and converting the data to RGB format
-in an efficient manner::
+The following code demonstrates capturing YUV image data, loading the data into
+a set of `numpy`_ arrays, and converting the data to RGB format in an efficient
+manner::
 
     from __future__ import division
 
@@ -67,7 +67,7 @@ in an efficient manner::
     width = 100
     height = 100
     stream = open('image.data', 'wb')
-    # Capture the image in raw YUV format
+    # Capture the image in YUV format
     with picamera.PiCamera() as camera:
         camera.resolution = (width, height)
         camera.start_preview()
@@ -106,6 +106,15 @@ in an efficient manner::
 Alternatively, see :ref:`rgb_capture` for a method of having the camera output
 RGB data directly.
 
+.. note::
+
+    Capturing so-called "raw" formats (``'yuv'``, ``'rgb'``, etc.) does not
+    provide the raw bayer data from the camera's sensor. Rather, it provides
+    access to the image data after GPU processing, but before format encoding
+    (JPEG, PNG, etc). Currently, the only method of accessing the raw bayer
+    data is via the *bayer* parameter to the :meth:`~picamera.PiCamera.capture`
+    method.
+
 .. versionchanged:: 1.0
     The :attr:`~picamera.PiCamera.raw_format` attribute is now deprecated, as
     is the ``'raw'`` format specification for the
@@ -115,13 +124,13 @@ RGB data directly.
 
 .. _rgb_capture:
 
-Raw image capture (RGB format)
-==============================
+Unencoded image capture (RGB format)
+====================================
 
 The RGB format is rather larger than the `YUV`_ format discussed in the section
-above, but is more useful for most analyses. To have the camera produce raw
-output in `RGB`_ format, you simply need to specify ``'rgb'`` as the format
-for the :meth:`~picamera.PiCamera.capture` method instead::
+above, but is more useful for most analyses. To have the camera produce output
+in `RGB`_ format, you simply need to specify ``'rgb'`` as the format for the
+:meth:`~picamera.PiCamera.capture` method instead::
 
     import time
     import picamera
@@ -132,7 +141,7 @@ for the :meth:`~picamera.PiCamera.capture` method instead::
         time.sleep(2)
         camera.capture('image.data', 'rgb')
 
-The size of raw `RGB`_ data can be calculated similarly to `YUV`_ captures.
+The size of `RGB`_ data can be calculated similarly to `YUV`_ captures.
 Firstly round the resolution appropriately (see :ref:`yuv_capture` for the
 specifics), then multiply the number of pixels by 3 (1 byte of red, 1 byte of
 green, and 1 byte of blue intensity). Hence, for a 100x100 capture, the amount
@@ -155,7 +164,7 @@ Loading the resulting RGB data into a `numpy`_ array is simple::
     width = 100
     height = 100
     stream = open('image.data', 'wb')
-    # Capture the image in raw RGB format
+    # Capture the image in RGB format
     with picamera.PiCamera() as camera:
         camera.resolution = (width, height)
         camera.start_preview()

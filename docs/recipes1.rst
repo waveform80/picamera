@@ -388,7 +388,22 @@ which is approximately 5 seconds long (approximately because the
 :meth:`~picamera.PiCamera.split_recording` method will only split files at a
 key-frame).
 
+The :meth:`~picamera.PiCamera.record_sequence` method can also be used to
+achieve this with slightly cleaner code::
+
+    import picamera
+
+    with picamera.PiCamera() as camera:
+        camera.resolution = (640, 480)
+        for filename in camera.record_sequence(
+                '%d.h264' % i for i in range(1, 11)):
+            camera.wait_recording(5)
+
 .. versionadded:: 0.8
+
+.. versionchanged:: 1.3
+    The :meth:`~picamera.PiCamera.record_sequence` method was introduced in
+    version 1.3
 
 
 .. _circular_record1:
