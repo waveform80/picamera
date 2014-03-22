@@ -89,6 +89,8 @@ def test_capture_to_file(
         camera, previewing, mode, filename_format_options, use_video_port):
     filename, format, options = filename_format_options
     resolution, framerate = mode
+    if resolution == (2592, 1944) and 'resize' in options:
+        pytest.xfail('Camera runs out of memory with this combination')
     camera.capture(filename, use_video_port=use_video_port, **options)
     if 'resize' in options:
         resolution = options['resize']
@@ -99,6 +101,8 @@ def test_capture_to_stream(
     stream = io.BytesIO()
     format, options = format_options
     resolution, framerate = mode
+    if resolution == (2592, 1944) and 'resize' in options:
+        pytest.xfail('Camera runs out of memory with this combination')
     if 'resize' in options:
         resolution = options['resize']
     camera.capture(stream, format, use_video_port=use_video_port, **options)
