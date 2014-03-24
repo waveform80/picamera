@@ -11,23 +11,23 @@ Release 1.3 (2014-03-22)
 1.3 was partly new functionality:
 
 * The *bayer* parameter was added to the ``'jpeg'`` format in the capture
-  methods to permit output of the camera's raw sensor data (`#52_`)
+  methods to permit output of the camera's raw sensor data (`#52`_)
 * The :meth:`~picamera.PiCamera.record_sequence` method was added to provide
-  a cleaner interface for recording multiple consecutive video clips (`#53_`)
+  a cleaner interface for recording multiple consecutive video clips (`#53`_)
 * The *splitter_port* parameter was added to all capture methods and
   :meth:`~picamera.PiCamera.start_recording` to permit recording multiple
   simultaneous video streams (presumably with different options, primarily
-  *resize*) (`#56_`)
+  *resize*) (`#56`_)
 * The limits on the :attr:`~picamera.PiCamera.framerate` attribute were
   increased after firmware #656 introduced numerous new camera modes including
-  90fps recording (at lower resolutions) (`#65_`)
+  90fps recording (at lower resolutions) (`#65`_)
 
 And partly bug fixes:
 
 * It was reported that Exif metadata (including thumbnails) wasn't fully
-  recorded in JPEG output (`#59_`)
+  recorded in JPEG output (`#59`_)
 * Raw captures with :meth:`~picamera.PiCamera.capture_continuous` and
-  :meth:`~picamera.PiCamera.capture_sequence` were broken (`#55_`)
+  :meth:`~picamera.PiCamera.capture_sequence` were broken (`#55`_)
 
 .. _#52: https://github.com/waveform80/picamera/issues/52
 .. _#53: https://github.com/waveform80/picamera/issues/53
