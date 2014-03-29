@@ -1467,7 +1467,7 @@ class PiCamera(object):
             raise PiCameraRuntimeError(
                 "Cannot query frame information when camera is not recording")
         elif len(self._encoders) == 1:
-            return self._encoders.values()[0].frame
+            return next(iter(self._encoders.values())).frame
         else:
             return {
                     port: encoder.frame
