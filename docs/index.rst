@@ -25,6 +25,7 @@ Table of Contents
    quickstart
    recipes1
    recipes2
+   faq
    fov
    api
    changelog
