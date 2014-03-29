@@ -104,6 +104,38 @@ class PiCameraFraction(fractions.Fraction):
         return value in (self.numerator, self.denominator)
 
 
+def to_rational(value):
+    """
+    Converts a value to a numerator, denominator tuple.
+
+    Given a :class:`int`, :class:`float`, or :class:`~fractions.Fraction`
+    instance, returns the value as a `(numerator, denominator)` tuple where the
+    numerator and denominator are integer values.
+    """
+    try:
+        # int, long, or fraction
+        n, d = value.numerator, value.denominator
+    except AttributeError:
+        try:
+            # float
+            n, d = value.as_integer_ratio()
+        except AttributeError:
+            try:
+                # tuple
+                n, d = value
+            except (TypeError, ValueError):
+                # anything else...
+                n = int(value)
+                d = 1
+    # Ensure denominator is reasonable
+    if d == 0:
+        raise PiCameraValueError("Denominator cannot be 0 in %r" % value)
+    elif d > 65536:
+        f = fractions.Fraction(n, d).limit_denominator(65536)
+        n, d = f.numerator, f.denominator
+    return n, d
+
+
 class PiCamera(object):
     """
     Provides a pure Python interface to the Raspberry Pi's camera module.
@@ -1506,23 +1538,7 @@ class PiCamera(object):
         self._check_camera_open()
         self._check_recording_stopped()
         w, h = self.resolution
-        try:
-            # int, long, or fraction
-            n, d = value.numerator, value.denominator
-        except AttributeError:
-            try:
-                # float
-                n, d = value.as_integer_ratio()
-            except AttributeError:
-                try:
-                    # tuple
-                    n, d = value
-                except (TypeError, ValueError):
-                    # anything else...
-                    n = int(value)
-                    d = 1
-        if d == 0:
-            raise PiCameraValueError("Framerate denominator cannot be 0")
+        n, d = to_rational(value)
         if not (0 <= n / d <= 90):
             raise PiCameraValueError("Invalid framerate: %.2ffps" % (n/d))
         self._disable_camera()
@@ -2102,6 +2118,57 @@ class PiCamera(object):
         When set, the property adjusts the camera's auto-white-balance mode.
         The property can be set while recordings or previews are in progress.
         The default value is ``'auto'``.
+        """)
+
+    def _get_awb_gains(self):
+        raise NotImplementedError
+        #self._check_camera_open()
+        #mp = mmal.MMAL_PARAMETER_AWB_GAINS_T(
+        #    mmal.MMAL_PARAMETER_HEADER_T(
+        #        mmal.MMAL_PARAMETER_CUSTOM_AWB_GAINS,
+        #        ct.sizeof(mmal.MMAL_PARAMETER_AWB_GAINS_T)
+        #        ))
+        #mmal_check(
+        #    mmal.mmal_port_parameter_get(self._camera[0].control, mp.hdr),
+        #    prefix="Failed to get auto-white-balance gains")
+        #return mp.r_gain, mp.b_gain
+    def _set_awb_gains(self, value):
+        self._check_camera_open()
+        try:
+            red_gain, blue_gain = value
+        except (ValueError, TypeError):
+            red_gain = blue_gain = value
+        if not (0.0 <= red_gain <= 8.0 and 0.0 <= blue_gain <= 8.0):
+            raise PiCameraValueError(
+                "Invalid gain(s) in (%f, %f) (valid range: 0.0-8.0)" % (
+                    red_gain, blue_gain))
+        mp = mmal.MMAL_PARAMETER_AWB_GAINS_T(
+            mmal.MMAL_PARAMETER_HEADER_T(
+                mmal.MMAL_PARAMETER_CUSTOM_AWB_GAINS,
+                ct.sizeof(mmal.MMAL_PARAMETER_AWB_GAINS_T)
+                ),
+            mmal.MMAL_RATIONAL_T(*to_rational(red_gain)),
+            mmal.MMAL_RATIONAL_T(*to_rational(blue_gain)),
+            )
+        mmal_check(
+            mmal.mmal_port_parameter_set(self._camera[0].control, mp.hdr),
+            prefix="Failed to set auto-white-balance gains")
+    awb_gains = property(_get_awb_gains, _set_awb_gains, doc="""
+        Sets the auto-white-balance gains of the camera.
+
+        When set, this attribute adjusts the camera's auto-white-balance gains.
+        The property can be specified as a single value in which case both red
+        and blue gains will be adjusted equally, or as a `(red, blue)` tuple.
+        Values can be specified as an :class:`int`, :class:`float` or
+        :class:`~fractions.Fraction` and each gain must be between 0.0 and 8.0.
+        Typical values for the gains are between 0.9 and 1.9.  The property can
+        be set while recordings or previews are in progress.
+
+        .. note::
+
+            This attribute only has an effect when :attr:`awb_mode` is set to
+            ``'off'``. The write-only nature of this attribute is a firmware
+            limitation.
         """)
 
     def _get_image_effect(self):

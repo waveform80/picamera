@@ -77,8 +77,23 @@ def boolean_attr(camera, attr):
         setattr(camera, attr, save_value)
 
 
-def test_awb(camera, previewing):
+def test_awb_mode(camera, previewing):
     keyword_attr(camera, 'awb_mode', camera.AWB_MODES)
+
+def test_awb_gains(camera, previewing):
+    save_mode = camera.awb_mode
+    try:
+        # XXX Workaround: can't use numeric_attr here as awb_mode is write-only
+        camera.awb_mode = 'off'
+        for i in range (9):
+            camera.awb_gains = i
+        camera.awb_gains = 1.5
+        camera.awb_gains = (1.5, 1.5)
+        camera.awb_gains = (Fraction(16, 10), 1.9)
+        with pytest.raises(picamera.PiCameraError):
+            camera.awb_gains = Fraction(20, 1)
+    finally:
+        camera.awb_mode = save_mode
 
 def test_brightness(camera, previewing):
     numeric_attr(camera, 'brightness', 0, 100)

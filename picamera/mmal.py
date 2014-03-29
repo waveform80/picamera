@@ -521,7 +521,8 @@ class MMAL_PARAMETER_LOGGING_T(ct.Structure):
     MMAL_PARAMETER_FLASH_REQUIRED,
     MMAL_PARAMETER_SW_SATURATION_DISABLE,
     MMAL_PARAMETER_SHUTTER_SPEED,
-) = range(MMAL_PARAMETER_GROUP_CAMERA, MMAL_PARAMETER_GROUP_CAMERA + 68)
+    MMAL_PARAMETER_CUSTOM_AWB_GAINS,
+) = range(MMAL_PARAMETER_GROUP_CAMERA, MMAL_PARAMETER_GROUP_CAMERA + 69)
 
 class MMAL_PARAMETER_THUMBNAIL_CONFIG_T(ct.Structure):
     _fields_ = [
@@ -996,6 +997,13 @@ class MMAL_PARAMETER_ZEROSHUTTERLAG_T(ct.Structure):
         ('hdr',                   MMAL_PARAMETER_HEADER_T),
         ('zero_shutter_lag_mode', MMAL_BOOL_T),
         ('concurrent_capture',    MMAL_BOOL_T),
+        ]
+
+class MMAL_PARAMETER_AWB_GAINS_T(ct.Structure):
+    _fields_ = [
+        ('hdr',    MMAL_PARAMETER_HEADER_T),
+        ('r_gain', MMAL_RATIONAL_T),
+        ('b_gain', MMAL_RATIONAL_T),
         ]
 
 # mmal_parameters_video.h ####################################################
