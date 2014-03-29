@@ -2040,8 +2040,9 @@ class PiCamera(object):
         camera. Larger values result in brighter images.
 
         When set, the property adjusts the camera's exposure compensation
-        level. The property can be set while recordings or previews are in
-        progress. The default value is ``0``.
+        level. Each increment represents 1/6th of a stop. Hence setting the
+        attribute to 6 increases exposure by 1 stop. The property can be set
+        while recordings or previews are in progress. The default value is 0.
         """)
 
     def _get_exposure_mode(self):

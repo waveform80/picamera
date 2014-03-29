@@ -120,23 +120,7 @@ def test_contrast(camera, previewing):
     numeric_attr(camera, 'contrast', -100, 100)
 
 def test_exposure_compensation(camera, previewing):
-    # XXX Workaround: for some weird reason the camera won't precisely accept
-    # positive exposure compensations. Sometimes the value winds up what we
-    # set it, sometimes it's one less ... ?
-    save_value = camera.exposure_compensation
-    try:
-        for value in range(-25, 26):
-            camera.exposure_compensation = value
-            if value < 0:
-                assert camera.exposure_compensation == value
-            else:
-                assert camera.exposure_compensation in (value, value - 1)
-        with pytest.raises(picamera.PiCameraError):
-            camera.exposure_compensation = -26
-        with pytest.raises(picamera.PiCameraError):
-            camera.exposure_compensation = 26
-    finally:
-        camera.exposure_compensation = save_value
+    numeric_attr(camera, 'exposure_compensation', -25, 25)
 
 def test_exposure_mode(camera, previewing):
     # XXX Workaround: setting mode verylong can cause locks so exclude it from
