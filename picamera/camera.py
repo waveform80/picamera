@@ -129,7 +129,7 @@ def to_rational(value):
                 d = 1
     # Ensure denominator is reasonable
     if d == 0:
-        raise PiCameraValueError("Denominator cannot be 0 in %r" % value)
+        raise PiCameraValueError("Denominator cannot be 0")
     elif d > 65536:
         f = fractions.Fraction(n, d).limit_denominator(65536)
         n, d = f.numerator, f.denominator
