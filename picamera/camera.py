@@ -730,8 +730,9 @@ class PiCamera(object):
         as keyword arguments. The ``'h264'`` format accepts the following
         additional options:
 
-        * *profile* - The H.264 profile to use for encoding. Defaults to 'high',
-          but can be one of 'baseline', 'main', 'high', or 'constrained'.
+        * *profile* - The H.264 profile to use for encoding. Defaults to
+          'high', but can be one of 'baseline', 'main', 'high', or
+          'constrained'.
 
         * *intra_period* - The key frame rate (the rate at which I-frames are
           inserted in the output). Defaults to 0, but can be any positive
@@ -744,6 +745,10 @@ class PiCamera(object):
           applications where the client may wish to seek within the stream, and
           enables the use of :meth:`split_recording`. Defaults to ``True`` if
           not specified.
+
+        * *sei* - When ``True``, specifies the encoder should include
+          "Supplemental Enhancement Information" within the output stream.
+          Defaults to ``False`` if not specified.
 
         All formats accept the following additional options:
 

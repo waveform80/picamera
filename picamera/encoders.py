@@ -430,7 +430,7 @@ class PiVideoEncoder(PiEncoder):
 
     def _create_encoder(
             self, bitrate=17000000, intra_period=0, profile='high',
-            quantization=0, inline_headers=True, **options):
+            quantization=0, inline_headers=True, sei=False, **options):
         super(PiVideoEncoder, self)._create_encoder(**options)
 
         try:
@@ -478,6 +478,13 @@ class PiVideoEncoder(PiEncoder):
                     mmal.MMAL_PARAMETER_VIDEO_ENCODE_INLINE_HEADER,
                     int(inline_headers)),
                 prefix="Unable to set inline_headers")
+
+            mmal_check(
+                mmal.mmal_port_parameter_set_boolean(
+                    self.output_port,
+                    mmal.MMAL_PARAMETER_VIDEO_ENCODE_SEI_ENABLE,
+                    int(sei)),
+                prefix="Enable to set SEI")
 
             if not (bitrate and inline_headers):
                 # If inline_headers is disabled, or VBR encoding is configured,
