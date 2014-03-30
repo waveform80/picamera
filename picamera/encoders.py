@@ -124,7 +124,7 @@ class PiEncoder(object):
             self.close()
             raise
 
-    def _create_encoder(self, **options):
+    def _create_encoder(self):
         """
         Creates and configures the encoder itself
         """
@@ -430,8 +430,8 @@ class PiVideoEncoder(PiEncoder):
 
     def _create_encoder(
             self, bitrate=17000000, intra_period=0, profile='high',
-            quantization=0, inline_headers=True, sei=False, **options):
-        super(PiVideoEncoder, self)._create_encoder(**options)
+            quantization=0, inline_headers=True, sei=False):
+        super(PiVideoEncoder, self)._create_encoder()
 
         try:
             self.output_port[0].format[0].encoding = {
@@ -608,9 +608,8 @@ class PiVideoEncoder(PiEncoder):
 class PiImageEncoder(PiEncoder):
     encoder_type = mmal.MMAL_COMPONENT_DEFAULT_IMAGE_ENCODER
 
-    def _create_encoder(
-            self, quality=85, thumbnail=(64, 48, 35), bayer=False, **options):
-        super(PiImageEncoder, self)._create_encoder(**options)
+    def _create_encoder(self, quality=85, thumbnail=(64, 48, 35), bayer=False):
+        super(PiImageEncoder, self)._create_encoder()
 
         try:
             self.output_port[0].format[0].encoding = {
@@ -794,7 +793,7 @@ class PiRawEncoderMixin(PiImageEncoder):
             ((height + 15) // 16 * 16) * # round up height to nearest multiple of 16
             bytes_per_pixel)
 
-    def _create_encoder(self, **options):
+    def _create_encoder(self):
         # Overridden to skip creating an encoder. Instead we simply use the
         # resizer's port as the output port
         self.output_port = self.resizer[0].output[0]
