@@ -47,25 +47,17 @@ See :ref:`system_install3` below if you require a root installation.
 
 To install as your current user::
 
-    $ sudo apt-get install python3-setuptools
-    $ easy_install3 --user picamera
+    $ sudo apt-get install python3-pip
+    $ pip-3.2 install --user picamera
 
-Note that ``easy_install3`` is **not** run with sudo; this is deliberate. To
+Note that ``pip-3.2`` is **not** run with sudo; this is deliberate. To
 upgrade your installation when new releases are made::
 
-    $ easy_install3 --user -U picamera
+    $ pip-3.2 install --user -U picamera
 
 If you ever need to remove your installation::
 
-    $ rm -fr ~/.local/lib/python3.*/site-packages/picamera-*
-    $ sed -i -e '/^\.\/picamera-/d' ~/.local/lib/python3.*/site-packages/easy-install.pth
-
-.. note::
-    If the removal looks horribly complex, that's because it is! This is the
-    reason Python devs tend to prefer virtualenvs. However, I suspect it's
-    unlikely that most users will actually care about removing picamera - it's
-    a tiny package and has no dependencies so leaving it lying around shouldn't
-    cause any issues even if you don't use it anymore.
+    $ pip-3.2 uninstall picamera
 
 
 .. _system_install3:
@@ -75,27 +67,18 @@ System installation
 
 A system installation will make picamera accessible to all users (in contrast
 to the user installation). It is as simple to perform as the user installation
-and equally easy to keep updated but unfortunately, is also difficult to
-remove. To perform the installation::
+and equally easy to keep updated. To perform the installation::
 
-    $ sudo apt-get install python3-setuptools
-    $ sudo easy_install3 picamera
+    $ sudo apt-get install python3-pip
+    $ sudo pip-3.2 install picamera
 
 To upgrade your installation when new releases are made::
 
-    $ sudo easy_install3 -U picamera
+    $ sudo pip-3.2 install -U picamera
 
 If you ever need to remove your installation::
 
-    $ sudo rm -fr /usr/local/lib/python3.*/dist-packages/picamera-*
-    $ sudo sed -i -e '/^\.\/picamera-/d' /usr/local/lib/python3.*/dist-packages/easy-install.pth
-
-.. warning::
-    Please be careful when running commands like ``rm -fr`` as root. With a
-    simple slip (e.g. changing the final "-" to a space), such a command will
-    very quickly delete a lot of things you probably don't want deleted
-    (including most of your operating system if you're unlucky enough to be in
-    the root directory). Double check what you've typed before hitting Enter!
+    $ sudo pip-3.2 uninstall picamera
 
 
 .. _virtualenv_install3:
@@ -107,10 +90,10 @@ If you wish to install picamera within a virtualenv (useful if you're working
 on several Python projects with potentially conflicting dependencies, or you
 just like keeping things separate and easily removable)::
 
-    $ sudo apt-get install python3-setuptools python-virtualenv
+    $ sudo apt-get install python3-pip python-virtualenv
     $ virtualenv -p python3 sandbox
     $ source sandbox/bin/activate
-    (sandbox) $ easy_install picamera
+    (sandbox) $ pip-3.2 install picamera
 
 Bear in mind that each time you want to use picamera you will need to activate
 the virtualenv before running Python::
@@ -123,7 +106,7 @@ To upgrade your installation, make sure the virtualenv is activated and just
 use easy_install::
 
     $ source sandbox/bin/activate
-    (sandbox) $ easy_install -U picamera
+    (sandbox) $ pip-3.2 install -U picamera
 
 To remove your installation simply blow away the virtualenv::
 
