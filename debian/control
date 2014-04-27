@@ -39,4 +39,4 @@ Description: Documentation for the Python interface to the RPi's camera module.
  within Python without having to resort to subprocesses. The majority of the
  functionality of raspistill and raspivid is replicated by the library.
  .
- This is the version-independant documentation for the package.
+ This is the version-independent documentation for the package.
