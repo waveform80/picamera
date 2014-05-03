@@ -327,16 +327,19 @@ class PiCamera(object):
                 _control_callback),
             prefix="Unable to enable control port")
 
-        screen_width = ct.c_uint32()
-        screen_height = ct.c_uint32()
-        bcm_host.graphics_get_display_size(0, screen_width, screen_height)
+        # Get screen resolution
+        w = ct.c_uint32()
+        h = ct.c_uint32()
+        bcm_host.graphics_get_display_size(0, w, h)
+        w = int(w.value)
+        h = int(h.value)
         cc = self._camera_config
-        cc.max_stills_w = screen_width.value
-        cc.max_stills_h = screen_height.value
+        cc.max_stills_w = w
+        cc.max_stills_h = h
         cc.stills_yuv422 = 0
         cc.one_shot_stills = 1
-        cc.max_preview_video_w = screen_width.value
-        cc.max_preview_video_h = screen_height.value
+        cc.max_preview_video_w = w
+        cc.max_preview_video_h = h
         cc.num_preview_video_frames = 3
         cc.stills_capture_circular_buffer_height = 0
         cc.fast_preview_resume = 0
@@ -350,12 +353,12 @@ class PiCamera(object):
             fmt = port[0].format
             fmt[0].encoding = mmal.MMAL_ENCODING_I420 if p == self.CAMERA_VIDEO_PORT else mmal.MMAL_ENCODING_OPAQUE
             fmt[0].encoding_variant = mmal.MMAL_ENCODING_I420
-            fmt[0].es[0].video.width = cc.max_preview_video_w
-            fmt[0].es[0].video.height = cc.max_preview_video_h
+            fmt[0].es[0].video.width = w
+            fmt[0].es[0].video.height = h
             fmt[0].es[0].video.crop.x = 0
             fmt[0].es[0].video.crop.y = 0
-            fmt[0].es[0].video.crop.width = cc.max_preview_video_w
-            fmt[0].es[0].video.crop.height = cc.max_preview_video_h
+            fmt[0].es[0].video.crop.width = w
+            fmt[0].es[0].video.crop.height = h
             # 0 implies variable frame-rate
             fmt[0].es[0].video.frame_rate.num = self.DEFAULT_FRAME_RATE_NUM if p != self.CAMERA_CAPTURE_PORT else 0
             fmt[0].es[0].video.frame_rate.den = self.DEFAULT_FRAME_RATE_DEN
@@ -1077,7 +1080,7 @@ class PiCamera(object):
                     'port %d' % splitter_port)
         camera_port, output_port = self._get_ports(use_video_port, splitter_port)
         format = self._get_image_format(output, format)
-        if format == 'jpeg' and not use_video_port and not resize:
+        if format in ('jpeg', 'png') and not use_video_port and not resize:
             self._still_encoding = mmal.MMAL_ENCODING_OPAQUE
         else:
             self._still_encoding = mmal.MMAL_ENCODING_I420
@@ -1542,10 +1545,9 @@ class PiCamera(object):
     def _set_framerate(self, value):
         self._check_camera_open()
         self._check_recording_stopped()
-        w, h = self.resolution
         n, d = to_rational(value)
         if not (0 <= n / d <= 90):
-            raise PiCameraValueError("Invalid framerate: %.2ffps" % (n/d))
+            raise PiCameraValueError("Invalid framerate: %.2ffps" % (n / d))
         self._disable_camera()
         for port in (self.CAMERA_VIDEO_PORT, self.CAMERA_PREVIEW_PORT):
             fmt = self._camera[0].output[port][0].format[0].es[0]
@@ -1589,8 +1591,8 @@ class PiCamera(object):
     def _get_resolution(self):
         self._check_camera_open()
         return (
-            self._camera_config.max_stills_w,
-            self._camera_config.max_stills_h
+            int(self._camera_config.max_stills_w),
+            int(self._camera_config.max_stills_h)
             )
     def _set_resolution(self, value):
         self._check_camera_open()
