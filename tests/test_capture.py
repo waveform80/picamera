@@ -55,7 +55,7 @@ CAPTURE_CASES = (
     CaptureCase('jpeg', '.jpg', {}),
     CaptureCase('jpeg', '.jpg', {'resize': (640, 480)}),
     CaptureCase('jpeg', '.jpg', {'quality': 50}),
-    #CaptureCase('gif',  '.gif', {}),
+    CaptureCase('gif',  '.gif', {}),
     CaptureCase('png',  '.png', {}),
     #CaptureCase('bmp',  '.bmp', {}),
     )
@@ -89,6 +89,8 @@ def test_capture_to_file(
         camera, previewing, mode, filename_format_options, use_video_port):
     filename, format, options = filename_format_options
     resolution, framerate = mode
+    if resolution == (2592, 1944) and format == 'gif' and not use_video_port:
+        pytest.xfail('Camera runs out of memory with this combination')
     if resolution == (2592, 1944) and 'resize' in options:
         pytest.xfail('Camera runs out of memory with this combination')
     camera.capture(filename, use_video_port=use_video_port, **options)
@@ -101,6 +103,8 @@ def test_capture_to_stream(
     stream = io.BytesIO()
     format, options = format_options
     resolution, framerate = mode
+    if resolution == (2592, 1944) and format == 'gif' and not use_video_port:
+        pytest.xfail('Camera runs out of memory with this combination')
     if resolution == (2592, 1944) and 'resize' in options:
         pytest.xfail('Camera runs out of memory with this combination')
     if 'resize' in options:
