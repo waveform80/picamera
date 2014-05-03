@@ -76,11 +76,13 @@ def previewing(request, camera):
 def mode(request, camera):
     save_resolution = camera.resolution
     save_framerate = camera.framerate
-    camera.resolution, camera.framerate = request.param
+    new_resolution, new_framerate = request.param
+    camera.resolution = new_resolution
+    camera.framerate = new_framerate
     def fin():
         try:
             for port in camera._encoders:
-                camera.stop_recording(splitter_port=encoder)
+                camera.stop_recording(splitter_port=port)
         finally:
             camera.resolution = save_resolution
             camera.framerate = save_framerate
