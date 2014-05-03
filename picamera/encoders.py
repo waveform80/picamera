@@ -491,6 +491,9 @@ class PiVideoEncoder(PiEncoder):
                 # disable the split function
                 self._next_output = None
 
+            # We need the intra-period to calculate the SPS header timeout in
+            # the split method below. If one is not set explicitly, query the
+            # encoder's default
             if intra_period:
                 mp = mmal.MMAL_PARAMETER_UINT32_T(
                         mmal.MMAL_PARAMETER_HEADER_T(
@@ -502,6 +505,22 @@ class PiVideoEncoder(PiEncoder):
                 mmal_check(
                     mmal.mmal_port_parameter_set(self.output_port, mp.hdr),
                     prefix="Unable to set encoder intra_period")
+                self._intra_period = intra_period
+            else:
+                mp = mmal.MMAL_PARAMETER_UINT32_T(
+                    mmal.MMAL_PARAMETER_HEADER_T(
+                        mmal.MMAL_PARAMETER_INTRAPERIOD,
+                        ct.sizeof(mmal.MMAL_PARAMETER_UINT32_T),
+                        ))
+                mmal_check(
+                    mmal.mmal_port_parameter_get(self.output_port, mp.hdr),
+                    prefix="Unable to get encoder intra_period")
+                self._intra_period = mp.value
+
+        elif self.format == 'mjpeg':
+            # MJPEG doesn't have an intra_period setting as such, but as every
+            # frame is a full-frame, the intra_period is effectively 1
+            self._intra_period = 1
 
         if quantization:
             mp = mmal.MMAL_PARAMETER_UINT32_T(
@@ -565,9 +584,11 @@ class PiVideoEncoder(PiEncoder):
                 raise PiCameraRuntimeError(
                     'Cannot use split_recording without inline_headers and CBR')
             self._next_output.append(output)
-        # XXX Instead of a 10-second timeout, how about a warning here (which
-        # can be converted to an error and captured by the test suite?)
-        if not self.event.wait(10):
+        # intra_period / framerate gives the time between I-frames (which
+        # should also coincide with SPS headers). We multiply by two to ensure
+        # the timeout is deliberately excessive
+        timeout = float(self._intra_period / self.parent.framerate) * 2.0
+        if not self.event.wait(timeout):
             raise PiCameraRuntimeError('Timed out waiting for an SPS header')
         self.event.clear()
 

@@ -68,7 +68,7 @@ def previewing(request, camera):
 # framerates (which dictate the input mode of the camera)
 @pytest.fixture(scope='module', params=(
     ((100, 100), 60),
-    ((320, 240), 30),
+    ((320, 240), 5),
     ((1280, 720), 30),
     ((1920, 1080), 24),
     ((2592, 1944), 15),
