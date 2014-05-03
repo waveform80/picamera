@@ -271,6 +271,10 @@ class PiCamera(object):
             raise PiCameraRuntimeError(
                 "Only one PiCamera object can be in existence at a time")
         _CAMERA = self
+        bcm_host.bcm_host_init()
+        mimetypes.add_type('application/h264',  '.h264',  False)
+        mimetypes.add_type('application/mjpeg', '.mjpg',  False)
+        mimetypes.add_type('application/mjpeg', '.mjpeg', False)
         self._used_led = False
         self._camera = None
         self._camera_config = None
@@ -2613,9 +2617,4 @@ class PiCamera(object):
             as :attr:`preview_alpha` with regards to changes while the preview
             is not running.
         """)
-
-bcm_host.bcm_host_init()
-mimetypes.add_type('application/h264',  '.h264',  False)
-mimetypes.add_type('application/mjpeg', '.mjpg',  False)
-mimetypes.add_type('application/mjpeg', '.mjpeg', False)
 
