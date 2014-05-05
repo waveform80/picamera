@@ -463,7 +463,7 @@ class PiCamera(object):
             mmal.mmal_component_create(
                 mmal.MMAL_COMPONENT_DEFAULT_NULL_SINK, self._null_sink),
             prefix="Failed to create null sink component")
-        if not self._preview[0].input_num:
+        if not self._null_sink[0].input_num:
             raise PiCameraError("No input ports on null sink component")
         mmal_check(
             mmal.mmal_component_enable(self._null_sink),
