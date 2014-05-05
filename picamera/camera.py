@@ -359,7 +359,7 @@ class PiCamera(object):
         for p in self.CAMERA_PORTS:
             port = self._camera[0].output[p]
             fmt = port[0].format
-            fmt[0].encoding = mmal.MMAL_ENCODING_I420 if p == self.CAMERA_VIDEO_PORT else mmal.MMAL_ENCODING_OPAQUE
+            fmt[0].encoding = mmal.MMAL_ENCODING_I420 if p != self.CAMERA_PREVIEW_PORT else mmal.MMAL_ENCODING_OPAQUE
             fmt[0].encoding_variant = mmal.MMAL_ENCODING_I420
             fmt[0].es[0].video.width = w
             fmt[0].es[0].video.height = h
