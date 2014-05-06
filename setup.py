@@ -52,11 +52,11 @@ except ImportError:
     pass
 
 __project__      = 'picamera'
-__version__      = '1.3'
+__version__      = '1.4'
 __author__       = 'Dave Hughes'
 __author_email__ = 'dave@waveform.org.uk'
-__url__          = 'https://pypi.python.org/pypi/picamera/'
-__platforms__    = ['ALL']
+__url__          = 'http://picamera.readthedocs.org/'
+__platforms__    = 'ALL'
 
 __classifiers__ = [
     'Development Status :: 5 - Production/Stable',
@@ -112,14 +112,12 @@ def main():
                 for c in __classifiers__
                 if c.startswith('License ::')
                 ][0],
-            keywords             = ' '.join(__keywords__),
+            keywords             = __keywords__,
             packages             = find_packages(),
-            package_data         = {},
             include_package_data = True,
             platforms            = __platforms__,
             install_requires     = __requires__,
             extras_require       = __extra_requires__,
-            zip_safe             = True,
             entry_points         = __entry_points__,
             )
 

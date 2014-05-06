@@ -5,7 +5,7 @@ Change log
 ==========
 
 
-Release 1.4 (2014-05-04)
+Release 1.4 (2014-05-06)
 ========================
 
 1.4 mostly involved bug fixes with a couple of new bits of functionality:
