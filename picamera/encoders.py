@@ -186,8 +186,8 @@ class PiEncoder(object):
         mmal.mmal_format_copy(
             self.resizer[0].output[0][0].format, self.resizer[0].input[0][0].format)
         fmt = self.resizer[0].output[0][0].format
-        fmt[0].es[0].video.width = width
-        fmt[0].es[0].video.height = height
+        fmt[0].es[0].video.width = mmal.VCOS_ALIGN_UP(width, 32)
+        fmt[0].es[0].video.height = mmal.VCOS_ALIGN_UP(height, 16)
         fmt[0].es[0].video.crop.x = 0
         fmt[0].es[0].video.crop.y = 0
         fmt[0].es[0].video.crop.width = width
@@ -779,59 +779,79 @@ class PiCookedMultiImageEncoder(PiMultiImageEncoder):
 
 
 class PiRawEncoderMixin(PiImageEncoder):
+
+    RAW_ENCODINGS = {
+        # name   mmal-encoding            bytes-per-pixel
+        'yuv':  (mmal.MMAL_ENCODING_I420, 1.5),
+        'rgb':  (mmal.MMAL_ENCODING_RGBA, 3),
+        'rgba': (mmal.MMAL_ENCODING_RGBA, 4),
+        'bgr':  (mmal.MMAL_ENCODING_BGRA, 3),
+        'bgra': (mmal.MMAL_ENCODING_BGRA, 4),
+        }
+
     def __init__(
             self, parent, camera_port, input_port, format, resize, **options):
-        # Force the use of a resizer if one has not been requested
+        # If a resize hasn't been requested, check the input_port format. If
+        # it requires conversion, force the use of a resizer to perform the
+        # conversion
         if not resize:
-            resize = parent.resolution
-        self._strip_alpha = False
-        self._expected_size = 0
+            if parent.RAW_FORMATS[format] != input_port[0].format[0].encoding.value:
+                resize = parent.resolution
+        # Workaround: If a non-alpha format is requested when a resizer is
+        # required, we use the alpha-inclusive format and set a flag to get the
+        # callback to strip the alpha bytes (for some reason the resizer won't
+        # work with non-alpha output formats - firmware bug?)
+        if resize:
+            width, height = resize
+            self._strip_alpha = format in ('rgb', 'bgr')
+        else:
+            width, height = parent.resolution
+            self._strip_alpha = False
+        width = mmal.VCOS_ALIGN_UP(width, 32)
+        height = mmal.VCOS_ALIGN_UP(height, 16)
+        # Workaround (#83): when the resizer is used the width and height must
+        # be aligned (both the actual and crop values) to avoid an error when
+        # the output port format is set
+        if resize:
+            resize = (width, height)
+        # Workaround: Calculate the expected image size, to be used by the
+        # callback to decide when a frame ends. This is to work around a
+        # firmware bug that causes the raw image to be returned twice when the
+        # maximum camera resolution is requested
+        self._expected_size = int(width * height * self.RAW_ENCODINGS[format][1])
         self._image_size = 0
         super(PiRawEncoderMixin, self).__init__(
                 parent, camera_port, input_port, format, resize, **options)
 
     def _create_resizer(self, width, height):
         super(PiRawEncoderMixin, self)._create_resizer(width, height)
-        # Set the resizer's output encoding to the requested format. If a
-        # non-alpha format is requested, use the alpha-inclusive format and set
-        # a flag to get the callback to strip the alpha bytes
-        encoding, bytes_per_pixel = {
-            'yuv':  (mmal.MMAL_ENCODING_I420, 1.5),
-            'rgb':  (mmal.MMAL_ENCODING_RGBA, 3),
-            'rgba': (mmal.MMAL_ENCODING_RGBA, 4),
-            'bgr':  (mmal.MMAL_ENCODING_BGRA, 3),
-            'bgra': (mmal.MMAL_ENCODING_BGRA, 4),
-            }[self.format]
-        self._strip_alpha = self.format in ('rgb', 'bgr')
+        encoding = self.RAW_ENCODINGS[self.format][0]
         port = self.resizer[0].output[0]
         port[0].format[0].encoding = encoding
         port[0].format[0].encoding_variant = encoding
         mmal_check(
             mmal.mmal_port_format_commit(port),
             prefix="Failed to set resizer output port format")
-        # Calculate the expected image size, to be used by the callback to
-        # decide when a frame ends. This is to work around a firmware bug that
-        # causes the raw image to be returned twice when the maximum camera
-        # resolution is requested
-        self._expected_size = int(
-            ((width + 31) // 32 * 32) *  # round up width to nearest multiple of 32
-            ((height + 15) // 16 * 16) * # round up height to nearest multiple of 16
-            bytes_per_pixel)
 
     def _create_encoder(self):
         # Overridden to skip creating an encoder. Instead we simply use the
-        # resizer's port as the output port
-        self.output_port = self.resizer[0].output[0]
+        # resizer's port as the output port (if we have a resizer) or the
+        # input port otherwise
+        if self.resizer:
+            self.output_port = self.resizer[0].output[0]
+        else:
+            self.output_port = self.input_port
 
     def _create_connection(self):
         # Overridden to skip creating an encoder connection; we only need the
-        # resizer connection
-        self.resizer_connection = self.parent._connect_ports(
-            self.input_port, self.resizer[0].input[0])
+        # resizer connection (if we have a resizer)
+        if self.resizer:
+            self.resizer_connection = self.parent._connect_ports(
+                self.input_port, self.resizer[0].input[0])
 
     def _callback_write(self, buf):
-        # Overridden to strip alpha bytes when necessary, and manually
-        # calculate the frame end
+        # Overridden to strip alpha bytes when necessary (see _create_resizer),
+        # and manually calculate the frame end
         if buf[0].length and self._image_size:
             mmal_check(
                 mmal.mmal_buffer_header_mem_lock(buf),

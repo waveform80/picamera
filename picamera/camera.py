@@ -256,10 +256,11 @@ class PiCamera(object):
         }
 
     RAW_FORMATS = {
+        # For some bizarre reason, the non-alpha formats are backwards...
         'yuv':  mmal.MMAL_ENCODING_I420,
-        'rgb':  mmal.MMAL_ENCODING_RGB24,
+        'rgb':  mmal.MMAL_ENCODING_BGR24,
         'rgba': mmal.MMAL_ENCODING_RGBA,
-        'bgr':  mmal.MMAL_ENCODING_BGR24,
+        'bgr':  mmal.MMAL_ENCODING_RGB24,
         'bgra': mmal.MMAL_ENCODING_BGRA,
         }
 
@@ -361,8 +362,8 @@ class PiCamera(object):
             fmt = port[0].format
             fmt[0].encoding = mmal.MMAL_ENCODING_I420 if p != self.CAMERA_PREVIEW_PORT else mmal.MMAL_ENCODING_OPAQUE
             fmt[0].encoding_variant = mmal.MMAL_ENCODING_I420
-            fmt[0].es[0].video.width = w
-            fmt[0].es[0].video.height = h
+            fmt[0].es[0].video.width = mmal.VCOS_ALIGN_UP(w, 32)
+            fmt[0].es[0].video.height = mmal.VCOS_ALIGN_UP(h, 16)
             fmt[0].es[0].video.crop.x = 0
             fmt[0].es[0].video.crop.y = 0
             fmt[0].es[0].video.crop.width = w
@@ -1088,10 +1089,12 @@ class PiCamera(object):
                     'port %d' % splitter_port)
         camera_port, output_port = self._get_ports(use_video_port, splitter_port)
         format = self._get_image_format(output, format)
-        if format in ('jpeg', 'png') and not use_video_port and not resize:
-            self._still_encoding = mmal.MMAL_ENCODING_OPAQUE
-        else:
-            self._still_encoding = mmal.MMAL_ENCODING_I420
+        if not use_video_port:
+            if resize:
+                self._still_encoding = mmal.MMAL_ENCODING_I420
+            else:
+                self._still_encoding = self.RAW_FORMATS.get(
+                    format, mmal.MMAL_ENCODING_OPAQUE)
         encoder_class = (
                 PiRawOneImageEncoder if format in self.RAW_FORMATS else
                 PiCookedOneImageEncoder)
@@ -1621,8 +1624,8 @@ class PiCamera(object):
             prefix="Failed to set preview resolution")
         for port in (self.CAMERA_CAPTURE_PORT, self.CAMERA_VIDEO_PORT, self.CAMERA_PREVIEW_PORT):
             fmt = self._camera[0].output[port][0].format[0].es[0]
-            fmt.video.width = w
-            fmt.video.height = h
+            fmt.video.width = mmal.VCOS_ALIGN_UP(w, 32)
+            fmt.video.height = mmal.VCOS_ALIGN_UP(h, 16)
             fmt.video.crop.x = 0
             fmt.video.crop.y = 0
             fmt.video.crop.width = w
@@ -1673,6 +1676,10 @@ class PiCamera(object):
         self._disable_camera()
         port = self._camera[0].output[self.CAMERA_CAPTURE_PORT]
         port[0].format[0].encoding = value
+        if value == mmal.MMAL_ENCODING_OPAQUE:
+            port[0].format[0].encoding_variant = mmal.MMAL_ENCODING_I420
+        else:
+            port[0].format[0].encoding_variant = value
         mmal_check(
             mmal.mmal_port_format_commit(port),
             prefix="Couldn't set capture port encoding")

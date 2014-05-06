@@ -60,6 +60,12 @@ except OSError:
             return self
     _lib = _Mock()
 
+# vcos_types.h ###############################################################
+
+def VCOS_ALIGN_UP(value, round_to):
+    # Note: this function assumes round_to is some power of 2.
+    return (value + (round_to - 1)) & ~(round_to - 1)
+
 # mmal.h #####################################################################
 
 MMAL_VERSION_MAJOR = 0
