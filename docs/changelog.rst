@@ -5,6 +5,44 @@ Change log
 ==========
 
 
+Release 1.4 (2014-05-04)
+========================
+
+1.4 mostly involved bug fixes with a couple of new bits of functionality:
+
+* The *sei* parameter was added to :meth:`~picamera.PiCamera.start_recording`
+  to permit inclusion of "Supplemental Enhancement Information" in the output
+  stream (`#77`_)
+* The :attr:`~picamera.PiCamera.awb_gains` attribute was added to permit manual
+  control of the auto-white-balance red/blue gains (`#74`_)
+* A bug which cause :meth:`~picamera.PiCamera.split_recording` to fail when low
+  framerates were configured was fixed (`#87`_)
+* A bug which caused picamera to fail when used in UNIX-style daemons, unless
+  the module was imported *after* the double-fork to background was fixed
+  (`#85`_)
+* A bug which caused the :attr:`~picamera.PiCamera.frame` attribute to fail
+  when queried in Python 3 was fixed (`#80`_)
+* A bug which caused raw captures with "odd" resolutions (like 100x100) to
+  fail was fixed (`#83`_)
+
+Known issues:
+
+* Added a workaround for full-resolution YUV captures failing. This
+  isn't a complete fix, and attempting to capture a JPEG before attempting to
+  capture full-resolution YUV data will still fail, unless the GPU memory split
+  is set to something huge like 256Mb (`#73`_)
+
+Many thanks to the community for yet more excellent quality bug reports!
+
+.. _#73: https://github.com/waveform80/picamera/issues/73
+.. _#74: https://github.com/waveform80/picamera/issues/74
+.. _#77: https://github.com/waveform80/picamera/issues/77
+.. _#80: https://github.com/waveform80/picamera/issues/80
+.. _#83: https://github.com/waveform80/picamera/issues/83
+.. _#85: https://github.com/waveform80/picamera/issues/85
+.. _#87: https://github.com/waveform80/picamera/issues/87
+
+
 Release 1.3 (2014-03-22)
 ========================
 
