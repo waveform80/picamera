@@ -75,3 +75,21 @@ Can I use picamera with a USB webcam?
 No. The picamera library relies on libmmal which is specific to the Pi's camera
 module.
 
+How can I tell what version of picamera I have installed?
+=========================================================
+
+The picamera library relies on the setuptools package for installation
+services.  You can use the setuptools ``pkg_resources`` API to query which
+version of picamera is available in your Python environment like so::
+
+    >>> from pkg_resources import require
+    >>> require('picamera')
+    [picamera 1.2 (/usr/local/lib/python2.7/dist-packages)]
+    >>> require('picamera')[0].version
+    '1.2'
+
+If you have multiple versions installed (e.g. from ``pip`` and ``apt-get``)
+they will not show up in the list returned by the ``require`` method. However,
+the first entry in the list will be the version that ``import picamera`` will
+import.
+
