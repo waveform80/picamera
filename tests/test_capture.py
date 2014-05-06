@@ -56,7 +56,7 @@ CAPTURE_CASES = (
     CaptureCase('jpeg', '.jpg', {'resize': (640, 480)}),
     CaptureCase('jpeg', '.jpg', {'quality': 50}),
     CaptureCase('gif',  '.gif', {}),
-    CaptureCase('png',  '.png', {}),
+    #CaptureCase('png',  '.png', {}),
     #CaptureCase('bmp',  '.bmp', {}),
     )
 
@@ -71,16 +71,16 @@ def filename_format_options(request):
     return filename, request.param.format, request.param.options
 
 # Run tests with a variety of format specs
-@pytest.fixture(scope='module', params=CAPTURE_CASES)
+@pytest.fixture(params=CAPTURE_CASES)
 def format_options(request):
     return request.param.format, request.param.options
 
 # Run tests with one of the two supported raw formats
-@pytest.fixture(scope='module', params=('yuv', 'rgb', 'rgba', 'bgr', 'bgra'))
+@pytest.fixture(params=('yuv', 'rgb', 'rgba', 'bgr', 'bgra'))
 def raw_format(request):
     return request.param
 
-@pytest.fixture(scope='module', params=(False, True))
+@pytest.fixture(params=(False, True))
 def use_video_port(request):
     return request.param
 
@@ -89,10 +89,10 @@ def test_capture_to_file(
         camera, previewing, mode, filename_format_options, use_video_port):
     filename, format, options = filename_format_options
     resolution, framerate = mode
-    if resolution == (2592, 1944) and format == 'gif' and not use_video_port:
-        pytest.xfail('Camera runs out of memory with this combination')
-    if resolution == (2592, 1944) and 'resize' in options:
-        pytest.xfail('Camera runs out of memory with this combination')
+    #if resolution == (2592, 1944) and format == 'gif' and not use_video_port:
+    #    pytest.xfail('Camera runs out of memory with this combination')
+    #if resolution == (2592, 1944) and 'resize' in options:
+    #    pytest.xfail('Camera runs out of memory with this combination')
     camera.capture(filename, use_video_port=use_video_port, **options)
     if 'resize' in options:
         resolution = options['resize']
@@ -103,10 +103,10 @@ def test_capture_to_stream(
     stream = io.BytesIO()
     format, options = format_options
     resolution, framerate = mode
-    if resolution == (2592, 1944) and format == 'gif' and not use_video_port:
-        pytest.xfail('Camera runs out of memory with this combination')
-    if resolution == (2592, 1944) and 'resize' in options:
-        pytest.xfail('Camera runs out of memory with this combination')
+    #if resolution == (2592, 1944) and format == 'gif' and not use_video_port:
+    #    pytest.xfail('Camera runs out of memory with this combination')
+    #if resolution == (2592, 1944) and 'resize' in options:
+    #    pytest.xfail('Camera runs out of memory with this combination')
     if 'resize' in options:
         resolution = options['resize']
     camera.capture(stream, format, use_video_port=use_video_port, **options)
@@ -158,11 +158,9 @@ def test_capture_sequence_to_stream(
 def test_capture_raw(camera, mode, raw_format, use_video_port):
     resolution, framerate = mode
     if resolution == (2592, 1944) and raw_format in ('rgba', 'bgra') and not use_video_port:
-        pytest.xfail('Camera crashes with this combination')
+        pytest.xfail('Camera runs out of memory with this combination')
     if resolution == (2592, 1944) and raw_format in ('rgb', 'bgr'):
         pytest.xfail('Camera times out with this combination')
-    if resolution == (2592, 1944) and raw_format == 'yuv' and not use_video_port:
-        pytest.xfail('Camera runs out of memory with this combination')
     if resolution == (100, 100) and raw_format != 'yuv':
         pytest.xfail('Camera fails to set resizer output port format')
     stream = io.BytesIO()
@@ -172,11 +170,9 @@ def test_capture_raw(camera, mode, raw_format, use_video_port):
 def test_capture_continuous_raw(camera, mode, raw_format, use_video_port):
     resolution, framerate = mode
     if resolution == (2592, 1944) and raw_format in ('rgba', 'bgra') and not use_video_port:
-        pytest.xfail('Camera crashes with this combination')
+        pytest.xfail('Camera runs out of memory with this combination')
     if resolution == (2592, 1944) and raw_format in ('rgb', 'bgr'):
         pytest.xfail('Camera times out with this combination')
-    if resolution == (2592, 1944) and raw_format == 'yuv' and not use_video_port:
-        pytest.xfail('Camera runs out of memory with this combination')
     if resolution == (100, 100) and raw_format != 'yuv':
         pytest.xfail('Camera fails to set resizer output port format')
     for i, stream in enumerate(camera.capture_continuous(
@@ -190,11 +186,9 @@ def test_capture_continuous_raw(camera, mode, raw_format, use_video_port):
 def test_capture_sequence_raw(camera, mode, raw_format, use_video_port):
     resolution, framerate = mode
     if resolution == (2592, 1944) and raw_format in ('rgba', 'bgra') and not use_video_port:
-        pytest.xfail('Camera crashes with this combination')
+        pytest.xfail('Camera runs out of memory with this combination')
     if resolution == (2592, 1944) and raw_format in ('rgb', 'bgr'):
         pytest.xfail('Camera times out with this combination')
-    if resolution == (2592, 1944) and raw_format == 'yuv' and not use_video_port:
-        pytest.xfail('Camera runs out of memory with this combination')
     if resolution == (100, 100) and raw_format != 'yuv':
         pytest.xfail('Camera fails to set resizer output port format')
     streams = [io.BytesIO() for i in range(3)]

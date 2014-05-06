@@ -68,7 +68,7 @@ RECORDING_CASES = (
     )
 
 
-@pytest.fixture(scope='module', params=RECORDING_CASES)
+@pytest.fixture(params=RECORDING_CASES)
 def filenames_format_options(request):
     filename1 = tempfile.mkstemp(suffix=request.param.ext)[1]
     filename2 = tempfile.mkstemp(suffix=request.param.ext)[1]
@@ -79,7 +79,7 @@ def filenames_format_options(request):
     return filename1, filename2, request.param.format, request.param.options
 
 # Run tests with a variety of format specs
-@pytest.fixture(scope='module', params=RECORDING_CASES)
+@pytest.fixture(params=RECORDING_CASES)
 def format_options(request):
     return request.param.format, request.param.options
 

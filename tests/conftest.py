@@ -43,7 +43,7 @@ import pytest
 
 # The basic camera fixture returns a camera which is not running a preview.
 # This should be used for tests which cannot be run when a preview is active
-@pytest.fixture(scope='module')
+@pytest.fixture(scope='function')
 def camera(request):
     camera = picamera.PiCamera()
     def fin():
@@ -52,21 +52,17 @@ def camera(request):
     return camera
 
 # Activates and deactivates preview mode to test things in both states
-@pytest.fixture(scope='module', params=(False, True))
+@pytest.fixture(params=(False, True))
 def previewing(request, camera):
     if request.param and not camera.previewing:
         camera.start_preview()
     if not request.param and camera.previewing:
         camera.stop_preview()
-    def fin():
-        if camera.previewing:
-            camera.stop_preview()
-    request.addfinalizer(fin)
     return request.param
 
 # Run tests at a variety of resolutions (and aspect ratios, 1:1, 4:3, 16:9) and
 # framerates (which dictate the input mode of the camera)
-@pytest.fixture(scope='module', params=(
+@pytest.fixture(params=(
     ((100, 100), 60),
     ((320, 240), 5),
     ((1280, 720), 30),
