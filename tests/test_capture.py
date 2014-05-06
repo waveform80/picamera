@@ -56,8 +56,8 @@ CAPTURE_CASES = (
     CaptureCase('jpeg', '.jpg', {'resize': (640, 480)}),
     CaptureCase('jpeg', '.jpg', {'quality': 50}),
     CaptureCase('gif',  '.gif', {}),
-    #CaptureCase('png',  '.png', {}),
-    #CaptureCase('bmp',  '.bmp', {}),
+    CaptureCase('png',  '.png', {}),
+    CaptureCase('bmp',  '.bmp', {}),
     )
 
 
