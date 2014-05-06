@@ -147,7 +147,7 @@ MMAL_TIME_UNKNOWN = ct.c_int64(1<<63)
 
 class MMAL_FOURCC_T(ct.c_uint32):
     def __repr__(self):
-        return "'%s'" % ''.join(chr(self.value >> i & 0xFF) for i in range(0, 32, 8))
+        return "MMAL_FOURCC('%s')" % ''.join(chr(self.value >> i & 0xFF) for i in range(0, 32, 8))
 
 # mmal_format.h ##############################################################
 
@@ -374,7 +374,8 @@ MMAL_PARAMETER_GROUP_MIRACAST = (5<<16)
     MMAL_PARAMETER_POWERMON_ENABLE,
     MMAL_PARAMETER_LOGGING,
     MMAL_PARAMETER_SYSTEM_TIME,
-) = range(MMAL_PARAMETER_GROUP_COMMON, MMAL_PARAMETER_GROUP_COMMON + 14)
+    MMAL_PARAMETER_NO_IMAGE_PADDING,
+) = range(MMAL_PARAMETER_GROUP_COMMON, MMAL_PARAMETER_GROUP_COMMON + 15)
 
 class MMAL_PARAMETER_HEADER_T(ct.Structure):
     _fields_ = [
@@ -1053,7 +1054,8 @@ class MMAL_PARAMETER_AWB_GAINS_T(ct.Structure):
    MMAL_PARAMETER_VIDEO_ENCODE_H264_LOW_DELAY_HRD_FLAG,
    MMAL_PARAMETER_VIDEO_ENCODE_INLINE_HEADER,
    MMAL_PARAMETER_VIDEO_ENCODE_SEI_ENABLE,
-) = range(MMAL_PARAMETER_GROUP_VIDEO, MMAL_PARAMETER_GROUP_VIDEO + 44)
+   MMAL_PARAMETER_VIDEO_ENCODE_INLINE_VECTORS,
+) = range(MMAL_PARAMETER_GROUP_VIDEO, MMAL_PARAMETER_GROUP_VIDEO + 45)
 
 MMAL_DISPLAYTRANSFORM_T  = ct.c_uint32 # enum
 MMAL_DISPLAY_ROT0 = 0
