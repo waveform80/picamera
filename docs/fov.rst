@@ -157,7 +157,7 @@ Encoders are connected directly to the still port. For example, when capturing
 a picture using the still port, the camera's state conceptually moves through
 these states:
 
-.. image:: still_port_capture.svg
+.. image:: still_port_capture.*
     :align: center
 
 As you have probably noticed in the diagram above, the video port is a little
@@ -167,13 +167,13 @@ video port by picamera, and encoders are in turn attached to one of its four
 output ports (numbered 0, 1, 2, and 3). Hence, when recording video the
 camera's setup looks like this:
 
-.. image:: video_port_record.svg
+.. image:: video_port_record.*
     :align: center
 
 And when simultaneously capturing images via the video port whilst recording,
 the camera's configuration moves through the following states:
 
-.. image:: video_port_capture.svg
+.. image:: video_port_capture.*
     :align: center
 
 When the ``resize`` parameter is passed to one of the aforementioned methods, a
@@ -183,7 +183,7 @@ useful for video recording, as the H.264 encoder cannot cope with full
 resolution input. Hence, when performing full frame video recording, the
 camera's setup looks like this:
 
-.. image:: video_fullfov_record.svg
+.. image:: video_fullfov_record.*
     :align: center
 
 Finally, when performing raw captures an encoder is (naturally) not required.
@@ -194,7 +194,7 @@ requested, a resizer is used (with its output resolution set to the input
 resolution, unless the ``resize`` option is specified with something
 different), and its output format is set to the requested raw format:
 
-.. image:: still_raw_capture.svg
+.. image:: still_raw_capture.*
     :align: center
 
 Please note that even the description above is almost certainly far removed

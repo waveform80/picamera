@@ -6,6 +6,10 @@ SPHINXOPTS    =
 SPHINXBUILD   = sphinx-build
 PAPER         =
 BUILDDIR      = _build
+DOT_DIAGRAMS  = $(wildcard *.dot)
+MSC_DIAGRAMS  = $(wildcard *.mscgen)
+SVG_IMAGES    = $(DOT_DIAGRAMS:.dot=.svg) $(MSC_DIAGRAMS:.mscgen=.svg)
+PDF_IMAGES    = $(SVG_IMAGES:.svg=.pdf)
 
 # User-friendly check for sphinx-build
 ifeq ($(shell which $(SPHINXBUILD) >/dev/null 2>&1; echo $$?), 1)
@@ -175,3 +179,10 @@ pseudoxml:
 	$(SPHINXBUILD) -b pseudoxml $(ALLSPHINXOPTS) $(BUILDDIR)/pseudoxml
 	@echo
 	@echo "Build finished. The pseudo-XML files are in $(BUILDDIR)/pseudoxml."
+
+%.svg: %.msc
+	mscgen -T svg -o $@ $<
+
+%.svg: %.dot
+	dot -T svg -o $@ $<
+
