@@ -178,7 +178,7 @@ Loading the resulting RGB data into a `numpy`_ array is simple::
     fheight = (height + 15) // 16 * 16
     # Load the data in a three-dimensional array and crop it to the requested
     # resolution
-    image = np.fromfile(stream, dtype=uint8).\
+    image = np.fromfile(stream, dtype=np.uint8).\
             reshape((fheight, fwidth, 3))[:height, :width, :]
     # If you wish, the following code will convert the image's bytes into
     # floating point values in the range 0 to 1 (a typical format for some
