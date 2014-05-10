@@ -236,7 +236,7 @@ differ in their ability to rapidly capture sequential frames. So, whilst
 this method, the author has managed 30fps JPEG captures at a resolution of
 1024x768.
 
-By default, :meth:`~picamera.PiCamera.capture_sequence` is particular suited to
+By default, :meth:`~picamera.PiCamera.capture_sequence` is particularly suited to
 capturing a fixed number of frames rapidly, as in the following example which
 captures a "burst" of 5 images::
 
