@@ -195,7 +195,7 @@ Loading the resulting RGB data into a `numpy`_ array is simple::
 .. warning::
 
     You may find `RGB`_ captures rather slow. If this is the case, please try
-    the ``'rgba'`` format instead. The reason for this is that GPU component
+    the ``'rgba'`` format instead. The reason for this is that the GPU component
     that picamera uses to perform RGB conversion doesn't support RGB output,
     only `RGBA`_. As a result, RGBA data can be written directly, but picamera
     has to spend time stripping out the (unused) alpha byte from RGBA if RGB
