@@ -463,7 +463,7 @@ techniques and is not "beginner friendly"::
     import picamera
 
     client_socket = socket.socket()
-    client_socket.connect(('spider', 8000))
+    client_socket.connect(('my_server', 8000))
     connection = client_socket.makefile('wb')
     try:
         connection_lock = threading.Lock()
