@@ -195,7 +195,7 @@ Loading the resulting RGB data into a `numpy`_ array is simple::
 .. warning::
 
     You may find `RGB`_ captures rather slow. If this is the case, please try
-    the ``'rgba'`` format instead. The reason for this is that GPU component
+    the ``'rgba'`` format instead. The reason for this is that the GPU component
     that picamera uses to perform RGB conversion doesn't support RGB output,
     only `RGBA`_. As a result, RGBA data can be written directly, but picamera
     has to spend time stripping out the (unused) alpha byte from RGBA if RGB
@@ -236,7 +236,7 @@ differ in their ability to rapidly capture sequential frames. So, whilst
 this method, the author has managed 30fps JPEG captures at a resolution of
 1024x768.
 
-By default, :meth:`~picamera.PiCamera.capture_sequence` is particular suited to
+By default, :meth:`~picamera.PiCamera.capture_sequence` is particularly suited to
 capturing a fixed number of frames rapidly, as in the following example which
 captures a "burst" of 5 images::
 
@@ -463,7 +463,7 @@ techniques and is not "beginner friendly"::
     import picamera
 
     client_socket = socket.socket()
-    client_socket.connect(('spider', 8000))
+    client_socket.connect(('my_server', 8000))
     connection = client_socket.makefile('wb')
     try:
         connection_lock = threading.Lock()
