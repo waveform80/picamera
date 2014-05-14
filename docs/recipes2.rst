@@ -66,7 +66,7 @@ manner::
 
     width = 100
     height = 100
-    stream = open('image.data', 'wb')
+    stream = open('image.data', 'w+b')
     # Capture the image in YUV format
     with picamera.PiCamera() as camera:
         camera.resolution = (width, height)
@@ -163,7 +163,7 @@ Loading the resulting RGB data into a `numpy`_ array is simple::
 
     width = 100
     height = 100
-    stream = open('image.data', 'wb')
+    stream = open('image.data', 'w+b')
     # Capture the image in RGB format
     with picamera.PiCamera() as camera:
         camera.resolution = (width, height)
