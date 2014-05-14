@@ -379,9 +379,8 @@ class PiCamera(object):
                     self.CAMERA_CAPTURE_PORT: "still",
                     }[p])
             if p != self.CAMERA_PREVIEW_PORT:
-                port[0].buffer_num = max(
-                    port[0].buffer_num,
-                    self.VIDEO_OUTPUT_BUFFERS_NUM)
+                port[0].buffer_num = port[0].buffer_num_min
+                port[0].buffer_size = port[0].buffer_size_recommended
 
         mmal_check(
             mmal.mmal_component_enable(self._camera),
@@ -1683,6 +1682,15 @@ class PiCamera(object):
         mmal_check(
             mmal.mmal_port_format_commit(port),
             prefix="Couldn't set capture port encoding")
+        # buffer_num and buffer_size are increased by port_format_commit, if
+        # they are less than the minimum, but they are not decreased. I420 uses
+        # a few very large buffers, while OPQV requires lots of very small
+        # buffers. Therefore, after a switch to OPQV and back to I420, ENOMEM
+        # can be raised on subsequent captures. Unfortunately, there is an
+        # upstream issue with the buffer_num_recommended which means it can't
+        # currently be used (see discussion in raspberrypi/userland#167)
+        port[0].buffer_num = port[0].buffer_num_min
+        port[0].buffer_size = port[0].buffer_size_recommended
         self._enable_camera()
     _still_encoding = property(_get_still_encoding, _set_still_encoding, doc="""
         Configures the encoding of the camera's still port.
