@@ -596,11 +596,13 @@ may scare off animals. It can also cause unwanted reflected red glare with
 close-up subjects.
 
 One trivial way to deal with this is simply to place some opaque covering on
-the LED (e.g. blue-tack or electricians tape). However, provided you have the
-`RPi.GPIO`_ package installed, and provided your Python process is running with
-sufficient privileges (typically this means running as root with ``sudo
-python``), you can also control the LED via the :attr:`~picamera.PiCamera.led`
-attribute::
+the LED (e.g. blue-tack or electricians tape). Another method is to use the
+``disable_camera_led`` option in the `boot configuration`_.
+
+However, provided you have the `RPi.GPIO`_ package installed, and provided your
+Python process is running with sufficient privileges (typically this means
+running as root with ``sudo python``), you can also control the LED via the
+:attr:`~picamera.PiCamera.led` attribute::
 
     import picamera
 
@@ -622,4 +624,5 @@ attribute::
 .. _OpenCV: http://opencv.org/
 .. _RPi.GPIO: https://pypi.python.org/pypi/RPi.GPIO
 .. _ring buffer: http://en.wikipedia.org/wiki/Circular_buffer
+.. _boot configuration: http://www.raspberrypi.org/documentation/configuration/config-txt.md
 
