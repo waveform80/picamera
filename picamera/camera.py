@@ -53,6 +53,7 @@ from picamera.exc import (
     PiCameraError,
     PiCameraValueError,
     PiCameraRuntimeError,
+    PiCameraMMALError,
     mmal_check,
     )
 from picamera.encoders import (
@@ -323,10 +324,18 @@ class PiCamera(object):
                 mmal.MMAL_PARAMETER_CAMERA_CONFIG,
                 ct.sizeof(mmal.MMAL_PARAMETER_CAMERA_CONFIG_T)
                 ))
-        mmal_check(
-            mmal.mmal_component_create(
-                mmal.MMAL_COMPONENT_DEFAULT_CAMERA, self._camera),
-            prefix="Failed to create camera component")
+        try:
+            mmal_check(
+                mmal.mmal_component_create(
+                    mmal.MMAL_COMPONENT_DEFAULT_CAMERA, self._camera),
+                prefix="Failed to create camera component")
+        except PiCameraMMALError as e:
+            if e.status == mmal.MMAL_ENOMEM:
+                raise PiCameraError(
+                    "Camera is not enabled. Try running 'sudo raspi-config' "
+                    "and ensure that the camera has been enabled.")
+            else:
+                raise
         if not self._camera[0].output_num:
             raise PiCameraError("Camera doesn't have output ports")
 
