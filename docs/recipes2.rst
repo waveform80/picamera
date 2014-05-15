@@ -787,6 +787,9 @@ captures::
     # RGRGRGRGRGRGRG
     # GBGBGBGBGBGBGB
     # RGRGRGRGRGRGRG
+    #
+    # Please note that if you use vflip or hflip to change the orientation
+    # of the capture, you must flip the Bayer pattern accordingly
 
     rgb = np.zeros(data.shape + (3,), dtype=data.dtype)
     rgb[1::2, 0::2, 0] = data[1::2, 0::2] # Red
@@ -885,6 +888,8 @@ captures::
     output = (output >> 2).astype(np.uint8)
     with open('image.data', 'wb') as f:
         output.tofile(f)
+
+.. versionadded:: 1.3
 
 
 .. _YUV: http://en.wikipedia.org/wiki/YUV
