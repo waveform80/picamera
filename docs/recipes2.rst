@@ -687,7 +687,7 @@ part of the image metadata.
 
 .. note::
 
-    The ``bayer`` parameter only operators with the JPEG format, and only
+    The ``bayer`` parameter only operates with the JPEG format, and only
     for captures from the still port (i.e. when ``use_video_port`` is False,
     as it is by default).
 
@@ -699,7 +699,7 @@ etc. This also means:
 * Bayer data is *always* full resolution, regardless of the camera's output
   :attr:`~picamera.PiCamera.resolution` and any ``resize`` parameter.
 
-* Bayer data occupies the last 640,4096 bytes of the output file. The first
+* Bayer data occupies the last 6,404,096 bytes of the output file. The first
   32,768 bytes of this is header data which starts with the string ``'BRCM'``.
 
 * Bayer data consists of 10-bit values, because this is the sensitivity of the
@@ -707,10 +707,16 @@ etc. This also means:
   4 8-bit values, followed by the low-order 2-bits of the 4 values packed into
   a fifth byte.
 
+.. image:: bayer_bytes.svg
+    :align: center
+
 * Bayer data is organized in a BGGR pattern (a minor variation of the common
   `Bayer CFA`_). The raw data therefore has twice as many green pixels as red
   or blue and if viewed "raw" will look distinctly strange (too dark, too
   green, and with zippering effects along any straight edges).
+
+.. image:: bayer_pattern.svg
+    :align: center
 
 * To make a "normal" looking image from raw Bayer data you will need to
   perform `de-mosaicing`_ at the very least, and probably some form of
@@ -815,7 +821,7 @@ captures::
     # Allocate an array to hold our output with the same shape as the input
     # data. After this we define the size of window that will be used to
     # calculate each weighted average (3x3). Then we pad out the rgb and
-    # bayer arrays, repeating pixels at their edges to compensate for the
+    # bayer arrays, adding blank pixels at their edges to compensate for the
     # size of the window when calculating averages for edge pixels.
 
     output = np.empty(rgb.shape, dtype=rgb.dtype)

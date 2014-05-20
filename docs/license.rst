@@ -31,5 +31,19 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-.. _Dave Hughes: mailto:dave@waveform.org.uk
+----------
 
+The :ref:`bayer pattern diagram <bayer_data>` in the documentation is derived
+from `Bayer_pattern_on_sensor.svg`_ which is copyright (c) Colin Burnett
+(User:Cburnett) on Wikipedia, modified under the terms of the GPL:
+
+This work is free software; you can redistribute it and/or modify it under the
+terms of the GNU General Public License as published by the Free Software
+Foundation; either version 2 of the License, or any later version.  This work
+is distributed in the hope that it will be useful, but without any warranty;
+without even the implied warranty of merchantability or fitness for a
+particular purpose. See version 2 and version 3 of the GNU General Public
+License for more details.
+
+.. _Dave Hughes: mailto:dave@waveform.org.uk
+.. _Bayer_pattern_on_sensor.svg: http://en.wikipedia.org/wiki/File:Bayer_pattern_on_sensor.svg
