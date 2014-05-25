@@ -54,9 +54,9 @@ RECORDING_CASES = (
     RecordingCase('h264',  '.h264', {'profile': 'high'}),
     RecordingCase('h264',  '.h264', {'profile': 'constrained'}),
     RecordingCase('h264',  '.h264', {'resize': (640, 480)}),
-    RecordingCase('h264',  '.h264', {'bitrate': 0, 'quantization': 10}),
-    RecordingCase('h264',  '.h264', {'bitrate': 0, 'quantization': 20}),
-    RecordingCase('h264',  '.h264', {'bitrate': 0, 'quantization': 40}),
+    RecordingCase('h264',  '.h264', {'bitrate': 0, 'quality': 10}),
+    RecordingCase('h264',  '.h264', {'bitrate': 0, 'quality': 20}),
+    RecordingCase('h264',  '.h264', {'bitrate': 0, 'quality': 40}),
     RecordingCase('h264',  '.h264', {'bitrate': 10000000, 'intra_period': 15}),
     RecordingCase('h264',  '.h264', {'bitrate': 10000000, 'inline_headers': False}),
     RecordingCase('h264',  '.h264', {'bitrate': 10000000, 'sei': True}),
@@ -64,7 +64,7 @@ RECORDING_CASES = (
     RecordingCase('h264',  '.h264', {'bitrate': 20000000, 'profile': 'main'}),
     RecordingCase('mjpeg', '.mjpg', {}),
     RecordingCase('mjpeg', '.mjpg', {'bitrate': 10000000}),
-    RecordingCase('mjpeg', '.mjpg', {'bitrate': 0, 'quantization': 20}),
+    RecordingCase('mjpeg', '.mjpg', {'bitrate': 0, 'quality': 20}),
     )
 
 

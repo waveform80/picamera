@@ -776,14 +776,19 @@ class PiCamera(object):
           17000000 (17Mbps) if not specified. A value of 0 implies VBR
           (variable bitrate) encoding. The maximum value is 25000000 (25Mbps).
 
-        * *quantization* - When *bitrate* is zero (for variable bitrate
-          encodings), this parameter specifies the quality that the encoder
-          should attempt to maintain.
+        * *quality* - When *bitrate* is zero (for variable bitrate encodings),
+          this parameter specifies the quality that the encoder should attempt
+          to maintain.
 
           For the ``'h264'`` format, use values between 10 and 40 where 10 is
           extremely high quality, and 40 is extremely low (20-25 is usually a
           reasonable range for H.264 encoding). Note that
           :meth:`split_recording` cannot be used in VBR mode.
+
+          For the ``mjpeg`` format, use JPEG quality values between 1 and 100
+          (where higher values are higher quality).
+
+        * *quantization* - Deprecated. Please use *quality* instead.
 
         .. versionchanged:: 1.0
             The *resize* parameter was added, and ``'mjpeg'`` was added as a
@@ -791,6 +796,9 @@ class PiCamera(object):
 
         .. versionchanged:: 1.3
             The *splitter_port* parameter was added
+
+        .. versionchanged:: 1.5
+            The *quantization* parameter was deprecated in favour of *quality*
         """
         if splitter_port in self._encoders:
             raise PiCameraRuntimeError(
@@ -1591,6 +1599,11 @@ class PiCamera(object):
             :class:`~fractions.Fraction` class is actually used which permits
             the value to be treated as a tuple of ``(numerator, denominator)``.
 
+            Setting and retrieving framerate as a ``(numerator, denominator)``
+            tuple is deprecated and will be removed in 2.0. Please use a
+            :class:`~fractions.Fraction` instance instead (which is just as
+            accurate and also permits direct use with math operators).
+
         When set, the property reconfigures the camera so that the next call to
         recording and previewing methods will use the new framerate.  The
         framerate can be specified as an :class:`int`, :class:`float`,
@@ -1885,6 +1898,12 @@ class PiCamera(object):
         most obviously affects the illumination of subsequently captured
         images. Shutter speed can be adjusted while previews or recordings are
         running. The default value is 0 (auto).
+
+        .. note::
+
+            In later firmwares, this attribute is limited by the value of the
+            :attr:`framerate` attribute. For example, if framerate is set to
+            30fps, the shutter speed cannot be slower than 33,333µs (1/fps).
         """)
 
     def _get_ISO(self):

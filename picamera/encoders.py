@@ -430,8 +430,11 @@ class PiVideoEncoder(PiEncoder):
 
     def _create_encoder(
             self, bitrate=17000000, intra_period=0, profile='high',
-            quantization=0, inline_headers=True, sei=False):
+            quantization=0, quality=0, inline_headers=True, sei=False):
         super(PiVideoEncoder, self)._create_encoder()
+
+        # XXX Remove quantization in 2.0
+        quality = quality or quantization
 
         try:
             self.output_port[0].format[0].encoding = {
@@ -443,8 +446,8 @@ class PiVideoEncoder(PiEncoder):
 
         if not (0 <= bitrate <= 25000000):
             raise PiCameraValueError('bitrate must be between 0 (VBR) and 25Mbps')
-        if quantization and bitrate:
-            warnings.warn('Setting bitrate to 0 as quantization is non-zero', PiCameraWarning)
+        if quality and bitrate:
+            warnings.warn('Setting bitrate to 0 as quality is non-zero', PiCameraWarning)
             bitrate = 0
         self.output_port[0].format[0].bitrate = bitrate
         mmal_check(
@@ -522,37 +525,37 @@ class PiVideoEncoder(PiEncoder):
             # frame is a full-frame, the intra_period is effectively 1
             self._intra_period = 1
 
-        if quantization:
+        if quality:
             mp = mmal.MMAL_PARAMETER_UINT32_T(
                     mmal.MMAL_PARAMETER_HEADER_T(
                         mmal.MMAL_PARAMETER_VIDEO_ENCODE_INITIAL_QUANT,
                         ct.sizeof(mmal.MMAL_PARAMETER_UINT32_T),
                         ),
-                    quantization
+                    quality
                     )
             mmal_check(
                 mmal.mmal_port_parameter_set(self.output_port, mp.hdr),
-                prefix="Unable to set initial quantization")
+                prefix="Unable to set initial quality")
             mp = mmal.MMAL_PARAMETER_UINT32_T(
                     mmal.MMAL_PARAMETER_HEADER_T(
                         mmal.MMAL_PARAMETER_VIDEO_ENCODE_MIN_QUANT,
                         ct.sizeof(mmal.MMAL_PARAMETER_UINT32_T),
                         ),
-                    quantization,
+                    quality,
                     )
             mmal_check(
                 mmal.mmal_port_parameter_set(self.output_port, mp.hdr),
-                prefix="Unable to set minimum quantization")
+                prefix="Unable to set minimum quality")
             mp = mmal.MMAL_PARAMETER_UINT32_T(
                     mmal.MMAL_PARAMETER_HEADER_T(
                         mmal.MMAL_PARAMETER_VIDEO_ENCODE_MAX_QUANT,
                         ct.sizeof(mmal.MMAL_PARAMETER_UINT32_T),
                         ),
-                    quantization,
+                    quality,
                     )
             mmal_check(
                 mmal.mmal_port_parameter_set(self.output_port, mp.hdr),
-                prefix="Unable to set maximum quantization")
+                prefix="Unable to set maximum quality")
 
         mmal_check(
             mmal.mmal_port_parameter_set_boolean(
