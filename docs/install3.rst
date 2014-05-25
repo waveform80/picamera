@@ -160,3 +160,26 @@ from people of what you'd like the API to look like (even if the code itself
 isn't particularly pythonic, the interface should be)!
 
 
+.. _test_suite3:
+
+Test suite
+==========
+
+If you wish to run the picamera test suite, follow the instructions in
+:ref:`dev_install2` above and then install the following additional
+dependencies (note: avconv is installed system-wide)::
+
+    (sandbox) $ sudo apt-get install libav-tools
+    (sandbox) $ pip install Pillow pytest mock
+
+Finally, to run the test suite, execute the following command::
+
+    (sandbox) $ make test
+
+.. warning::
+
+    The test suite takes a *very* long time to execute (at least 45 minutes on
+    an overclocked Pi). Depending on configuration, it can also lockup the
+    camera requiring a reboot to reset, so ensure you are familiar with SSH
+    or using alternate TTYs to access a command line in the event you need to
+    reboot.
