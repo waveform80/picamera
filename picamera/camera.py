@@ -873,22 +873,20 @@ class PiCamera(object):
         All formats accept the following additional options:
 
         * *bitrate* - The bitrate at which video will be encoded. Defaults to
-          17000000 (17Mbps) if not specified. A value of 0 implies VBR
-          (variable bitrate) encoding. The maximum value is 25000000 (25Mbps).
+          17000000 (17Mbps) if not specified.  The maximum value is 25000000
+          (25Mbps). Bitrate 0 is special and seems to indicate a "reasonable
+          bitrate" default, but should be avoided due to a firmware issue
+          which prevents :meth:`split_recording` from working when it is used.
 
-        * *quality* - When *bitrate* is zero (for variable bitrate encodings),
-          this parameter specifies the quality that the encoder should attempt
-          to maintain.
+        * *quality* - Specifies the quality that the encoder should attempt
+          to maintain. For the ``'h264'`` format, use values between 10 and 40
+          where 10 is extremely high quality, and 40 is extremely low (20-25 is
+          usually a reasonable range for H.264 encoding). For the ``mjpeg``
+          format, use JPEG quality values between 1 and 100 (where higher
+          values are higher quality). Quality 0 is special and seems to be
+          a "reasonable quality" default.
 
-          For the ``'h264'`` format, use values between 10 and 40 where 10 is
-          extremely high quality, and 40 is extremely low (20-25 is usually a
-          reasonable range for H.264 encoding). Note that
-          :meth:`split_recording` cannot be used in VBR mode.
-
-          For the ``mjpeg`` format, use JPEG quality values between 1 and 100
-          (where higher values are higher quality).
-
-        * *quantization* - Deprecated. Please use *quality* instead.
+        * *quantization* - Deprecated alias for *quality*.
 
         .. versionchanged:: 1.0
             The *resize* parameter was added, and ``'mjpeg'`` was added as a
@@ -940,9 +938,8 @@ class PiCamera(object):
         Note that unlike :meth:`start_recording`, you cannot specify format or
         options as these cannot be changed in the middle of recording. Only the
         new *output* can be specified. Furthermore, the format of the recording
-        is currently limited to H264, *inline_headers* must be ``True``, and
-        *bitrate* must be non-zero (CBR mode) when :meth:`start_recording` is
-        called (this is the default).
+        is currently limited to H264, *inline_headers* must be ``True`` when
+        :meth:`start_recording` is called (this is the default).
 
         .. versionchanged:: 1.3
             The *splitter_port* parameter was added

@@ -589,11 +589,13 @@ class PiVideoEncoder(PiEncoder):
             raise PiCameraValueError('Unrecognized format %s' % self.format)
 
         if not (0 <= bitrate <= 25000000):
-            raise PiCameraValueError('bitrate must be between 0 (VBR) and 25Mbps')
-        if quality and bitrate:
-            warnings.warn('Setting bitrate to 0 as quality is non-zero', PiCameraWarning)
-            bitrate = 0
+            raise PiCameraValueError('bitrate must be between 0 and 25Mbps')
+        if bitrate == 0:
+            warnings.warn(PiCameraWarning(
+                'split_recording does not operate with bitrate set to 0'))
         self.output_port[0].format[0].bitrate = bitrate
+        self.output_port[0].format[0].es[0].video.frame_rate.num = 0
+        self.output_port[0].format[0].es[0].video.frame_rate.den = 1
         mmal_check(
             mmal.mmal_port_format_commit(self.output_port),
             prefix="Unable to set format on encoder output port")
@@ -631,12 +633,7 @@ class PiVideoEncoder(PiEncoder):
                     self.output_port,
                     mmal.MMAL_PARAMETER_VIDEO_ENCODE_SEI_ENABLE,
                     int(sei)),
-                prefix="Enable to set SEI")
-
-            if not (bitrate and inline_headers):
-                # If inline_headers is disabled, or VBR encoding is configured,
-                # disable the split function
-                self._next_output = None
+                prefix="Unable to set SEI")
 
             # We need the intra-period to calculate the SPS header timeout in
             # the split method below. If one is not set explicitly, query the
@@ -735,16 +732,15 @@ class PiVideoEncoder(PiEncoder):
         filename or a file-like object, as with :meth:`start`).
         """
         with self.lock:
-            if self._next_output is None:
-                raise PiCameraRuntimeError(
-                    'Cannot use split_recording without inline_headers')
             self._next_output.append(output)
         # intra_period / framerate gives the time between I-frames (which
         # should also coincide with SPS headers). We multiply by two to ensure
         # the timeout is deliberately excessive
         timeout = float(self._intra_period / self.parent.framerate) * 2.0
         if not self.event.wait(timeout):
-            raise PiCameraRuntimeError('Timed out waiting for an SPS header')
+            raise PiCameraRuntimeError(
+                'Timed out waiting for an SPS header (ensure inline_headers '
+                'is True and bitrate is not 0)')
         self.event.clear()
 
     def _callback_write(self, buf):
