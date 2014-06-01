@@ -331,7 +331,7 @@ disk.
 
 Please note that the following code involves some fairly advanced techniques
 (threading and all its associated locking fun is typically not a "beginner
-friendly" subject, not to mention generator expressions)::
+friendly" subject, not to mention generator functions)::
 
     import io
     import time
@@ -355,6 +355,7 @@ friendly" subject, not to mention generator expressions)::
             # This method runs in a separate thread
             global done
             while not self.terminated:
+                # Wait for an image to be written to the stream
                 if self.event.wait(1):
                     try:
                         self.stream.seek(0)
@@ -377,16 +378,21 @@ friendly" subject, not to mention generator expressions)::
     def streams():
         while not done:
             with lock:
-                processor = pool.pop()
-            yield processor.stream
-            processor.event.set()
+                if pool:
+                    processor = pool.pop()
+                else:
+                    processor = None
+            if processor:
+                yield processor.stream
+                processor.event.set()
+            else:
+                # When the pool is starved, wait a while for it to refill
+                time.sleep(0.1)
 
     with picamera.PiCamera() as camera:
-        pool = [ImageProcessor() for i in range (4)]
+        pool = [ImageProcessor() for i in range(4)]
         camera.resolution = (640, 480)
-        # Set the framerate appropriately; too fast and the image processors
-        # will stall the image pipeline and crash the script
-        camera.framerate = 10
+        camera.framerate = 30
         camera.start_preview()
         time.sleep(2)
         camera.capture_sequence(streams(), use_video_port=True)
@@ -425,6 +431,7 @@ first - just add ``use_video_port=True`` to the
     try:
         with picamera.PiCamera() as camera:
             camera.resolution = (640, 480)
+            camera.framerate = 30
             time.sleep(2)
             start = time.time()
             stream = io.BytesIO()
@@ -444,13 +451,13 @@ first - just add ``use_video_port=True`` to the
         connection.close()
         client_socket.close()
 
-Using this technique, the author can manage about 14fps of streaming at
-640x480. One deficiency of the script above is that it interleaves capturing
-images with sending them over the wire (although we deliberately don't flush on
-sending the image data). Potentially, it would be more efficient to permit
-image capture to occur simultaneously with image transmission. We can attempt
-to do this by utilizing the background threading techniques from the final
-example in :ref:`rapid_capture`.
+Using this technique, the author can manage about 10fps of streaming at 640x480
+on firmware #685. One deficiency of the script above is that it interleaves
+capturing images with sending them over the wire (although we deliberately
+don't flush on sending the image data). Potentially, it would be more efficient
+to permit image capture to occur simultaneously with image transmission. We can
+attempt to do this by utilizing the background threading techniques from the
+final example in :ref:`rapid_capture`.
 
 Once again, please note that the following code involves some quite advanced
 techniques and is not "beginner friendly"::
@@ -463,12 +470,12 @@ techniques and is not "beginner friendly"::
     import picamera
 
     client_socket = socket.socket()
-    client_socket.connect(('my_server', 8000))
+    client_socket.connect(('spider', 8000))
     connection = client_socket.makefile('wb')
     try:
         connection_lock = threading.Lock()
-        pool = []
         pool_lock = threading.Lock()
+        pool = []
 
         class ImageStreamer(threading.Thread):
             def __init__(self):
@@ -481,6 +488,7 @@ techniques and is not "beginner friendly"::
             def run(self):
                 # This method runs in a background thread
                 while not self.terminated:
+                    # Wait for the image to be written to the stream
                     if self.event.wait(1):
                         try:
                             with connection_lock:
@@ -503,26 +511,30 @@ techniques and is not "beginner friendly"::
             global count, finish
             while finish - start < 30:
                 with pool_lock:
-                    streamer = pool.pop()
-                yield streamer.stream
-                streamer.event.set()
-                count += 1
+                    if pool:
+                        streamer = pool.pop()
+                    else:
+                        streamer = None
+                if streamer:
+                    yield streamer.stream
+                    streamer.event.set()
+                    count += 1
+                else:
+                    # When the pool is starved, wait a while for it to refill
+                    time.sleep(0.1)
                 finish = time.time()
 
         with picamera.PiCamera() as camera:
             pool = [ImageStreamer() for i in range(4)]
             camera.resolution = (640, 480)
-            # Set the framerate appropriately; too fast and we'll starve the
-            # pool of streamers and crash the script
-            camera.framerate = 15
-            camera.start_preview()
+            camera.framerate = 30
             time.sleep(2)
+            start = time.time()
             camera.capture_sequence(streams(), 'jpeg', use_video_port=True)
 
         # Shut down the streamers in an orderly fashion
         while pool:
-            with pool_lock:
-                streamer = pool.pop()
+            streamer = pool.pop()
             streamer.terminated = True
             streamer.join()
 
@@ -535,13 +547,12 @@ techniques and is not "beginner friendly"::
         connection.close()
         client_socket.close()
 
-    print('Sent %d images in %.2f seconds at %.2ffps' % (
+    print('Sent %d images in %d seconds at %.2ffps' % (
         count, finish-start, count / (finish-start)))
 
-The author's tests with the script above haven't yielded substantial
-improvements over the former script using
-:meth:`~picamera.PiCamera.capture_continuous`, but the reason for this is not
-currently clear. Suggestions for further improvements are welcomed!
+On the same firmware, the above script achieves about 15fps. It is possible the
+new high framerate modes may achieve more (the fact that 15fps is half of the
+specified 30fps framerate suggests some stall on every other frame).
 
 .. versionadded:: 0.5
 
@@ -560,7 +571,8 @@ running).
 
 However, if the *use_video_port* parameter is used to force a video-port based
 image capture (see :ref:`rapid_capture`) then the mode change does not occur,
-and the resulting video will not have dropped frames::
+and the resulting video should not have dropped frames, assuming the image can
+be produced before the next video frame is due::
 
     import picamera
 
@@ -574,7 +586,9 @@ and the resulting video will not have dropped frames::
         camera.stop_recording()
 
 The above code should produce a 20 second video with no dropped frames, and a
-still frame from 10 seconds into the video.
+still frame from 10 seconds into the video. Higher resolutions or non-JPEG
+image formats may still cause dropped frames (only JPEG encoding is hardware
+accelerated).
 
 .. versionadded:: 0.8
 
