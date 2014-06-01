@@ -234,6 +234,12 @@ Exceptions
 
 .. autoexception:: PiCameraRuntimeError
 
+.. autoexception:: PiCameraClosed
+
+.. autoexception:: PiCameraNotRecording
+
+.. autoexception:: PiCameraAlreadyRecording
+
 .. autoexception:: PiCameraMMALError
 
 .. autofunction:: mmal_check
@@ -254,6 +260,9 @@ from picamera.exc import (
     PiCameraWarning,
     PiCameraError,
     PiCameraRuntimeError,
+    PiCameraClosed,
+    PiCameraNotRecording,
+    PiCameraAlreadyRecording,
     PiCameraValueError,
     PiCameraMMALError,
     mmal_check,
@@ -273,14 +282,4 @@ from picamera.encoders import (
     )
 from picamera.streams import PiCameraCircularIO, CircularIO
 
-
-__all__ = [
-    'PiCamera',
-    'PiVideoFrame',
-    'PiCameraError',
-    'PiCameraRuntimeError',
-    'PiCameraValueError',
-    'PiCameraCircularIO',
-    'CircularIO',
-    ]
 

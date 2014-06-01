@@ -59,20 +59,6 @@ from picamera.exc import (
     )
 
 
-__all__ = [
-    'PiEncoder',
-    'PiVideoEncoder',
-    'PiImageEncoder',
-    'PiOneImageEncoder',
-    'PiMultiImageEncoder',
-    'PiRawEncoderMixin',
-    'PiCookedOneImageEncoder',
-    'PiRawOneImageEncoder',
-    'PiCookedMultiImageEncoder',
-    'PiRawMultiImageEncoder',
-    ]
-
-
 class PiVideoFrame(namedtuple('PiVideoFrame', (
     'index',         # the frame number, where the first frame is 0
     'keyframe',      # True when the frame is a keyframe

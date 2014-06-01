@@ -53,6 +53,9 @@ from picamera.exc import (
     PiCameraError,
     PiCameraValueError,
     PiCameraRuntimeError,
+    PiCameraClosed,
+    PiCameraNotRecording,
+    PiCameraAlreadyRecording,
     PiCameraMMALError,
     mmal_check,
     )
@@ -71,9 +74,6 @@ try:
 except ImportError:
     # Can't find RPi.GPIO so just null-out the reference
     GPIO = None
-
-
-__all__ = ['PiCamera']
 
 
 def _control_callback(port, buf):
@@ -541,7 +541,7 @@ class PiCamera(object):
         Raise an exception if the camera is already closed
         """
         if self.closed:
-            raise PiCameraRuntimeError("Camera is closed")
+            raise PiCameraClosed("Camera is closed")
 
     def _check_recording_stopped(self):
         """
@@ -899,7 +899,7 @@ class PiCamera(object):
             The *quantization* parameter was deprecated in favour of *quality*
         """
         if splitter_port in self._encoders:
-            raise PiCameraRuntimeError(
+            raise PiCameraAlreadyRecording(
                     'The camera is already recording on '
                     'port %d' % splitter_port)
         camera_port, output_port = self._get_ports(True, splitter_port)
@@ -947,7 +947,7 @@ class PiCamera(object):
         try:
             self._encoders[splitter_port].split(output)
         except KeyError:
-            raise PiCameraRuntimeError(
+            raise PiCameraNotRecording(
                     'There is no recording in progress on '
                     'port %d' % splitter_port)
 
@@ -975,7 +975,7 @@ class PiCamera(object):
         try:
             self._encoders[splitter_port].wait(timeout)
         except KeyError:
-            raise PiCameraRuntimeError(
+            raise PiCameraNotRecording(
                     'There is no recording in progress on '
                     'port %d' % splitter_port)
 
@@ -1072,7 +1072,7 @@ class PiCamera(object):
         .. versionadded:: 1.3
         """
         if splitter_port in self._encoders:
-            raise PiCameraRuntimeError(
+            raise PiCameraAlreadyRecording(
                     'The camera is already recording on '
                     'port %d' % splitter_port)
         camera_port, output_port = self._get_ports(True, splitter_port)
@@ -1197,7 +1197,7 @@ class PiCamera(object):
 
         """
         if use_video_port and (splitter_port in self._encoders):
-            raise PiCameraRuntimeError(
+            raise PiCameraAlreadyRecording(
                     'The camera is already recording on '
                     'port %d' % splitter_port)
         camera_port, output_port = self._get_ports(use_video_port, splitter_port)
@@ -1278,7 +1278,7 @@ class PiCamera(object):
             The *splitter_port* parameter was added
         """
         if use_video_port and (splitter_port in self._encoders):
-            raise PiCameraRuntimeError(
+            raise PiCameraAlreadyRecording(
                     'The camera is already recording on '
                     'port %d' % splitter_port)
         camera_port, output_port = self._get_ports(use_video_port, splitter_port)
@@ -1404,7 +1404,7 @@ class PiCamera(object):
             The *splitter_port* parameter was added
         """
         if use_video_port and (splitter_port in self._encoders):
-            raise PiCameraRuntimeError(
+            raise PiCameraAlreadyRecording(
                     'The camera is already recording on '
                     'port %d' % splitter_port)
         camera_port, output_port = self._get_ports(use_video_port, splitter_port)
