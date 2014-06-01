@@ -114,7 +114,7 @@ def test_capture_to_stream(
     verify_image(stream, format, resolution)
 
 def test_capture_continuous_to_file(
-        camera, previewing, mode, tmpdir, use_video_port):
+        camera, mode, tmpdir, use_video_port):
     resolution, framerate = mode
     for i, filename in enumerate(
             camera.capture_continuous(os.path.join(
@@ -125,7 +125,7 @@ def test_capture_continuous_to_file(
             break
 
 def test_capture_continuous_to_stream(
-        camera, previewing, mode, use_video_port):
+        camera, mode, use_video_port):
     resolution, framerate = mode
     stream = io.BytesIO()
     for i, foo in enumerate(
@@ -139,7 +139,7 @@ def test_capture_continuous_to_stream(
             break
 
 def test_capture_sequence_to_file(
-        camera, previewing, mode, tmpdir, use_video_port):
+        camera, mode, tmpdir, use_video_port):
     resolution, framerate = mode
     filenames = [os.path.join(str(tmpdir), 'image%d.jpg' % i) for i in range(3)]
     camera.capture_sequence(filenames, use_video_port=use_video_port)
@@ -147,7 +147,7 @@ def test_capture_sequence_to_file(
         verify_image(filename, 'jpeg', resolution)
 
 def test_capture_sequence_to_stream(
-        camera, previewing, mode, use_video_port):
+        camera, mode, use_video_port):
     resolution, framerate = mode
     streams = [io.BytesIO() for i in range(3)]
     camera.capture_sequence(streams, use_video_port=use_video_port)

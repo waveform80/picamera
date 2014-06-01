@@ -148,7 +148,7 @@ def test_record_to_stream(camera, previewing, mode, format_options):
         stream2.seek(0)
         verify_video(stream2, format, resolution)
 
-def test_record_sequence_to_file(camera, previewing, mode, tmpdir):
+def test_record_sequence_to_file(camera, mode, tmpdir):
     resolution, framerate = mode
     if resolution == (2592, 1944):
         pytest.xfail('Cannot encode video at max resolution')
@@ -158,7 +158,7 @@ def test_record_sequence_to_file(camera, previewing, mode, tmpdir):
     for filename in filenames:
         verify_video(filename, 'h264', resolution)
 
-def test_record_sequence_to_stream(camera, previewing, mode):
+def test_record_sequence_to_stream(camera, mode):
     resolution, framerate = mode
     if resolution == (2592, 1944):
         pytest.xfail('Cannot encode video at max resolution')
@@ -169,7 +169,7 @@ def test_record_sequence_to_stream(camera, previewing, mode):
         stream.seek(0)
         verify_video(stream, 'h264', resolution)
 
-def test_circular_record(camera, previewing, mode):
+def test_circular_record(camera, mode):
     resolution, framerate = mode
     if resolution == (2592, 1944):
         pytest.xfail('Cannot encode video at max resolution')
@@ -198,7 +198,7 @@ def test_circular_record(camera, previewing, mode):
     temp.seek(0)
     verify_video(temp, 'h264', resolution)
 
-def test_split_and_capture(camera, previewing, mode):
+def test_split_and_capture(camera, mode):
     resolution, framerate = mode
     if resolution == (2592, 1944):
         pytest.xfail('Cannot encode video at max resolution')
@@ -220,7 +220,7 @@ def test_split_and_capture(camera, previewing, mode):
     verify_video(v_stream1, 'h264', resolution)
     verify_video(v_stream2, 'h264', resolution)
 
-def test_multi_res_record(camera, previewing, mode):
+def test_multi_res_record(camera, mode):
     resolution, framerate = mode
     if resolution == (2592, 1944):
         pytest.xfail('Cannot encode video at max resolution')
