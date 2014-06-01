@@ -123,11 +123,17 @@ PiVideoFrame
 Exceptions
 ==========
 
+.. autoexception:: PiCameraWarning
+
 .. autoexception:: PiCameraError
 
 .. autoexception:: PiCameraValueError
 
 .. autoexception:: PiCameraRuntimeError
+
+.. autoexception:: PiCameraMMALError
+
+.. autofunction:: mmal_check
 
 """
 
@@ -141,7 +147,14 @@ from __future__ import (
 # Make Py2's str equivalent to Py3's
 str = type('')
 
-from picamera.exc import PiCameraError, PiCameraRuntimeError, PiCameraValueError
+from picamera.exc import (
+    PiCameraWarning,
+    PiCameraError,
+    PiCameraRuntimeError,
+    PiCameraValueError,
+    PiCameraMMALError,
+    mmal_check,
+    )
 from picamera.camera import PiCamera, PiVideoFrame
 from picamera.streams import PiCameraCircularIO, CircularIO
 

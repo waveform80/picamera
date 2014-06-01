@@ -53,13 +53,13 @@ __all__ = [
 
 class PiCameraWarning(Warning):
     """
-    Base class for PiCamera warnings
+    Base class for PiCamera warnings.
     """
 
 
 class PiCameraError(Exception):
     """
-    Base class for PiCamera errors
+    Base class for PiCamera errors.
     """
 
 
@@ -71,13 +71,13 @@ class PiCameraRuntimeError(PiCameraError, RuntimeError):
 
 class PiCameraValueError(PiCameraError, ValueError):
     """
-    Raised when an invalid value is fed to a PiCamera object
+    Raised when an invalid value is fed to a :class:`PiCamera` object.
     """
 
 
 class PiCameraMMALError(PiCameraError):
     """
-    Raised when an MMAL operation fails for whatever reason
+    Raised when an MMAL operation fails for whatever reason.
     """
     def __init__(self, status, prefix=""):
         self.status = status
@@ -105,8 +105,10 @@ def mmal_check(status, prefix=""):
     Checks the return status of an mmal call and raises an exception on
     failure.
 
-    The optional prefix parameter specifies a prefix message to place at the
-    start of the exception's message to provide some context.
+    The *status* parameter is the result of an MMAL call. If *status* is
+    anything other than MMAL_SUCCESS, a :exc:`PiCameraMMALError` exception is
+    raised. The optional *prefix* parameter specifies a prefix message to place
+    at the start of the exception's message to provide some context.
     """
     if status != mmal.MMAL_SUCCESS:
         raise PiCameraMMALError(status, prefix)
