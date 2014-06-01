@@ -727,6 +727,88 @@ efficient manner using the :meth:`~picamera.PiCameraCircularIO.read1` method
 .. versionadded:: 1.0
 
 
+.. _custom_encoders:
+
+Custom encoders
+===============
+
+You can override and/or extend the encoder classes used during image or video
+capture. This is particularly useful with video capture as it allows you to run
+your own code in response to every frame, although naturally whatever code runs
+within the encoder's callback has to be reasonably quick to avoid stalling the
+encoder pipeline.
+
+The encoder classes defined by picamera form the following hierarchy (shaded
+classes are actually instantiated by the implementation in picamera, white
+classes implement base functionality but aren't technically "abstract"):
+
+.. image:: encoder_classes.*
+    :align: center
+
+It is recommended, particularly in the case of the image encoder classes, that
+you familiarize yourself with the specific function of these classes so that
+you can determine the best class to extend for your particular needs.
+
+In the following example recipe we will extend the
+:class:`~picamera.PiVideoEncoder` class to store information on how many
+I-frames and P-frames are captured (the camera's encoder doesn't use
+B-frames)::
+
+    import picamera
+    import picamera.mmal as mmal
+
+
+    # Override PiVideoEncoder to keep track of the number of each type of frame
+    class MyEncoder(picamera.PiVideoEncoder):
+        def start(self, output):
+            self.parent.i_frames = 0
+            self.parent.p_frames = 0
+            super(MyEncoder, self).start(output)
+
+        def _callback_write(self, buf):
+            # Only count when buffer indicates it's the end of a frame, and
+            # it's not an SPS/PPS header (..._CONFIG)
+            if (
+                    (buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_FRAME_END) and
+                    not (buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_CONFIG)
+                ):
+                if buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_KEYFRAME:
+                    self.parent.i_frames += 1
+                else:
+                    self.parent.p_frames += 1
+            # Remember to return the result of the parent method!
+            return super(MyEncoder, self)._callback_write(buf)
+
+
+    # Override PiCamera to use our custom encoder for video recording
+    class MyCamera(picamera.PiCamera):
+        def __init__(self):
+            super(MyCamera, self).__init__()
+            self.i_frames = 0
+            self.p_frames = 0
+
+        def _get_video_encoder(
+                self, camera_port, output_port, format, resize, **options):
+            return MyEncoder(
+                    self, camera_port, output_port, format, resize, **options)
+
+
+    with MyCamera() as camera:
+        camera.start_recording('foo.h264')
+        camera.wait_recording(10)
+        camera.stop_recording()
+        print('Recording contains %d I-frames and %d P-frames' % (
+                camera.i_frames, camera.p_frames))
+
+Please note that the above recipe is flawed: PiCamera is capable of
+initiating :ref:`multiple simultaneous recordings <multi_res_record>`. If this
+were used with the above recipe, then each encoder would wind up incrementing
+the ``i_frames`` and ``p_frames`` attributes on the ``MyCamera`` instance
+leading to incorrect results.
+
+.. versionadded:: 1.5
+
+
 .. _bayer_data:
 
 Raw Bayer data captures

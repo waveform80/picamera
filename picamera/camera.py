@@ -191,9 +191,9 @@ class PiCamera(object):
     MAX_RESOLUTION = (2592, 1944)
     MAX_IMAGE_RESOLUTION = (2592, 1944) # Deprecated - use MAX_RESOLUTION instead
     MAX_VIDEO_RESOLUTION = (1920, 1080) # Deprecated - use MAX_RESOLUTION instead
-    DEFAULT_FRAME_RATE_NUM = 30
-    DEFAULT_FRAME_RATE_DEN = 1
-    VIDEO_OUTPUT_BUFFERS_NUM = 3
+    DEFAULT_FRAME_RATE_NUM = 30  # Deprecated, read framerate property instead
+    DEFAULT_FRAME_RATE_DEN = 1   # Deprecated, read framerate property instead
+    VIDEO_OUTPUT_BUFFERS_NUM = 3 # Deprecated, no replacement
 
     METER_MODES = {
         'average': mmal.MMAL_PARAM_EXPOSUREMETERINGMODE_AVERAGE,
@@ -483,9 +483,6 @@ class PiCamera(object):
             self._null_sink[0].input[0])
 
     def _connect_ports(self, output_port, input_port):
-        """
-        Connect the specified output and input ports
-        """
         result = ct.POINTER(mmal.MMAL_CONNECTION_T)()
         mmal_check(
             mmal.mmal_connection_create(
@@ -498,26 +495,7 @@ class PiCamera(object):
             prefix="Failed to enable connection")
         return result
 
-    def _get_ports(self, from_video_port, splitter_port):
-        """
-        Determine the camera and output ports for given capture options
-        """
-        camera_port = (
-            self._camera[0].output[self.CAMERA_VIDEO_PORT]
-            if from_video_port else
-            self._camera[0].output[self.CAMERA_CAPTURE_PORT]
-            )
-        output_port = (
-            self._splitter[0].output[splitter_port]
-            if from_video_port else
-            camera_port
-            )
-        return (camera_port, output_port)
-
     def _reconfigure_splitter(self):
-        """
-        Copy the camera's video port config to the video splitter
-        """
         mmal.mmal_format_copy(
             self._splitter[0].input[0][0].format,
             self._camera[0].output[self.CAMERA_VIDEO_PORT][0].format)
@@ -536,9 +514,6 @@ class PiCamera(object):
                 prefix="Couldn't set splitter output port %d format" % p)
 
     def _disable_camera(self):
-        """
-        Temporarily disable the camera and all permanently attached components
-        """
         mmal_check(
             mmal.mmal_connection_disable(self._splitter_connection),
             prefix="Failed to disable splitter connection")
@@ -550,9 +525,6 @@ class PiCamera(object):
             prefix="Failed to disable camera")
 
     def _enable_camera(self):
-        """
-        Re-enable the camera and all permanently attached components
-        """
         self._reconfigure_splitter()
         mmal_check(
             mmal.mmal_component_enable(self._camera),
@@ -578,24 +550,62 @@ class PiCamera(object):
         if self.recording:
             raise PiCameraRuntimeError("Recording is currently running")
 
-    def _get_format(self, output, format):
-        if format:
-            return format
-        elif isinstance(output, (bytes, str)):
-            filename = output
-        elif hasattr(output, 'name'):
-            filename = output.name
-        else:
-            raise PiCameraValueError(
-                'Format must be specified when output has no filename')
-        (type, encoding) = mimetypes.guess_type(filename, strict=False)
-        if type:
-            return type
-        raise PiCameraValueError(
-            'Unable to determine type from filename %s' % filename)
+    def _get_ports(self, from_video_port, splitter_port):
+        """
+        Determine the camera and output ports for given capture options.
 
-    def _get_image_format(self, output, format):
-        format = self._get_format(output, format)
+        See :ref:`under_the_hood` for more information on picamera's usage of
+        camera, splitter, and encoder ports. The general idea here is that the
+        capture (still) port operates on its own, while the video port is
+        always connected to a splitter component, so requests for a video port
+        also have to specify which splitter port they want to use.
+        """
+        camera_port = (
+            self._camera[0].output[self.CAMERA_VIDEO_PORT]
+            if from_video_port else
+            self._camera[0].output[self.CAMERA_CAPTURE_PORT]
+            )
+        output_port = (
+            self._splitter[0].output[splitter_port]
+            if from_video_port else
+            camera_port
+            )
+        return (camera_port, output_port)
+
+    def _get_output_format(self, output):
+        """
+        Given an output object, attempt to determine the requested format.
+
+        We attempt to determine the filename of the *output* object and derive
+        a MIME type from the extension. If *output* has no filename, an error
+        is raised.
+        """
+        if isinstance(output, (bytes, str)):
+            filename = output
+        else:
+            try:
+                filename = output.name
+            except AttributeError:
+                raise PiCameraValueError(
+                    'Format must be specified when output has no filename')
+        (type, encoding) = mimetypes.guess_type(filename, strict=False)
+        if not type:
+            raise PiCameraValueError(
+                'Unable to determine type from filename %s' % filename)
+        return type
+
+    def _get_image_format(self, output, format=None):
+        """
+        Given an output object and an optional format, attempt to determine the
+        requested image format.
+
+        This method is used by all capture methods to determine the requested
+        output format. If *format* is specified as a MIME-type the "image/"
+        prefix is stripped. If *format* is not specified, then
+        :meth:`_get_output_format` will be called to attempt to determine
+        format from the *output* object.
+        """
+        format = format or self._get_output_format(output)
         format = (
             format[6:] if format.startswith('image/') else
             format)
@@ -605,13 +615,103 @@ class PiCamera(object):
             format = self.raw_format
         return format
 
-    def _get_video_format(self, output, format):
-        format = self._get_format(output, format)
+    def _get_video_format(self, output, format=None):
+        """
+        Given an output object and an optional format, attempt to determine the
+        requested video format.
+
+        This method is used by all recording methods to determine the requested
+        output format. If *format* is specified as a MIME-type the "video/" or
+        "application/" prefix will be stripped. If *format* is not specified,
+        then :meth:`_get_output_format` will be called to attempt to determine
+        format from the *output* object.
+        """
+        format = format or self._get_output_format(output)
         format = (
             format[6:]  if format.startswith('video/') else
             format[12:] if format.startswith('application/') else
             format)
         return format
+
+    def _get_image_encoder(
+            self, camera_port, output_port, format, resize, **options):
+        """
+        Construct an image encoder for the requested parameters.
+
+        This method is called by :meth:`capture` and :meth:`capture_continuous`
+        to construct an image encoder. The *camera_port* parameter gives the
+        MMAL camera port that should be enabled for capture by the encoder. The
+        *output_port* parameter gives the MMAL port that the encoder should
+        read output from (this may be the same as the camera port, but may be
+        different if other component(s) like a splitter have been placed in the
+        pipeline). The *format* parameter indicates the image format and will
+        be one of:
+
+        * ``'jpeg'``
+        * ``'png'``
+        * ``'gif'``
+        * ``'bmp'``
+        * ``'yuv'``
+        * ``'rgb'``
+        * ``'rgba'``
+        * ``'bgr'``
+        * ``'bgra'``
+
+        The *resize* parameter indicates the size that the encoder should
+        resize the output to (presumably by including a resizer in the
+        pipeline). Finally, *options* includes extra keyword arguments that
+        should be passed verbatim to the encoder.
+        """
+        encoder_class = (
+                PiRawOneImageEncoder if format in self.RAW_FORMATS else
+                PiCookedOneImageEncoder)
+        return encoder_class(
+                self, camera_port, output_port, format, resize, **options)
+
+    def _get_images_encoder(
+            self, camera_port, output_port, format, resize, **options):
+        """
+        Construct a multi-image encoder for the requested parameters.
+
+        This method is largely equivalent to :meth:`_get_image_encoder` with
+        the exception that the encoder returned should expect to be passed an
+        iterable of outputs to its :meth:`~picamera.encoders.PiEncoder.start`
+        method, rather than a single output object. This method is called by
+        the :meth:`capture_sequence` method.
+
+        All parameters are the same as in :meth:`_get_image_encoder`. Please
+        refer to the documentation for that method for further information.
+        """
+        encoder_class = (
+                PiRawMultiImageEncoder if format in self.RAW_FORMATS else
+                PiCookedMultiImageEncoder)
+        return encoder_class(
+                self, camera_port, output_port, format, resize, **options)
+
+    def _get_video_encoder(
+            self, camera_port, output_port, format, resize, **options):
+        """
+        Construct a video encoder for the requested parameters.
+
+        This method is called by :meth:`start_recording` and
+        :meth:`record_sequence` to construct a video encoder.  The
+        *camera_port* parameter gives the MMAL camera port that should be
+        enabled for capture by the encoder. The *output_port* parameter gives
+        the MMAL port that the encoder should read output from (this may be the
+        same as the camera port, but may be different if other component(s)
+        like a splitter have been placed in the pipeline). The *format*
+        parameter indicates the video format and will be one of:
+
+        * ``'h264'``
+        * ``'mjpeg'``
+
+        The *resize* parameter indicates the size that the encoder should
+        resize the output to (presumably by including a resizer in the
+        pipeline). Finally, *options* includes extra keyword arguments that
+        should be passed verbatim to the encoder.
+        """
+        return PiVideoEncoder(
+                self, camera_port, output_port, format, resize, **options)
 
     def close(self):
         """
@@ -807,8 +907,8 @@ class PiCamera(object):
         camera_port, output_port = self._get_ports(True, splitter_port)
         format = self._get_video_format(output, format)
         self._still_encoding = mmal.MMAL_ENCODING_I420
-        encoder = PiVideoEncoder(
-                self, camera_port, output_port, format, resize, **options)
+        encoder = self._get_video_encoder(
+                camera_port, output_port, format, resize, **options)
         self._encoders[splitter_port] = encoder
         try:
             encoder.start(output)
@@ -981,8 +1081,8 @@ class PiCamera(object):
         camera_port, output_port = self._get_ports(True, splitter_port)
         format = self._get_video_format('', format)
         self._still_encoding = mmal.MMAL_ENCODING_I420
-        encoder = PiVideoEncoder(
-                self, camera_port, output_port, format, resize, **options)
+        encoder = self._get_video_encoder(
+                camera_port, output_port, format, resize, **options)
         self._encoders[splitter_port] = encoder
         try:
             start = True
@@ -1111,11 +1211,8 @@ class PiCamera(object):
             else:
                 self._still_encoding = self.RAW_FORMATS.get(
                     format, mmal.MMAL_ENCODING_OPAQUE)
-        encoder_class = (
-                PiRawOneImageEncoder if format in self.RAW_FORMATS else
-                PiCookedOneImageEncoder)
-        encoder = encoder_class(
-                self, camera_port, output_port, format, resize, **options)
+        encoder = self._get_image_encoder(
+                camera_port, output_port, format, resize, **options)
         try:
             encoder.start(output)
             # Wait for the callback to set the event indicating the end of
@@ -1194,22 +1291,16 @@ class PiCamera(object):
         else:
             self._still_encoding = mmal.MMAL_ENCODING_I420
         if use_video_port:
-            encoder_class = (
-                    PiRawMultiImageEncoder if format in self.RAW_FORMATS else
-                    PiCookedMultiImageEncoder)
-            encoder = encoder_class(
-                    self, camera_port, output_port, format, resize, **options)
+            encoder = self._get_images_encoder(
+                    camera_port, output_port, format, resize, **options)
             try:
                 encoder.start(outputs)
                 encoder.wait()
             finally:
                 encoder.close()
         else:
-            encoder_class = (
-                    PiRawOneImageEncoder if format in self.RAW_FORMATS else
-                    PiCookedOneImageEncoder)
-            encoder = encoder_class(
-                    self, camera_port, output_port, format, resize, **options)
+            encoder = self._get_image_encoder(
+                    camera_port, output_port, format, resize, **options)
             try:
                 for output in outputs:
                     encoder.start(output)
@@ -1325,11 +1416,8 @@ class PiCamera(object):
             self._still_encoding = mmal.MMAL_ENCODING_OPAQUE
         else:
             self._still_encoding = mmal.MMAL_ENCODING_I420
-        encoder_class = (
-                PiRawOneImageEncoder if format in self.RAW_FORMATS else
-                PiCookedOneImageEncoder)
-        encoder = encoder_class(
-                self, camera_port, output_port, format, resize, **options)
+        encoder = self._get_image_encoder(
+                camera_port, output_port, format, resize, **options)
         try:
             if isinstance(output, bytes):
                 # If we're fed a bytes string, assume it's UTF-8 encoded and

@@ -1,0 +1,31 @@
+digraph G {
+    graph [rankdir="BT"];
+
+    /* Abstract classes */
+    node [shape=rect,style=filled,color="#000000",fillcolor="#ffffff",fontname=Arial,fontsize=12.0];
+    PiEncoder           [target="_top", URL="../api.html#picamera.PiEncoder"];
+    PiImageEncoder      [target="_top", URL="../api.html#picamera.PiImageEncoder"];
+    PiOneImageEncoder   [target="_top", URL="../api.html#picamera.PiOneImageEncoder"];
+    PiMultiImageEncoder [target="_top", URL="../api.html#picamera.PiMultiImageEncoder"];
+    PiRawEncoderMixin   [target="_top", URL="../api.html#picamera.PiRawEncoderMixin"];
+
+    /* Concrete classes */
+    node [shape=rect,style=filled,color="#000000",fillcolor="#99aadd",fontname=Arial,fontsize=12.0];
+    PiVideoEncoder            [target="_top", URL="../api.html#picamera.PiVideoEncoder"];
+    PiRawOneImageEncoder      [target="_top", URL="../api.html#picamera.PiRawOneImageEncoder"];
+    PiRawMultiImageEncoder    [target="_top", URL="../api.html#picamera.PiRawMultiImageEncoder"];
+    PiCookedOneImageEncoder   [target="_top", URL="../api.html#picamera.PiCookedOneImageEncoder"];
+    PiCookedMultiImageEncoder [target="_top", URL="../api.html#picamera.PiCookedMultiImageEncoder"];
+
+    PiVideoEncoder->PiEncoder;
+    PiImageEncoder->PiEncoder;
+    PiOneImageEncoder->PiImageEncoder;
+    PiMultiImageEncoder->PiImageEncoder;
+    PiCookedOneImageEncoder->PiOneImageEncoder;
+    PiCookedMultiImageEncoder->PiOneImageEncoder;
+    PiRawEncoderMixin->PiImageEncoder;
+    PiRawOneImageEncoder->PiOneImageEncoder;
+    PiRawOneImageEncoder->PiRawEncoderMixin;
+    PiRawMultiImageEncoder->PiMultiImageEncoder;
+    PiRawMultiImageEncoder->PiRawEncoderMixin;
+}

@@ -63,9 +63,13 @@ __all__ = [
     'PiEncoder',
     'PiVideoEncoder',
     'PiImageEncoder',
-    'PiRawImageEncoder',
     'PiOneImageEncoder',
     'PiMultiImageEncoder',
+    'PiRawEncoderMixin',
+    'PiCookedOneImageEncoder',
+    'PiRawOneImageEncoder',
+    'PiCookedMultiImageEncoder',
+    'PiRawMultiImageEncoder',
     ]
 
 
@@ -92,7 +96,42 @@ _encoder_callback = mmal.MMAL_PORT_BH_CB_T(_encoder_callback)
 
 class PiEncoder(object):
     """
-    Abstract base implemetation of an MMAL encoder for use by PiCamera
+    Abstract base implementation of an MMAL encoder for use by PiCamera.
+
+    The *parent* parameter specifies the :class:`PiCamera` instance that has
+    constructed the encoder. The *camera_port* parameter provides the MMAL
+    camera port that the encoder should enable for capture (this will be the
+    still or video port of the camera component). The *input_port* parameter
+    specifies the MMAL port that the encoder should connect to its input.
+    Sometimes this will be the same as the camera port, but if other components
+    are present in the pipeline (e.g. a splitter), it may be different.
+
+    The *format* parameter specifies the format that the encoder should
+    produce in its output. This is specified as a string and will be one of
+    the following for image encoders:
+
+    * ``'jpeg'``
+    * ``'png'``
+    * ``'gif'``
+    * ``'bmp'``
+    * ``'yuv'``
+    * ``'rgb'``
+    * ``'rgba'``
+    * ``'bgr'``
+    * ``'bgra'``
+
+    And one of the following for video encoders:
+
+    * ``'h264'``
+    * ``'mjpeg'``
+
+    The *resize* parameter is either ``None`` (indicating no resizing
+    should take place), or a ``(width, height)`` tuple specifying the
+    resolution that the output of the encoder should be resized to.
+
+    Finally, the *options* parameter specifies additional keyword arguments
+    that can be used to configure the encoder (e.g. bitrate for videos, or
+    quality for images).
     """
 
     encoder_type = None
@@ -123,14 +162,60 @@ class PiEncoder(object):
                 self._create_resizer(*resize)
             self._create_encoder(**options)
             self._create_pool()
-            self._create_connection()
+            self._create_connections()
         except:
             self.close()
             raise
 
+    def _create_resizer(self, width, height):
+        """
+        Creates and configures an MMAL resizer component.
+
+        This is called when the initializer's *resize* parameter is something
+        other than ``None``. The *width* and *height* parameters are passed to
+        the constructed resizer. Note that this method only constructs the
+        resizer - it does not connect it to the encoder. The method sets the
+        :attr:`resizer` attribute to the constructed resizer component.
+        """
+        self.resizer = ct.POINTER(mmal.MMAL_COMPONENT_T)()
+        mmal_check(
+            mmal.mmal_component_create(
+                mmal.MMAL_COMPONENT_DEFAULT_RESIZER, self.resizer),
+            prefix="Failed to create resizer component")
+        if not self.resizer[0].input_num:
+            raise PiCameraError("No input ports on resizer component")
+        if not self.resizer[0].output_num:
+            raise PiCameraError("No output ports on resizer component")
+        # Copy the original input port's format to the resizer's input,
+        # then the resizer's input format to the output, and configure it
+        mmal.mmal_format_copy(
+            self.resizer[0].input[0][0].format, self.input_port[0].format)
+        mmal_check(
+            mmal.mmal_port_format_commit(self.resizer[0].input[0]),
+            prefix="Failed to set resizer input port format")
+        mmal.mmal_format_copy(
+            self.resizer[0].output[0][0].format, self.resizer[0].input[0][0].format)
+        fmt = self.resizer[0].output[0][0].format
+        fmt[0].es[0].video.width = mmal.VCOS_ALIGN_UP(width, 32)
+        fmt[0].es[0].video.height = mmal.VCOS_ALIGN_UP(height, 16)
+        fmt[0].es[0].video.crop.x = 0
+        fmt[0].es[0].video.crop.y = 0
+        fmt[0].es[0].video.crop.width = width
+        fmt[0].es[0].video.crop.height = height
+        mmal_check(
+            mmal.mmal_port_format_commit(self.resizer[0].output[0]),
+            prefix="Failed to set resizer output port format")
+
     def _create_encoder(self):
         """
-        Creates and configures the encoder itself
+        Creates and configures the MMAL encoder component.
+
+        This method only constructs the encoder; it does not connect it to the
+        input port. The method sets the :attr:`encoder` attribute to the
+        constructed encoder component, and the :attr:`output_port` attribute to
+        the encoder's output port (or the previously constructed resizer's
+        output port if one has been requested). Descendent classes extend this
+        method to finalize encoder configuration.
         """
         assert not self.encoder
         self.encoder = ct.POINTER(mmal.MMAL_COMPONENT_T)()
@@ -162,39 +247,13 @@ class PiEncoder(object):
         # this point. Descendents are expected to finish configuring the
         # encoder and then commit the port format themselves
 
-    def _create_resizer(self, width, height):
-        self.resizer = ct.POINTER(mmal.MMAL_COMPONENT_T)()
-        mmal_check(
-            mmal.mmal_component_create(
-                mmal.MMAL_COMPONENT_DEFAULT_RESIZER, self.resizer),
-            prefix="Failed to create resizer component")
-        if not self.resizer[0].input_num:
-            raise PiCameraError("No input ports on resizer component")
-        if not self.resizer[0].output_num:
-            raise PiCameraError("No output ports on resizer component")
-        # Copy the original input port's format to the resizer's input,
-        # then the resizer's input format to the output, and configure it
-        mmal.mmal_format_copy(
-            self.resizer[0].input[0][0].format, self.input_port[0].format)
-        mmal_check(
-            mmal.mmal_port_format_commit(self.resizer[0].input[0]),
-            prefix="Failed to set resizer input port format")
-        mmal.mmal_format_copy(
-            self.resizer[0].output[0][0].format, self.resizer[0].input[0][0].format)
-        fmt = self.resizer[0].output[0][0].format
-        fmt[0].es[0].video.width = mmal.VCOS_ALIGN_UP(width, 32)
-        fmt[0].es[0].video.height = mmal.VCOS_ALIGN_UP(height, 16)
-        fmt[0].es[0].video.crop.x = 0
-        fmt[0].es[0].video.crop.y = 0
-        fmt[0].es[0].video.crop.width = width
-        fmt[0].es[0].video.crop.height = height
-        mmal_check(
-            mmal.mmal_port_format_commit(self.resizer[0].output[0]),
-            prefix="Failed to set resizer output port format")
-
     def _create_pool(self):
         """
-        Allocates a pool of buffers for the encoder
+        Allocates a pool of MMAL buffers for the encoder.
+
+        This method is expected to construct an MMAL pool of buffers for the
+        :attr:`output_port`, and store the result in the :attr:`pool`
+        attribute.
         """
         assert not self.pool
         self.pool = mmal.mmal_port_pool_create(
@@ -205,9 +264,14 @@ class PiEncoder(object):
             raise PiCameraError(
                 "Failed to create buffer header pool for encoder component")
 
-    def _create_connection(self):
+    def _create_connections(self):
         """
-        Connects the camera to the encoder object
+        Creates all connections between MMAL components.
+
+        This method is called to connect the encoder and the optional resizer
+        to the input port provided by the camera. It sets the
+        :attr:`encoder_connection` and :attr:`resizer_connection` attributes as
+        required.
         """
         assert not self.encoder_connection
         if self.resizer:
@@ -221,7 +285,26 @@ class PiEncoder(object):
 
     def _callback(self, port, buf):
         """
-        The encoder's main callback function
+        The encoder's main callback function.
+
+        When the encoder is active, this method is periodically called in a
+        background thread. The *port* parameter specifies the MMAL port
+        providing the output (typically this is the encoder's output port, but
+        in the case of unencoded captures may simply be a camera port), while
+        the *buf* parameter is an MMAL buffer header pointer which can be used
+        to obtain the data to write, along with meta-data about the current
+        frame.
+
+        This method *must* release the MMAL buffer header before returning
+        (failure to do so will cause a lockup), and should recycle buffers if
+        expecting further data (the :meth:`_callback_recycle` method can be
+        called to perform the latter duty). Finally, this method must set
+        :attr:`event` when the encoder has finished (and should set
+        :attr:`exception` if an exception occurred during encoding).
+
+        Developers wishing to write a custom encoder class may find it simpler
+        to override the :meth:`_callback_write` method, rather than deal with
+        these complexities.
         """
         if self.stopped:
             mmal.mmal_buffer_header_release(buf)
@@ -242,8 +325,23 @@ class PiEncoder(object):
 
     def _callback_write(self, buf):
         """
-        Performs output writing on behalf of the encoder callback function;
-        return value determines whether writing has completed.
+        Writes output on behalf of the encoder callback function.
+
+        This method is called by :meth:`_callback` to handle writing to
+        :attr:`output`. The *buf* parameter is an MMAL buffer header pointer
+        which can be used to obtain the length of data available
+        (``buf[0].length``), a pointer to the data (``buf[0].data``) which
+        should typically be used with :func:`ctypes.string_at`, and meta-data
+        about the contents of the buffer (``buf[0].flags``). The method is
+        expected to return a boolean to indicate whether output is complete
+        (True) or whether more data is expected (False).
+
+        The default implementation simply writes the contents of the buffer to
+        the current value of :attr:`output`, and returns True if the buffer
+        flags indicate end of stream. Image encoders will typically override
+        the return value to indicate True on end of frame (as they only wish to
+        output a single image). Video encoders will typically override this
+        method to determine where key-frames and SPS headers occur.
         """
         if buf[0].length:
             mmal_check(
@@ -265,7 +363,12 @@ class PiEncoder(object):
 
     def _callback_recycle(self, port, buf):
         """
-        Recycles the buffer on behalf of the encoder callback function
+        Recycles the buffer on behalf of the encoder callback function.
+
+        This method is called by :meth:`_callback` when there is a buffer to
+        recycle (because further output is expected). It is unlikely descendent
+        classes will have a need to override this method, but if they override
+        the :meth:`_callback` method they may wish to call it.
         """
         new_buf = mmal.mmal_queue_get(self.pool[0].queue)
         if not new_buf:
@@ -277,8 +380,13 @@ class PiEncoder(object):
 
     def _open_output(self, output):
         """
-        Opens the specified output object, if necessary and tracks whether
-        we were the one to open it.
+        Sets the encoder's output to the specified *output* object.
+
+        If *output* is a string, this method opens it as a filename and keeps
+        track of the fact that the encoder was the one to open it (which
+        implies that :meth:`_close_output` should eventually close it).
+        Otherwise, *output* is assumed to be a file-like object and is used
+        verbatim. The :attr:`output` attribute is set accordingly.
         """
         with self.lock:
             self.opened_output = isinstance(output, (bytes, str))
@@ -290,8 +398,8 @@ class PiEncoder(object):
 
     def _close_output(self):
         """
-        Closes the output object, if necessary or simply flushes it if we
-        didn't open it and it has a flush method.
+        Closes the :attr:`output` object, if necessary or simply flushes it if
+        we didn't open it and it has a flush method.
         """
         with self.lock:
             if self.output:
@@ -304,7 +412,13 @@ class PiEncoder(object):
 
     def start(self, output):
         """
-        Starts the encoder object writing to the specified output
+        Starts the encoder object writing to the specified output.
+
+        This method is called by the camera to start the encoder capturing
+        data from the camera to the specified output. The *output* parameter
+        is either a filename, or a file-like object (for image and video
+        encoders), or an iterable of filenames or file-like objects (for
+        multi-image encoders).
         """
         self.event.clear()
         self.stopped = False
@@ -343,7 +457,14 @@ class PiEncoder(object):
 
     def wait(self, timeout=None):
         """
-        Waits for the encoder to finish (successfully or otherwise)
+        Waits for the encoder to finish (successfully or otherwise).
+
+        This method is called by the owning camera object to block execution
+        until the encoder has completed its task. If the *timeout* parameter
+        is None, the method will block indefinitely. Otherwise, the *timeout*
+        parameter specifies the (potentially fractional) number of seconds
+        to block for. If the encoder finishes successfully within the timeout,
+        the method returns True. Otherwise, it returns False.
         """
         result = self.event.wait(timeout)
         if result:
@@ -370,7 +491,12 @@ class PiEncoder(object):
 
     def stop(self):
         """
-        Stops the encoder, regardless of whether it's finished
+        Stops the encoder, regardless of whether it's finished.
+
+        This method is called by the camera to terminate the execution of the
+        encoder. Typically, this is used with video to stop the recording, but
+        can potentially be called in the middle of image capture to terminate
+        the capture.
         """
         # The check on is_enabled below is not a race condition; we ignore the
         # EINVAL error in the case the port turns out to be disabled when we
@@ -398,7 +524,13 @@ class PiEncoder(object):
 
     def close(self):
         """
-        Finalizes the encoder and deallocates all structures
+        Finalizes the encoder and deallocates all structures.
+
+        This method is called by the camera prior to destroying the encoder (or
+        more precisely, letting it go out of scope to permit the garbage
+        collector to destroy it at some future time). The method destroys all
+        components that the various create methods constructed and resets their
+        attributes.
         """
         self.stop()
         if self.encoder_connection:
@@ -419,6 +551,18 @@ class PiEncoder(object):
 
 
 class PiVideoEncoder(PiEncoder):
+    """
+    Encoder for video recording.
+
+    This derivative of :class:`PiEncoder` extends the
+    :meth:`~PiEncoder._create_encoder` method to configure the encoder for
+    H.264 or MJPEG output. It also introduces a :meth:`split` method which is
+    used by :meth:`~PiCamera.split_recording` and
+    :meth:`~PiCamera.record_sequence` to redirect future output to a new
+    filename or object. Finally, it also extends :meth:`PiEncoder.start` and
+    :meth:`PiEncoder._callback_write` to track video frame meta-data.
+    """
+
     encoder_type = mmal.MMAL_COMPONENT_DEFAULT_VIDEO_ENCODER
 
     def __init__(
@@ -582,10 +726,18 @@ class PiVideoEncoder(PiEncoder):
         super(PiVideoEncoder, self).start(output)
 
     def split(self, output):
+        """
+        Called to switch the encoder's output.
+
+        This method is called by :meth:`~PiCamera.split_recording` and
+        :meth:`~PiCamera.record_sequence` to switch the encoder's
+        :attr:`output` object to the *output* parameter (which can be a
+        filename or a file-like object, as with :meth:`start`).
+        """
         with self.lock:
             if self._next_output is None:
                 raise PiCameraRuntimeError(
-                    'Cannot use split_recording without inline_headers and CBR')
+                    'Cannot use split_recording without inline_headers')
             self._next_output.append(output)
         # intra_period / framerate gives the time between I-frames (which
         # should also coincide with SPS headers). We multiply by two to ensure
@@ -626,10 +778,18 @@ class PiVideoEncoder(PiEncoder):
                         )
                 self._open_output(new_output)
                 self.event.set()
-        super(PiVideoEncoder, self)._callback_write(buf)
+        return super(PiVideoEncoder, self)._callback_write(buf)
 
 
 class PiImageEncoder(PiEncoder):
+    """
+    Encoder for image capture.
+
+    This derivative of :class:`PiEncoder` extends the
+    :meth:`~PiEncoder._create_encoder` method to configure the encoder for a
+    variety of encoded image outputs (JPEG, PNG, etc.).
+    """
+
     encoder_type = mmal.MMAL_COMPONENT_DEFAULT_IMAGE_ENCODER
 
     def _create_encoder(self, quality=85, thumbnail=(64, 48, 35), bayer=False):
@@ -687,6 +847,13 @@ class PiImageEncoder(PiEncoder):
 
 
 class PiOneImageEncoder(PiImageEncoder):
+    """
+    Encoder for single image capture.
+
+    This class simply extends :meth:`~PiEncoder._callback_write` to terminate
+    capture at frame end (i.e. after a single frame has been received).
+    """
+
     def _callback_write(self, buf):
         return (
             super(PiOneImageEncoder, self)._callback_write(buf)
@@ -698,11 +865,26 @@ class PiOneImageEncoder(PiImageEncoder):
 
 
 class PiMultiImageEncoder(PiImageEncoder):
+    """
+    Encoder for multiple image capture.
+
+    This class extends :class:`PiImageEncoder` to handle an iterable of outputs
+    instead of a single output. The :meth:`~PiEncoder._callback_write` method
+    is extended to terminate capture when the iterable is exhausted, while
+    :meth:`PiEncoder._open_output` to overridden to begin iteration and rely
+    on the new :meth:`_next_output` method to advance output to the next item
+    in the iterable.
+    """
+
     def _open_output(self, outputs):
         self._output_iter = iter(outputs)
         self._next_output()
 
     def _next_output(self):
+        """
+        This method moves output to the next item from the iterable passed to
+        :meth:`~PiEncoder.start`.
+        """
         if self.output:
             self._close_output()
         super(PiMultiImageEncoder, self)._open_output(next(self._output_iter))
@@ -723,6 +905,13 @@ class PiMultiImageEncoder(PiImageEncoder):
 
 
 class PiCookedOneImageEncoder(PiOneImageEncoder):
+    """
+    Encoder for "cooked" (encoded) single image output.
+
+    This encoder extends :class:`PiOneImageEncoder` to include Exif tags in the
+    output.
+    """
+
     exif_encoding = 'ascii'
 
     def _add_exif_tag(self, tag, value):
@@ -778,6 +967,21 @@ class PiCookedMultiImageEncoder(PiMultiImageEncoder):
 
 
 class PiRawEncoderMixin(PiImageEncoder):
+    """
+    Mixin class for "raw" (unencoded) image capture.
+
+    This mixin class overrides the initializer of :class:`PiImageEncoder`,
+    along with :meth:`~PiEncoder._create_resizer` and
+    :meth:`~PiEncoder._create_encoder` to configure the pipeline for unencoded
+    image capture. Specifically, it disables the construction of the encoder,
+    and sets the output port to the input port passed to the initializer,
+    unless resizing is required (either for actual resizing, or for format
+    conversion) in which case the resizer's output is used.
+
+    The :meth:`~PiEncoder._callback_write` method is also overridden to
+    strip alpha-bytes (where required by the requested format), and to
+    manually calculate when to terminate output.
+    """
 
     RAW_ENCODINGS = {
         # name   mmal-encoding            bytes-per-pixel
@@ -841,7 +1045,7 @@ class PiRawEncoderMixin(PiImageEncoder):
         else:
             self.output_port = self.input_port
 
-    def _create_connection(self):
+    def _create_connections(self):
         # Overridden to skip creating an encoder connection; we only need the
         # resizer connection (if we have a resizer)
         if self.resizer:
@@ -879,10 +1083,26 @@ class PiRawEncoderMixin(PiImageEncoder):
 
 
 class PiRawOneImageEncoder(PiOneImageEncoder, PiRawEncoderMixin):
+    """
+    Single image encoder for unencoded capture.
+
+    This class is a derivative of :class:`PiOneImageEncoder` and the
+    :class:`PiRawEncoderMixin` class intended for use with
+    :meth:`~PiCamera.capture` (et al) when it is called with an unencoded image
+    format.
+    """
     pass
 
 
 class PiRawMultiImageEncoder(PiMultiImageEncoder, PiRawEncoderMixin):
+    """
+    Multiple image encoder for unencoded capture.
+
+    This class is a derivative of :class:`PiMultiImageEncoder` and the
+    :class:`PiRawEncoderMixin` class intended for use with
+    :meth:`~PiCamera.capture_sequence` when it is called with an unencoded
+    image format.
+    """
     def _next_output(self):
         super(PiRawMultiImageEncoder, self)._next_output()
         self._image_size = self._expected_size
