@@ -593,6 +593,43 @@ accelerated).
 .. versionadded:: 0.8
 
 
+.. _multi_res_record:
+
+Recording at multiple resolutions
+=================================
+
+The camera is capable of recording multiple streams at different resolutions
+simultaneously by use of the video splitter. This is probably most useful for
+performing analysis on a low-resolution stream, while simultaneously recording
+a high resolution stream for storage or viewing.
+
+The following simple recipe demonstrates using the *splitter_port* parameter of
+the :meth:`~picamera.PiCamera.start_recording` method to begin two simultaneous
+recordings, each with a different resolution::
+
+    import picamera
+
+    with picamera.PiCamera() as camera:
+        camera.resolution = (1024, 768)
+        camera.framerate = 30
+        camera.start_recording('highres.h264')
+        camera.start_recording('lowres.h264', splitter_port=2, resize=(320, 240))
+        camera.wait_recording(30)
+        camera.stop_recording(splitter_port=2)
+        camera.stop_recording()
+
+There are 4 splitter ports in total that can be used (numbered 0, 1, 2, and 3).
+By default, the recording methods (like
+:meth:`~picamera.PiCamera.start_recording`) use splitter port 1, and the
+capture methods (like :meth:`~picamera.PiCamera.capture`) use splitter port 0
+(when the *use_video_port* parameter is also True). A port cannot be
+simultaneously used for video recording and image capture so you are advised to
+avoid splitter port 0 for video recordings unless you never intend to capture
+images whilst recording.
+
+.. versionadded:: 1.3
+
+
 .. _circular_record2:
 
 Splitting to/from a circular stream
