@@ -43,7 +43,7 @@ import pytest
 
 # The basic camera fixture returns a camera which is not running a preview.
 # This should be used for tests which cannot be run when a preview is active
-@pytest.fixture(scope='module')
+@pytest.fixture(scope='function')
 def camera(request):
     camera = picamera.PiCamera()
     def fin():
