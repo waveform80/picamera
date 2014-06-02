@@ -745,9 +745,28 @@ classes implement base functionality but aren't technically "abstract"):
 .. image:: encoder_classes.*
     :align: center
 
+The following table details which :class:`PiCamera` methods use which encoder
+classes, and which methods they call to construct these encoders:
+
++-----------------------------------------------+------------------------------------------------+----------------------------------------------+
+| Method(s)                                     | Call                                           | Returns Encoder                              |
++===============================================+================================================+==============================================+
+| :meth:`~picamera.PiCamera.capture`            | :meth:`~picamera.PiCamera._get_image_encoder`  | :class:`~picamera.PiCookedOneImageEncoder`   |
+| :meth:`~picamera.PiCamera.capture_continuous` |                                                | :class:`~picamera.PiRawOneImageEncoder`      |
+| :meth:`~picamera.PiCamera.capture_sequence`   |                                                |                                              |
++-----------------------------------------------+------------------------------------------------+----------------------------------------------+
+| :meth:`~picamera.PiCamera.capture_sequence`   | :meth:`~picamera.PiCamera._get_images_encoder` | :class:`~picamera.PiCookedMultiImageEncoder` |
+|                                               |                                                | :class:`~picamera.PiRawMultiImageEncoder`    |
++-----------------------------------------------+------------------------------------------------+----------------------------------------------+
+| :meth:`~picamera.PiCamera.start_recording`    | :meth:`~picamera.PiCamera._get_video_encoder`  | :class:`~picamera.PiVideoEncoder`            |
+| :meth:`~picamera.PiCamera.record_sequence`    |                                                |                                              |
++-----------------------------------------------+------------------------------------------------+----------------------------------------------+
+
 It is recommended, particularly in the case of the image encoder classes, that
 you familiarize yourself with the specific function of these classes so that
-you can determine the best class to extend for your particular needs.
+you can determine the best class to extend for your particular needs. You may
+find that one of the intermediate classes is a better basis for your own
+modifications.
 
 In the following example recipe we will extend the
 :class:`~picamera.PiVideoEncoder` class to store information on how many

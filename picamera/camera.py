@@ -1802,7 +1802,10 @@ class PiCamera(object):
     _still_encoding = property(_get_still_encoding, _set_still_encoding, doc="""
         Configures the encoding of the camera's still port.
 
-        This attribute is intended for internal use only.
+        This attribute controls the encoding of the camera's still port (see
+        :ref:`under_the_hood` for more information). It is intended for
+        internal use, but may be useful to developers wishing to implement
+        :ref:`custom encoders <custom_encoders>`.
         """)
 
     def _get_saturation(self):

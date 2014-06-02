@@ -22,7 +22,7 @@ digraph G {
     PiOneImageEncoder->PiImageEncoder;
     PiMultiImageEncoder->PiImageEncoder;
     PiCookedOneImageEncoder->PiOneImageEncoder;
-    PiCookedMultiImageEncoder->PiOneImageEncoder;
+    PiCookedMultiImageEncoder->PiMultiImageEncoder;
     PiRawEncoderMixin->PiImageEncoder;
     PiRawOneImageEncoder->PiOneImageEncoder;
     PiRawOneImageEncoder->PiRawEncoderMixin;
