@@ -46,6 +46,7 @@ import datetime
 import mimetypes
 import ctypes as ct
 import fractions
+import threading
 
 import picamera.mmal as mmal
 import picamera.bcm_host as bcm_host
@@ -289,6 +290,7 @@ class PiCamera(object):
         self._null_sink = None
         self._splitter = None
         self._splitter_connection = None
+        self._encoders_lock = threading.Lock()
         self._encoders = {}
         self._raw_format = 'yuv'
         self._exif_tags = {
@@ -536,6 +538,32 @@ class PiCamera(object):
             mmal.mmal_connection_enable(self._splitter_connection),
             prefix="Failed to enable splitter connection")
 
+    def _start_capture(self, port):
+        # Only enable capture if the port is the camera's still port, or if
+        # there's a single active encoder on the video splitter
+        if (
+                port[0].name == self._camera[0].output[self.CAMERA_CAPTURE_PORT][0].name or
+                len([e for e in self._encoders.values() if e.active]) == 1):
+            mmal_check(
+                mmal.mmal_port_parameter_set_boolean(
+                    port,
+                    mmal.MMAL_PARAMETER_CAPTURE,
+                    mmal.MMAL_TRUE),
+                prefix="Failed to start capture")
+
+    def _stop_capture(self, port):
+        # Only disable capture if the port is the camera's still port, or if
+        # there's a single active encoder on the video splitter
+        if (
+                port[0].name == self._camera[0].output[self.CAMERA_CAPTURE_PORT][0].name or
+                len([e for e in self._encoders.values() if e.active]) == 1):
+            mmal_check(
+                mmal.mmal_port_parameter_set_boolean(
+                    port,
+                    mmal.MMAL_PARAMETER_CAPTURE,
+                    mmal.MMAL_FALSE),
+                prefix="Failed to stop capture")
+
     def _check_camera_open(self):
         """
         Raise an exception if the camera is already closed
@@ -560,6 +588,9 @@ class PiCamera(object):
         always connected to a splitter component, so requests for a video port
         also have to specify which splitter port they want to use.
         """
+        if from_video_port and (splitter_port in self._encoders):
+            raise PiCameraAlreadyRecording(
+                    'The camera is already using port %d ' % splitter_port)
         camera_port = (
             self._camera[0].output[self.CAMERA_VIDEO_PORT]
             if from_video_port else
@@ -898,16 +929,13 @@ class PiCamera(object):
         .. versionchanged:: 1.5
             The *quantization* parameter was deprecated in favour of *quality*
         """
-        if splitter_port in self._encoders:
-            raise PiCameraAlreadyRecording(
-                    'The camera is already recording on '
-                    'port %d' % splitter_port)
-        camera_port, output_port = self._get_ports(True, splitter_port)
-        format = self._get_video_format(output, format)
-        self._still_encoding = mmal.MMAL_ENCODING_I420
-        encoder = self._get_video_encoder(
-                camera_port, output_port, format, resize, **options)
-        self._encoders[splitter_port] = encoder
+        with self._encoders_lock:
+            camera_port, output_port = self._get_ports(True, splitter_port)
+            format = self._get_video_format(output, format)
+            self._still_encoding = mmal.MMAL_ENCODING_I420
+            encoder = self._get_video_encoder(
+                    camera_port, output_port, format, resize, **options)
+            self._encoders[splitter_port] = encoder
         try:
             encoder.start(output)
         except Exception as e:
@@ -1000,8 +1028,8 @@ class PiCamera(object):
         try:
             self.wait_recording(0, splitter_port)
         finally:
-            encoder = self._encoders[splitter_port]
-            del self._encoders[splitter_port]
+            with self._encoders_lock:
+                encoder = self._encoders.pop(splitter_port)
             encoder.close()
 
     def record_sequence(
@@ -1071,16 +1099,13 @@ class PiCamera(object):
 
         .. versionadded:: 1.3
         """
-        if splitter_port in self._encoders:
-            raise PiCameraAlreadyRecording(
-                    'The camera is already recording on '
-                    'port %d' % splitter_port)
-        camera_port, output_port = self._get_ports(True, splitter_port)
-        format = self._get_video_format('', format)
-        self._still_encoding = mmal.MMAL_ENCODING_I420
-        encoder = self._get_video_encoder(
-                camera_port, output_port, format, resize, **options)
-        self._encoders[splitter_port] = encoder
+        with self._encoders_lock:
+            camera_port, output_port = self._get_ports(True, splitter_port)
+            format = self._get_video_format('', format)
+            self._still_encoding = mmal.MMAL_ENCODING_I420
+            encoder = self._get_video_encoder(
+                    camera_port, output_port, format, resize, **options)
+            self._encoders[splitter_port] = encoder
         try:
             start = True
             for output in outputs:
@@ -1094,7 +1119,8 @@ class PiCamera(object):
             try:
                 encoder.wait(0)
             finally:
-                del self._encoders[splitter_port]
+                with self._encoders_lock:
+                    del self._encoders[splitter_port]
                 encoder.close()
 
     def capture(
@@ -1196,20 +1222,19 @@ class PiCamera(object):
             an option for the ``'jpeg'`` format
 
         """
-        if use_video_port and (splitter_port in self._encoders):
-            raise PiCameraAlreadyRecording(
-                    'The camera is already recording on '
-                    'port %d' % splitter_port)
-        camera_port, output_port = self._get_ports(use_video_port, splitter_port)
-        format = self._get_image_format(output, format)
-        if not use_video_port:
-            if resize:
-                self._still_encoding = mmal.MMAL_ENCODING_I420
-            else:
-                self._still_encoding = self.RAW_FORMATS.get(
-                    format, mmal.MMAL_ENCODING_OPAQUE)
-        encoder = self._get_image_encoder(
-                camera_port, output_port, format, resize, **options)
+        with self._encoders_lock:
+            camera_port, output_port = self._get_ports(use_video_port, splitter_port)
+            format = self._get_image_format(output, format)
+            if not use_video_port:
+                if resize:
+                    self._still_encoding = mmal.MMAL_ENCODING_I420
+                else:
+                    self._still_encoding = self.RAW_FORMATS.get(
+                        format, mmal.MMAL_ENCODING_OPAQUE)
+            encoder = self._get_image_encoder(
+                    camera_port, output_port, format, resize, **options)
+            if use_video_port:
+                self._encoders[splitter_port] = encoder
         try:
             encoder.start(output)
             # Wait for the callback to set the event indicating the end of
@@ -1218,8 +1243,10 @@ class PiCamera(object):
                 raise PiCameraRuntimeError(
                     'Timed out waiting for capture to end')
         finally:
+            with self._encoders_lock:
+                if use_video_port:
+                    del self._encoders[splitter_port]
             encoder.close()
-            encoder = None
 
     def capture_sequence(
             self, outputs, format='jpeg', use_video_port=False, resize=None,
@@ -1277,35 +1304,35 @@ class PiCamera(object):
         .. versionchanged:: 1.3
             The *splitter_port* parameter was added
         """
-        if use_video_port and (splitter_port in self._encoders):
-            raise PiCameraAlreadyRecording(
-                    'The camera is already recording on '
-                    'port %d' % splitter_port)
-        camera_port, output_port = self._get_ports(use_video_port, splitter_port)
-        format = self._get_image_format('', format)
-        if format == 'jpeg' and not use_video_port and not resize:
-            self._still_encoding = mmal.MMAL_ENCODING_OPAQUE
-        else:
-            self._still_encoding = mmal.MMAL_ENCODING_I420
-        if use_video_port:
-            encoder = self._get_images_encoder(
-                    camera_port, output_port, format, resize, **options)
-            try:
+        with self._encoders_lock:
+            camera_port, output_port = self._get_ports(use_video_port, splitter_port)
+            format = self._get_image_format('', format)
+            if format == 'jpeg' and not use_video_port and not resize:
+                self._still_encoding = mmal.MMAL_ENCODING_OPAQUE
+            else:
+                self._still_encoding = mmal.MMAL_ENCODING_I420
+            if use_video_port:
+                encoder = self._get_images_encoder(
+                        camera_port, output_port, format, resize, **options)
+                self._encoders[splitter_port] = encoder
+            else:
+                encoder = self._get_image_encoder(
+                        camera_port, output_port, format, resize, **options)
+        try:
+            if use_video_port:
                 encoder.start(outputs)
                 encoder.wait()
-            finally:
-                encoder.close()
-        else:
-            encoder = self._get_image_encoder(
-                    camera_port, output_port, format, resize, **options)
-            try:
+            else:
                 for output in outputs:
                     encoder.start(output)
                     if not encoder.wait(30):
                         raise PiCameraRuntimeError(
                             'Timed out waiting for capture to end')
-            finally:
-                encoder.close()
+        finally:
+            with self._encoders_lock:
+                if use_video_port:
+                    del self._encoders[splitter_port]
+            encoder.close()
 
     def capture_continuous(
             self, output, format=None, use_video_port=False, resize=None,
@@ -1403,18 +1430,17 @@ class PiCamera(object):
         .. versionchanged:: 1.3
             The *splitter_port* parameter was added
         """
-        if use_video_port and (splitter_port in self._encoders):
-            raise PiCameraAlreadyRecording(
-                    'The camera is already recording on '
-                    'port %d' % splitter_port)
-        camera_port, output_port = self._get_ports(use_video_port, splitter_port)
-        format = self._get_image_format(output, format)
-        if format == 'jpeg' and not use_video_port and not resize:
-            self._still_encoding = mmal.MMAL_ENCODING_OPAQUE
-        else:
-            self._still_encoding = mmal.MMAL_ENCODING_I420
-        encoder = self._get_image_encoder(
-                camera_port, output_port, format, resize, **options)
+        with self._encoders_lock:
+            camera_port, output_port = self._get_ports(use_video_port, splitter_port)
+            format = self._get_image_format(output, format)
+            if format == 'jpeg' and not use_video_port and not resize:
+                self._still_encoding = mmal.MMAL_ENCODING_OPAQUE
+            else:
+                self._still_encoding = mmal.MMAL_ENCODING_I420
+            encoder = self._get_image_encoder(
+                    camera_port, output_port, format, resize, **options)
+            if use_video_port:
+                self._encoders[splitter_port] = encoder
         try:
             if isinstance(output, bytes):
                 # If we're fed a bytes string, assume it's UTF-8 encoded and
@@ -1445,6 +1471,9 @@ class PiCamera(object):
                             'Timed out waiting for capture to end')
                     yield output
         finally:
+            with self._encoders_lock:
+                if use_video_port:
+                    del self._encoders[splitter_port]
             encoder.close()
 
     @property
@@ -1460,8 +1489,10 @@ class PiCamera(object):
         Returns ``True`` if the :meth:`start_recording` method has been called,
         and no :meth:`stop_recording` call has been made yet.
         """
-        # XXX Should probably check this is actually enabled...
-        return bool(self._encoders)
+        return any(
+                isinstance(e, PiVideoEncoder) and e.active
+                for e in self._encoders.values()
+                )
 
     @property
     def previewing(self):

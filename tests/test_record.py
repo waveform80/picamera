@@ -234,9 +234,10 @@ def test_multi_res_record(camera, mode):
             camera.wait_recording(1)
             camera.wait_recording(1, splitter_port=2)
         finally:
-            camera.stop_recording(splitter_port=2)
+            camera.stop_recording()
     finally:
-        camera.stop_recording()
+        # Deliberately stop out of order to test #105
+        camera.stop_recording(splitter_port=2)
     v_stream1.seek(0)
     v_stream2.seek(0)
     verify_video(v_stream1, 'h264', resolution)

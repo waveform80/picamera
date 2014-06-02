@@ -404,6 +404,13 @@ class PiEncoder(object):
                 self.output = None
                 self.opened_output = False
 
+    @property
+    def active(self):
+        """
+        Returns True if the MMAL encoder exists and is enabled.
+        """
+        return bool(self.encoder and self.output_port[0].is_enabled)
+
     def start(self, output):
         """
         Starts the encoder object writing to the specified output.
@@ -421,33 +428,19 @@ class PiEncoder(object):
         self.output_port[0].userdata = ct.cast(
             ct.pointer(ct.py_object(self)),
             ct.c_void_p)
-        mmal_check(
-            mmal.mmal_port_enable(self.output_port, _encoder_callback),
-            prefix="Failed to enable encoder output port")
-
-        for q in range(mmal.mmal_queue_length(self.pool[0].queue)):
-            buf = mmal.mmal_queue_get(self.pool[0].queue)
-            if not buf:
-                raise PiCameraRuntimeError(
-                    "Unable to get a required buffer from pool queue")
+        with self.parent._encoders_lock:
             mmal_check(
-                mmal.mmal_port_send_buffer(self.output_port, buf),
-                prefix="Unable to send a buffer to encoder output port")
-        b = mmal.MMAL_BOOL_T()
-        mmal_check(
-            mmal.mmal_port_parameter_get_boolean(
-                self.camera_port,
-                mmal.MMAL_PARAMETER_CAPTURE,
-                b),
-            prefix="Failed to query capture status")
-        self.started_capture = not bool(b)
-        if self.started_capture:
-            mmal_check(
-                mmal.mmal_port_parameter_set_boolean(
-                    self.camera_port,
-                    mmal.MMAL_PARAMETER_CAPTURE,
-                    mmal.MMAL_TRUE),
-                prefix="Failed to start capture")
+                mmal.mmal_port_enable(self.output_port, _encoder_callback),
+                prefix="Failed to enable encoder output port")
+            for q in range(mmal.mmal_queue_length(self.pool[0].queue)):
+                buf = mmal.mmal_queue_get(self.pool[0].queue)
+                if not buf:
+                    raise PiCameraRuntimeError(
+                        "Unable to get a required buffer from pool queue")
+                mmal_check(
+                    mmal.mmal_port_send_buffer(self.output_port, buf),
+                    prefix="Unable to send a buffer to encoder output port")
+            self.parent._start_capture(self.camera_port)
 
     def wait(self, timeout=None):
         """
@@ -462,22 +455,7 @@ class PiEncoder(object):
         """
         result = self.event.wait(timeout)
         if result:
-            if self.started_capture:
-                self.started_capture = False
-                mmal_check(
-                    mmal.mmal_port_parameter_set_boolean(
-                        self.camera_port,
-                        mmal.MMAL_PARAMETER_CAPTURE,
-                        mmal.MMAL_FALSE),
-                    prefix="Failed to stop capture")
-            try:
-                mmal_check(
-                    mmal.mmal_port_disable(self.output_port),
-                    prefix="Failed to disable encoder output port")
-            except PiCameraMMALError as e:
-                if e.status != mmal.MMAL_EINVAL:
-                    raise
-            self._close_output()
+            self.stop()
             # Check whether the callback set an exception
             if self.exception:
                 raise self.exception
@@ -492,26 +470,20 @@ class PiEncoder(object):
         can potentially be called in the middle of image capture to terminate
         the capture.
         """
-        # The check on is_enabled below is not a race condition; we ignore the
-        # EINVAL error in the case the port turns out to be disabled when we
-        # disable below. The check exists purely to prevent stderr getting
-        # spammed by our continued attempts to disable an already disabled port
-        if self.encoder and self.output_port[0].is_enabled:
-            if self.started_capture:
-                self.started_capture = False
-                mmal_check(
-                    mmal.mmal_port_parameter_set_boolean(
-                        self.camera_port,
-                        mmal.MMAL_PARAMETER_CAPTURE,
-                        mmal.MMAL_FALSE),
-                    prefix="Failed to stop capture")
-            try:
-                mmal_check(
-                    mmal.mmal_port_disable(self.output_port),
-                    prefix="Failed to disable encoder output port")
-            except PiCameraMMALError as e:
-                if e.status != mmal.MMAL_EINVAL:
-                    raise
+        # The check below is not a race condition; we ignore the EINVAL error
+        # in the case the port turns out to be disabled when we disable below.
+        # The check exists purely to prevent stderr getting spammed by our
+        # continued attempts to disable an already disabled port
+        with self.parent._encoders_lock:
+            if self.active:
+                self.parent._stop_capture(self.camera_port)
+                try:
+                    mmal_check(
+                        mmal.mmal_port_disable(self.output_port),
+                        prefix="Failed to disable encoder output port")
+                except PiCameraMMALError as e:
+                    if e.status != mmal.MMAL_EINVAL:
+                        raise
         self.stopped = True
         self.event.set()
         self._close_output()
@@ -1096,6 +1068,10 @@ class PiRawEncoderMixin(PiImageEncoder):
             finally:
                 mmal.mmal_buffer_header_mem_unlock(buf)
         return self._image_size <= 0
+
+    @property
+    def active(self):
+        return bool(self.output_port[0].is_enabled)
 
     def start(self, output):
         self._image_size = self._expected_size
