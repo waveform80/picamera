@@ -372,7 +372,7 @@ class PiEncoder(object):
             mmal.mmal_port_send_buffer(port, new_buf),
             prefix="Unable to return a buffer to the encoder port")
 
-    def _open_output(self, output, slot='output'):
+    def _open_output(self, output):
         """
         Sets the encoder's output to the specified *output* object.
 
@@ -567,8 +567,7 @@ class PiVideoEncoder(PiEncoder):
 
     def _create_encoder(
             self, bitrate=17000000, intra_period=0, profile='high',
-            quantization=0, quality=0, inline_headers=True, sei_output=False,
-            motion_output=False):
+            quantization=0, quality=0, inline_headers=True, sei=False):
         """
         Extends the base :meth:`~PiEncoder._create_encoder` implementation to
         configure the video encoder for H.264 or MJPEG output.
@@ -630,15 +629,8 @@ class PiVideoEncoder(PiEncoder):
                 mmal.mmal_port_parameter_set_boolean(
                     self.output_port,
                     mmal.MMAL_PARAMETER_VIDEO_ENCODE_SEI_ENABLE,
-                    int(bool(sei_output))),
+                    int(sei)),
                 prefix="Unable to set SEI")
-
-            mmal_check(
-                mmal.mmal_port_parameter_set_boolean(
-                    self.output_port,
-                    mmal.MMAL_PARAMETER_VIDEO_ENCODE_INLINE_VECTORS,
-                    int(bool(motion_output))),
-                prefix="Unable to set inline motion vectors")
 
             # We need the intra-period to calculate the SPS header timeout in
             # the split method below. If one is not set explicitly, query the
