@@ -47,7 +47,7 @@ Given that the `YUV420`_ format contains 1.5 bytes worth of data for each pixel
 and taking into account the resolution rounding, the size of a 100x100 YUV
 capture will be:
 
-.. image:: yuv_math.svg
+.. image:: yuv_math.*
     :align: center
 
 The first 14336 bytes of the data (128*112) will be Y values, the next 3584
@@ -147,7 +147,7 @@ specifics), then multiply the number of pixels by 3 (1 byte of red, 1 byte of
 green, and 1 byte of blue intensity). Hence, for a 100x100 capture, the amount
 of data produced is:
 
-.. image:: rgb_math.svg
+.. image:: rgb_math.*
     :align: center
 
 The resulting `RGB`_ data is interleaved. That is to say that the red, green
@@ -840,7 +840,7 @@ etc. This also means:
   4 8-bit values, followed by the low-order 2-bits of the 4 values packed into
   a fifth byte.
 
-.. image:: bayer_bytes.svg
+.. image:: bayer_bytes.*
     :align: center
 
 * Bayer data is organized in a BGGR pattern (a minor variation of the common
@@ -848,7 +848,7 @@ etc. This also means:
   or blue and if viewed "raw" will look distinctly strange (too dark, too
   green, and with zippering effects along any straight edges).
 
-.. image:: bayer_pattern.svg
+.. image:: bayer_pattern.*
     :align: center
 
 * To make a "normal" looking image from raw Bayer data you will need to

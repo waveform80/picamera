@@ -79,7 +79,7 @@ install:
 	$(PYTHON) $(PYFLAGS) setup.py install --root $(DEST_DIR)
 
 doc: $(DOC_SOURCES)
-	$(MAKE) -C docs html
+	$(MAKE) -C docs html latexpdf
 
 source: $(DIST_TAR) $(DIST_ZIP)
 
