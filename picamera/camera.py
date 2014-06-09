@@ -195,6 +195,7 @@ class PiCamera(object):
     DEFAULT_FRAME_RATE_NUM = 30  # Deprecated, read framerate property instead
     DEFAULT_FRAME_RATE_DEN = 1   # Deprecated, read framerate property instead
     VIDEO_OUTPUT_BUFFERS_NUM = 3 # Deprecated, no replacement
+    CAPTURE_TIMEOUT = 30
 
     METER_MODES = {
         'average': mmal.MMAL_PARAM_EXPOSUREMETERINGMODE_AVERAGE,
@@ -1239,7 +1240,7 @@ class PiCamera(object):
             encoder.start(output)
             # Wait for the callback to set the event indicating the end of
             # image capture
-            if not encoder.wait(30):
+            if not encoder.wait(self.CAPTURE_TIMEOUT):
                 raise PiCameraRuntimeError(
                     'Timed out waiting for capture to end')
         finally:
@@ -1325,7 +1326,7 @@ class PiCamera(object):
             else:
                 for output in outputs:
                     encoder.start(output)
-                    if not encoder.wait(30):
+                    if not encoder.wait(self.CAPTURE_TIMEOUT):
                         raise PiCameraRuntimeError(
                             'Timed out waiting for capture to end')
         finally:
@@ -1458,7 +1459,7 @@ class PiCamera(object):
                         timestamp=datetime.datetime.now(),
                         )
                     encoder.start(filename)
-                    if not encoder.wait(30):
+                    if not encoder.wait(self.CAPTURE_TIMEOUT):
                         raise PiCameraRuntimeError(
                             'Timed out waiting for capture to end')
                     yield filename
@@ -1466,7 +1467,7 @@ class PiCamera(object):
             else:
                 while True:
                     encoder.start(output)
-                    if not encoder.wait(30):
+                    if not encoder.wait(self.CAPTURE_TIMEOUT):
                         raise PiCameraRuntimeError(
                             'Timed out waiting for capture to end')
                     yield output
