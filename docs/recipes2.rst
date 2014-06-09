@@ -618,6 +618,119 @@ images whilst recording.
 .. versionadded:: 1.3
 
 
+.. _motion_data_output:
+
+Recording motion vector data
+============================
+
+The Pi's camera is capable of outputting the motion vector estimates that the
+camera's H.264 encoder calculates while generating compressed video. These can
+be directed to a separate output file (or file-like object) with the
+*motion_output* parameter of the :meth:`~picamera.PiCamera.start_recording`
+method. Like the normal *output* parameter this accepts a string representing a
+filename, or a file-like object::
+
+    import picamera
+
+    with picamera.PiCamera() as camera:
+        camera.resolution = (640, 480)
+        camera.framerate = 30
+        camera.start_recording('motion.h264', motion_output='motion.data')
+        camera.wait_recording(10)
+        camera.stop_recording()
+
+Motion data is calculated at the `macro-block`_ level (an MPEG macro-block
+represents a 16x16 pixel region of the frame), and includes one extra column of
+data. Hence, if the camera's resolution is 640x480 (as in the example above)
+there will be 41 columns of motion data ((640 / 16) + 1), in 30 rows (480 /
+16).
+
+Motion data values are 4-bytes long, consisting of a signed 1-byte x vector, a
+signed 1-byte y vector, and an unsigned 2-byte SAD (`Sum of Absolute
+Differences`_) value for each macro-block.  Hence in the example above, each
+frame will generate 4920 bytes of motion data (41 * 30 * 4). Assuming the data
+contains 300 frames (in practice it may contain a few more) the motion data
+should be 1,476,000 bytes in total.
+
+The following code demonstrates loading the motion data into a
+three-dimensional numpy array. The first dimension represents the frame, with
+the latter two representing rows and finally columns. A structured data-type
+is used for the array permitting easy access to x, y, and SAD values::
+
+    from __future__ import division
+
+    import numpy as np
+
+    width = 640
+    height = 480
+    cols = (width + 15) // 16
+    cols += 1 # there's always an extra column
+    rows = (height + 15) // 16
+
+    motion_data = np.fromfile(
+        'motion.data', dtype=[
+            ('x', 'i1'),
+            ('y', 'i1'),
+            ('sad', 'u2'),
+            ])
+    frames = motion_data.shape[0] // (cols * rows * motion_data.dtype.itemsize)
+    motion_data = motion_data.reshape((frames, rows, cols))
+
+    # Access the data for the first frame
+    motion_data[0]
+
+    # Access just the x-vectors from the fifth frame
+    motion_data[4]['x']
+
+    # Access SAD values for the tenth frame
+    motion_data[9]['sad']
+
+You can calculate the amount of motion the vector represents simply by
+calculating the `magnitude of the vector`_ with pythagoras' theorem. The SAD
+(`Sum of Absolute Differences`_) value can be used to determine how well the
+encoder thinks the vector represents the original reference frame.
+
+The following code extends the example above to use PIL to produce a PNG image
+from the magnitude of each frame's motion vectors::
+
+    from __future__ import division
+
+    import numpy as np
+    from PIL import Image
+
+    width = 640
+    height = 480
+    cols = (width + 15) // 16
+    rows = (height + 15) // 16
+
+    m = np.fromfile(
+        'motion.data', dtype=[
+            ('x', 'i1'),
+            ('y', 'i1'),
+            ('sad', 'u2'),
+            ])
+    frames = m.shape[0] // (cols * rows * m.dtype.itemsize)
+    m = m.reshape((frames, rows, cols))
+
+    for frame in range(frames):
+        data = np.sqrt(
+            np.square(m[frame]['x'].astype(np.float)) +
+            np.square(m[frame]['y'].astype(np.float))
+            ).clip(0, 255).astype(np.uint8)
+        img = Image.fromarray(data)
+        filename = 'frame%03d.png' % frame
+        print('Writing %s' % filename)
+        img.save(filename)
+
+Finally, the following command line can be used to generate an animation from
+the generated PNGs with ffmpeg (this will take a *very* long time on the Pi so
+you may wish to transfer the images to a faster machine for this step)::
+
+    avconv -r 30 -i frame%03d.png -filter:v scale=640:480 -c:v libx264 -r 30 -pix_fmt yuv420p motion.mp4
+
+.. versionadded:: 1.5
+
+
 .. _circular_record2:
 
 Splitting to/from a circular stream
@@ -713,6 +826,90 @@ efficient manner using the :meth:`~picamera.PiCameraCircularIO.read1` method
     to the limit specified.
 
 .. versionadded:: 1.0
+
+
+.. _custom_outputs:
+
+Custom outputs
+==============
+
+All methods in the picamera library which accept a filename also accept
+file-like objects. Typically, this is only used with actual file objects, or
+with memory streams (like :class:`io.BytesIO`). However, building a custom
+output object is extremely easy and in certain cases very useful. A file-like
+object (as far as picamera is concerned) is simply an object with a ``write``
+method which must accept a single parameter consisting of a byte-string, and
+which can optionally return the number of bytes written. The object can
+optionally implement a ``flush`` method (which has no parameters), which will
+be called at the end of output.
+
+Custom outputs are particularly useful with video recording as the custom
+output's ``write`` method will be called (at least) once for every frame that
+is output, allowing you to implement code that reacts to each and every frame
+without going to the bother of a full :ref:`custom encoder <custom_encoders>`.
+However, one should bear in mind that because the ``write`` method is called so
+frequently, its implementation must be sufficiently rapid that it doesn't stall
+the encoder (it must perform its processing and return before the next write is
+due to arrive).
+
+The following example shows how to use a custom output to construct a crude
+motion detection system. We construct a custom output object which is used as
+the destination for motion vector data (this is particularly simple as motion
+vector data always arrives as single chunks; frame data by contrast sometimes
+arrives in several separate chunks). The output object doesn't actually write
+the motion data anywhere; instead it loads it into a numpy array and analyses
+whether there are any significantly large vectors in the data, printing a
+message to the console if there are. As we are not concerned with keeping the
+actual video output in this example, we use ``/dev/null`` as the destination
+for the video data::
+
+    from __future__ import division
+
+    import picamera
+    import numpy as np
+
+    motion_dtype = np.dtype([
+        ('x', 'i1'),
+        ('y', 'i1'),
+        ('sad', 'u2'),
+        ])
+
+    class MyMotionDetector(object):
+        def __init__(self, camera):
+            width, height = camera.resolution
+            self.cols = (width + 15) // 16
+            self.cols += 1 # there's always an extra column
+            self.rows = (height + 15) // 16
+
+        def write(self, s):
+            # Load the motion data from the string to the written
+            data = np.fromstring(s, dtype=motion_dtype)
+            # Re-shape it and calculate the magnitude of each vector
+            data = data.reshape((self.rows, self.cols))
+            data = np.sqrt(
+                np.square(data['x'].astype(np.float)) +
+                np.square(data['y'].astype(np.float))
+                ).clip(0, 255).astype(np.uint8)
+            # If there're more than 10 vectors with a magnitude greater
+            # than 60, then say we've detected motion
+            if (data > 60).sum() > 10:
+                print('Motion detected!')
+            # Pretend we wrote all the bytes of s
+            return len(s)
+
+    with picamera.PiCamera() as camera:
+        camera.resolution = (640, 480)
+        camera.framerate = 30
+        camera.start_recording(
+            # Throw away the video data, but make sure we're using H.264
+            '/dev/null', format='h264',
+            # Record motion data to our custom output object
+            motion_output=MyMotionDetector(camera)
+            )
+        camera.wait_recording(30)
+        camera.stop_recording()
+
+.. versionadded:: 1.5
 
 
 .. _custom_encoders:
@@ -1048,4 +1245,7 @@ captures::
 .. _Bayer CFA: http://en.wikipedia.org/wiki/Bayer_filter
 .. _de-mosaicing: http://en.wikipedia.org/wiki/Demosaicing
 .. _color balance: http://en.wikipedia.org/wiki/Color_balance
+.. _macro-block: http://en.wikipedia.org/wiki/Macroblock
+.. _magnitude of the vector: http://en.wikipedia.org/wiki/Magnitude_%28mathematics%29#Euclidean_vectors
+.. _Sum of Absolute Differences: http://en.wikipedia.org/wiki/Sum_of_absolute_differences
 

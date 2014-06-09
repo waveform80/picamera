@@ -59,19 +59,142 @@ from picamera.exc import (
     )
 
 
+class PiVideoFrameType(object):
+    """
+    This class simply defines constants used to represent the type of a frame
+    in :attr:`PiVideoFrame.frame_type`. Effectively it is a namespace for an
+    enum.
+
+    .. attribute:: frame
+
+        Indicates a predicted frame (P-frame). This is the most common frame
+        type.
+
+    .. attribute:: key_frame
+
+        Indicates an intra-frame (I-frame) also known as a key frame.
+
+    .. attribute:: sps_header
+
+        Indicates an inline SPS/PPS header (rather than picture data) which is
+        typically used as a split point.
+
+    .. attribute:: motion_data
+
+        Indicates the frame is inline motion vector data, rather than picture
+        data.
+
+    .. versionadded:: 1.5
+    """
+    frame = 0
+    key_frame = 1
+    sps_header = 2
+    motion_data = 3
+
+
 class PiVideoFrame(namedtuple('PiVideoFrame', (
     'index',         # the frame number, where the first frame is 0
-    'keyframe',      # True when the frame is a keyframe
+    'frame_type',    # a constant indicating the frame type (see PiVideoFrameType)
     'frame_size',    # the size (in bytes) of the frame's data
     'video_size',    # the size (in bytes) of the video so far
     'split_size',    # the size (in bytes) of the video since the last split
     'timestamp',     # the presentation timestamp (PTS) of the frame
-    'header',        # the frame is an SPS/PPS header
     ))):
+    """
+    This class is a namedtuple derivative used to store information about a
+    video frame. It is recommended that you access the information stored by
+    this class by attribute name rather than position (for example:
+    ``frame.index`` rather than ``frame[0]``).
+
+    .. attribute:: index
+
+        Returns the zero-based number of the frame. This is a monotonic counter
+        that is simply incremented every time the camera returns a frame-end
+        buffer. As a consequence, this attribute cannot be used to detect
+        dropped frames. Nor does it necessarily represent actual frames; it
+        will be incremented for SPS headers and motion data buffers too.
+
+    .. attribute:: frame_type
+
+        Returns a constant indicating the kind of data that the frame contains
+        (see :class:`PiVideoFrameType`). Please note that certain frame types
+        contain no image data at all.
+
+    .. attribute:: frame_size
+
+        Returns the size in bytes of the current frame.
+
+    .. attribute:: video_size
+
+        Returns the size in bytes of the entire video up to the current frame.
+        Note that this is unlikely to match the size of the actual file/stream
+        written so far. Firstly this is because the frame attribute is only
+        updated when the encoder outputs the *end* of a frame, which will cause
+        the reported size to be smaller than the actual amount written.
+        Secondly this is because a stream may utilize buffering which will
+        cause the actual amount written (e.g. to disk) to lag behind the value
+        reported by this attribute.
+
+    .. attribute:: split_size
+
+        Returns the size in bytes of the video recorded since the last call to
+        either :meth:`~PiCamera.start_recording` or
+        :meth:`~PiCamera.split_recording`. For the reasons explained above,
+        this may differ from the size of the actual file/stream written so far.
+
+    .. attribute:: timestamp
+
+        Returns the presentation timestamp (PTS) of the current frame as
+        reported by the encoder. This is represented by the number of
+        microseconds (millionths of a second) since video recording started. As
+        the frame attribute is only updated when the encoder outputs the end of
+        a frame, this value may lag behind the actual time since
+        :meth:`~PiCamera.start_recording` was called.
+
+        .. warning::
+
+            Currently, the video encoder occasionally returns "time unknown"
+            values in this field which picamera represents as ``None``. If you
+            are querying this property you will need to check the value is not
+            ``None`` before using it.
+
+    .. versionchanged:: 1.5
+        Deprecated :attr:`header` and :attr:`keyframe` attributes and added the
+        new :attr:`frame_type` attribute instead.
+    """
 
     @property
     def position(self):
+        """
+        Returns the zero-based position of the frame in the stream containing
+        it.
+        """
         return self.split_size - self.frame_size
+
+    @property
+    def keyframe(self):
+        """
+        Returns a bool indicating whether the current frame is a keyframe (an
+        intra-frame, or I-frame in MPEG parlance).
+
+        .. deprecated:: 1.5
+            Please compare :attr:`frame_type` to
+            :attr:`PiVideoFrameType.key_frame` instead.
+        """
+        return self.frame_type == PiVideoFrameType.key_frame
+
+    @property
+    def header(self):
+        """
+        Contains a bool indicating whether the current frame is actually an
+        SPS/PPS header. Typically it is best to split an H.264 stream so that
+        it starts with an SPS/PPS header.
+
+        .. deprecated:: 1.5
+            Please compare :attr:`frame_type` to
+            :attr:`PiVideoFrameType.sps_header` instead.
+        """
+        return self.frame_type == PiVideoFrameType.sps_header
 
 
 def _encoder_callback(port, buf):
@@ -118,6 +241,87 @@ class PiEncoder(object):
     Finally, the *options* parameter specifies additional keyword arguments
     that can be used to configure the encoder (e.g. bitrate for videos, or
     quality for images).
+
+    The class has a number of attributes:
+
+    .. attribute:: camera_port
+
+        A pointer to the camera output port that needs to be activated and
+        deactivated in order to start/stop capture. This is not necessarily the
+        port that the encoder component's input port is connected to (for
+        example, in the case of video-port based captures, this will be the
+        camera video port behind the splitter).
+
+    .. attribute:: encoder
+
+        A pointer to the MMAL encoder component, or None if no encoder
+        component has been created (some encoder classes don't use an actual
+        encoder component, for example :class:`PiRawEncoderMixin`).
+
+    .. attribute:: encoder_connection
+
+        A pointer to the MMAL connection linking the encoder's input port to
+        the camera, splitter, or resizer output port (depending on
+        configuration), if any.
+
+    .. attribute:: event
+
+        A :class:`threading.Event` instance used to synchronize operations
+        (like start, stop, and split) between the control thread and the
+        callback thread.
+
+    .. attribute:: exception
+
+        If an exception occurs during the encoder callback, this attribute is
+        used to store the exception until it can be re-raised in the control
+        thread.
+
+    .. attribute:: format
+
+        The image or video format that the encoder is expected to produce. This
+        is equal to the value of the *format* parameter.
+
+    .. attribute:: input_port
+
+        A pointer to the MMAL port that the encoder component's input port
+        should be connected to.
+
+    .. attribute:: output_port
+
+        A pointer to the MMAL port of the encoder's output. In the case no
+        encoder component is created, this should be the camera/component
+        output port responsible for producing data. In other words, this
+        attribute **must** be set on initialization.
+
+    .. attribute:: outputs
+
+        A mapping of ``key`` to ``(output, opened)`` tuples where ``output``
+        is a file-like object, and ``opened`` is a bool indicating whether or
+        not we opened the output object (and thus whether we are responsible
+        for eventually closing it).
+
+    .. attribute:: outputs_lock
+
+        A :class:`threading.Lock` instance used to protect access to
+        :attr:`outputs`.
+
+    .. attribute:: parent
+
+        The :class:`PiCamera` instance that created this PiEncoder instance.
+
+    .. attribute:: pool
+
+        A pointer to a pool of MMAL buffers.
+
+    .. attribute:: resizer
+
+        A pointer to the MMAL resizer component, or None if no resizer
+        component has been created.
+
+    .. attribute:: resizer_connection
+
+        A pointer to the MMAL connection linking the resizer's input port to
+        the camera or splitter's output port, if any.
     """
 
     encoder_type = None
@@ -135,9 +339,8 @@ class PiEncoder(object):
         self.output_port = None
         self.pool = None
         self.started_capture = False
-        self.opened_output = False
-        self.output = None
-        self.lock = threading.Lock() # protects access to self.output
+        self.outputs_lock = threading.Lock() # protects access to self.outputs
+        self.outputs = {}
         self.exception = None
         self.event = threading.Event()
         self.stopped = True
@@ -317,23 +520,24 @@ class PiEncoder(object):
                 self.stopped = True
                 self.event.set()
 
-    def _callback_write(self, buf):
+    def _callback_write(self, buf, key=PiVideoFrameType.frame):
         """
         Writes output on behalf of the encoder callback function.
 
-        This method is called by :meth:`_callback` to handle writing to
-        :attr:`output`. The *buf* parameter is an MMAL buffer header pointer
-        which can be used to obtain the length of data available
-        (``buf[0].length``), a pointer to the data (``buf[0].data``) which
-        should typically be used with :func:`ctypes.string_at`, and meta-data
-        about the contents of the buffer (``buf[0].flags``). The method is
-        expected to return a boolean to indicate whether output is complete
-        (True) or whether more data is expected (False).
+        This method is called by :meth:`_callback` to handle writing to an
+        object in :attr:`outputs` identified by *key*. The *buf* parameter is
+        an MMAL buffer header pointer which can be used to obtain the length of
+        data available (``buf[0].length``), a pointer to the data
+        (``buf[0].data``) which should typically be used with
+        :func:`ctypes.string_at`, and meta-data about the contents of the
+        buffer (``buf[0].flags``). The method is expected to return a boolean
+        to indicate whether output is complete (True) or whether more data is
+        expected (False).
 
         The default implementation simply writes the contents of the buffer to
-        the current value of :attr:`output`, and returns True if the buffer
-        flags indicate end of stream. Image encoders will typically override
-        the return value to indicate True on end of frame (as they only wish to
+        the output identified by *key*, and returns True if the buffer flags
+        indicate end of stream. Image encoders will typically override the
+        return value to indicate True on end of frame (as they only wish to
         output a single image). Video encoders will typically override this
         method to determine where key-frames and SPS headers occur.
         """
@@ -342,15 +546,18 @@ class PiEncoder(object):
                 mmal.mmal_buffer_header_mem_lock(buf),
                 prefix="Unable to lock buffer header memory")
             try:
-                with self.lock:
-                    if self.output:
-                        written = self.output.write(
+                with self.outputs_lock:
+                    try:
+                        written = self.outputs[key][0].write(
                            ct.string_at(buf[0].data, buf[0].length))
+                    except KeyError:
+                        pass
+                    else:
                         # Ignore None return value; most Python 2 streams have
                         # no return value for write()
                         if (written is not None) and (written != buf[0].length):
                             raise PiCameraError(
-                                "Unable to write buffer to file - aborting")
+                                "Unable to write buffer to output %s" % key)
             finally:
                 mmal.mmal_buffer_header_mem_unlock(buf)
         return bool(buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_EOS)
@@ -372,37 +579,45 @@ class PiEncoder(object):
             mmal.mmal_port_send_buffer(port, new_buf),
             prefix="Unable to return a buffer to the encoder port")
 
-    def _open_output(self, output):
+    def _open_output(self, output, key=PiVideoFrameType.frame):
         """
-        Sets the encoder's output to the specified *output* object.
+        Opens *output* and associates it with *key* in :attr:`outputs`.
 
         If *output* is a string, this method opens it as a filename and keeps
         track of the fact that the encoder was the one to open it (which
         implies that :meth:`_close_output` should eventually close it).
         Otherwise, *output* is assumed to be a file-like object and is used
-        verbatim. The :attr:`output` attribute is set accordingly.
+        verbatim. The opened output is added to the :attr:`outputs` dictionary
+        with the specified *key*.
         """
-        with self.lock:
-            self.opened_output = isinstance(output, (bytes, str))
-            if self.opened_output:
+        with self.outputs_lock:
+            opened = isinstance(output, (bytes, str))
+            if opened:
                 # Open files in binary mode with a decent buffer size
-                self.output = io.open(output, 'wb', buffering=65536)
-            else:
-                self.output = output
+                output = io.open(output, 'wb', buffering=65536)
+            self.outputs[key] = (output, opened)
 
-    def _close_output(self):
+    def _close_output(self, key=PiVideoFrameType.frame):
         """
-        Closes the :attr:`output` object, if necessary or simply flushes it if
-        we didn't open it and it has a flush method.
+        Closes the output associated with *key* in :attr:`outputs`.
+
+        Closes the output object associated with the specified *key*, and
+        removes it from the :attr:`outputs` dictionary (if we didn't open the
+        object then we attempt to flush it instead).
         """
-        with self.lock:
-            if self.output:
-                if self.opened_output:
-                    self.output.close()
-                elif hasattr(self.output, 'flush'):
-                    self.output.flush()
-                self.output = None
-                self.opened_output = False
+        with self.outputs_lock:
+            try:
+                (output, opened) = self.outputs.pop(key)
+            except KeyError:
+                pass
+            else:
+                if opened:
+                    output.close()
+                else:
+                    try:
+                        output.flush()
+                    except AttributeError:
+                        pass
 
     @property
     def active(self):
@@ -525,7 +740,8 @@ class PiVideoEncoder(PiEncoder):
     :meth:`~PiCamera.split_recording` and :meth:`~PiCamera.record_sequence` to
     redirect future output to a new filename or object. Finally, it also
     extends :meth:`PiEncoder.start` and :meth:`PiEncoder._callback_write` to
-    track video frame meta-data.
+    track video frame meta-data, and to permit recording motion data to a
+    separate output object.
     """
 
     encoder_type = mmal.MMAL_COMPONENT_DEFAULT_VIDEO_ENCODER
@@ -539,7 +755,8 @@ class PiVideoEncoder(PiEncoder):
 
     def _create_encoder(
             self, bitrate=17000000, intra_period=0, profile='high',
-            quantization=0, quality=0, inline_headers=True, sei=False):
+            quantization=0, quality=0, inline_headers=True, sei=False,
+            motion_output=None):
         """
         Extends the base :meth:`~PiEncoder._create_encoder` implementation to
         configure the video encoder for H.264 or MJPEG output.
@@ -601,8 +818,15 @@ class PiVideoEncoder(PiEncoder):
                 mmal.mmal_port_parameter_set_boolean(
                     self.output_port,
                     mmal.MMAL_PARAMETER_VIDEO_ENCODE_SEI_ENABLE,
-                    int(sei)),
+                    int(bool(sei))),
                 prefix="Unable to set SEI")
+
+            mmal_check(
+                mmal.mmal_port_parameter_set_boolean(
+                    self.output_port,
+                    mmal.MMAL_PARAMETER_VIDEO_ENCODE_INLINE_VECTORS,
+                    int(bool(motion_output))),
+                prefix="Unable to set inline motion vectors")
 
             # We need the intra-period to calculate the SPS header timeout in
             # the split method below. If one is not set explicitly, query the
@@ -678,23 +902,24 @@ class PiVideoEncoder(PiEncoder):
             mmal.mmal_component_enable(self.encoder),
             prefix="Unable to enable video encoder component")
 
-    def start(self, output):
+    def start(self, output, motion_output=None):
         """
         Extended to initialize video frame meta-data tracking.
         """
         self._size = 0 # internal counter for frame size
         self.frame = PiVideoFrame(
                 index=-1,
-                keyframe=False,
+                frame_type=None,
                 frame_size=0,
                 video_size=0,
                 split_size=0,
                 timestamp=0,
-                header=False,
                 )
+        if motion_output is not None:
+            self._open_output(motion_output, PiVideoFrameType.motion_data)
         super(PiVideoEncoder, self).start(output)
 
-    def split(self, output):
+    def split(self, output, motion_output=None):
         """
         Called to switch the encoder's output.
 
@@ -703,8 +928,13 @@ class PiVideoEncoder(PiEncoder):
         :attr:`output` object to the *output* parameter (which can be a
         filename or a file-like object, as with :meth:`start`).
         """
-        with self.lock:
-            self._next_output.append(output)
+        with self.outputs_lock:
+            outputs = {}
+            if output is not None:
+                outputs[PiVideoFrameType.frame] = output
+            if motion_output is not None:
+                outputs[PiVideoFrameType.motion_data] = motion_output
+            self._next_output.append(outputs)
         # intra_period / framerate gives the time between I-frames (which
         # should also coincide with SPS headers). We multiply by two to ensure
         # the timeout is deliberately excessive
@@ -715,7 +945,7 @@ class PiVideoEncoder(PiEncoder):
                 'is True and bitrate is not 0)')
         self.event.clear()
 
-    def _callback_write(self, buf):
+    def _callback_write(self, buf, key=PiVideoFrameType.frame):
         """
         Extended to implement video frame meta-data tracking, and to handle
         splitting video recording to the next output when :meth:`split` is
@@ -725,33 +955,52 @@ class PiVideoEncoder(PiEncoder):
         if buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_FRAME_END:
             self.frame = PiVideoFrame(
                     index=self.frame.index + 1,
-                    keyframe=bool(buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_KEYFRAME),
+                    frame_type=
+                        PiVideoFrameType.key_frame
+                        if buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_KEYFRAME else
+                        PiVideoFrameType.sps_header
+                        if buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_CONFIG else
+                        PiVideoFrameType.motion_data
+                        if buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_CODECSIDEINFO else
+                        PiVideoFrameType.frame,
                     frame_size=self._size,
-                    video_size=self.frame.video_size + self._size,
-                    split_size=self.frame.split_size + self._size,
-                    timestamp=None if buf[0].pts in (0, mmal.MMAL_TIME_UNKNOWN) else buf[0].pts,
-                    header=bool(buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_CONFIG),
+                    video_size=
+                        self.frame.video_size
+                        if buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_CODECSIDEINFO else
+                        self.frame.video_size + self._size,
+                    split_size=
+                        self.frame.split_size
+                        if buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_CODECSIDEINFO else
+                        self.frame.split_size + self._size,
+                    timestamp=
+                        None
+                        if buf[0].pts in (0, mmal.MMAL_TIME_UNKNOWN) else
+                        buf[0].pts,
                     )
             self._size = 0
         if self.format != 'h264' or (buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_CONFIG):
-            new_output = None
-            with self.lock:
-                if self._next_output:
-                    new_output = self._next_output.pop(0)
-            if new_output:
-                self._close_output()
-                self.frame = PiVideoFrame(
-                        index=self.frame.index,
-                        keyframe=self.frame.keyframe,
-                        frame_size=self.frame.frame_size,
-                        video_size=self.frame.video_size,
-                        split_size=0,
-                        timestamp=self.frame.timestamp,
-                        header=self.frame.header,
-                        )
-                self._open_output(new_output)
+            with self.outputs_lock:
+                try:
+                    new_outputs = self._next_output.pop(0)
+                except IndexError:
+                    new_outputs = None
+            if new_outputs:
+                for new_key, new_output in new_outputs.items():
+                    self._close_output(new_key)
+                    self._open_output(new_output, new_key)
+                    if new_key == PiVideoFrameType.frame:
+                        self.frame = PiVideoFrame(
+                                index=self.frame.index,
+                                frame_type=self.frame.frame_type,
+                                frame_size=self.frame.frame_size,
+                                video_size=self.frame.video_size,
+                                split_size=0,
+                                timestamp=self.frame.timestamp,
+                                )
                 self.event.set()
-        return super(PiVideoEncoder, self)._callback_write(buf)
+        if buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_CODECSIDEINFO:
+            key = PiVideoFrameType.motion_data
+        return super(PiVideoEncoder, self)._callback_write(buf, key)
 
 
 class PiImageEncoder(PiEncoder):
@@ -831,9 +1080,9 @@ class PiOneImageEncoder(PiImageEncoder):
     capture at frame end (i.e. after a single frame has been received).
     """
 
-    def _callback_write(self, buf):
+    def _callback_write(self, buf, key=PiVideoFrameType.frame):
         return (
-            super(PiOneImageEncoder, self)._callback_write(buf)
+            super(PiOneImageEncoder, self)._callback_write(buf, key)
             ) or bool(
             buf[0].flags & (
                 mmal.MMAL_BUFFER_HEADER_FLAG_FRAME_END |
@@ -853,29 +1102,28 @@ class PiMultiImageEncoder(PiImageEncoder):
     in the iterable.
     """
 
-    def _open_output(self, outputs):
+    def _open_output(self, outputs, key=PiVideoFrameType.frame):
         self._output_iter = iter(outputs)
-        self._next_output()
+        self._next_output(key)
 
-    def _next_output(self):
+    def _next_output(self, key=PiVideoFrameType.frame):
         """
         This method moves output to the next item from the iterable passed to
         :meth:`~PiEncoder.start`.
         """
-        if self.output:
-            self._close_output()
-        super(PiMultiImageEncoder, self)._open_output(next(self._output_iter))
+        self._close_output(key)
+        super(PiMultiImageEncoder, self)._open_output(next(self._output_iter), key)
 
-    def _callback_write(self, buf):
+    def _callback_write(self, buf, key=PiVideoFrameType.frame):
         try:
             if (
-                super(PiMultiImageEncoder, self)._callback_write(buf)
+                super(PiMultiImageEncoder, self)._callback_write(buf, key)
                 ) or bool(
                 buf[0].flags & (
                     mmal.MMAL_BUFFER_HEADER_FLAG_FRAME_END |
                     mmal.MMAL_BUFFER_HEADER_FLAG_TRANSMISSION_FAILED)
                 ):
-                self._next_output()
+                self._next_output(key)
             return False
         except StopIteration:
             return True
@@ -1042,7 +1290,7 @@ class PiRawEncoderMixin(PiImageEncoder):
             self.resizer_connection = self.parent._connect_ports(
                 self.input_port, self.resizer[0].input[0])
 
-    def _callback_write(self, buf):
+    def _callback_write(self, buf, key=PiVideoFrameType.frame):
         """
         Overridden to strip alpha bytes when required and manually calculate
         when to terminate capture (see comments in :meth:`__init__`).
@@ -1056,9 +1304,12 @@ class PiRawEncoderMixin(PiImageEncoder):
                 if self._strip_alpha:
                     s = bytearray(s)
                     del s[3::4]
-                with self.lock:
-                    if self.output:
-                        written = self.output.write(s)
+                with self.outputs_lock:
+                    try:
+                        written = self.outputs[key][0].write(s)
+                    except KeyError:
+                        pass
+                    else:
                         # Ignore None return value; most Python 2 streams have
                         # no return value for write()
                         if (written is not None) and (written != len(s)):
@@ -1110,7 +1361,7 @@ class PiRawMultiImageEncoder(PiMultiImageEncoder, PiRawEncoderMixin):
         This class creates an inheritance diamond. Take care to determine the
         MRO of super-class calls.
     """
-    def _next_output(self):
-        super(PiRawMultiImageEncoder, self)._next_output()
+    def _next_output(self, key=PiVideoFrameType.frame):
+        super(PiRawMultiImageEncoder, self)._next_output(key)
         self._image_size = self._expected_size
 

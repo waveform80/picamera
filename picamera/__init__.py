@@ -76,71 +76,18 @@ CircularIO
     :members:
 
 
+PiVideoFrameType
+================
+
+.. autoclass:: PiVideoFrameType
+    :members:
+
+
 PiVideoFrame
 ============
 
-.. class:: PiVideoFrame(index, key, frame_size, video_size, split_size, timestamp)
-
-    .. attribute:: index
-
-        Returns the zero-based number of the frame. This is a monotonic counter
-        that is simply incremented every time the camera returns a frame-end
-        buffer. As a consequence, this attribute cannot be used to detect
-        dropped frames.
-
-    .. attribute:: position
-
-        Returns the zero-based position of the frame in the stream containing
-        it.
-
-    .. attribute:: keyframe
-
-        Returns a bool indicating whether the current frame is a keyframe (an
-        intra-frame, or I-frame in MPEG parlance).
-
-    .. attribute:: frame_size
-
-        Returns the size in bytes of the current frame.
-
-    .. attribute:: video_size
-
-        Returns the size in bytes of the entire video up to the current frame.
-        Note that this is unlikely to match the size of the actual file/stream
-        written so far. Firstly this is because the frame attribute is only
-        updated when the encoder outputs the *end* of a frame, which will cause
-        the reported size to be smaller than the actual amount written.
-        Secondly this is because a stream may utilize buffering which will
-        cause the actual amount written (e.g. to disk) to lag behind the value
-        reported by this attribute.
-
-    .. attribute:: split_size
-
-        Returns the size in bytes of the video recorded since the last call to
-        either :meth:`~PiCamera.start_recording` or
-        :meth:`~PiCamera.split_recording`. For the reasons explained above,
-        this may differ from the size of the actual file/stream written so far.
-
-    .. attribute:: timestamp
-
-        Returns the presentation timestamp (PTS) of the current frame as
-        reported by the encoder. This is represented by the number of
-        microseconds (millionths of a second) since video recording started. As
-        the frame attribute is only updated when the encoder outputs the end of
-        a frame, this value may lag behind the actual time since
-        :meth:`~PiCamera.start_recording` was called.
-
-        .. warning::
-
-            Currently, the video encoder occasionally returns "time unknown"
-            values in this field which picamera represents as ``None``. If you
-            are querying this property you will need to check the value is not
-            ``None`` before using it.
-
-    .. attribute:: header
-
-        Contains a bool indicating whether the current frame is actually an
-        SPS/PPS header. Typically it is best to split an H.264 stream so that
-        it starts with an SPS/PPS header.
+.. autoclass:: PiVideoFrame(index, frame_type, frame_size, video_size, split_size, timestamp)
+    :members:
 
 
 PiEncoder
@@ -267,8 +214,10 @@ from picamera.exc import (
     PiCameraMMALError,
     mmal_check,
     )
-from picamera.camera import PiCamera, PiVideoFrame
+from picamera.camera import PiCamera
 from picamera.encoders import (
+    PiVideoFrame,
+    PiVideoFrameType,
     PiEncoder,
     PiVideoEncoder,
     PiImageEncoder,

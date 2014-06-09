@@ -62,6 +62,7 @@ from picamera.exc import (
     )
 from picamera.encoders import (
     PiVideoFrame,
+    PiVideoFrameType,
     PiVideoEncoder,
     PiImageEncoder,
     PiRawOneImageEncoder,
@@ -902,6 +903,13 @@ class PiCamera(object):
           "Supplemental Enhancement Information" within the output stream.
           Defaults to ``False`` if not specified.
 
+        * *motion_output* - Indicates the output destination for motion vector
+          estimation data. When ``None`` (the default), motion data is not
+          output. If set to a string, it is assumed to be a filename which
+          should be opened for motion data to be written to. Any other value is
+          assumed to be a file-like object which motion vector is to be written
+          to (the object must have a ``write`` method).
+
         All formats accept the following additional options:
 
         * *bitrate* - The bitrate at which video will be encoded. Defaults to
@@ -928,7 +936,8 @@ class PiCamera(object):
             The *splitter_port* parameter was added
 
         .. versionchanged:: 1.5
-            The *quantization* parameter was deprecated in favour of *quality*
+            The *quantization* parameter was deprecated in favor of *quality*,
+            and the *motion_output* parameter was added.
         """
         with self._encoders_lock:
             camera_port, output_port = self._get_ports(True, splitter_port)
@@ -938,13 +947,14 @@ class PiCamera(object):
                     camera_port, output_port, format, resize, **options)
             self._encoders[splitter_port] = encoder
         try:
-            encoder.start(output)
+            encoder.start(output, options.get('motion_output'))
         except Exception as e:
             encoder.close()
-            del self._encoders[splitter_port]
+            with self._encoders_lock:
+                del self._encoders[splitter_port]
             raise
 
-    def split_recording(self, output, splitter_port=1):
+    def split_recording(self, output, splitter_port=1, **options):
         """
         Continue the recording in the specified output; close existing output.
 
@@ -959,22 +969,34 @@ class PiCamera(object):
         implementation only assumes the object has a ``write()`` method - no
         other methods will be called).
 
+        The *motion_output* parameter can be used to redirect the output of the
+        motion vector data in the same fashion as *output*. If *motion_output*
+        is ``None`` (the default) then motion vector data will not be
+        redirected and will continue being written to the output specified by
+        the *motion_output* parameter given to :meth:`start_recording`.
+        Alternatively, if you only wish to redirect motion vector data, you can
+        set *output* to ``None`` and given a new value for *motion_output*.
+
         The *splitter_port* parameter specifies which port of the video
         splitter the encoder you wish to change outputs is attached to. This
         defaults to ``1`` and most users will have no need to specify anything
         different. Valid values are between ``0`` and ``3`` inclusive.
 
         Note that unlike :meth:`start_recording`, you cannot specify format or
-        options as these cannot be changed in the middle of recording. Only the
-        new *output* can be specified. Furthermore, the format of the recording
-        is currently limited to H264, *inline_headers* must be ``True`` when
-        :meth:`start_recording` is called (this is the default).
+        other options as these cannot be changed in the middle of recording.
+        Only the new *output* (and *motion_output*) can be specified.
+        Furthermore, the format of the recording is currently limited to H264,
+        and *inline_headers* must be ``True`` when :meth:`start_recording` is
+        called (this is the default).
 
         .. versionchanged:: 1.3
             The *splitter_port* parameter was added
+
+        .. versionchanged:: 1.5
+            The *motion_output* parameter was added
         """
         try:
-            self._encoders[splitter_port].split(output)
+            self._encoders[splitter_port].split(output, options.get('motion_output'))
         except KeyError:
             raise PiCameraNotRecording(
                     'There is no recording in progress on '
@@ -1112,7 +1134,7 @@ class PiCamera(object):
             for output in outputs:
                 if start:
                     start = False
-                    encoder.start(output)
+                    encoder.start(output, motion_output)
                 else:
                     encoder.split(output)
                 yield output
