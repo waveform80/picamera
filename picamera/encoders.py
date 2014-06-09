@@ -1054,7 +1054,8 @@ class PiRawEncoderMixin(PiImageEncoder):
             try:
                 s = ct.string_at(buf[0].data, buf[0].length)
                 if self._strip_alpha:
-                    s = b''.join(s[i:i+3] for i in range(0, len(s), 4))
+                    s = bytearray(s)
+                    del s[3::4]
                 with self.lock:
                     if self.output:
                         written = self.output.write(s)

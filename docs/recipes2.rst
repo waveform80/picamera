@@ -192,18 +192,6 @@ Loading the resulting RGB data into a `numpy`_ array is simple::
     :meth:`~picamera.PiCamera.capture` method. Simply use the ``'rgb'`` format
     instead, as shown in the code above.
 
-.. warning::
-
-    You may find `RGB`_ captures rather slow. If this is the case, please try
-    the ``'rgba'`` format instead. The reason for this is that the GPU component
-    that picamera uses to perform RGB conversion doesn't support RGB output,
-    only `RGBA`_. As a result, RGBA data can be written directly, but picamera
-    has to spend time stripping out the (unused) alpha byte from RGBA if RGB
-    format is requested. A similar situation exists for the BGR and BGRA
-    formats.
-
-
-
 
 .. _rapid_capture:
 
