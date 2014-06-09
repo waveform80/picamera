@@ -243,3 +243,25 @@ def test_multi_res_record(camera, mode):
     verify_video(v_stream1, 'h264', resolution)
     verify_video(v_stream2, 'h264', new_res)
 
+class MotionTest(object):
+    def __init__(self, camera):
+        width, height = camera.resolution
+        self.rows = (height + 15) // 16
+        self.cols = (width + 15) // 16
+        self.cols += 1
+    def write(self, s):
+        assert len(s) == self.cols * self.rows * 4
+        return len(s)
+
+def test_motion_record(camera, mode):
+    resolution, framerate = mode
+    if resolution == (2592, 1944):
+        pytest.xfail('Cannot encode video at max resolution')
+    camera.start_recording(
+            '/dev/null', format='h264',
+            motion_output=MotionTest(camera))
+    try:
+        camera.wait_recording(1)
+    finally:
+        camera.stop_recording()
+
