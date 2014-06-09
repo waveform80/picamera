@@ -758,7 +758,7 @@ class PiCamera(object):
         memory leaks.
         """
         global _CAMERA
-        for port in self._encoders:
+        for port in list(self._encoders):
             self.stop_recording(splitter_port=port)
         assert not self.recording
         if self._splitter_connection:
