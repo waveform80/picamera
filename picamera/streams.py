@@ -370,12 +370,11 @@ class PiCameraDequeHack(deque):
                 # to the current position of the chunk
                 frame = PiVideoFrame(
                     index=frame.index,
-                    keyframe=frame.keyframe,
+                    frame_type=frame.frame_type,
                     frame_size=frame.frame_size,
                     video_size=pos,
                     split_size=pos,
                     timestamp=frame.timestamp,
-                    header=frame.header,
                     )
                 # Only yield the frame meta-data if the start of the frame
                 # still exists in the stream

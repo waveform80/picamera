@@ -1134,7 +1134,7 @@ class PiCamera(object):
             for output in outputs:
                 if start:
                     start = False
-                    encoder.start(output, motion_output)
+                    encoder.start(output, options.get('motion_output'))
                 else:
                     encoder.split(output)
                 yield output
