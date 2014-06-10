@@ -203,6 +203,20 @@ def _encoder_callback(port, buf):
 _encoder_callback = mmal.MMAL_PORT_BH_CB_T(_encoder_callback)
 
 
+def _debug_buffer(buf):
+    f = buf[0].flags
+    print(''.join((
+        'flags=',
+        'E' if f & mmal.MMAL_BUFFER_HEADER_FLAG_FRAME_END     else '_',
+        'K' if f & mmal.MMAL_BUFFER_HEADER_FLAG_KEYFRAME      else '_',
+        'C' if f & mmal.MMAL_BUFFER_HEADER_FLAG_CONFIG        else '_',
+        'M' if f & mmal.MMAL_BUFFER_HEADER_FLAG_CODECSIDEINFO else '_',
+        'X' if f & mmal.MMAL_BUFFER_HEADER_FLAG_EOS           else '_',
+        ' ',
+        'len=%d' % buf[0].length,
+        )))
+
+
 class PiEncoder(object):
     """
     Base implementation of an MMAL encoder for use by PiCamera.
@@ -503,6 +517,7 @@ class PiEncoder(object):
         to override the :meth:`_callback_write` method, rather than deal with
         these complexities.
         """
+        #_debug_buffer(buf)
         if self.stopped:
             mmal.mmal_buffer_header_release(buf)
         else:
