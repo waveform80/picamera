@@ -686,7 +686,7 @@ is used for the array permitting easy access to x, y, and SAD values::
     motion_data[9]['sad']
 
 You can calculate the amount of motion the vector represents simply by
-calculating the `magnitude of the vector`_ with pythagoras' theorem. The SAD
+calculating the `magnitude of the vector`_ with Pythagoras' theorem. The SAD
 (`Sum of Absolute Differences`_) value can be used to determine how well the
 encoder thinks the vector represents the original reference frame.
 
