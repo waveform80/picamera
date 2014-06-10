@@ -22,8 +22,8 @@ using apt simply::
 
     $ sudo apt-get install python-picamera
 
-To upgrade your installation when new releases are made you can simply use apt's
-normal upgrade procedure::
+To upgrade your installation when new releases are made you can simply use
+apt's normal upgrade procedure::
 
     $ sudo apt-get update
     $ sudo apt-get upgrade
@@ -49,6 +49,12 @@ To install as your current user::
     $ sudo apt-get install python-pip
     $ pip install --user picamera
 
+If you wish to use the classes in the :mod:`picamera.array` then specify the
+"array" option which will pull in numpy as a dependency (be warned that
+building numpy takes a *long* time on a Pi)::
+
+    $ pip install --user "picamera[array]"
+
 Note that ``pip`` is **not** run with sudo; this is deliberate. To upgrade your
 installation when new releases are made::
 
@@ -70,6 +76,12 @@ and equally easy to keep updated. To perform the installation::
 
     $ sudo apt-get install python-pip
     $ sudo pip install picamera
+
+If you wish to use the classes in the :mod:`picamera.array` then specify the
+"array" option which will pull in numpy as a dependency (be warned that
+building numpy takes a *long* time on a Pi)::
+
+    $ sudo pip install "picamera[array]"
 
 To upgrade your installation when new releases are made::
 
@@ -93,6 +105,12 @@ just like keeping things separate and easily removable)::
     $ virtualenv sandbox
     $ source sandbox/bin/activate
     (sandbox) $ pip install picamera
+
+If you wish to use the classes in the :mod:`picamera.array` then specify the
+"array" option which will pull in numpy as a dependency (be warned that
+building numpy takes a *long* time on a Pi)::
+
+    (sandbox) $ pip install "picamera[array]"
 
 Bear in mind that each time you want to use picamera you will need to activate
 the virtualenv before running Python::
@@ -169,7 +187,7 @@ If you wish to run the picamera test suite, follow the instructions in
 dependencies (note: avconv is installed system-wide)::
 
     (sandbox) $ sudo apt-get install libav-tools
-    (sandbox) $ pip install Pillow pytest mock
+    (sandbox) $ pip install Pillow pytest mock numpy
 
 Finally, to run the test suite, execute the following command::
 
@@ -177,8 +195,7 @@ Finally, to run the test suite, execute the following command::
 
 .. warning::
 
-    The test suite takes a *very* long time to execute (at least 45 minutes on
-    an overclocked Pi). Depending on configuration, it can also lockup the
-    camera requiring a reboot to reset, so ensure you are familiar with SSH
-    or using alternate TTYs to access a command line in the event you need to
-    reboot.
+    The test suite takes a *very* long time to execute (at least an hour on an
+    overclocked Pi). Depending on configuration, it can also lockup the camera
+    requiring a reboot to reset, so ensure you are familiar with SSH or using
+    alternate TTYs to access a command line in the event you need to reboot.

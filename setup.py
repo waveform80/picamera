@@ -79,8 +79,9 @@ __requires__ = [
     ]
 
 __extra_requires__ = {
-    'doc': ['sphinx'],
-    'test': ['pytest', 'mock', 'Pillow'],
+    'doc':   ['sphinx'],
+    'test':  ['pytest', 'mock', 'Pillow', 'numpy'],
+    'array': ['numpy'],
     }
 
 if sys.version_info[:2] == (3, 2):

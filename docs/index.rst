@@ -28,6 +28,7 @@ Table of Contents
    faq
    fov
    api
+   array
    changelog
    license
 

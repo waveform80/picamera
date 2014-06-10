@@ -44,21 +44,7 @@ str = type('')
 import ctypes as ct
 import warnings
 
-try:
-    _lib = ct.CDLL('libmmal.so')
-except OSError:
-    warnings.warn(
-        'Unable to locate libmmal.so; using a mock object instead. This '
-        'functionality only exists to support building the package '
-        'documentation on non-Raspberry Pi systems. If you see this message '
-        'on the Raspberry Pi then you are missing a required library',
-        RuntimeWarning)
-    class _Mock(object):
-        def __getattr__(self, attr):
-            return self
-        def __call__(self, *args, **kwargs):
-            return self
-    _lib = _Mock()
+_lib = ct.CDLL('libmmal.so')
 
 # vcos_types.h ###############################################################
 

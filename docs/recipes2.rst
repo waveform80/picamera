@@ -103,6 +103,25 @@ manner::
     # results to byte range and convert to bytes
     RGB = YUV.dot(M.T).clip(0, 255).astype(np.uint8)
 
+This recipe is now encapsulated in the :class:`~picamera.array.PiYUVArray` class
+in the :mod:`picamera.array` module, which means the same can be achieved as
+follows::
+
+    import time
+    import picamera
+    import picamera.array
+
+    with picamera.PiCamera() as camera:
+        with picamera.array.PiYUVArray(camera) as stream:
+            camera.resolution = (100, 100)
+            camera.start_preview()
+            time.sleep(2)
+            camera.capture(stream, 'yuv')
+            # Show size of YUV data
+            print(stream.array.shape)
+            # Show size of RGB converted data
+            print(stream.rgb_array.shape)
+
 Alternatively, see :ref:`rgb_capture` for a method of having the camera output
 RGB data directly.
 
@@ -120,6 +139,9 @@ RGB data directly.
     is the ``'raw'`` format specification for the
     :meth:`~picamera.PiCamera.capture` method. Simply use the ``'yuv'`` format
     instead, as shown in the code above.
+
+.. versionchanged:: 1.5
+    Added note about new :mod:`picamera.array` module.
 
 
 .. _rgb_capture:
@@ -186,11 +208,31 @@ Loading the resulting RGB data into a `numpy`_ array is simple::
     image = image.astype(np.float, copy=False)
     image = image / 255.0
 
+This recipe is now encapsulated in the :class:`~picamera.array.PiRGBArray` class
+in the :mod:`picamera.array` module, which means the same can be achieved as
+follows::
+
+    import time
+    import picamera
+    import picamera.array
+
+    with picamera.PiCamera() as camera:
+        with picamera.array.PiRGBArray(camera) as stream:
+            camera.resolution = (100, 100)
+            camera.start_preview()
+            time.sleep(2)
+            camera.capture(stream, 'rgb')
+            # Show size of RGB data
+            print(stream.array.shape)
+
 .. versionchanged:: 1.0
     The :attr:`~picamera.PiCamera.raw_format` attribute is now deprecated, as
     is the ``'raw'`` format specification for the
     :meth:`~picamera.PiCamera.capture` method. Simply use the ``'rgb'`` format
     instead, as shown in the code above.
+
+.. versionchanged:: 1.5
+    Added note about new :mod:`picamera.array` module.
 
 
 .. _rapid_capture:
@@ -722,6 +764,31 @@ from the magnitude of each frame's motion vectors::
         print('Writing %s' % filename)
         img.save(filename)
 
+You may wish to investigate the :class:`~picamera.array.PiMotionArray` class
+in the :mod:`picamera.array` module which simplifies the above recipes to the
+following::
+
+    import picamera
+    import picamera.array
+    from PIL import Image
+
+    with picamera.PiCamera() as camera:
+        with picamera.array.PiMotionArray(camera) as stream:
+            camera.resolution = (640, 480)
+            camera.framerate = 30
+            camera.start_recording('/dev/null', format='h264', motion_output=stream)
+            camera.wait_recording(10)
+            camera.stop_recording()
+            for frame in range(frames):
+                data = np.sqrt(
+                    np.square(stream.array[frame]['x'].astype(np.float)) +
+                    np.square(stream.array[frame]['y'].astype(np.float))
+                    ).clip(0, 255).astype(np.uint8)
+                img = Image.fromarray(data)
+                filename = 'frame%03d.png' % frame
+                print('Writing %s' % filename)
+                img.save(filename)
+
 Finally, the following command line can be used to generate an animation from
 the generated PNGs with ffmpeg (this will take a *very* long time on the Pi so
 you may wish to transfer the images to a faster machine for this step)::
@@ -908,6 +975,9 @@ for the video data::
             )
         camera.wait_recording(30)
         camera.stop_recording()
+
+You may wish to investigate the classes in the :mod:`picamera.array` module
+which implement several custom outputs for analysis of data with numpy.
 
 .. versionadded:: 1.5
 
@@ -1232,7 +1302,27 @@ captures::
     with open('image.data', 'wb') as f:
         output.tofile(f)
 
+This recipe is also encapsulated in the :class:`~picamera.array.PiBayerArray`
+class in the :mod:`picamera.array` module, which means the same can be achieved
+as follows::
+
+    import time
+    import picamera
+    import picamera.array
+
+    with picamera.PiCamera() as camera:
+        with picamera.array.PiBayerArray(camera) as stream:
+            camera.capture(stream, 'jpeg', bayer=True)
+            # Demosaic data and write to output (just use stream.array if you
+            # want to skip the demosaic step)
+            output = (stream.demosaic() >> 2).astype(np.uint8)
+            with open('image.data', 'wb') as f:
+                output.tofile(f)
+
 .. versionadded:: 1.3
+
+.. versionchanged:: 1.5
+    Added note about new :mod:`picamera.array` module.
 
 
 .. _YUV: http://en.wikipedia.org/wiki/YUV

@@ -33,6 +33,31 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import setup as _setup
 
+# Mock out certain modules while building documentation
+class Mock(object):
+    __all__ = []
+
+    def __init__(self, *args, **kw):
+        pass
+
+    def __call__(self, *args, **kw):
+        return Mock()
+
+    def __mul__(self, other):
+        return Mock()
+
+    @classmethod
+    def __getattr__(cls, name):
+        if name in ('__file__', '__path__'):
+            return '/dev/null'
+        else:
+            return Mock()
+
+sys.modules['ctypes'] = Mock()
+sys.modules['numpy'] = Mock()
+sys.modules['numpy.lib'] = sys.modules['numpy'].lib
+sys.modules['numpy.lib.stride_tricks'] = sys.modules['numpy'].lib.stride_tricks
+
 # -- General configuration ------------------------------------------------
 
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.viewcode', 'sphinx.ext.intersphinx']
