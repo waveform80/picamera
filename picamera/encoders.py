@@ -807,26 +807,29 @@ class PiVideoEncoder(PiEncoder):
                 mmal.mmal_port_parameter_set(self.output_port, mp.hdr),
                 prefix="Unable to set encoder H.264 profile")
 
-            mmal_check(
-                mmal.mmal_port_parameter_set_boolean(
-                    self.output_port,
-                    mmal.MMAL_PARAMETER_VIDEO_ENCODE_INLINE_HEADER,
-                    int(inline_headers)),
-                prefix="Unable to set inline_headers")
+            if inline_headers:
+                mmal_check(
+                    mmal.mmal_port_parameter_set_boolean(
+                        self.output_port,
+                        mmal.MMAL_PARAMETER_VIDEO_ENCODE_INLINE_HEADER,
+                        mmal.MMAL_TRUE),
+                    prefix="Unable to set inline_headers")
 
-            mmal_check(
-                mmal.mmal_port_parameter_set_boolean(
-                    self.output_port,
-                    mmal.MMAL_PARAMETER_VIDEO_ENCODE_SEI_ENABLE,
-                    int(bool(sei))),
-                prefix="Unable to set SEI")
+            if sei:
+                mmal_check(
+                    mmal.mmal_port_parameter_set_boolean(
+                        self.output_port,
+                        mmal.MMAL_PARAMETER_VIDEO_ENCODE_SEI_ENABLE,
+                        mmal.MMAL_TRUE),
+                    prefix="Unable to set SEI")
 
-            mmal_check(
-                mmal.mmal_port_parameter_set_boolean(
-                    self.output_port,
-                    mmal.MMAL_PARAMETER_VIDEO_ENCODE_INLINE_VECTORS,
-                    int(bool(motion_output))),
-                prefix="Unable to set inline motion vectors")
+            if motion_output:
+                mmal_check(
+                    mmal.mmal_port_parameter_set_boolean(
+                        self.output_port,
+                        mmal.MMAL_PARAMETER_VIDEO_ENCODE_INLINE_VECTORS,
+                        mmal.MMAL_TRUE),
+                    prefix="Unable to set inline motion vectors")
 
             # We need the intra-period to calculate the SPS header timeout in
             # the split method below. If one is not set explicitly, query the
