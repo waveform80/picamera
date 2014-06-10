@@ -511,7 +511,7 @@ pipe it to a media player for display::
         # Run a viewer with an appropriate command line. Uncomment the mplayer
         # version if you would prefer to use mplayer instead of VLC
         cmdline = ['vlc', '--demux', 'h264', '-']
-        #cmdline = ['mplayer', '-fps', '31', '-cache', '1024', '-']
+        #cmdline = ['mplayer', '-fps', '25', '-cache', '1024', '-']
         player = subprocess.Popen(cmdline, stdin=subprocess.PIPE)
         while True:
             # Repeatedly read 1k of data from the connection and write it to
@@ -560,6 +560,7 @@ object created from the network socket::
     try:
         with picamera.PiCamera() as camera:
             camera.resolution = (640, 480)
+            camera.framerate = 24
             # Start a preview and let the camera warm up for 2 seconds
             camera.start_preview()
             time.sleep(2)
@@ -580,9 +581,39 @@ achieved (at least on Linux) with a combination of ``netcat`` and the
     client-side: raspivid -w 640 -h 480 -t 60000 -o - | nc my_server 8000
 
 However, this recipe does serve as a starting point for video streaming
-applications. For example, it shouldn't be terribly difficult to extend the
-recipe above to permit the server to control some aspects of the client's video
-stream.
+applications. It's also possible to reverse the direction of this recipe
+relatively easily. In this scenario, the Pi acts as the server, waiting for a
+connection from the client. When it accepts a connection, it starts streaming
+video over it for 60 seconds. Another variation (just for the purposes of
+demonstration) is that we initialize the camera straight away instead of
+waiting for a connection to allow the streaming to start faster on connection::
+
+    import socket
+    import time
+    import picamera
+
+    with picamera.PiCamera() as camera:
+        camera.resolution = (640, 480)
+        camera.framerate = 24
+
+        server_socket = socket.socket()
+        server_socket.bind(('0.0.0.0', 8000))
+        server_socket.listen(0)
+
+        # Accept a single connection and make a file-like object out of it
+        connection = server_socket.accept()[0].makefile('wb')
+        try:
+            camera.start_recording(connection, format='h264')
+            camera.wait_recording(60)
+            camera.stop_recording()
+        finally:
+            connection.close()
+            server_socket.close()
+
+One advantage of this setup is that no script is needed on the client side - we
+can simply use VLC with a network URL::
+
+    vlc tcp/h264://my_pi_address:8000/
 
 
 .. _led_control:
