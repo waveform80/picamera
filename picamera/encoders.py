@@ -546,15 +546,15 @@ class PiEncoder(object):
         (``buf[0].data``) which should typically be used with
         :func:`ctypes.string_at`, and meta-data about the contents of the
         buffer (``buf[0].flags``). The method is expected to return a boolean
-        to indicate whether output is complete (True) or whether more data is
-        expected (False).
+        to indicate whether output is complete (``True``) or whether more data
+        is expected (``False``).
 
         The default implementation simply writes the contents of the buffer to
-        the output identified by *key*, and returns True if the buffer flags
-        indicate end of stream. Image encoders will typically override the
-        return value to indicate True on end of frame (as they only wish to
-        output a single image). Video encoders will typically override this
-        method to determine where key-frames and SPS headers occur.
+        the output identified by *key*, and returns ``True`` if the buffer
+        flags indicate end of stream. Image encoders will typically override
+        the return value to indicate ``True`` on end of frame (as they only
+        wish to output a single image). Video encoders will typically override
+        this method to determine where key-frames and SPS headers occur.
         """
         if buf[0].length:
             mmal_check(
@@ -637,7 +637,7 @@ class PiEncoder(object):
     @property
     def active(self):
         """
-        Returns True if the MMAL encoder exists and is enabled.
+        Returns ``True`` if the MMAL encoder exists and is enabled.
         """
         return bool(self.encoder and self.output_port[0].is_enabled)
 
@@ -681,7 +681,7 @@ class PiEncoder(object):
         is None, the method will block indefinitely. Otherwise, the *timeout*
         parameter specifies the (potentially fractional) number of seconds
         to block for. If the encoder finishes successfully within the timeout,
-        the method returns True. Otherwise, it returns False.
+        the method returns ``True``. Otherwise, it returns ``False``.
         """
         result = self.event.wait(timeout)
         if result:
