@@ -5,7 +5,7 @@ Change log
 ==========
 
 
-Release 1.5 (2014-???)
+Release 1.5 (2014-06-11)
 ========================
 
 1.5 fixed several bugs and introduced a couple of major new pieces of
