@@ -115,6 +115,7 @@ class PiBaseOutput(object):
     """
     def __init__(self, camera):
         super(PiBaseOutput, self).__init__()
+        self.closed = False
         self.camera = camera
         self.buffer = b''
         self.array = None
@@ -148,6 +149,7 @@ class PiBaseOutput(object):
         Write the given bytes or bytearray object, *b*, to the internal
         buffer and return the number of bytes written.
         """
+        self._check_closed()
         self.buffer += b
         return len(b)
 
@@ -162,6 +164,7 @@ class PiBaseOutput(object):
         Returns the current stream position (always equal to the length of
         the internal buffer in this implementation).
         """
+        self._check_closed()
         return len(self.buffer)
 
     def truncate(self, size=None):
@@ -173,6 +176,7 @@ class PiBaseOutput(object):
         As this stream is non-seekable and the position is dictated by the
         internal buffer size, shrinking the stream changes the position.
         """
+        self._check_closed()
         if size is not None:
             self.buffer = self.buffer[:size]
 
@@ -182,6 +186,24 @@ class PiBaseOutput(object):
         the buffered data available in :attr:`buffer`.
         """
         self.array = None
+
+    def _check_closed(self):
+        if self.closed:
+            raise PiCameraValueError('I/O operation on closed file')
+
+    def close(self):
+        """
+        Closes the stream and frees all resources associated with it.
+        """
+        self.closed = True
+        self.buffer = b''
+        self.array = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        self.close()
 
 
 class PiRGBArray(PiBaseOutput):
@@ -225,12 +247,11 @@ class PiRGBArray(PiBaseOutput):
         width, height = self.camera.resolution
         fwidth = (width + 31) // 32 * 32
         fheight = (height + 15) // 16 * 16
-        data = self.getvalue()
-        if len(data) != (fwidth * fheight * 3):
+        if len(self.buffer) != (fwidth * fheight * 3):
             raise PiCameraValueError(
-                'Incorrect array length for resolution %dx%d' % (width, height))
+                'Incorrect buffer length for resolution %dx%d' % (width, height))
         # Crop to the actual resolution
-        self.array = np.frombuffer(data, dtype=np.uint8).\
+        self.array = np.frombuffer(self.buffer, dtype=np.uint8).\
                 reshape((fheight, fwidth, 3))[:height, :width, :]
 
 
@@ -279,12 +300,11 @@ class PiYUVArray(PiBaseOutput):
         fheight = (height + 15) // 16 * 16
         y_len = fwidth * fheight
         uv_len = (fwidth // 2) * (fheight // 2)
-        data = self.getvalue()
-        if len(data) != (y_len + 2 * uv_len):
+        if len(self.buffer) != (y_len + 2 * uv_len):
             raise PiCameraValueError(
                 'Incorrect buffer length for resolution %dx%d' % (width, height))
         # Separate out the Y, U, and V values from the array
-        a = np.frombuffer(data, dtype=np.uint8)
+        a = np.frombuffer(self.buffer, dtype=np.uint8)
         Y = a[:y_len]
         U = a[y_len:-uv_len]
         V = a[-uv_len:]
@@ -299,7 +319,7 @@ class PiYUVArray(PiBaseOutput):
 
     @property
     def rgb_array(self):
-        if not self._rgb:
+        if self._rgb is None:
             # Apply the standard biases
             YUV = self.array.copy()
             YUV[:, :, 0]  = YUV[:, :, 0]  - 16  # Offset Y by 16
@@ -367,7 +387,7 @@ class PiBayerArray(PiBaseOutput):
     def flush(self):
         super(PiBayerArray, self).flush()
         self._demo = None
-        data = self.getvalue()[-6404096:]
+        data = self.buffer[-6404096:]
         if data[:4] != 'BRCM':
             raise PiCameraValueError('Unable to locate Bayer data at end of buffer')
         # Strip header
@@ -528,12 +548,12 @@ class PiMotionAnalysis(PiBaseOutput):
         class DetectMotion(picamera.array.PiMotionAnalysis):
             def analyse(self, a):
                 a = np.sqrt(
-                    np.square(data['x'].astype(np.float)) +
-                    np.square(data['y'].astype(np.float))
+                    np.square(a['x'].astype(np.float)) +
+                    np.square(a['y'].astype(np.float))
                     ).clip(0, 255).astype(np.uint8)
                 # If there're more than 10 vectors with a magnitude greater
                 # than 60, then say we've detected motion
-                if (data > 60).sum() > 10:
+                if (a > 60).sum() > 10:
                     print('Motion detected!')
 
         with picamera.PiCamera() as camera:

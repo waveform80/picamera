@@ -937,6 +937,10 @@ class PiVideoEncoder(PiEncoder):
             self._open_output(motion_output, PiVideoFrameType.motion_data)
         super(PiVideoEncoder, self).start(output)
 
+    def stop(self):
+        super(PiVideoEncoder, self).stop()
+        self._close_output(PiVideoFrameType.motion_data)
+
     def split(self, output, motion_output=None):
         """
         Called to switch the encoder's output.
