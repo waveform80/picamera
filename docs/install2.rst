@@ -49,8 +49,8 @@ To install as your current user::
     $ sudo apt-get install python-pip
     $ pip install --user picamera
 
-If you wish to use the classes in the :mod:`picamera.array` then specify the
-"array" option which will pull in numpy as a dependency (be warned that
+If you wish to use the classes in the :mod:`picamera.array` module then specify
+the "array" option which will pull in numpy as a dependency (be warned that
 building numpy takes a *long* time on a Pi)::
 
     $ pip install --user "picamera[array]"
@@ -77,8 +77,8 @@ and equally easy to keep updated. To perform the installation::
     $ sudo apt-get install python-pip
     $ sudo pip install picamera
 
-If you wish to use the classes in the :mod:`picamera.array` then specify the
-"array" option which will pull in numpy as a dependency (be warned that
+If you wish to use the classes in the :mod:`picamera.array` module then specify
+the "array" option which will pull in numpy as a dependency (be warned that
 building numpy takes a *long* time on a Pi)::
 
     $ sudo pip install "picamera[array]"
@@ -106,8 +106,8 @@ just like keeping things separate and easily removable)::
     $ source sandbox/bin/activate
     (sandbox) $ pip install picamera
 
-If you wish to use the classes in the :mod:`picamera.array` then specify the
-"array" option which will pull in numpy as a dependency (be warned that
+If you wish to use the classes in the :mod:`picamera.array` module then specify
+the "array" option which will pull in numpy as a dependency (be warned that
 building numpy takes a *long* time on a Pi)::
 
     (sandbox) $ pip install "picamera[array]"
