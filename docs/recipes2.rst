@@ -768,6 +768,7 @@ You may wish to investigate the :class:`~picamera.array.PiMotionArray` class
 in the :mod:`picamera.array` module which simplifies the above recipes to the
 following::
 
+    import numpy as np
     import picamera
     import picamera.array
     from PIL import Image
@@ -779,7 +780,7 @@ following::
             camera.start_recording('/dev/null', format='h264', motion_output=stream)
             camera.wait_recording(10)
             camera.stop_recording()
-            for frame in range(frames):
+            for frame in range(stream.array.shape[0]):
                 data = np.sqrt(
                     np.square(stream.array[frame]['x'].astype(np.float)) +
                     np.square(stream.array[frame]['y'].astype(np.float))
