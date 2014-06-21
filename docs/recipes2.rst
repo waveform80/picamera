@@ -950,7 +950,7 @@ for the video data::
             self.rows = (height + 15) // 16
 
         def write(self, s):
-            # Load the motion data from the string to the written
+            # Load the motion data from the string to a numpy array
             data = np.fromstring(s, dtype=motion_dtype)
             # Re-shape it and calculate the magnitude of each vector
             data = data.reshape((self.rows, self.cols))
@@ -1002,7 +1002,7 @@ classes implement base functionality but aren't technically "abstract"):
     :align: center
 
 The following table details which :class:`PiCamera` methods use which encoder
-classes, and which methods they call to construct these encoders:
+classes, and which method they call to construct these encoders:
 
 +-----------------------------------------------+------------------------------------------------+----------------------------------------------+
 | Method(s)                                     | Call                                           | Returns Encoder                              |
@@ -1025,9 +1025,8 @@ find that one of the intermediate classes is a better basis for your own
 modifications.
 
 In the following example recipe we will extend the
-:class:`~picamera.PiVideoEncoder` class to store information on how many
-I-frames and P-frames are captured (the camera's encoder doesn't use
-B-frames)::
+:class:`~picamera.PiVideoEncoder` class to store how many I-frames and P-frames
+are captured (the camera's encoder doesn't use B-frames)::
 
     import picamera
     import picamera.mmal as mmal

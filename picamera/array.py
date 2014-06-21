@@ -337,7 +337,7 @@ class PiYUVArray(PiBaseOutput):
 
 class PiBayerArray(PiBaseOutput):
     """
-    Produces 3-dimensional RGB array from raw Bayer data.
+    Produces a 3-dimensional RGB array from raw Bayer data.
 
     This custom output class is intended to be used with the
     :meth:`~picamera.PiCamera.capture` method, with the *bayer* parameter set
@@ -530,8 +530,8 @@ class PiMotionAnalysis(PiBaseOutput):
         encoding overhead). You may wish to adjust the framerate of the camera
         accordingly.
 
-    The array passed to :meth:`analyse` is organized as (frames, rows, columns)
-    where ``rows`` and ``columns`` are the number of rows and columns of
+    The array passed to :meth:`analyse` is organized as (rows, columns) where
+    ``rows`` and ``columns`` are the number of rows and columns of
     `macro-blocks`_ (16x16 pixel blocks) in the original frames. There is
     always one extra column of macro-blocks present in motion vector data.
 
