@@ -158,6 +158,9 @@ def test_image_effect(camera, previewing):
         e for e in camera.IMAGE_EFFECTS
         if e not in ('blackboard', 'whiteboard', 'posterize')))
 
+def test_drc_strength(camera, previewing):
+    keyword_attr(camera, 'drc_strength', camera.DRC_STRENGTHS)
+
 def test_meter_mode(camera, previewing):
     keyword_attr(camera, 'meter_mode', camera.METER_MODES)
 

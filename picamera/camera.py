@@ -266,6 +266,13 @@ class PiCamera(object):
         'cartoon':       mmal.MMAL_PARAM_IMAGEFX_CARTOON,
         }
 
+    DRC_STRENGTHS = {
+        'off':    mmal.MMAL_PARAMETER_DRC_STRENGTH_OFF,
+        'low':    mmal.MMAL_PARAMETER_DRC_STRENGTH_LOW,
+        'medium': mmal.MMAL_PARAMETER_DRC_STRENGTH_MEDIUM,
+        'high':   mmal.MMAL_PARAMETER_DRC_STRENGTH_HIGH,
+        }
+
     RAW_FORMATS = {
         # For some bizarre reason, the non-alpha formats are backwards...
         'yuv':  mmal.MMAL_ENCODING_I420,
@@ -280,6 +287,7 @@ class PiCamera(object):
     _AWB_MODES_R      = {v: k for (k, v) in AWB_MODES.items()}
     _IMAGE_EFFECTS_R  = {v: k for (k, v) in IMAGE_EFFECTS.items()}
     _RAW_FORMATS_R    = {v: k for (k, v) in RAW_FORMATS.items()}
+    _DRC_STRENGTHS_R  = {v: k for (k, v) in DRC_STRENGTHS.items()}
 
     def __init__(self):
         global _CAMERA
@@ -2120,6 +2128,61 @@ class PiCamera(object):
         used by the camera. The value represents the digital gain the camera
         applies after conversion of the sensor's analog output. The value is
         returned as a :class:`~fractions.Fraction` instance.
+        """)
+
+    def _get_drc_strength(self):
+        self._check_camera_open()
+        mp = mmal.MMAL_PARAMETER_DRC_T(
+            mmal.MMAL_PARAMETER_HEADER_T(
+                mmal.MMAL_PARAMETER_DYNAMIC_RANGE_COMPRESSION,
+                ct.sizeof(mmal.MMAL_PARAMETER_DRC_T)
+                ))
+        mmal_check(
+            mmal.mmal_port_parameter_get(self._camera[0].control, mp.hdr),
+            prefix="Failed to get dynamic range compression strength")
+        return self._DRC_STRENGTHS_R[mp.strength]
+    def _set_drc_strength(self, value):
+        self._check_camera_open()
+        try:
+            mp = mmal.MMAL_PARAMETER_DRC_T(
+                mmal.MMAL_PARAMETER_HEADER_T(
+                    mmal.MMAL_PARAMETER_DYNAMIC_RANGE_COMPRESSION,
+                    ct.sizeof(mmal.MMAL_PARAMETER_DRC_T)
+                    ),
+                self.DRC_STRENGTHS[value]
+                )
+            mmal_check(
+                mmal.mmal_port_parameter_set(self._camera[0].control, mp.hdr),
+                prefix="Failed to set dynamic range compression strength")
+        except KeyError:
+            raise PiCameraValueError(
+                "Invalid dynamic range compression strength: %s" % value)
+    drc_strength = property(
+        _get_drc_strength, _set_drc_strength, doc="""
+        Retrieves or sets the dynamic range compression strength of the camera.
+
+        When queried, the :attr:`drc_strength` property returns a string
+        indicating the amount of `dynamic range compression`_ the camera
+        applies to images.
+
+        When set, the attributes adjusts the strength of the dynamic range
+        compression applied to the camera's output. Valid values are given
+        in the table below:
+
+        +--------------+----------------------------------------------------+
+        | ``'off'``    | Disables dynamic range compression                 |
+        +==============+====================================================+
+        | ``'low'``    | Use a low level of dynamic range compression       |
+        +--------------+----------------------------------------------------+
+        | ``'medium'`` | Use a medium level of dynamic range compression    |
+        +--------------+----------------------------------------------------+
+        | ``'high'``   | Use the maximum level of dynamic range compression |
+        +--------------+----------------------------------------------------+
+
+        The default value is ``'off'``. All possible values for the attribute
+        can be obtained from the ``PiCamera.DRC_STRENGTHS`` attribute.
+
+        .. _dynamic range compression: http://en.wikipedia.org/wiki/Gain_compression
         """)
 
     def _get_ISO(self):
