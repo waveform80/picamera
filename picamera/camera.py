@@ -264,6 +264,8 @@ class PiCamera(object):
         'colorpoint':    mmal.MMAL_PARAM_IMAGEFX_COLOURPOINT,
         'colorbalance':  mmal.MMAL_PARAM_IMAGEFX_COLOURBALANCE,
         'cartoon':       mmal.MMAL_PARAM_IMAGEFX_CARTOON,
+        'deinterlace1':  mmal.MMAL_PARAM_IMAGEFX_DEINTERLACE_DOUBLE,
+        'deinterlace2':  mmal.MMAL_PARAM_IMAGEFX_DEINTERLACE_ADV,
         }
 
     DRC_STRENGTHS = {
