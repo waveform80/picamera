@@ -37,6 +37,58 @@ Before starting a preview, you may want to set
 ensure that when the preview is display it is partially transparent so you can
 still see your console.
 
+How much power does the camera require?
+=======================================
+
+The camera `requires 250mA`_ when running. Note that simply creating a
+:class:`~picamera.PiCamera` object means the camera is running (due to the
+hidden preview that is started to allow the auto-exposure algorithm to run). If
+you are running your Pi from batteries, you should
+:meth:`~picamera.PiCamera.close` (or destroy) the instance when the camera is
+not required in order to conserve power. For example, the following code
+captures 60 images over an hour, but leaves the camera running all the time::
+
+    import picamera
+    import time
+
+    with picamera.PiCamera() as camera:
+        camera.resolution = (1280, 720)
+        time.sleep(1) # Camera warm-up time
+        for i, filename in enumerate(camera.capture_continuous('image{counter:02d}.jpg')):
+            print('Captured %s' % filename)
+            # Capture one image a minute
+            time.sleep(60)
+            if i == 59:
+                break
+
+By contrast, this code closes the camera between shots (but can't use the
+convenient :meth:`~picamera.PiCamera.capture_continuous` method as a result)::
+
+    import picamera
+    import time
+
+    for i in range(60):
+        with picamera.PiCamera() as camera:
+            camera.resolution = (1280, 720)
+            time.sleep(1) # Camera warm-up time
+            filename = 'image%02d.jpg' % i
+            camera.capture(filename)
+            print('Captured %s' % filename)
+        # Capture one image a minute
+        time.sleep(59)
+
+.. note::
+
+    Please note the timings in the scripts above are approximate. A more
+    precise example of timing is given in :ref:`timelapse_capture`.
+
+If you are experiencing lockups or reboots when the camera is active, your
+power supply may be insufficient. A practical minimum is 1A for running a Pi
+with an active camera module; more may be required if additional peripherals
+are attached.
+
+.. _requires 250mA: http://www.raspberrypi.org/help/faqs/#cameraPower
+
 "Out of memory" when initializing the camera
 ============================================
 
