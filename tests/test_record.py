@@ -54,9 +54,9 @@ RECORDING_CASES = (
     RecordingCase('h264',  '.h264', {'profile': 'high'}),
     RecordingCase('h264',  '.h264', {'profile': 'constrained'}),
     RecordingCase('h264',  '.h264', {'resize': (640, 480)}),
-    RecordingCase('h264',  '.h264', {'bitrate': 0, 'quality': 10}),
     RecordingCase('h264',  '.h264', {'bitrate': 0, 'quality': 20}),
     RecordingCase('h264',  '.h264', {'bitrate': 0, 'quality': 40}),
+    RecordingCase('h264',  '.h264', {'bitrate': 10000000, 'intra_period': 0}),
     RecordingCase('h264',  '.h264', {'bitrate': 10000000, 'intra_period': 15}),
     RecordingCase('h264',  '.h264', {'bitrate': 10000000, 'inline_headers': False}),
     RecordingCase('h264',  '.h264', {'bitrate': 10000000, 'sei': True}),
@@ -97,6 +97,7 @@ def test_record_to_file(camera, previewing, mode, filenames_format_options):
         verify2 = (
                 format != 'h264' or (
                     options.get('inline_headers', True) and
+                    options.get('intra_period', 1) and
                     options.get('bitrate', 1)
                     )
                 )
@@ -129,6 +130,7 @@ def test_record_to_stream(camera, previewing, mode, format_options):
         verify2 = (
                 format != 'h264' or (
                     options.get('inline_headers', True) and
+                    options.get('intra_period', 1) and
                     options.get('bitrate', 1)
                     )
                 )

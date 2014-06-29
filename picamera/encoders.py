@@ -769,7 +769,7 @@ class PiVideoEncoder(PiEncoder):
         self.frame = None
 
     def _create_encoder(
-            self, bitrate=17000000, intra_period=0, profile='high',
+            self, bitrate=17000000, intra_period=None, profile='high',
             quantization=0, quality=0, inline_headers=True, sei=False,
             motion_output=None):
         """
@@ -849,7 +849,7 @@ class PiVideoEncoder(PiEncoder):
             # We need the intra-period to calculate the SPS header timeout in
             # the split method below. If one is not set explicitly, query the
             # encoder's default
-            if intra_period:
+            if intra_period is not None:
                 mp = mmal.MMAL_PARAMETER_UINT32_T(
                         mmal.MMAL_PARAMETER_HEADER_T(
                             mmal.MMAL_PARAMETER_INTRAPERIOD,
@@ -964,7 +964,7 @@ class PiVideoEncoder(PiEncoder):
         if not self.event.wait(timeout):
             raise PiCameraRuntimeError(
                 'Timed out waiting for an SPS header (ensure inline_headers '
-                'is True and bitrate is not 0)')
+                'is True, bitrate is not 0, and intra_period is not 0)')
         self.event.clear()
 
     def _callback_write(self, buf, key=PiVideoFrameType.frame):

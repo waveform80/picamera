@@ -906,9 +906,11 @@ class PiCamera(object):
           'constrained'.
 
         * *intra_period* - The key frame rate (the rate at which I-frames are
-          inserted in the output). Defaults to 0, but can be any positive
-          32-bit integer value representing the number of frames between
-          successive I-frames.
+          inserted in the output). Defaults to None, but can be any 32-bit
+          integer value representing the number of frames between successive
+          I-frames. The special value 0 causes the encoder to produce a single
+          initial I-frame, and then only P-frames subsequently. Note that
+          :meth:`split_recording` will fail in this mode.
 
         * *inline_headers* - When ``True``, specifies that the encoder should
           output SPS/PPS headers within the stream to ensure GOPs (groups of
