@@ -149,11 +149,7 @@ def test_exposure_mode(camera, previewing):
     keyword_attr(camera, 'exposure_mode', camera.EXPOSURE_MODES)
 
 def test_image_effect(camera, previewing):
-    # XXX Workaround: setting posterize, whiteboard and blackboard doesn't
-    # currently work
-    keyword_attr(camera, 'image_effect', (
-        e for e in camera.IMAGE_EFFECTS
-        if e not in ('blackboard', 'whiteboard', 'posterize')))
+    keyword_attr(camera, 'image_effect', camera.IMAGE_EFFECTS)
 
 def test_drc_strength(camera, previewing):
     keyword_attr(camera, 'drc_strength', camera.DRC_STRENGTHS)

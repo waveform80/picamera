@@ -244,9 +244,10 @@ class PiCamera(object):
         'none':          mmal.MMAL_PARAM_IMAGEFX_NONE,
         'negative':      mmal.MMAL_PARAM_IMAGEFX_NEGATIVE,
         'solarize':      mmal.MMAL_PARAM_IMAGEFX_SOLARIZE,
-        'posterize':     mmal.MMAL_PARAM_IMAGEFX_POSTERIZE,
-        'whiteboard':    mmal.MMAL_PARAM_IMAGEFX_WHITEBOARD,
-        'blackboard':    mmal.MMAL_PARAM_IMAGEFX_BLACKBOARD,
+        # The following don't work
+        #'posterize':     mmal.MMAL_PARAM_IMAGEFX_POSTERIZE,
+        #'whiteboard':    mmal.MMAL_PARAM_IMAGEFX_WHITEBOARD,
+        #'blackboard':    mmal.MMAL_PARAM_IMAGEFX_BLACKBOARD,
         'sketch':        mmal.MMAL_PARAM_IMAGEFX_SKETCH,
         'denoise':       mmal.MMAL_PARAM_IMAGEFX_DENOISE,
         'emboss':        mmal.MMAL_PARAM_IMAGEFX_EMBOSS,
