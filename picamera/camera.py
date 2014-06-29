@@ -143,6 +143,13 @@ def to_rational(value):
     return n, d
 
 
+def to_fraction(rational):
+    """
+    Converts an MMAL_RATIONAL_T to a Fraction instance.
+    """
+    return fractions.Fraction(rational.num, rational.den)
+
+
 class PiCamera(object):
     """
     Provides a pure Python interface to the Raspberry Pi's camera module.
@@ -2032,9 +2039,9 @@ class PiCamera(object):
 
         When queried, the :attr:`shutter_speed` property returns the shutter
         speed of the camera in microseconds, or 0 which indicates that the
-        speed will be automatically determined according to lighting
-        conditions. Faster shutter times naturally require greater amounts of
-        illumination and vice versa.
+        speed will be automatically determined by the auto-exposure algorithm.
+        Faster shutter times naturally require greater amounts of illumination
+        and vice versa.
 
         When set, the property adjusts the shutter speed of the camera, which
         most obviously affects the illumination of subsequently captured
@@ -2043,9 +2050,76 @@ class PiCamera(object):
 
         .. note::
 
+            You can query the :attr:`exposure_speed` attribute to determine the
+            actual shutter speed being used when this attribute is set to 0.
+            Please note that this capability requires an up to date firmware
+            (#692 or later).
+
+        .. note::
+
             In later firmwares, this attribute is limited by the value of the
             :attr:`framerate` attribute. For example, if framerate is set to
             30fps, the shutter speed cannot be slower than 33,333µs (1/fps).
+        """)
+
+    def _get_settings(self):
+        """
+        Returns the current camera settings as an MMAL structure.
+
+        This is a utility method for :meth:`_get_exposure_speed`,
+        :meth:`_get_analog_gain`, etc. all of which rely on the
+        MMAL_PARAMETER_CAMERA_SETTINGS structure to determine their values.
+        """
+        mp = mmal.MMAL_PARAMETER_CAMERA_SETTINGS_T(
+            mmal.MMAL_PARAMETER_HEADER_T(
+                mmal.MMAL_PARAMETER_CAMERA_SETTINGS,
+                ct.sizeof(mmal.MMAL_PARAMETER_CAMERA_SETTINGS_T)
+                ))
+        mmal_check(
+            mmal.mmal_port_parameter_get(self._camera[0].control, mp.hdr),
+            prefix="Failed to get camera settings")
+        return mp
+
+    def _get_exposure_speed(self):
+        self._check_camera_open()
+        return self._get_settings().exposure
+    exposure_speed = property(
+        _get_exposure_speed, doc="""
+        Retrieves the current shutter speed of the camera.
+
+        When queried, this property returns the shutter speed currently being
+        used by the camera. If you have set :attr:`shutter_speed` to a non-zero
+        value, then :attr:`exposure_speed` and :attr:`shutter_speed` should be
+        equal. However, if :attr:`shutter_speed` is set to 0 (auto), then you
+        can read the actual shutter speed being used from this attribute.  The
+        value is returned as an integer representing a number of microseconds.
+        This is a read-only property.
+        """)
+
+    def _get_analog_gain(self):
+        self._check_camera_open()
+        return to_fraction(self._get_settings().analog_gain)
+    analog_gain = property(
+        _get_analog_gain, doc="""
+        Retrieves the current analog gain of the camera.
+
+        When queried, this property returns the analog gain currently being
+        used by the camera. The value represents the analog gain of the sensor
+        prior to digital conversion. The value is returned as a
+        :class:`~fractions.Fraction` instance.
+        """)
+
+    def _get_digital_gain(self):
+        self._check_camera_open()
+        return to_fraction(self._get_settings().digital_gain)
+    digital_gain = property(
+        _get_digital_gain, doc="""
+        Retrieves the current digital gain of the camera.
+
+        When queried, this property returns the digital gain currently being
+        used by the camera. The value represents the digital gain the camera
+        applies after conversion of the sensor's analog output. The value is
+        returned as a :class:`~fractions.Fraction` instance.
         """)
 
     def _get_ISO(self):
@@ -2091,6 +2165,13 @@ class PiCamera(object):
         ISO can be adjusted while previews or recordings are in progress. The
         default value is 0 which means the ISO is automatically set according
         to image-taking conditions.
+
+        .. note::
+
+            You can query the :attr:`analog_gain` and :attr:`digital_gain`
+            attributes to determine the actual gains being used by the camera.
+            If both are 1.0 this equates to ISO 100.  Please note that this
+            capability requires an up to date firmware (#692 or later).
 
         .. note::
 
@@ -2322,17 +2403,12 @@ class PiCamera(object):
         """)
 
     def _get_awb_gains(self):
-        raise NotImplementedError
-        #self._check_camera_open()
-        #mp = mmal.MMAL_PARAMETER_AWB_GAINS_T(
-        #    mmal.MMAL_PARAMETER_HEADER_T(
-        #        mmal.MMAL_PARAMETER_CUSTOM_AWB_GAINS,
-        #        ct.sizeof(mmal.MMAL_PARAMETER_AWB_GAINS_T)
-        #        ))
-        #mmal_check(
-        #    mmal.mmal_port_parameter_get(self._camera[0].control, mp.hdr),
-        #    prefix="Failed to get auto-white-balance gains")
-        #return mp.r_gain, mp.b_gain
+        self._check_camera_open()
+        mp = self._get_settings()
+        return (
+            to_fraction(mp.awb_red_gain),
+            to_fraction(mp.awb_blue_gain),
+            )
     def _set_awb_gains(self, value):
         self._check_camera_open()
         try:
@@ -2355,7 +2431,12 @@ class PiCamera(object):
             mmal.mmal_port_parameter_set(self._camera[0].control, mp.hdr),
             prefix="Failed to set auto-white-balance gains")
     awb_gains = property(_get_awb_gains, _set_awb_gains, doc="""
-        Sets the auto-white-balance gains of the camera.
+        Gets or sets the auto-white-balance gains of the camera.
+
+        When queried, this attribute returns a tuple of values representing
+        the `(red, blue)` balance of the camera. The `red` and `blue` values
+        are returned :class:`~fractions.Fraction` instances. The values will
+        be between 0.0 and 8.0.
 
         When set, this attribute adjusts the camera's auto-white-balance gains.
         The property can be specified as a single value in which case both red
@@ -2368,8 +2449,7 @@ class PiCamera(object):
         .. note::
 
             This attribute only has an effect when :attr:`awb_mode` is set to
-            ``'off'``. The write-only nature of this attribute is a firmware
-            limitation.
+            ``'off'``.
         """)
 
     def _get_image_effect(self):

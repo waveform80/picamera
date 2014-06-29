@@ -39,6 +39,7 @@ str = type('')
 
 import picamera
 import pytest
+import time
 from fractions import Fraction
 
 
@@ -77,19 +78,37 @@ def boolean_attr(camera, attr):
         setattr(camera, attr, save_value)
 
 
+def test_analog_gain(camera, previewing):
+    # Just test the read-only property returns something sensible
+    assert 0.0 <= camera.analog_gain <= 8.0
+
 def test_awb_mode(camera, previewing):
     keyword_attr(camera, 'awb_mode', camera.AWB_MODES)
 
 def test_awb_gains(camera, previewing):
+
+    def check_gains(red, blue):
+        # The camera needs some time to let the AWB gains adjust
+        time.sleep(0.1)
+        # The gains we get back aren't absolutely precise, but they're
+        # close (+/- 0.05)
+        r, b = camera.awb_gains
+        assert red - 0.05 <= r <= red + 0.05
+        assert blue - 0.05 <= b <= blue + 0.05
+
     save_mode = camera.awb_mode
     try:
-        # XXX Workaround: can't use numeric_attr here as awb_mode is write-only
+        # Can't use numeric_attr here as awb_mode is a (red, blue) tuple
         camera.awb_mode = 'off'
-        for i in range (9):
+        for i in range (1, 9):
             camera.awb_gains = i
+            check_gains(i, i)
         camera.awb_gains = 1.5
-        camera.awb_gains = (1.5, 1.5)
+        check_gains(1.5, 1.5)
+        camera.awb_gains = (0.5, 0.5)
+        check_gains(0.5, 0.5)
         camera.awb_gains = (Fraction(16, 10), 1.9)
+        check_gains(1.6, 1.9)
         with pytest.raises(picamera.PiCameraError):
             camera.awb_gains = Fraction(20, 1)
     finally:
@@ -118,6 +137,10 @@ def test_color_effects(camera, previewing):
 
 def test_contrast(camera, previewing):
     numeric_attr(camera, 'contrast', -100, 100)
+
+def test_digital_gain(camera, previewing):
+    # Just test the read-only property returns something sensible
+    assert 0.0 <= camera.digital_gain <= 8.0
 
 def test_exposure_compensation(camera, previewing):
     numeric_attr(camera, 'exposure_compensation', -25, 25)

@@ -515,7 +515,8 @@ class MMAL_PARAMETER_LOGGING_T(ct.Structure):
     MMAL_PARAMETER_SW_SATURATION_DISABLE,
     MMAL_PARAMETER_SHUTTER_SPEED,
     MMAL_PARAMETER_CUSTOM_AWB_GAINS,
-) = range(MMAL_PARAMETER_GROUP_CAMERA, MMAL_PARAMETER_GROUP_CAMERA + 69)
+    MMAL_PARAMETER_CAMERA_SETTINGS,
+) = range(MMAL_PARAMETER_GROUP_CAMERA, MMAL_PARAMETER_GROUP_CAMERA + 70)
 
 class MMAL_PARAMETER_THUMBNAIL_CONFIG_T(ct.Structure):
     _fields_ = [
@@ -997,6 +998,17 @@ class MMAL_PARAMETER_AWB_GAINS_T(ct.Structure):
         ('hdr',    MMAL_PARAMETER_HEADER_T),
         ('r_gain', MMAL_RATIONAL_T),
         ('b_gain', MMAL_RATIONAL_T),
+        ]
+
+class MMAL_PARAMETER_CAMERA_SETTINGS_T(ct.Structure):
+    _fields_ = [
+        ('hdr',            MMAL_PARAMETER_HEADER_T),
+        ('exposure',       ct.c_uint32),
+        ('analog_gain',    MMAL_RATIONAL_T),
+        ('digital_gain',   MMAL_RATIONAL_T),
+        ('awb_red_gain',   MMAL_RATIONAL_T),
+        ('awb_blue_gain',  MMAL_RATIONAL_T),
+        ('focus_position', ct.c_uint32),
         ]
 
 # mmal_parameters_video.h ####################################################
