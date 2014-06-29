@@ -146,10 +146,7 @@ def test_exposure_compensation(camera, previewing):
     numeric_attr(camera, 'exposure_compensation', -25, 25)
 
 def test_exposure_mode(camera, previewing):
-    # XXX Workaround: setting mode verylong can cause locks so exclude it from
-    # tests for now
-    keyword_attr(camera, 'exposure_mode', (
-        e for e in camera.EXPOSURE_MODES if e != 'verylong'))
+    keyword_attr(camera, 'exposure_mode', camera.EXPOSURE_MODES)
 
 def test_image_effect(camera, previewing):
     # XXX Workaround: setting posterize, whiteboard and blackboard doesn't
