@@ -328,20 +328,22 @@ class CircularIO(io.IOBase):
 
 
 class PiCameraDequeHack(deque):
-    def __init__(self, camera):
+    def __init__(self, camera, splitter_port=1):
         super(PiCameraDequeHack, self).__init__()
         self.camera = camera
+        self.splitter_port = splitter_port
         self._last_frame = None
 
     def append(self, item):
+        encoder = self.camera._encoders[self.splitter_port]
         if self._last_frame:
-            assert self._last_frame <= self.camera.frame.index
-            if self._last_frame == self.camera.frame.index:
+            assert self._last_frame <= encoder.frame.index
+            if self._last_frame == encoder.frame.index:
                 return super(PiCameraDequeHack, self).append((item, None))
         # If the chunk being appended is the end of a new frame, include
         # the frame's metadata from the camera
-        self._last_frame = self.camera.frame.index
-        return super(PiCameraDequeHack, self).append((item, self.camera.frame))
+        self._last_frame = encoder.frame.index
+        return super(PiCameraDequeHack, self).append((item, encoder.frame))
 
     def pop(self):
         return super(PiCameraDequeHack, self).pop()[0]
@@ -411,8 +413,24 @@ class PiCameraCircularIO(CircularIO):
     ``17000000``, or 17Mbps, which is also the default bitrate used for video
     recording by :class:`PiCamera`). You cannot specify both *size* and
     *seconds*.
+
+    The *splitter_port* parameter specifies the port of the built-in splitter
+    that the video encoder will be attached to. This defaults to ``1`` and most
+    users will have no need to specify anything different. If you do specify
+    something else, ensure it is equal to the *splitter_port* parameter of the
+    corresponding call to :meth:`PiCamera.start_recording`. For example::
+
+        import picamera
+
+        with picamera.PiCamera() as camera:
+            with picamera.PiCameraCircularIO(camera, splitter_port=2) as stream:
+                camera.start_recording(stream, format='h264', splitter_port=2)
+                camera.wait_recording(10, splitter_port=2)
+                camera.stop_recording(splitter_port=2)
     """
-    def __init__(self, camera, size=None, seconds=None, bitrate=17000000):
+    def __init__(
+            self, camera, size=None, seconds=None, bitrate=17000000,
+            splitter_port=1):
         if size is None and seconds is None:
             raise PiCameraValueError('You must specify either size, or seconds')
         if size is not None and seconds is not None:

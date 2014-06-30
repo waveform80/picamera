@@ -1687,18 +1687,13 @@ class PiCamera(object):
         """)
 
     def _get_frame(self):
-        # XXX This is rather messy; see if we can't come up with a better
-        # design in 2.0
-        if not self._encoders:
-            raise PiCameraRuntimeError(
-                "Cannot query frame information when camera is not recording")
-        elif len(self._encoders) == 1:
-            return next(iter(self._encoders.values())).frame
-        else:
-            return {
-                    port: encoder.frame
-                    for (port, encoder) in self._encoders.items()
-                    }
+        for e in self._encoders.values():
+            try:
+                return e.frame
+            except AttributeError:
+                pass
+        raise PiCameraRuntimeError(
+            "Cannot query frame information when camera is not recording")
     frame = property(_get_frame, doc="""
         Retrieves information about the current frame recorded from the camera.
 
@@ -1709,9 +1704,9 @@ class PiCamera(object):
 
         If multiple video recordings are currently in progress (after multiple
         calls to :meth:`start_recording` with different values for the
-        ``splitter_port`` parameter), this attribute will return a
-        :class:`dict` mapping active port numbers to a :class:`PiVideoFrame`
-        tuples.
+        ``splitter_port`` parameter), which encoder's frame information is
+        returned is arbitrary. If you require information from a specific
+        encoder, you will need to extract it from :attr:`_encoders` explicitly.
 
         Querying this property when the camera is not recording will result in
         an exception.
