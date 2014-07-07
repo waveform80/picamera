@@ -370,9 +370,12 @@ class PiCamera(object):
         # Get screen resolution
         w = ct.c_uint32()
         h = ct.c_uint32()
-        bcm_host.graphics_get_display_size(0, w, h)
-        w = int(w.value)
-        h = int(h.value)
+        if bcm_host.graphics_get_display_size(0, w, h) == -1:
+            w = 1280
+            h = 720
+        else:
+            w = int(w.value)
+            h = int(h.value)
         cc = self._camera_config
         cc.max_stills_w = w
         cc.max_stills_h = h
