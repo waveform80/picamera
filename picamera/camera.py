@@ -1296,7 +1296,7 @@ class PiCamera(object):
 
     def capture_sequence(
             self, outputs, format='jpeg', use_video_port=False, resize=None,
-            splitter_port=0, **options):
+            splitter_port=0, burst=False, **options):
         """
         Capture a sequence of consecutive images from the camera.
 
@@ -1310,6 +1310,16 @@ class PiCamera(object):
         *options* parameters are the same as in :meth:`capture`, but *format*
         defaults to ``'jpeg'``.  The format is **not** derived from the
         filenames in *outputs* by this method.
+
+        If *use_video_port* is ``False`` (the default), the *burst* parameter
+        can be used to make still port captures faster.  Specifically, this
+        prevents the preview from switching resolutions between captures which
+        significantly speeds up consecutive captures from the still port. The
+        downside is that this mode is currently has several bugs; the major
+        issue is that if captures are performed too quickly some frames will
+        come back severely underexposed. It is recommended that users avoid the
+        *burst* parameter unless they absolutely require it and are prepared to
+        work around such issues.
 
         For example, to capture 3 consecutive images::
 
@@ -1350,6 +1360,9 @@ class PiCamera(object):
         .. versionchanged:: 1.3
             The *splitter_port* parameter was added
         """
+        if use_video_port and burst:
+            raise PiCameraRuntimeError(
+                'Burst is only valid with still port captures')
         with self._encoders_lock:
             camera_port, output_port = self._get_ports(use_video_port, splitter_port)
             format = self._get_image_format('', format)
@@ -1369,11 +1382,27 @@ class PiCamera(object):
                 encoder.start(outputs)
                 encoder.wait()
             else:
-                for output in outputs:
-                    encoder.start(output)
-                    if not encoder.wait(self.CAPTURE_TIMEOUT):
-                        raise PiCameraRuntimeError(
-                            'Timed out waiting for capture to end')
+                if burst:
+                    mmal_check(
+                        mmal.mmal_port_parameter_set_boolean(
+                            camera_port,
+                            mmal.MMAL_PARAMETER_CAMERA_BURST_CAPTURE,
+                            mmal.MMAL_TRUE),
+                        prefix="Failed to set burst capture")
+                try:
+                    for output in outputs:
+                        encoder.start(output)
+                        if not encoder.wait(self.CAPTURE_TIMEOUT):
+                            raise PiCameraRuntimeError(
+                                'Timed out waiting for capture to end')
+                finally:
+                    if burst:
+                        mmal_check(
+                            mmal.mmal_port_parameter_set_boolean(
+                                camera_port,
+                                mmal.MMAL_PARAMETER_CAMERA_BURST_CAPTURE,
+                                mmal.MMAL_FALSE),
+                            prefix="Failed to set burst capture")
         finally:
             with self._encoders_lock:
                 if use_video_port:
@@ -1382,7 +1411,7 @@ class PiCamera(object):
 
     def capture_continuous(
             self, output, format=None, use_video_port=False, resize=None,
-            splitter_port=0, **options):
+            splitter_port=0, burst=False, **options):
         """
         Capture images continuously from the camera as an infinite iterator.
 
@@ -1435,6 +1464,16 @@ class PiCamera(object):
         The *format*, *use_video_port*, *splitter_port*, *resize*, and
         *options* parameters are the same as in :meth:`capture`.
 
+        If *use_video_port* is ``False`` (the default), the *burst* parameter
+        can be used to make still port captures faster.  Specifically, this
+        prevents the preview from switching resolutions between captures which
+        significantly speeds up consecutive captures from the still port. The
+        downside is that this mode is currently has several bugs; the major
+        issue is that if captures are performed too quickly some frames will
+        come back severely underexposed. It is recommended that users avoid the
+        *burst* parameter unless they absolutely require it and are prepared to
+        work around such issues.
+
         For example, to capture 60 images with a one second delay between them,
         writing the output to a series of JPEG files named image01.jpg,
         image02.jpg, etc. one could do the following::
@@ -1476,6 +1515,9 @@ class PiCamera(object):
         .. versionchanged:: 1.3
             The *splitter_port* parameter was added
         """
+        if use_video_port and burst:
+            raise PiCameraRuntimeError(
+                'Burst is only valid with still port captures')
         with self._encoders_lock:
             camera_port, output_port = self._get_ports(use_video_port, splitter_port)
             format = self._get_image_format(output, format)
@@ -1488,34 +1530,51 @@ class PiCamera(object):
             if use_video_port:
                 self._encoders[splitter_port] = encoder
         try:
-            if isinstance(output, bytes):
-                # If we're fed a bytes string, assume it's UTF-8 encoded and
-                # convert it to Unicode. Technically this is wrong
-                # (file-systems use all sorts of encodings), but UTF-8 is a
-                # reasonable default and this keeps compatibility with Python 2
-                # simple although it breaks the edge cases of non-UTF-8 encoded
-                # bytes strings with non-UTF-8 encoded file-systems
-                output = output.decode('utf-8')
-            if isinstance(output, str):
-                counter = 1
-                while True:
-                    filename = output.format(
-                        counter=counter,
-                        timestamp=datetime.datetime.now(),
-                        )
-                    encoder.start(filename)
-                    if not encoder.wait(self.CAPTURE_TIMEOUT):
-                        raise PiCameraRuntimeError(
-                            'Timed out waiting for capture to end')
-                    yield filename
-                    counter += 1
-            else:
-                while True:
-                    encoder.start(output)
-                    if not encoder.wait(self.CAPTURE_TIMEOUT):
-                        raise PiCameraRuntimeError(
-                            'Timed out waiting for capture to end')
-                    yield output
+            if burst:
+                mmal_check(
+                    mmal.mmal_port_parameter_set_boolean(
+                        camera_port,
+                        mmal.MMAL_PARAMETER_CAMERA_BURST_CAPTURE,
+                        mmal.MMAL_TRUE),
+                    prefix="Failed to set burst capture")
+            try:
+                if isinstance(output, bytes):
+                    # If we're fed a bytes string, assume it's UTF-8 encoded
+                    # and convert it to Unicode. Technically this is wrong
+                    # (file-systems use all sorts of encodings), but UTF-8 is a
+                    # reasonable default and this keeps compatibility with
+                    # Python 2 simple although it breaks the edge cases of
+                    # non-UTF-8 encoded bytes strings with non-UTF-8 encoded
+                    # file-systems
+                    output = output.decode('utf-8')
+                if isinstance(output, str):
+                    counter = 1
+                    while True:
+                        filename = output.format(
+                            counter=counter,
+                            timestamp=datetime.datetime.now(),
+                            )
+                        encoder.start(filename)
+                        if not encoder.wait(self.CAPTURE_TIMEOUT):
+                            raise PiCameraRuntimeError(
+                                'Timed out waiting for capture to end')
+                        yield filename
+                        counter += 1
+                else:
+                    while True:
+                        encoder.start(output)
+                        if not encoder.wait(self.CAPTURE_TIMEOUT):
+                            raise PiCameraRuntimeError(
+                                'Timed out waiting for capture to end')
+                        yield output
+            finally:
+                if burst:
+                    mmal_check(
+                        mmal.mmal_port_parameter_set_boolean(
+                            camera_port,
+                            mmal.MMAL_PARAMETER_CAMERA_BURST_CAPTURE,
+                            mmal.MMAL_FALSE),
+                        prefix="Failed to set burst capture")
         finally:
             with self._encoders_lock:
                 if use_video_port:

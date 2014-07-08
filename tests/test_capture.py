@@ -84,6 +84,10 @@ def raw_format(request):
 def use_video_port(request):
     return request.param
 
+@pytest.fixture(params=(False, True))
+def burst(request):
+    return request.param
+
 
 def test_capture_to_file(
         camera, previewing, mode, filename_format_options, use_video_port):
@@ -114,48 +118,62 @@ def test_capture_to_stream(
     verify_image(stream, format, resolution)
 
 def test_capture_continuous_to_file(
-        camera, mode, tmpdir, use_video_port):
+        camera, mode, tmpdir, use_video_port, burst):
     resolution, framerate = mode
-    for i, filename in enumerate(
-            camera.capture_continuous(os.path.join(
-                str(tmpdir), 'image{counter:02d}.jpg'),
-                use_video_port=use_video_port)):
-        verify_image(filename, 'jpeg', resolution)
-        if i == 3:
-            break
+    try:
+        for i, filename in enumerate(
+                camera.capture_continuous(os.path.join(
+                    str(tmpdir), 'image{counter:02d}.jpg'),
+                    use_video_port=use_video_port, burst=burst)):
+            verify_image(filename, 'jpeg', resolution)
+            if i == 3:
+                break
+    except picamera.PiCameraRuntimeError:
+        assert use_video_port and burst
 
 def test_capture_continuous_to_stream(
-        camera, mode, use_video_port):
+        camera, mode, use_video_port, burst):
     resolution, framerate = mode
     stream = io.BytesIO()
-    for i, foo in enumerate(
-            camera.capture_continuous(stream, format='jpeg',
-                use_video_port=use_video_port)):
-        stream.truncate()
-        stream.seek(0)
-        verify_image(stream, 'jpeg', resolution)
-        stream.seek(0)
-        if i == 3:
-            break
+    try:
+        for i, foo in enumerate(
+                camera.capture_continuous(stream, format='jpeg',
+                    use_video_port=use_video_port, burst=burst)):
+            stream.truncate()
+            stream.seek(0)
+            verify_image(stream, 'jpeg', resolution)
+            stream.seek(0)
+            if i == 3:
+                break
+    except picamera.PiCameraRuntimeError:
+        assert use_video_port and burst
 
 def test_capture_sequence_to_file(
-        camera, mode, tmpdir, use_video_port):
+        camera, mode, tmpdir, use_video_port, burst):
     resolution, framerate = mode
     filenames = [os.path.join(str(tmpdir), 'image%d.jpg' % i) for i in range(3)]
-    camera.capture_sequence(filenames, use_video_port=use_video_port)
-    for filename in filenames:
-        verify_image(filename, 'jpeg', resolution)
+    try:
+        camera.capture_sequence(
+                filenames, use_video_port=use_video_port, burst=burst)
+        for filename in filenames:
+            verify_image(filename, 'jpeg', resolution)
+    except picamera.PiCameraRuntimeError:
+        assert use_video_port and burst
 
 def test_capture_sequence_to_stream(
-        camera, mode, use_video_port):
+        camera, mode, use_video_port, burst):
     resolution, framerate = mode
     streams = [io.BytesIO() for i in range(3)]
-    camera.capture_sequence(streams, use_video_port=use_video_port)
-    for stream in streams:
-        stream.seek(0)
-        verify_image(stream, 'jpeg', resolution)
+    try:
+        camera.capture_sequence(
+                streams, use_video_port=use_video_port, burst=burst)
+        for stream in streams:
+            stream.seek(0)
+            verify_image(stream, 'jpeg', resolution)
+    except picamera.PiCameraRuntimeError:
+        assert use_video_port and burst
 
-def test_capture_raw(camera, mode, raw_format, use_video_port):
+def test_capture_raw(camera, mode, raw_format, use_video_port, burst):
     resolution, framerate = mode
     if resolution == (2592, 1944) and raw_format in ('rgba', 'bgra') and not use_video_port:
         pytest.xfail('Camera runs out of memory with this combination')
@@ -163,26 +181,35 @@ def test_capture_raw(camera, mode, raw_format, use_video_port):
     camera.capture(stream, format=raw_format, use_video_port=use_video_port)
     verify_raw(stream, raw_format, resolution)
 
-def test_capture_continuous_raw(camera, mode, raw_format, use_video_port):
+def test_capture_continuous_raw(camera, mode, raw_format, use_video_port, burst):
     resolution, framerate = mode
     if resolution == (2592, 1944) and raw_format in ('rgba', 'bgra') and not use_video_port:
         pytest.xfail('Camera runs out of memory with this combination')
-    for i, stream in enumerate(camera.capture_continuous(
-            io.BytesIO(), format=raw_format, use_video_port=use_video_port)):
-        if i == 3:
-            break
-        verify_raw(stream, raw_format, resolution)
-        stream.seek(0)
-        stream.truncate()
+    try:
+        for i, stream in enumerate(camera.capture_continuous(
+                io.BytesIO(), format=raw_format, use_video_port=use_video_port,
+                burst=burst)):
+            if i == 3:
+                break
+            verify_raw(stream, raw_format, resolution)
+            stream.seek(0)
+            stream.truncate()
+    except picamera.PiCameraRuntimeError:
+        assert use_video_port and burst
 
-def test_capture_sequence_raw(camera, mode, raw_format, use_video_port):
+def test_capture_sequence_raw(camera, mode, raw_format, use_video_port, burst):
     resolution, framerate = mode
     if resolution == (2592, 1944) and raw_format in ('rgba', 'bgra') and not use_video_port:
         pytest.xfail('Camera runs out of memory with this combination')
     streams = [io.BytesIO() for i in range(3)]
-    camera.capture_sequence(streams, format=raw_format, use_video_port=use_video_port)
-    for stream in streams:
-        verify_raw(stream, raw_format, resolution)
+    try:
+        camera.capture_sequence(
+                streams, format=raw_format, use_video_port=use_video_port,
+                burst=burst)
+        for stream in streams:
+            verify_raw(stream, raw_format, resolution)
+    except picamera.PiCameraRuntimeError:
+        assert use_video_port and burst
 
 def test_capture_bayer(camera, mode):
     stream = io.BytesIO()
