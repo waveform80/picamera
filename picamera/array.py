@@ -113,10 +113,11 @@ class PiBaseOutput(object):
     :meth:`flush` method is called which in descendent classes is expected to
     construct a `numpy`_ array from the buffered data.
     """
-    def __init__(self, camera):
+    def __init__(self, camera, size=None):
         super(PiBaseOutput, self).__init__()
         self.closed = False
         self.camera = camera
+        self.size = size
         self.buffer = b''
         self.array = None
 
@@ -240,11 +241,26 @@ class PiRGBArray(PiBaseOutput):
                 camera.capture(output, 'rgb')
                 print('Captured %dx%d image' % (
                         output.array.shape[1], output.array.shape[0]))
+
+    If you are using the GPU resizer when capturing (with the *resize*
+    parameter of the various :meth:`~picamera.PiCamera.capture` methods),
+    specify the resized resolution as the optional *size* parameter when
+    constructing the array output::
+
+        import picamera
+        import picamera.array
+
+        with picamera.PiCamera() as camera:
+            camera.resolution = (1280, 720)
+            with picamera.array.PiRGBArray(camera, size=(640, 360)) as output:
+                camera.capture(output, 'rgb', resize=(640, 360))
+                print('Captured %dx%d image' % (
+                        output.array.shape[1], output.array.shape[0]))
     """
 
     def flush(self):
         super(PiRGBArray, self).flush()
-        width, height = self.camera.resolution
+        width, height = self.size or self.camera.resolution
         fwidth = (width + 31) // 32 * 32
         fheight = (height + 15) // 16 * 16
         if len(self.buffer) != (fwidth * fheight * 3):
@@ -285,17 +301,32 @@ class PiYUVArray(PiBaseOutput):
                 print(output.array.shape)
                 print(output.rgb_array.shape)
 
+    If you are using the GPU resizer when capturing (with the *resize*
+    parameter of the various :meth:`~picamera.PiCamera.capture` methods),
+    specify the resized resolution as the optional *size* parameter when
+    constructing the array output::
+
+        import picamera
+        import picamera.array
+
+        with picamera.PiCamera() as camera:
+            camera.resolution = (1280, 720)
+            with picamera.array.PiYUVArray(camera, size=(640, 360)) as output:
+                camera.capture(output, 'yuv', resize=(640, 360))
+                print('Captured %dx%d image' % (
+                        output.array.shape[1], output.array.shape[0]))
+
     .. _ITU-R BT.601: http://en.wikipedia.org/wiki/YCbCr#ITU-R_BT.601_conversion
     """
 
-    def __init__(self, camera):
-        super(PiYUVArray, self).__init__(camera)
+    def __init__(self, camera, size=None):
+        super(PiYUVArray, self).__init__(camera, size)
         self._rgb = None
 
     def flush(self):
         super(PiYUVArray, self).flush()
         self._rgb = None
-        width, height = self.camera.resolution
+        width, height = self.size or self.camera.resolution
         fwidth = (width + 31) // 32 * 32
         fheight = (height + 15) // 16 * 16
         y_len = fwidth * fheight
@@ -355,8 +386,10 @@ class PiBayerArray(PiBaseOutput):
                 print(output.array.shape)
 
     Note that Bayer data is *always* full resolution, so the resulting array
-    always has the shape (1944, 2592, 3). As the sensor records 10-bit values,
-    the array uses the unsigned 16-bit integer data type.
+    always has the shape (1944, 2592, 3); this also implies that the optional
+    *size* parameter (for specifying a resizer resolution) is not available
+    with this array class. As the sensor records 10-bit values, the array uses
+    the unsigned 16-bit integer data type.
 
     By default, `de-mosaicing`_ is **not** performed; if the resulting array is
     viewed it will therefore appear dark and too green (due to the green bias
@@ -381,7 +414,7 @@ class PiBayerArray(PiBaseOutput):
     """
 
     def __init__(self, camera):
-        super(PiBayerArray, self).__init__(camera)
+        super(PiBayerArray, self).__init__(camera, size=None)
         self._demo = None
 
     def flush(self):
@@ -492,8 +525,29 @@ class PiMotionArray(PiBaseOutput):
                 print('Frames are %dx%d blocks big' % (
                     output.array.shape[2], output.array.shape[1]))
 
-    Note that this class is not suitable for real-time analysis of motion
-    vector data. See the :class:`PiMotionAnalysis` class instead.
+    If you are using the GPU resizer with your recording, use the optional
+    *size* parameter to specify the resizer's output resolution when
+    constructing the array::
+
+        import picamera
+        import picamera.array
+
+        with picamera.PiCamera() as camera:
+            camera.resolution = (640, 480)
+            with picamera.array.PiMotionArray(camera, size=(320, 240)) as output:
+                camera.start_recording(
+                    '/dev/null', format='h264', motion_output=output,
+                    resize=(320, 240))
+                camera.wait_recording(30)
+                camera.stop_recording()
+                print('Captured %d frames' % output.array.shape[0])
+                print('Frames are %dx%d blocks big' % (
+                    output.array.shape[2], output.array.shape[1]))
+
+    .. note::
+
+        This class is not suitable for real-time analysis of motion vector
+        data. See the :class:`PiMotionAnalysis` class instead.
 
     .. _macro-blocks: http://en.wikipedia.org/wiki/Macroblock
     .. _sum of absolute differences: http://en.wikipedia.org/wiki/Sum_of_absolute_differences
@@ -501,7 +555,7 @@ class PiMotionArray(PiBaseOutput):
 
     def flush(self):
         super(PiMotionArray, self).flush()
-        width, height = self.camera.resolution
+        width, height = self.size or self.camera.resolution
         cols = ((width + 15) // 16) + 1
         rows = (height + 15) // 16
         frames = len(self.buffer) // (cols * rows * motion_dtype.itemsize)
@@ -563,16 +617,20 @@ class PiMotionAnalysis(PiBaseOutput):
                       '/dev/null', format='h264', motion_output=output)
                 camera.wait_recording(30)
                 camera.stop_recording()
+
+    You can use the optional *size* parameter to specify the output resolution
+    of the GPU resizer, if you are using the *resize* parameter of
+    :meth:`~picamera.PiCamera.start_recording`.
     """
 
-    def __init__(self, camera):
-        super(PiMotionAnalysis, self).__init__(camera)
+    def __init__(self, camera, size=None):
+        super(PiMotionAnalysis, self).__init__(camera, size)
         self.cols = None
         self.rows = None
 
     def write(self, b):
         if self.cols is None:
-            width, height = self.camera.resolution
+            width, height = self.size or self.camera.resolution
             self.cols = ((width + 15) // 16) + 1
             self.rows = (height + 15) // 16
         self.analyse(

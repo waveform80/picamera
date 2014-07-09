@@ -71,6 +71,14 @@ def test_rgb_array2(fake_cam):
             stream.write(b'\x00' * 10)
             stream.flush()
 
+def test_rgb_array3(camera, mode):
+    resolution, framerate = mode
+    resize = (resolution[0] // 2, resolution[1] // 2)
+    with picamera.array.PiRGBArray(camera, size=resize) as stream:
+        camera.capture(stream, 'rgb', resize=resize)
+        assert stream.array.dtype == np.uint8
+        assert stream.array.shape == (resize[1], resize[0], 3)
+
 def test_yuv_array1(camera, mode):
     resolution, framerate = mode
     if resolution == (2592, 1944):
@@ -97,13 +105,23 @@ def test_yuv_array2(fake_cam):
             stream.write(b'\x00' * 10)
             stream.flush()
 
+def test_yuv_array3(camera, mode):
+    resolution, framerate = mode
+    resize = (resolution[0] // 2, resolution[1] // 2)
+    with picamera.array.PiYUVArray(camera, size=resize) as stream:
+        camera.capture(stream, 'yuv', resize=resize)
+        assert stream.array.dtype == np.uint8
+        assert stream.array.shape == (resize[1], resize[0], 3)
+        assert stream.rgb_array.dtype == np.uint8
+        assert stream.rgb_array.shape == (resize[1], resize[0], 3)
+
 def test_bayer_array(camera, mode):
     with picamera.array.PiBayerArray(camera) as stream:
         camera.capture(stream, 'jpeg', bayer=True)
         # Bayer data is always full res
         assert stream.array.shape == (1944, 2592, 3)
 
-def test_motion_array(camera, mode):
+def test_motion_array1(camera, mode):
     resolution, framerate = mode
     if resolution == (2592, 1944):
         pytest.xfail('Cannot encode video at max resolution')
@@ -118,7 +136,22 @@ def test_motion_array(camera, mode):
         # of the expected number
         assert framerate  - 5 <= stream.array.shape[0] <= framerate + 5
 
-def test_motion_analysis(camera, mode):
+def test_motion_array2(camera, mode):
+    resolution, framerate = mode
+    resize = (resolution[0] // 2, resolution[1] // 2)
+    with picamera.array.PiMotionArray(camera, size=resize) as stream:
+        camera.start_recording(
+            '/dev/null', 'h264', motion_output=stream, resize=resize)
+        camera.wait_recording(1)
+        camera.stop_recording()
+        width = ((resize[0] + 15) // 16) + 1
+        height = (resize[1] + 15) // 16
+        assert stream.array.shape[1:] == (height, width)
+        # Number of frames isn't going to be exact - make sure we're within 10
+        # of the expected number
+        assert framerate  - 5 <= stream.array.shape[0] <= framerate + 5
+
+def test_motion_analysis1(camera, mode):
     resolution, framerate = mode
     if resolution == (2592, 1944):
         pytest.xfail('Cannot encode video at max resolution')
@@ -129,6 +162,20 @@ def test_motion_analysis(camera, mode):
             assert a.shape == (height, width)
     with MATest(camera) as stream:
         camera.start_recording('/dev/null', 'h264', motion_output=stream)
+        camera.wait_recording(1)
+        camera.stop_recording()
+
+def test_motion_analysis1(camera, mode):
+    resolution, framerate = mode
+    resize = (resolution[0] // 2, resolution[1] // 2)
+    width = ((resize[0] + 15) // 16) + 1
+    height = (resize[1] + 15) // 16
+    class MATest(picamera.array.PiMotionAnalysis):
+        def analyse(self, a):
+            assert a.shape == (height, width)
+    with MATest(camera, size=resize) as stream:
+        camera.start_recording(
+            '/dev/null', 'h264', motion_output=stream, resize=resize)
         camera.wait_recording(1)
         camera.stop_recording()
 
