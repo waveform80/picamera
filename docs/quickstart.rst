@@ -62,12 +62,18 @@ a recording to a disk file::
         camera.stop_recording()
         camera.stop_preview()
 
-Note that :meth:`~picamera.PiCamera.wait_recording` is used above instead of
-:func:`time.sleep`. This method checks for errors (e.g. out of disk space)
-while the recording is running and raises an exception if one occurs. If
-:func:`time.sleep` was used instead the exception would be raised by
-:meth:`~picamera.PiCamera.stop_recording` but only after the full waiting time
-had run.
+The camera's default resolution is the display's resolution. If the display has
+been disabled (e.g. with `tvservice -o`), then the default resolution is
+1280x720.
+
+.. note::
+
+    Note that :meth:`~picamera.PiCamera.wait_recording` is used above instead
+    of :func:`time.sleep`. This method checks for errors (e.g. out of disk
+    space) while the recording is running and raises an exception if one
+    occurs. If :func:`time.sleep` was used instead the exception would be
+    raised by :meth:`~picamera.PiCamera.stop_recording` but only after the full
+    waiting time had run.
 
 This example demonstrates starting a preview, setting some parameters
 and then capturing an image while the preview is running::

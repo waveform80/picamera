@@ -157,7 +157,10 @@ class PiCamera(object):
     Upon construction, this class initializes the camera. As there is only a
     single camera supported by the Raspberry Pi, this means that only a single
     instance of this class can exist at any given time (it is effectively a
-    singleton class although it is not implemented as such).
+    singleton class although it is not implemented as such). The
+    :attr:`resolution` of the camera is initially set to the display's
+    resolution unless the display has been disabled (e.g. with `tvservice -o`)
+    in which case a default of 1280x720 is used.
 
     No preview or recording is started automatically upon construction.  Use
     the :meth:`capture` method to capture images, the :meth:`start_recording`
@@ -1890,7 +1893,8 @@ class PiCamera(object):
         closed, and no recording must be active when the property is set.
 
         The property defaults to the Pi's currently configured display
-        resolution.
+        resolution unless the display has been disabled (with `tvservice -o`)
+        in which case it defaults to 1280x720 (720p).
 
         .. note::
 
