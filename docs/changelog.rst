@@ -5,6 +5,53 @@ Change log
 ==========
 
 
+Release 1.6 (2014-07-21)
+========================
+
+1.6 is half bug fixes, half new features:
+
+* The :attr:`~picamera.PiCamera.awb_gains` attribute is no longer write-only;
+  you can now read it to determine the red/blue balance that the camera is
+  using (`#98`_)
+* The new read-only :attr:`~picamera.PiCamera.exposure_speed` attribute will
+  tell you the shutter speed the camera's auto-exposure has determined, or the
+  shutter speed you've forced with a non-zero value of
+  :attr:`~picamera.PiCamera.shutter_speed` (`#98`_)
+* The new read-only :attr:`~picamera.PiCamera.analog_gain` and
+  :attr:`~picamera.PiCamera.digital_gain` attributes can be used to determine
+  the amount of gain the camera is applying at a couple of crucial points of
+  the image processing pipeline (`#98`_)
+* The new :attr:`~picamera.PiCamera.drc_strength` attribute can be used to
+  query and set the amount of dynamic range compression the camera will apply
+  to its output (`#110`_)
+* The `intra_period` parameter for :meth:`~picamera.PiCamera.start_recording`
+  can now be set to `0` (which means "produce one initial I-frame, then just
+  P-frames") (`#117`_)
+* The `burst` parameter was added to the various
+  :meth:`~picamera.PiCamera.capture` methods; users are strongly advised to
+  read the cautions in the docs before relying on this parameter (`#115`_)
+* One of the advanced recipes in the manual ("splitting to/from a circular
+  stream") failed under 1.5 due to a lack of splitter-port support in the
+  circular I/O stream class. This has now been rectified by adding a
+  `splitter_port` parameter to the constructor of
+  :class:`~picamera.PiCameraCircularIO` (`#109`_)
+* Similarly, the :mod:`array extensions <picamera.array>` introduced in 1.5
+  failed to work when resizers were present in the pipeline. This has been
+  fixed by adding a `size` parameter to the constructor of all the custom
+  output classes defined in that module (`#121`_)
+* A bug that caused picamera to fail when the display was disabled has been
+  squased (`#120`_)
+
+As always, many thanks to the community for another great set of bug reports!
+
+.. _#98: https://github.com/waveform80/picamera/issues/98
+.. _#109: https://github.com/waveform80/picamera/issues/109
+.. _#110: https://github.com/waveform80/picamera/issues/110
+.. _#115: https://github.com/waveform80/picamera/issues/115
+.. _#117: https://github.com/waveform80/picamera/issues/117
+.. _#120: https://github.com/waveform80/picamera/issues/120
+.. _#121: https://github.com/waveform80/picamera/issues/121
+
 Release 1.5 (2014-06-11)
 ========================
 
