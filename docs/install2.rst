@@ -33,6 +33,12 @@ If you ever need to remove your installation::
 
     $ sudo apt-get remove python-picamera
 
+.. note::
+
+    If you are using a recent installation of Raspbian, you may find that the
+    python-picamera package is already installed (it is included by default
+    in recent versions of NOOBS).
+
 
 .. _user_install2:
 
