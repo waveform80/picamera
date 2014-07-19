@@ -2168,6 +2168,8 @@ class PiCamera(object):
         can read the actual shutter speed being used from this attribute.  The
         value is returned as an integer representing a number of microseconds.
         This is a read-only property.
+
+        .. versionadded:: 1.6
         """)
 
     def _get_analog_gain(self):
@@ -2181,6 +2183,8 @@ class PiCamera(object):
         used by the camera. The value represents the analog gain of the sensor
         prior to digital conversion. The value is returned as a
         :class:`~fractions.Fraction` instance.
+
+        .. versionadded:: 1.6
         """)
 
     def _get_digital_gain(self):
@@ -2194,6 +2198,8 @@ class PiCamera(object):
         used by the camera. The value represents the digital gain the camera
         applies after conversion of the sensor's analog output. The value is
         returned as a :class:`~fractions.Fraction` instance.
+
+        .. versionadded:: 1.6
         """)
 
     def _get_drc_strength(self):
@@ -2236,8 +2242,10 @@ class PiCamera(object):
         in the table below:
 
         +--------------+----------------------------------------------------+
-        | ``'off'``    | Disables dynamic range compression                 |
+        | Value        | Description                                        |
         +==============+====================================================+
+        | ``'off'``    | Disables dynamic range compression                 |
+        +--------------+----------------------------------------------------+
         | ``'low'``    | Use a low level of dynamic range compression       |
         +--------------+----------------------------------------------------+
         | ``'medium'`` | Use a medium level of dynamic range compression    |
@@ -2249,6 +2257,8 @@ class PiCamera(object):
         can be obtained from the ``PiCamera.DRC_STRENGTHS`` attribute.
 
         .. _dynamic range compression: http://en.wikipedia.org/wiki/Gain_compression
+
+        .. versionadded:: 1.6
         """)
 
     def _get_ISO(self):
@@ -2579,6 +2589,10 @@ class PiCamera(object):
 
             This attribute only has an effect when :attr:`awb_mode` is set to
             ``'off'``.
+
+        .. versionchanged:: 1.6
+
+            Prior to version 1.6, this attribute was write-only.
         """)
 
     def _get_image_effect(self):
