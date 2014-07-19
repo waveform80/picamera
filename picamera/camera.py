@@ -2898,6 +2898,12 @@ class PiCamera(object):
         return mp.layer
     def _set_preview_layer(self, value):
         self._check_camera_open()
+        try:
+            if not (0 <= value <= 255):
+                raise PiCameraValueError(
+                    "Invalid layer value: %d (valid range 0..255)" % value)
+        except TypeError:
+            raise PiCameraValueError("Invalid layer value: %s" % value)
         mp = mmal.MMAL_DISPLAYREGION_T(
             mmal.MMAL_PARAMETER_HEADER_T(
                 mmal.MMAL_PARAMETER_DISPLAYREGION,

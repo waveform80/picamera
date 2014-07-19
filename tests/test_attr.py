@@ -224,7 +224,7 @@ def test_preview_alpha(camera, previewing):
 
 def test_preview_layer(camera, previewing):
     if previewing:
-        numeric_attr(camera, 'preview_layer', 0, 10)
+        numeric_attr(camera, 'preview_layer', 0, 255)
 
 def test_preview_fullscreen(camera, previewing):
     if previewing:
