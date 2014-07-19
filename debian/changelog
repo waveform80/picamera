@@ -1,3 +1,33 @@
+picamera (1.6-1) stable; urgency=low
+
+  * The awb_gains attribute is no longer write-only; you can now read it to
+    determine the red/blue balance that the camera is using (#98)
+  * The new read-only exposure_speed attribute will tell you the shutter speed
+    the camera's auto-exposure has determined, or the shutter speed you've
+    forced with a non-zero value of shutter_speed (#98)
+  * The new read-only analog_gain and digital_gain attributes can be used to
+    determine the amount of gain the camera is applying at a couple of crucial
+    points of the image processing pipeline (#98)
+  * The new drc_strength attribute can be used to query and set the amount of
+    dynamic range compression the camera will apply to its output (#110)
+  * The intra_period parameter for start_recording can now be set to 0 (which
+    means "produce one initial I-frame, then just P-frames") (#117)
+  * The burst parameter was added to the various capture methods; users are
+    strongly advised to read the cautions in the docs before relying on this
+    parameter (#115)
+  * One of the advanced recipes in the manual ("splitting to/from a circular
+    stream") failed under 1.5 due to a lack of splitter-port support in the
+    circular I/O stream class. This has now been rectified by adding a
+    splitter_por` parameter to the constructor of PiCameraCircularIO (#109)
+  * Similarly, the array extensions introduced in 1.5 failed to work when
+    resizers were present in the pipeline. This has been fixed by adding a
+    size parameter to the constructor of all the custom output classes defined
+    in that module (#121)
+  * A bug that caused picamera to fail when the display was disabled has been
+    squashed (#120)
+
+ -- Dave Hughes <dave@waveform.org.uk>  Sat, 19 Jul 2014 17:07:41 +0100
+
 picamera (1.5-1) stable; urgency=low
 
   * The new picamera.array module provides a series of custom output classes
