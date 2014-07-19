@@ -138,7 +138,10 @@ def test_motion_array1(camera, mode):
 
 def test_motion_array2(camera, mode):
     resolution, framerate = mode
-    resize = (resolution[0] // 2, resolution[1] // 2)
+    if resolution == (2592, 1944):
+        resize = (640, 480)
+    else:
+        resize = (resolution[0] // 2, resolution[1] // 2)
     with picamera.array.PiMotionArray(camera, size=resize) as stream:
         camera.start_recording(
             '/dev/null', 'h264', motion_output=stream, resize=resize)
