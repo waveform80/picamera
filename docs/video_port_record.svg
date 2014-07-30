@@ -40,14 +40,14 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="2.8"
-     inkscape:cx="252.88874"
+     inkscape:cx="395.74588"
      inkscape:cy="119.57258"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="false"
-     inkscape:window-width="958"
-     inkscape:window-height="1027"
-     inkscape:window-x="960"
+     inkscape:window-width="960"
+     inkscape:window-height="1028"
+     inkscape:window-x="0"
      inkscape:window-y="24"
      inkscape:window-maximized="0"
      fit-margin-top="0"
@@ -71,6 +71,15 @@
      inkscape:groupmode="layer"
      id="layer1"
      transform="translate(-46.714281,-22.239763)">
+    <path
+       sodipodi:type="arc"
+       style="fill:none;stroke:#ff0a0a;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0"
+       id="path6273"
+       sodipodi:cx="438.21429"
+       sodipodi:cy="98.790756"
+       sodipodi:rx="33.92857"
+       sodipodi:ry="16.428572"
+       d="m 472.14286,98.790756 c 0,9.073254 -15.19033,16.428574 -33.92857,16.428574 -18.73823,0 -33.92857,-7.35532 -33.92857,-16.428574 0,-9.073249 15.19034,-16.428571 33.92857,-16.428571 18.73824,0 33.92857,7.355322 33.92857,16.428571 z" />
     <g
        id="g3827"
        transform="translate(-6.1428593,-16.783177)">
@@ -582,15 +591,6 @@
        inkscape:connection-start-point="d4"
        inkscape:connection-end="#g3997"
        inkscape:connection-end-point="d4" />
-    <path
-       sodipodi:type="arc"
-       style="fill:none;stroke:#ff0a0a;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0"
-       id="path6273"
-       sodipodi:cx="438.21429"
-       sodipodi:cy="98.790756"
-       sodipodi:rx="33.92857"
-       sodipodi:ry="16.428572"
-       d="m 472.14286,98.790756 c 0,9.073254 -15.19033,16.428574 -33.92857,16.428574 -18.73823,0 -33.92857,-7.35532 -33.92857,-16.428574 0,-9.073249 15.19034,-16.428571 33.92857,-16.428571 18.73824,0 33.92857,7.355322 33.92857,16.428571 z" />
     <text
        xml:space="preserve"
        style="font-size:9px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"

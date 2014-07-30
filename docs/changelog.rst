@@ -40,7 +40,7 @@ Release 1.6 (2014-07-21)
   fixed by adding a `size` parameter to the constructor of all the custom
   output classes defined in that module (`#121`_)
 * A bug that caused picamera to fail when the display was disabled has been
-  squased (`#120`_)
+  squashed (`#120`_)
 
 As always, many thanks to the community for another great set of bug reports!
 

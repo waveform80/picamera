@@ -14,11 +14,11 @@ and select an installation method which conforms to your needs.
 Raspbian installation
 =====================
 
-If you are using the Raspbian distro, it is best to install picamera using the
-system's package manager: apt. This will ensure that picamera is easy to keep
-up to date, and easy to remove should you wish to do so. It will also make
-picamera available for all users on the system. To install picamera
-using apt simply::
+If you are using the `Raspbian`_ distro, it is best to install picamera using
+the system's package manager: apt. This will ensure that picamera is easy to
+keep up to date, and easy to remove should you wish to do so. It will also make
+picamera available for all users on the system. To install picamera using apt
+simply::
 
     $ sudo apt-get update
     $ sudo apt-get install python-picamera
@@ -37,7 +37,10 @@ If you ever need to remove your installation::
 
     If you are using a recent installation of Raspbian, you may find that the
     python-picamera package is already installed (it is included by default
-    in recent versions of NOOBS).
+    in recent versions of `NOOBS`_).
+
+.. _Raspbian: http://www.raspbian.org/
+.. _NOOBS: http://www.raspberrypi.org/downloads/
 
 
 .. _user_install2:
@@ -62,8 +65,8 @@ building numpy takes a *long* time on a Pi)::
 
     $ pip install --user "picamera[array]"
 
-Note that ``pip`` is **not** run with sudo; this is deliberate. To upgrade your
-installation when new releases are made::
+Note that ``pip`` is **not** run with ``sudo``; this is deliberate. To upgrade
+your installation when new releases are made::
 
     $ pip install --user -U picamera
 
@@ -165,19 +168,22 @@ installation::
     (sandbox) $ git pull
     (sandbox) $ make develop
 
-To remove your installation blow away the sandbox and the checkout::
+To remove your installation blow away the sandbox and the clone::
 
     $ rm -fr ~/sandbox/ ~/picamera/
 
 For anybody wishing to hack on the project please understand that although it
 is technically written in pure Python, heavy use of :mod:`ctypes` is involved
 so the code really doesn't look much like Python - more a sort of horrid
-mish-mash of C and Python. The project currently consists of a class
-(:class:`PiCamera`) which is a re-implementation of high-level bits of the
-``raspistill`` and ``raspivid`` commands using the :mod:`ctypes` based
-``libmmal`` header conversion, plus a set of (currently undocumented) encoder
-classes which re-implement the encoder callback configuration in the
-aforementioned binaries.
+mish-mash of C and Python.
+
+The project consists primarily of a class (:class:`PiCamera`) which is a
+re-implementation of high-level bits of the ``raspistill`` and ``raspivid``
+commands using the :mod:`ctypes` based ``libmmal`` header conversion, plus a
+set of :ref:`encoder classes <custom_encoders>` which re-implement the encoder
+callback configuration in the aforementioned binaries. Various classes for
+specialized applications also exist (:class:`PiCameraCircularIO`,
+:class:`PiBayerArray`, etc.)
 
 Even if you don't feel up to hacking on the code, I'd love to hear suggestions
 from people of what you'd like the API to look like (even if the code itself

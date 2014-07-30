@@ -15,7 +15,7 @@ Capturing to a file
 ===================
 
 Capturing an image to a file is as simple as specifying the name of the file as
-the output of whatever capture() method you require::
+the output of whatever :meth:`~picamera.PiCamera.capture` method you require::
 
     import time
     import picamera
@@ -28,7 +28,7 @@ the output of whatever capture() method you require::
         camera.capture('foo.jpg')
 
 Note that files opened by picamera (as in the case above) will be flushed and
-closed so that when the capture() method returns, the data should be accessible
+closed so that when the capture method returns, the data should be accessible
 to other processes.
 
 
@@ -39,8 +39,8 @@ Capturing to a stream
 
 Capturing an image to a file-like object (a :func:`~socket.socket`, a
 :class:`io.BytesIO` stream, an existing open file object, etc.) is as simple as
-specifying that object as the output of whatever capture() method you're
-using::
+specifying that object as the output of whatever
+:meth:`~picamera.PiCamera.capture` method you're using::
 
     import io
     import time
@@ -60,9 +60,10 @@ figure out what format to use.
 
 One thing to bear in mind is that (unlike specifying a filename), the stream is
 *not* automatically closed after capture; picamera assumes that since it didn't
-open the stream it can't presume to close it either. In the case of file
-objects this can mean that the data doesn't actually get written to the disk
-until the object is explicitly closed::
+open the stream it can't presume to close it either. However, if the object has
+a ``flush`` method, this will be called prior to capture returning. This should
+ensure that once capture returns the data is accessible to other processes
+although the object still needs to be closed::
 
     import time
     import picamera
@@ -73,15 +74,15 @@ until the object is explicitly closed::
         camera.start_preview()
         time.sleep(2)
         camera.capture(my_file)
-    # Note that at this point the data is in the file cache, but may
-    # not actually have been written to disk yet
+    # At this point my_file.flush() has been called, but the file has
+    # not yet been closed
     my_file.close()
-    # Now the file has been closed, other processes should be able to
-    # read the image successfully
 
 Note that in the case above, we didn't have to specify the format as the camera
 interrogated the ``my_file`` object for its filename (specifically, it looks
-for a ``name`` attribute on the provided object).
+for a ``name`` attribute on the provided object). As well as using stream
+classes built into Python (like :class:`~io.BytesIO`) you can also construct
+your own :ref:`custom outputs <custom_outputs>`.
 
 
 .. _pil_capture:
@@ -221,9 +222,18 @@ Capturing to a network stream
 This is a variation of :ref:`timelapse_capture`. Here we have two scripts: a
 server (presumably on a fast machine) which listens for a connection from the
 Raspberry Pi, and a client which runs on the Raspberry Pi and sends a continual
-stream of images to the server. Firstly the server script (which relies on PIL
-for reading JPEGs, but you could replace this with any other suitable graphics
-library, e.g. OpenCV or GraphicsMagick)::
+stream of images to the server. We'll use a very simple protocol for
+communication: first the length of the image will be sent as a 32-bit integer
+(in `Little Endian`_ format), then this will be followed by the bytes of image
+data. If the length is 0, this indicates that the connection should be closed
+as no more images will be forthcoming. This protocol is illustrated below:
+
+.. image:: image_protocol.*
+    :align: center
+
+Firstly the server script (which relies on PIL for reading JPEGs, but you could
+replace this with any other suitable graphics library, e.g. OpenCV or
+GraphicsMagick)::
 
     import io
     import socket
@@ -351,17 +361,28 @@ This is very similar to :ref:`file_record`::
     stream = io.BytesIO()
     with picamera.PiCamera() as camera:
         camera.resolution = (640, 480)
-        camera.start_recording(stream, format='h264', quantization=23)
+        camera.start_recording(stream, format='h264', quality=23)
         camera.wait_recording(15)
         camera.stop_recording()
 
-Here, we've set the *quantization* parameter which will cause the video encoder
-to use VBR (variable bit-rate) encoding. This can be considerably more
-efficient especially in mostly static scenes (which can be important when
-recording to memory, as in the example above). Quantization values (for the
-H.264 format) can be between 0 and 40, where 0 represents the highest possible
-quality, and 40 the lowest. Typically, a value in the range of 20-25 provides
-reasonable quality for reasonable bandwidth.
+Here, we've set the *quality* parameter to indicate to the encoder the level
+of image quality that we'd like it to try and maintain. The camera's H.264
+encoder is primarily constrained by two parameters:
+
+* *bitrate* limits the encoder's output to a certain number of bits per second.
+  The default is 17000000 (17Mbps), and the maximum value is 25000000 (25Mbps).
+  Higher values give the encoder more "freedom" to encode at higher qualities.
+  You will likely find that the default doesn't constrain the encoder at all
+  except at higher recording resolutions.
+
+* *quality* tells the encoder what level of image quality to maintain. Values
+  can be between 1 (highest quality) and 40 (lowest quality), with typical
+  values providing a reasonable trade-off between bandwidth and quality being
+  between 20 and 25.
+
+As well as using stream classes built into Python (like :class:`~io.BytesIO`)
+you can also construct your own :ref:`custom outputs <custom_outputs>`. This is
+particularly useful for video recording, as discussed in the linked recipe.
 
 
 .. _split_record:
@@ -398,8 +419,6 @@ achieve this with slightly cleaner code::
         for filename in camera.record_sequence(
                 '%d.h264' % i for i in range(1, 11)):
             camera.wait_recording(5)
-
-.. versionadded:: 0.8
 
 .. versionchanged:: 1.3
     The :meth:`~picamera.PiCamera.record_sequence` method was introduced in
@@ -467,8 +486,8 @@ In the above script we use the threading lock in the
 :attr:`~picamera.CircularIO.lock` attribute to prevent the camera's background
 writing thread from changing the stream while our own thread reads from it (as
 the stream is a circular buffer, a write can remove information that is about
-to be read). If we had stopped recording while writing we could eliminate the
-``with stream.lock`` line in the ``write_video`` function.
+to be read). If we had stopped recording to the stream while writing we could
+eliminate the ``with stream.lock`` line in the ``write_video`` function.
 
 .. note::
 
@@ -532,16 +551,12 @@ pipe it to a media player for display::
     on Mac OS X, and are using Python installed from MacPorts, please ensure
     you have also installed VLC or mplayer from MacPorts.
 
-.. note::
-
-    You will probably notice several seconds of latency with this setup. This
-    is normal and is because media players buffer several seconds to guard
-    against unreliable network streams.
-
-    Some media players (notably mplayer in this case) permit the user to skip
-    to the end of the buffer (press the right cursor key in mplayer), reducing
-    the latency by increasing the risk that delayed / dropped network packets
-    will interrupt the playback.
+You will probably notice several seconds of latency with this setup. This is
+normal and is because media players buffer several seconds to guard against
+unreliable network streams. Some media players (notably mplayer in this case)
+permit the user to skip to the end of the buffer (press the right cursor key in
+mplayer), reducing the latency by increasing the risk that delayed / dropped
+network packets will interrupt the playback.
 
 Now for the client side script which simply starts a recording over a file-like
 object created from the network socket::
@@ -656,4 +671,5 @@ running as root with ``sudo python``), you can also control the LED via the
 .. _RPi.GPIO: https://pypi.python.org/pypi/RPi.GPIO
 .. _ring buffer: http://en.wikipedia.org/wiki/Circular_buffer
 .. _boot configuration: http://www.raspberrypi.org/documentation/configuration/config-txt.md
+.. _Little Endian: http://en.wikipedia.org/wiki/Endianness
 

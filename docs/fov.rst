@@ -186,12 +186,17 @@ camera's setup looks like this:
 .. image:: video_fullfov_record.*
     :align: center
 
-Finally, when performing raw captures an encoder is (naturally) not required.
-Instead data is taken directly from the camera's ports. When raw YUV format is
-requested no components are attached to the ports at all (as the ports are
-configured for YUV output at all times). When another raw format like RGBA is
-requested, a resizer is used (with its output resolution set to the input
-resolution, unless the ``resize`` option is specified with something
+Finally, when performing unencoded captures an encoder is (naturally) not
+required.  Instead data is taken directly from the camera's ports. When raw YUV
+format is requested no components are attached to the ports at all (as all
+ports default to YUV output). Likewise, when capturing unencoded from the still
+port no encoders are used; instead the still port is reconfigured to output
+the required encoding (RGB, RGBA, BGR, etc.)
+
+However, the video port is fixed in YUV mode (the video encoders expect YUV
+input and the splitter cannot convert encodings). When another raw format like
+RGBA is requested, a resizer is used (with its output resolution set to the
+input resolution, unless the ``resize`` option is specified with something
 different), and its output format is set to the requested raw format:
 
 .. image:: still_raw_capture.*

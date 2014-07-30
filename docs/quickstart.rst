@@ -18,11 +18,10 @@ Start a preview for 10 seconds with the default settings::
         camera.close()
 
 Note that you should always ensure you call :meth:`~picamera.PiCamera.close` on
-the PiCamera object to clean up resources.
-
-The following example demonstrates that Python's ``with`` statement can be used
-to achieve this implicitly; when the ``with`` block ends,
-:meth:`~picamera.PiCamera.close` will be called implicitly::
+the PiCamera object to clean up resources.  The following example demonstrates
+that Python's ``with`` statement can be used to achieve this implicitly; when
+the ``with`` block ends, :meth:`~picamera.PiCamera.close` will be called
+implicitly::
 
     import time
     import picamera
@@ -148,14 +147,19 @@ captures is displayed afterward::
         print('Captured 120 images at %.2ffps' % (120 / (time.time() - start)))
         camera.stop_preview()
 
-This example demonstrates capturing an image in raw RGB format::
+This example demonstrates capturing an unencoded image in RGB format and
+producing a `numpy`_ array from the image::
 
     import time
     import picamera
+    import picamera.array
 
     with picamera.PiCamera() as camera:
-        camera.resolution = (1024, 768)
-        camera.start_preview()
-        time.sleep(2)
-        camera.capture('image.data', 'rgb')
+        with picamera.array.PiRGBArray(camera) as stream:
+            camera.resolution = (1024, 768)
+            camera.start_preview()
+            time.sleep(2)
+            camera.capture(stream, 'rgb')
+            print(stream.array.shape)
 
+.. _numpy: http://www.numpy.org/

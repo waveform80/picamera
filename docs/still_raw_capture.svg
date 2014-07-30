@@ -14,7 +14,7 @@
    id="svg3037"
    version="1.1"
    inkscape:version="0.48.4 r9939"
-   sodipodi:docname="New document 1">
+   sodipodi:docname="still_raw_capture.svg">
   <defs
      id="defs3039" />
   <sodipodi:namedview
@@ -24,9 +24,9 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="1.4"
-     inkscape:cx="395.53486"
-     inkscape:cy="-32.994969"
+     inkscape:zoom="1.979899"
+     inkscape:cx="324.68605"
+     inkscape:cy="-6.5975091"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="false"
@@ -34,11 +34,11 @@
      fit-margin-left="0"
      fit-margin-right="0"
      fit-margin-bottom="0"
-     inkscape:window-width="958"
-     inkscape:window-height="1027"
-     inkscape:window-x="960"
+     inkscape:window-width="1920"
+     inkscape:window-height="1056"
+     inkscape:window-x="0"
      inkscape:window-y="24"
-     inkscape:window-maximized="0" />
+     inkscape:window-maximized="1" />
   <metadata
      id="metadata3042">
     <rdf:RDF>
@@ -47,7 +47,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -166,7 +166,7 @@
     </g>
     <g
        id="g3914"
-       transform="translate(270.00183,-26.431109)">
+       transform="translate(267.85897,-20.716823)">
       <rect
          inkscape:connector-avoid="true"
          ry="5"
@@ -262,7 +262,7 @@
     </g>
     <path
        style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       d="m 142.89613,70.873757 0.61866,-0.305275 20.7066,-6.933626"
+       d="m 143.42857,74.420384 21.23357,-8.977743"
        id="path3963"
        inkscape:connector-type="polyline"
        inkscape:connector-curvature="0"
@@ -355,7 +355,7 @@
          sodipodi:role="line"
          id="tspan3231"
          x="68.571426"
-         y="26.647896">During raw YUV capture</tspan></text>
+         y="26.647896">During RGB still-port capture</tspan></text>
     <g
        transform="translate(322.42857,-15.497462)"
        id="g3233">
@@ -581,7 +581,7 @@
          sodipodi:role="line"
          id="tspan3321"
          x="384"
-         y="30.933607">During raw RGBA capture</tspan></text>
+         y="30.933607">During RGB video-port capture</tspan></text>
     <path
        style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
        d="M 470.99999,83.450936 503.78572,72.9077"
@@ -591,16 +591,6 @@
        inkscape:connection-start="#g3271"
        inkscape:connection-start-point="d4"
        inkscape:connection-end="#g3233"
-       inkscape:connection-end-point="d4" />
-    <path
-       style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       d="m 549.14286,67.918119 24.21612,2.45956"
-       id="path3325"
-       inkscape:connector-type="polyline"
-       inkscape:connector-curvature="0"
-       inkscape:connection-start="#g3233"
-       inkscape:connection-start-point="d4"
-       inkscape:connection-end="#g3914"
        inkscape:connection-end-point="d4" />
     <path
        style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
@@ -633,8 +623,18 @@
        inkscape:connection-end="#g3253"
        inkscape:connection-end-point="d4" />
     <path
+       sodipodi:type="arc"
+       style="fill:none;stroke:#fc0000;stroke-width:4;stroke-linecap:round;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0"
+       id="path3367"
+       sodipodi:cx="641.19434"
+       sodipodi:cy="72.766754"
+       sodipodi:rx="35.607876"
+       sodipodi:ry="17.425131"
+       d="m 676.80221,72.766754 a 35.607876,17.425131 0 1 1 -71.21575,0 35.607876,17.425131 0 1 1 71.21575,0 z"
+       transform="translate(-48.5,5.714286)" />
+    <path
        style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       d="M 611.46132,85.002504 636.7143,105.17609"
+       d="M 611.86556,90.708468 636.7143,107.73409"
        id="path3335"
        inkscape:connector-type="polyline"
        inkscape:connector-curvature="0"
@@ -652,7 +652,7 @@
          sodipodi:role="line"
          id="tspan3339"
          x="140.41121"
-         y="63.42284">YUV</tspan></text>
+         y="63.42284">RGB</tspan></text>
     <text
        xml:space="preserve"
        style="font-size:10px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
@@ -663,18 +663,18 @@
          sodipodi:role="line"
          id="tspan3343"
          x="218.95056"
-         y="63.675377">YUV</tspan></text>
+         y="63.675377">RGB</tspan></text>
     <text
        xml:space="preserve"
        style="font-size:10px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
-       x="474.35712"
-       y="72.362183"
+       x="477.57141"
+       y="97.719322"
        id="text3345"
        sodipodi:linespacing="125%"><tspan
          sodipodi:role="line"
          id="tspan3347"
-         x="474.35712"
-         y="72.362183">YUV</tspan></text>
+         x="477.57141"
+         y="97.719322">YUV</tspan></text>
     <text
        xml:space="preserve"
        style="font-size:10px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
@@ -698,16 +698,6 @@
          x="660.77399"
          y="59.996792"
          id="tspan3365">is specified)</tspan></text>
-    <path
-       sodipodi:type="arc"
-       style="fill:none;stroke:#fc0000;stroke-width:4;stroke-linecap:round;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0"
-       id="path3367"
-       sodipodi:cx="641.19434"
-       sodipodi:cy="72.766754"
-       sodipodi:rx="35.607876"
-       sodipodi:ry="17.425131"
-       d="m 676.80221,72.766754 c 0,9.623634 -15.94219,17.425131 -35.60787,17.425131 -19.66569,0 -35.60788,-7.801497 -35.60788,-17.425131 0,-9.623634 15.94219,-17.425131 35.60788,-17.425131 19.66568,0 35.60787,7.801497 35.60787,17.425131 z"
-       transform="translate(-46,0)" />
     <text
        xml:space="preserve"
        style="font-size:10px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
@@ -722,13 +712,24 @@
     <text
        xml:space="preserve"
        style="font-size:10px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
-       x="551.14288"
-       y="63.790752"
+       x="570.42865"
+       y="129.14789"
        id="text3349"
        sodipodi:linespacing="125%"><tspan
          sodipodi:role="line"
          id="tspan3351"
-         x="551.14288"
-         y="63.790752">YUV</tspan></text>
+         x="570.42865"
+         y="129.14789">YUV</tspan></text>
+    <path
+       style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;display:inline"
+       d="m 559.32325,122.88908 10e-6,-47.071426"
+       id="path3093"
+       inkscape:connector-type="polyline"
+       inkscape:connector-curvature="0"
+       inkscape:connection-end="#g3914"
+       inkscape:connection-end-point="d4"
+       transform="translate(34.571426,14.899136)"
+       inkscape:connection-start="#g3263"
+       inkscape:connection-start-point="d4" />
   </g>
 </svg>

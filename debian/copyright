@@ -6,10 +6,14 @@ Files: *
 Copyright: 2013,2014 Dave Hughes <dave@waveform.org.uk>
 License: BSD-3-Clause
 
-Files: docs/bayer_pattern.svg
+Files: docs/bayer_pattern.*
 Copyright: 2006 Colin Burnett <en.wikipedia.org/wiki/User:Cburnett>
            2014 Dave Hughes <dave@waveform.org.uk>
 License: GPL-2+
+
+Files: docs/yuv420.*
+Copyright: 2008 Geoff Richards <http://en.wikipedia.org/wiki/User:Qef>
+License: public-domain
 
 License: BSD-3-Clause
  Redistribution and use in source and binary forms, with or without
@@ -53,3 +57,12 @@ License: GPL-2+
  .
  On Debian systems, the full text of the GNU General Public License version 2
  can be found in the file `/usr/share/common-licenses/GPL-2'.
+
+License: public-domain
+ I, the copyright holder of this work, hereby release it into the public
+ domain. This applies worldwide.
+ .
+ If this is not legally possible:
+ .
+ I grant any entity the right to use this work for any purpose, without any
+ conditions, unless such conditions are required by law.

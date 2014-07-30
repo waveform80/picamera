@@ -33,7 +33,11 @@ The specific `YUV`_ format used is `YUV420`_ (planar). This means that the Y
 (one 1-byte Y value for each pixel in the image). The Y values are followed by
 the U (chrominance) values, and finally the V (chrominance) values.  The UV
 values have one quarter the resolution of the Y components (4 1-byte Y values
-in a square for each 1-byte U and 1-byte V value).
+in a square for each 1-byte U and 1-byte V value). This is illustrated in the
+diagram below:
+
+.. image:: yuv420.*
+    :align: center
 
 It is also important to note that when outputting to unencoded formats, the
 camera rounds the requested resolution. The horizontal resolution is rounded up
@@ -103,6 +107,12 @@ manner::
     # results to byte range and convert to bytes
     RGB = YUV.dot(M.T).clip(0, 255).astype(np.uint8)
 
+.. note::
+
+    You may note that we are using :func:`open` in the code above instead of
+    :func:`io.open` as in the other examples. This is because numpy's
+    :func:`numpy.fromfile` method annoyingly only accepts "real" file objects.
+
 This recipe is now encapsulated in the :class:`~picamera.array.PiYUVArray` class
 in the :mod:`picamera.array` module, which means the same can be achieved as
 follows::
@@ -132,7 +142,7 @@ RGB data directly.
     access to the image data after GPU processing, but before format encoding
     (JPEG, PNG, etc). Currently, the only method of accessing the raw bayer
     data is via the *bayer* parameter to the :meth:`~picamera.PiCamera.capture`
-    method.
+    method. See :ref:`bayer_data` for more information.
 
 .. versionchanged:: 1.0
     The :attr:`~picamera.PiCamera.raw_format` attribute is now deprecated, as
@@ -224,6 +234,12 @@ follows::
             camera.capture(stream, 'rgb')
             # Show size of RGB data
             print(stream.array.shape)
+
+.. note::
+
+    RGB captures from the still port do not work at the full resolution of the
+    camera (they result in an out of memory error). Either use YUV captures, or
+    capture from the video port if you require full resolution.
 
 .. versionchanged:: 1.0
     The :attr:`~picamera.PiCamera.raw_format` attribute is now deprecated, as
@@ -339,29 +355,25 @@ provide the list of filenames (or more usefully, streams) to the
         frames,
         frames / (finish - start)))
 
-The major issue with capturing this rapidly is that the Raspberry Pi's IO
-bandwidth is extremely limited. As a format, JPEG is considerably less
-efficient than the H.264 video format (which is to say that, for the same
-number of bytes, H.264 will provide considerably better quality over the same
-number of frames).
+The major issue with capturing this rapidly is firstly that the Raspberry Pi's
+IO bandwidth is extremely limited and secondly that, as a format, JPEG is
+considerably less efficient than the H.264 video format (which is to say that,
+for the same number of bytes, H.264 will provide considerably better quality
+over the same number of frames). At higher resolutions (beyond 800x600) you are
+likely to find you cannot sustain 30fps captures to the Pi's SD card for very
+long (before exhausting the disk cache).
 
-At higher resolutions (beyond 800x600) you are likely to find you cannot
-sustain 30fps captures to the Pi's SD card for very long (before exhausting the
-disk cache).  In other words, if you are intending to perform processing on the
-frames after capture, you may be better off just capturing video and decoding
-frames from the resulting file rather than dealing with individual JPEG
-captures.
-
-However, if you can perform your processing fast enough, you may not need to
-involve the disk at all.  Using a generator function, we can maintain a queue
-of objects to store the captures, and have parallel threads accept and process
-the streams as captures come in. Provided the processing runs at a faster frame
-rate than the captures, the encoder won't stall and nothing ever need hit the
-disk.
-
-Please note that the following code involves some fairly advanced techniques
-(threading and all its associated locking fun is typically not a "beginner
-friendly" subject, not to mention generator functions)::
+If you are intending to perform processing on the frames after capture, you may
+be better off just capturing video and decoding frames from the resulting file
+rather than dealing with individual JPEG captures. Alternatively, you may wish
+to investigate sending the data over the network (which typically has more
+bandwidth available than the SD card interface) and having another machine
+perform any required processing. However, if you can perform your processing
+fast enough, you may not need to involve the disk or network at all. Using a
+generator function, we can maintain a queue of objects to store the captures,
+and have parallel threads accept and process the streams as captures come in.
+Provided the processing runs at a faster frame rate than the captures, the
+encoder won't stall::
 
     import io
     import time
@@ -434,8 +446,6 @@ friendly" subject, not to mention generator functions)::
         processor.terminated = True
         processor.join()
 
-.. versionadded:: 0.5
-
 
 .. _rapid_streaming:
 
@@ -487,10 +497,7 @@ capturing images with sending them over the wire (although we deliberately
 don't flush on sending the image data). Potentially, it would be more efficient
 to permit image capture to occur simultaneously with image transmission. We can
 attempt to do this by utilizing the background threading techniques from the
-final example in :ref:`rapid_capture`.
-
-Once again, please note that the following code involves some quite advanced
-techniques and is not "beginner friendly"::
+final example in :ref:`rapid_capture`::
 
     import io
     import socket
@@ -584,8 +591,6 @@ On the same firmware, the above script achieves about 15fps. It is possible the
 new high framerate modes may achieve more (the fact that 15fps is half of the
 specified 30fps framerate suggests some stall on every other frame).
 
-.. versionadded:: 0.5
-
 
 .. _record_and_capture:
 
@@ -595,9 +600,9 @@ Capturing images whilst recording
 The camera is capable of capturing still images while it is recording video.
 However, if one attempts this using the stills capture mode, the resulting
 video will have dropped frames during the still image capture. This is because
-regular stills require a mode change, causing the dropped frames (this is the
-flicker to a higher resolution that one sees when capturing while a preview is
-running).
+images captured via the still port require a mode change, causing the dropped
+frames (this is the flicker to a higher resolution that one sees when capturing
+while a preview is running).
 
 However, if the *use_video_port* parameter is used to force a video-port based
 image capture (see :ref:`rapid_capture`) then the mode change does not occur,
@@ -619,8 +624,6 @@ The above code should produce a 20 second video with no dropped frames, and a
 still frame from 10 seconds into the video. Higher resolutions or non-JPEG
 image formats may still cause dropped frames (only JPEG encoding is hardware
 accelerated).
-
-.. versionadded:: 0.8
 
 
 .. _multi_res_record:
@@ -649,13 +652,11 @@ recordings, each with a different resolution::
         camera.stop_recording()
 
 There are 4 splitter ports in total that can be used (numbered 0, 1, 2, and 3).
-By default, the recording methods (like
-:meth:`~picamera.PiCamera.start_recording`) use splitter port 1, and the
-capture methods (like :meth:`~picamera.PiCamera.capture`) use splitter port 0
-(when the *use_video_port* parameter is also True). A port cannot be
-simultaneously used for video recording and image capture so you are advised to
-avoid splitter port 0 for video recordings unless you never intend to capture
-images whilst recording.
+The video recording methods default to using splitter port 1, while the image
+capture methods default to splitter port 0 (when the *use_video_port* parameter
+is also True). A splitter port cannot be simultaneously used for video
+recording and image capture so you are advised to avoid splitter port 0 for
+video recordings unless you never intend to capture images whilst recording.
 
 .. versionadded:: 1.3
 
@@ -794,7 +795,7 @@ Finally, the following command line can be used to generate an animation from
 the generated PNGs with ffmpeg (this will take a *very* long time on the Pi so
 you may wish to transfer the images to a faster machine for this step)::
 
-    avconv -r 30 -i frame%03d.png -filter:v scale=640:480 -c:v libx264 -r 30 -pix_fmt yuv420p motion.mp4
+    avconv -r 30 -i frame%03d.png -filter:v scale=640:480 -c:v libx264 motion.mp4
 
 .. versionadded:: 1.5
 
@@ -883,8 +884,8 @@ to the in-memory ring-buffer::
             camera.stop_recording()
 
 This example also demonstrates writing the circular buffer to disk in an
-efficient manner using the :meth:`~picamera.PiCameraCircularIO.read1` method
-(as opposed to :meth:`~picamera.CircularIO.read`).
+efficient manner using the :meth:`~picamera.CircularIO.read1` method (as
+opposed to :meth:`~picamera.CircularIO.read`).
 
 .. note::
 
@@ -919,6 +920,31 @@ However, one should bear in mind that because the ``write`` method is called so
 frequently, its implementation must be sufficiently rapid that it doesn't stall
 the encoder (it must perform its processing and return before the next write is
 due to arrive).
+
+The following trivial example demonstrates an incredibly simple custom output
+which simply throws away the output while counting the number of bytes that
+would have been written and prints this at the end of the output::
+
+    from __future__ import print_function
+
+    import picamera
+
+    class MyOutput(object):
+        def __init__(self):
+            self.size = 0
+
+        def write(self, s):
+            self.size += len(s)
+
+        def flush(self):
+            print('%d bytes would have been written' % self.size)
+
+    with picamera.PiCamera() as camera:
+        camera.resolution = (640, 480)
+        camera.framerate = 60
+        camera.start_recording(MyOutput(), format='h264')
+        camera.wait_recording(10)
+        camera.stop_recording()
 
 The following example shows how to use a custom output to construct a crude
 motion detection system. We construct a custom output object which is used as
@@ -978,7 +1004,35 @@ for the video data::
         camera.stop_recording()
 
 You may wish to investigate the classes in the :mod:`picamera.array` module
-which implement several custom outputs for analysis of data with numpy.
+which implement several custom outputs for analysis of data with numpy. In
+particular, the :class:`~picamera.array.PiMotionAnalysis` class can be used to
+remove much of the boiler plate code from the recipe above::
+
+    import picamera
+    import picamera.array
+    import numpy as np
+
+    class MyMotionDetector(picamera.array.PiMotionAnalysis):
+        def analyse(self, a):
+            a = np.sqrt(
+                np.square(a['x'].astype(np.float)) +
+                np.square(a['y'].astype(np.float))
+                ).clip(0, 255).astype(np.uint8)
+            # If there're more than 10 vectors with a magnitude greater
+            # than 60, then say we've detected motion
+            if (a > 60).sum() > 10:
+                print('Motion detected!')
+
+    with picamera.PiCamera() as camera:
+        camera.resolution = (640, 480)
+        camera.framerate = 30
+        camera.start_recording(
+            '/dev/null', format='h264',
+            motion_output=MyMotionDetector(camera)
+            )
+        camera.wait_recording(30)
+        camera.stop_recording()
+
 
 .. versionadded:: 1.5
 
@@ -1005,7 +1059,7 @@ The following table details which :class:`PiCamera` methods use which encoder
 classes, and which method they call to construct these encoders:
 
 +-----------------------------------------------+------------------------------------------------+----------------------------------------------+
-| Method(s)                                     | Call                                           | Returns Encoder                              |
+| Method(s)                                     | Call                                           | Returns                                      |
 +===============================================+================================================+==============================================+
 | :meth:`~picamera.PiCamera.capture`            | :meth:`~picamera.PiCamera._get_image_encoder`  | :class:`~picamera.PiCookedOneImageEncoder`   |
 | :meth:`~picamera.PiCamera.capture_continuous` |                                                | :class:`~picamera.PiRawOneImageEncoder`      |
@@ -1034,10 +1088,10 @@ are captured (the camera's encoder doesn't use B-frames)::
 
     # Override PiVideoEncoder to keep track of the number of each type of frame
     class MyEncoder(picamera.PiVideoEncoder):
-        def start(self, output):
+        def start(self, output, motion_output=None):
             self.parent.i_frames = 0
             self.parent.p_frames = 0
-            super(MyEncoder, self).start(output)
+            super(MyEncoder, self).start(output, motion_output)
 
         def _callback_write(self, buf):
             # Only count when buffer indicates it's the end of a frame, and
@@ -1309,6 +1363,7 @@ as follows::
     import time
     import picamera
     import picamera.array
+    import numpy as np
 
     with picamera.PiCamera() as camera:
         with picamera.array.PiBayerArray(camera) as stream:

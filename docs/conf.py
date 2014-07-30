@@ -86,7 +86,10 @@ autodoc_member_order = 'groupwise'
 
 # -- Intersphinx configuration --------------------------------------------
 
-intersphinx_mapping = {'python': ('http://docs.python.org/3.2', None)}
+intersphinx_mapping = {
+    'python': ('http://docs.python.org/3.2', None),
+    'numpy':  ('http://docs.scipy.org/doc/numpy/', None),
+    }
 
 # -- Options for HTML output ----------------------------------------------
 
@@ -112,6 +115,11 @@ html_static_path = ['_static']
 #html_use_opensearch = ''
 #html_file_suffix = None
 htmlhelp_basename = '%sdoc' % _setup.__project__
+
+# Hack to make wide tables work properly in RTD
+# See https://github.com/snide/sphinx_rtd_theme/issues/117 for details
+def setup(app):
+    app.add_stylesheet('style_override.css')
 
 # -- Options for LaTeX output ---------------------------------------------
 
