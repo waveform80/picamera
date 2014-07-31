@@ -268,10 +268,8 @@ using this technique:
 * No Exif information is embedded in JPEG images captured through the
   video-port.
 
-* Captures typically appear "granier" with this technique. The author is not
-  aware of the exact technical reasons why this is so, but suspects that some
-  part of the image processing pipeline that is present for still captures is
-  not used when performing still captures through the video-port.
+* Captures typically appear "granier" with this technique. Captures from the
+  still port use a slower, more intensive denoise algorithm.
 
 All capture methods support the ``use_video_port`` option, but the methods
 differ in their ability to rapidly capture sequential frames. So, whilst

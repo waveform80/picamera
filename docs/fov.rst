@@ -135,8 +135,8 @@ The video port is used by the :meth:`~picamera.PiCamera.start_recording` method
 :meth:`~picamera.PiCamera.capture` methods when their ``use_video_port``
 parameter is ``True``. Images captured from the video port tend to have a
 "grainy" appearance, much more akin to a video frame than the images captured
-by the still port (the author suspects the still port may be taking an average
-of several frames).
+by the still port (this is due to the still port uses a slower, more aggressive
+denoise algorithm).
 
 The Preview Port
 ----------------
