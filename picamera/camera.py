@@ -1039,11 +1039,14 @@ class PiCamera(object):
             The *motion_output* parameter was added
         """
         try:
-            self._encoders[splitter_port].split(output, options.get('motion_output'))
+            with self._encoders_lock:
+                encoder = self._encoders[splitter_port]
         except KeyError:
             raise PiCameraNotRecording(
                     'There is no recording in progress on '
                     'port %d' % splitter_port)
+        else:
+            encoder.split(output, options.get('motion_output'))
 
     def wait_recording(self, timeout=0, splitter_port=1):
         """
@@ -1067,11 +1070,14 @@ class PiCamera(object):
         """
         assert timeout is not None
         try:
-            self._encoders[splitter_port].wait(timeout)
+            with self._encoders_lock:
+                encoder = self._encoders[splitter_port]
         except KeyError:
             raise PiCameraNotRecording(
                     'There is no recording in progress on '
                     'port %d' % splitter_port)
+        else:
+            encoder.wait(timeout)
 
     def stop_recording(self, splitter_port=1):
         """
@@ -1092,11 +1098,19 @@ class PiCamera(object):
             The *splitter_port* parameter was added
         """
         try:
-            self.wait_recording(0, splitter_port)
-        finally:
             with self._encoders_lock:
-                encoder = self._encoders.pop(splitter_port)
-            encoder.close()
+                encoder = self._encoders[splitter_port]
+        except KeyError:
+            raise PiCameraNotRecording(
+                    'There is no recording in progress on '
+                    'port %d' % splitter_port)
+        else:
+            try:
+                self.wait_recording(0, splitter_port)
+            finally:
+                encoder.close()
+                with self._encoders_lock:
+                    del self._encoders[splitter_port]
 
     def record_sequence(
             self, outputs, format='h264', resize=None, splitter_port=1, **options):
@@ -1185,9 +1199,9 @@ class PiCamera(object):
             try:
                 encoder.wait(0)
             finally:
+                encoder.close()
                 with self._encoders_lock:
                     del self._encoders[splitter_port]
-                encoder.close()
 
     def capture(
             self, output, format=None, use_video_port=False, resize=None,
@@ -1309,10 +1323,10 @@ class PiCamera(object):
                 raise PiCameraRuntimeError(
                     'Timed out waiting for capture to end')
         finally:
+            encoder.close()
             with self._encoders_lock:
                 if use_video_port:
                     del self._encoders[splitter_port]
-            encoder.close()
 
     def capture_sequence(
             self, outputs, format='jpeg', use_video_port=False, resize=None,
@@ -1424,10 +1438,10 @@ class PiCamera(object):
                                 mmal.MMAL_FALSE),
                             prefix="Failed to set burst capture")
         finally:
+            encoder.close()
             with self._encoders_lock:
                 if use_video_port:
                     del self._encoders[splitter_port]
-            encoder.close()
 
     def capture_continuous(
             self, output, format=None, use_video_port=False, resize=None,
@@ -1596,10 +1610,10 @@ class PiCamera(object):
                             mmal.MMAL_FALSE),
                         prefix="Failed to set burst capture")
         finally:
+            encoder.close()
             with self._encoders_lock:
                 if use_video_port:
                     del self._encoders[splitter_port]
-            encoder.close()
 
     @property
     def closed(self):

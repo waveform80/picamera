@@ -247,6 +247,31 @@ def test_multi_res_record(camera, mode):
     verify_video(v_stream1, 'h264', resolution)
     verify_video(v_stream2, 'h264', new_res)
 
+class SizeTest(object):
+    def __init__(self):
+        self.size = 0
+    def write(self, s):
+        self.size += len(s)
+
+def test_multi_res_record_len(camera, mode):
+    resolution, framerate = mode
+    expected_failures(resolution, 'h264', {})
+    output1 = SizeTest()
+    output2 = SizeTest()
+    camera.start_recording(output1, 'h264')
+    try:
+        camera.start_recording(output2, 'h264', splitter_port=2)
+        try:
+            camera.wait_recording(1)
+        finally:
+            camera.stop_recording(splitter_port=2)
+        camera.wait_recording(1)
+    finally:
+        camera.stop_recording()
+    # output1's size should be approximately twice output2's; we give it a bit
+    # of leeway here (20%) in the test
+    assert output1.size > (output2.size * 1.8)
+
 class MotionTest(object):
     def __init__(self, camera):
         width, height = camera.resolution
