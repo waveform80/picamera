@@ -905,6 +905,11 @@ class PiCamera(object):
 
         * ``'h264'`` - Write an H.264 video stream
         * ``'mjpeg'`` - Write an M-JPEG video stream
+        * ``'yuv'`` - Write the raw video data to a file in YUV420 format
+        * ``'rgb'`` - Write the raw video data to a file in 24-bit RGB format
+        * ``'rgba'`` - Write the raw video data to a file in 32-bit RGBA format
+        * ``'bgr'`` - Write the raw video data to a file in 24-bit BGR format
+        * ``'bgra'`` - Write the raw video data to a file in 32-bit BGRA format
 
         If *resize* is not ``None`` (the default), it must be a two-element
         tuple specifying the width and height that the video recording should
@@ -1226,23 +1231,14 @@ class PiCamera(object):
         one of the following strings:
 
         * ``'jpeg'`` - Write a JPEG file
-
         * ``'png'`` - Write a PNG file
-
         * ``'gif'`` - Write a GIF file
-
         * ``'bmp'`` - Write a Windows bitmap file
-
         * ``'yuv'`` - Write the raw image data to a file in YUV420 format
-
         * ``'rgb'`` - Write the raw image data to a file in 24-bit RGB format
-
         * ``'rgba'`` - Write the raw image data to a file in 32-bit RGBA format
-
         * ``'bgr'`` - Write the raw image data to a file in 24-bit BGR format
-
         * ``'bgra'`` - Write the raw image data to a file in 32-bit BGRA format
-
         * ``'raw'`` - Deprecated option for raw captures; the format is taken
           from the deprecated :attr:`raw_format` attribute
 
