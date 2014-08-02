@@ -197,12 +197,6 @@ class PiVideoFrame(namedtuple('PiVideoFrame', (
         return self.frame_type == PiVideoFrameType.sps_header
 
 
-def _encoder_callback(port, buf):
-    encoder = ct.cast(port[0].userdata, ct.POINTER(ct.py_object))[0]
-    encoder._callback(port, buf)
-_encoder_callback = mmal.MMAL_PORT_BH_CB_T(_encoder_callback)
-
-
 def _debug_buffer(buf):
     f = buf[0].flags
     print(''.join((
@@ -215,6 +209,13 @@ def _debug_buffer(buf):
         ' ',
         'len=%d' % buf[0].length,
         )))
+
+
+def _encoder_callback(port, buf):
+    #_debug_buffer(buf)
+    encoder = ct.cast(port[0].userdata, ct.POINTER(ct.py_object))[0]
+    encoder._callback(port, buf)
+_encoder_callback = mmal.MMAL_PORT_BH_CB_T(_encoder_callback)
 
 
 class PiEncoder(object):
@@ -270,7 +271,7 @@ class PiEncoder(object):
 
         A pointer to the MMAL encoder component, or None if no encoder
         component has been created (some encoder classes don't use an actual
-        encoder component, for example :class:`PiRawEncoderMixin`).
+        encoder component, for example :class:`PiRawImageMixin`).
 
     .. attribute:: encoder_connection
 
@@ -517,14 +518,19 @@ class PiEncoder(object):
         to override the :meth:`_callback_write` method, rather than deal with
         these complexities.
         """
-        #_debug_buffer(buf)
         if self.stopped:
             mmal.mmal_buffer_header_release(buf)
         else:
             stop = False
             try:
                 try:
-                    stop = self._callback_write(buf)
+                    mmal_check(
+                        mmal.mmal_buffer_header_mem_lock(buf),
+                        prefix="Unable to lock buffer header memory")
+                    try:
+                        stop = self._callback_write(buf)
+                    finally:
+                        mmal.mmal_buffer_header_mem_unlock(buf)
                 finally:
                     mmal.mmal_buffer_header_release(buf)
                     self._callback_recycle(port, buf)
@@ -557,24 +563,18 @@ class PiEncoder(object):
         this method to determine where key-frames and SPS headers occur.
         """
         if buf[0].length:
-            mmal_check(
-                mmal.mmal_buffer_header_mem_lock(buf),
-                prefix="Unable to lock buffer header memory")
-            try:
-                with self.outputs_lock:
-                    try:
-                        written = self.outputs[key][0].write(
-                           ct.string_at(buf[0].data, buf[0].length))
-                    except KeyError:
-                        pass
-                    else:
-                        # Ignore None return value; most Python 2 streams have
-                        # no return value for write()
-                        if (written is not None) and (written != buf[0].length):
-                            raise PiCameraError(
-                                "Unable to write buffer to output %s" % key)
-            finally:
-                mmal.mmal_buffer_header_mem_unlock(buf)
+            with self.outputs_lock:
+                try:
+                    written = self.outputs[key][0].write(
+                       ct.string_at(buf[0].data, buf[0].length))
+                except KeyError:
+                    pass
+                else:
+                    # Ignore None return value; most Python 2 streams have
+                    # no return value for write()
+                    if (written is not None) and (written != buf[0].length):
+                        raise PiCameraError(
+                            "Unable to write buffer to output %s" % key)
         return bool(buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_EOS)
 
     def _callback_recycle(self, port, buf):
@@ -744,6 +744,119 @@ class PiEncoder(object):
             mmal.mmal_component_destroy(self.resizer)
             self.resizer = None
         self.output_port = None
+
+
+class PiRawMixin(PiEncoder):
+    """
+    Mixin class for "raw" (unencoded) output.
+
+    This mixin class overrides the initializer of :class:`PiEncoder`, along
+    with :meth:`_create_resizer` and :meth:`_create_encoder` to configure the
+    pipeline for unencoded output. Specifically, it disables the construction
+    of an encoder, and sets the output port to the input port passed to the
+    initializer, unless resizing is required (either for actual resizing, or
+    for format conversion) in which case the resizer's output is used.
+    """
+
+    RAW_ENCODINGS = {
+        # name   mmal-encoding            bytes-per-pixel
+        'yuv':  (mmal.MMAL_ENCODING_I420, 1.5),
+        'rgb':  (mmal.MMAL_ENCODING_RGBA, 3),
+        'rgba': (mmal.MMAL_ENCODING_RGBA, 4),
+        'bgr':  (mmal.MMAL_ENCODING_BGRA, 3),
+        'bgra': (mmal.MMAL_ENCODING_BGRA, 4),
+        }
+
+    def __init__(
+            self, parent, camera_port, input_port, format, resize, **options):
+        # If a resize hasn't been requested, check the input_port format. If
+        # it requires conversion, force the use of a resizer to perform the
+        # conversion
+        if not resize:
+            if parent.RAW_FORMATS[format] != input_port[0].format[0].encoding.value:
+                resize = parent.resolution
+        # Workaround: If a non-alpha format is requested when a resizer is
+        # required, we use the alpha-inclusive format and set a flag to get the
+        # callback to strip the alpha bytes (for some reason the resizer won't
+        # work with non-alpha output formats - firmware bug?)
+        if resize:
+            width, height = resize
+            self._strip_alpha = format in ('rgb', 'bgr')
+        else:
+            width, height = parent.resolution
+            self._strip_alpha = False
+        width = mmal.VCOS_ALIGN_UP(width, 32)
+        height = mmal.VCOS_ALIGN_UP(height, 16)
+        # Workaround (#83): when the resizer is used the width and height must
+        # be aligned (both the actual and crop values) to avoid an error when
+        # the output port format is set
+        if resize:
+            resize = (width, height)
+        # Workaround: Calculate the expected image size, to be used by the
+        # callback to decide when a frame ends. This is to work around a
+        # firmware bug that causes the raw image to be returned twice when the
+        # maximum camera resolution is requested
+        self._frame_size = int(width * height * self.RAW_ENCODINGS[format][1])
+        super(PiRawMixin, self).__init__(
+                parent, camera_port, input_port, format, resize, **options)
+
+    def _create_resizer(self, width, height):
+        """
+        Overridden to configure the resizer's output with the required
+        encoding.
+        """
+        super(PiRawMixin, self)._create_resizer(width, height)
+        encoding = self.RAW_ENCODINGS[self.format][0]
+        port = self.resizer[0].output[0]
+        port[0].format[0].encoding = encoding
+        port[0].format[0].encoding_variant = encoding
+        mmal_check(
+            mmal.mmal_port_format_commit(port),
+            prefix="Failed to set resizer output port format")
+
+    def _create_encoder(self):
+        """
+        Overridden to skip creating an encoder. Instead, this class simply uses
+        the resizer's port as the output port (if a resizer has been
+        configured) or the specified input port otherwise.
+        """
+        if self.resizer:
+            self.output_port = self.resizer[0].output[0]
+        else:
+            self.output_port = self.input_port
+
+    def _create_connections(self):
+        """
+        Overridden to skip creating an encoder connection; only a resizer
+        connection is required (if one has been configured).
+        """
+        if self.resizer:
+            self.resizer_connection = self.parent._connect_ports(
+                self.input_port, self.resizer[0].input[0])
+
+    @property
+    def active(self):
+        return bool(self.output_port[0].is_enabled)
+
+    def _callback_write(self, buf, key=PiVideoFrameType.frame):
+        """
+        Overridden to strip alpha bytes when required.
+        """
+        if self._strip_alpha:
+            s = ct.string_at(buf[0].data, buf[0].length)
+            s = bytearray(s)
+            del s[3::4]
+            # All this messing around with buffers is to work around some issue
+            # with MMAL or ctypes (I'm not sure which is at fault). Anyway, the
+            # upshot is that if you fiddle with buf[0].data in any way
+            # whatsoever (even if you make every attempt to restore its value
+            # afterward), mmal_port_disable locks up when we call it in stop()
+            new_buf = mmal.MMAL_BUFFER_HEADER_T.from_buffer_copy(buf[0])
+            new_buf.length = len(s)
+            new_buf.data = ct.pointer(ct.c_uint8.from_buffer(s))
+            return super(PiRawMixin, self)._callback_write(ct.pointer(new_buf), key)
+        else:
+            return super(PiRawMixin, self)._callback_write(buf, key)
 
 
 class PiVideoEncoder(PiEncoder):
@@ -1025,6 +1138,37 @@ class PiVideoEncoder(PiEncoder):
         return super(PiVideoEncoder, self)._callback_write(buf, key)
 
 
+class PiCookedVideoEncoder(PiVideoEncoder):
+    """
+    Video encoder for encoded recordings.
+
+    This class is a derivative of :class:`PiVideoEncoder` and only exists to
+    provide naming symmetry with the image encoder classes.
+    """
+
+
+class PiRawVideoEncoder(PiRawMixin, PiVideoEncoder):
+    """
+    Video encoder for unencoded recordings.
+
+    This class is a derivative of :class:`PiVideoEncoder` and the
+    :class:`PiRawMixin` class intended for use with
+    :meth:`~PiCamera.start_recording` when it is called with an unencoded
+    format.
+
+    .. warning::
+
+        This class creates an inheritance diamond. Take care to determine the
+        MRO of super-class calls.
+    """
+
+    def _create_encoder(self):
+        super(PiRawVideoEncoder, self)._create_encoder()
+        # Raw formats don't have an intra_period setting as such, but as every
+        # frame is a full-frame, the intra_period is effectively 1
+        self._intra_period = 1
+
+
 class PiImageEncoder(PiEncoder):
     """
     Encoder for image capture.
@@ -1218,146 +1362,41 @@ class PiCookedMultiImageEncoder(PiMultiImageEncoder):
     pass
 
 
-class PiRawEncoderMixin(PiImageEncoder):
+class PiRawImageMixin(PiRawMixin, PiImageEncoder):
     """
     Mixin class for "raw" (unencoded) image capture.
 
-    This mixin class overrides the initializer of :class:`PiImageEncoder`,
-    along with :meth:`_create_resizer` and :meth:`_create_encoder` to configure
-    the pipeline for unencoded image capture. Specifically, it disables the
-    construction of the encoder, and sets the output port to the input port
-    passed to the initializer, unless resizing is required (either for actual
-    resizing, or for format conversion) in which case the resizer's output is
-    used.
-
-    The :meth:`_callback_write` method is also overridden to strip alpha-bytes
-    (where required by the requested format), and to manually calculate when to
-    terminate output.
+    The :meth:`_callback_write` method is overridden to manually calculate when
+    to terminate output.
     """
-
-    RAW_ENCODINGS = {
-        # name   mmal-encoding            bytes-per-pixel
-        'yuv':  (mmal.MMAL_ENCODING_I420, 1.5),
-        'rgb':  (mmal.MMAL_ENCODING_RGBA, 3),
-        'rgba': (mmal.MMAL_ENCODING_RGBA, 4),
-        'bgr':  (mmal.MMAL_ENCODING_BGRA, 3),
-        'bgra': (mmal.MMAL_ENCODING_BGRA, 4),
-        }
 
     def __init__(
             self, parent, camera_port, input_port, format, resize, **options):
-        # If a resize hasn't been requested, check the input_port format. If
-        # it requires conversion, force the use of a resizer to perform the
-        # conversion
-        if not resize:
-            if parent.RAW_FORMATS[format] != input_port[0].format[0].encoding.value:
-                resize = parent.resolution
-        # Workaround: If a non-alpha format is requested when a resizer is
-        # required, we use the alpha-inclusive format and set a flag to get the
-        # callback to strip the alpha bytes (for some reason the resizer won't
-        # work with non-alpha output formats - firmware bug?)
-        if resize:
-            width, height = resize
-            self._strip_alpha = format in ('rgb', 'bgr')
-        else:
-            width, height = parent.resolution
-            self._strip_alpha = False
-        width = mmal.VCOS_ALIGN_UP(width, 32)
-        height = mmal.VCOS_ALIGN_UP(height, 16)
-        # Workaround (#83): when the resizer is used the width and height must
-        # be aligned (both the actual and crop values) to avoid an error when
-        # the output port format is set
-        if resize:
-            resize = (width, height)
-        # Workaround: Calculate the expected image size, to be used by the
-        # callback to decide when a frame ends. This is to work around a
-        # firmware bug that causes the raw image to be returned twice when the
-        # maximum camera resolution is requested
-        self._expected_size = int(width * height * self.RAW_ENCODINGS[format][1])
-        self._image_size = 0
-        super(PiRawEncoderMixin, self).__init__(
+        super(PiRawImageMixin, self).__init__(
                 parent, camera_port, input_port, format, resize, **options)
-
-    def _create_resizer(self, width, height):
-        """
-        Overridden to configure the resizer's output with the required
-        encoding.
-        """
-        super(PiRawEncoderMixin, self)._create_resizer(width, height)
-        encoding = self.RAW_ENCODINGS[self.format][0]
-        port = self.resizer[0].output[0]
-        port[0].format[0].encoding = encoding
-        port[0].format[0].encoding_variant = encoding
-        mmal_check(
-            mmal.mmal_port_format_commit(port),
-            prefix="Failed to set resizer output port format")
-
-    def _create_encoder(self):
-        """
-        Overridden to skip creating an encoder. Instead, this class simply uses
-        the resizer's port as the output port (if a resizer has been
-        configured) or the specified input port otherwise.
-        """
-        if self.resizer:
-            self.output_port = self.resizer[0].output[0]
-        else:
-            self.output_port = self.input_port
-
-    def _create_connections(self):
-        """
-        Overridden to skip creating an encoder connection; only a resizer
-        connection is required (if one has been configured).
-        """
-        if self.resizer:
-            self.resizer_connection = self.parent._connect_ports(
-                self.input_port, self.resizer[0].input[0])
+        self._image_size = 0
 
     def _callback_write(self, buf, key=PiVideoFrameType.frame):
         """
-        Overridden to strip alpha bytes when required and manually calculate
-        when to terminate capture (see comments in :meth:`__init__`).
+        Overridden to manually calculate when to terminate capture (see
+        comments in :meth:`__init__`).
         """
-        if buf[0].length and self._image_size:
-            mmal_check(
-                mmal.mmal_buffer_header_mem_lock(buf),
-                prefix="Unable to lock buffer header memory")
-            try:
-                s = ct.string_at(buf[0].data, buf[0].length)
-                if self._strip_alpha:
-                    s = bytearray(s)
-                    del s[3::4]
-                with self.outputs_lock:
-                    try:
-                        written = self.outputs[key][0].write(s)
-                    except KeyError:
-                        pass
-                    else:
-                        # Ignore None return value; most Python 2 streams have
-                        # no return value for write()
-                        if (written is not None) and (written != len(s)):
-                            raise PiCameraError(
-                                "Unable to write buffer to file - aborting")
-                        self._image_size -= len(s)
-                        assert self._image_size >= 0
-            finally:
-                mmal.mmal_buffer_header_mem_unlock(buf)
+        if self._image_size > 0:
+            super(PiRawImageMixin, self)._callback_write(buf, key)
+            self._image_size -= buf[0].length
         return self._image_size <= 0
 
-    @property
-    def active(self):
-        return bool(self.output_port[0].is_enabled)
-
     def start(self, output):
-        self._image_size = self._expected_size
-        super(PiRawEncoderMixin, self).start(output)
+        self._image_size = self._frame_size
+        super(PiRawImageMixin, self).start(output)
 
 
-class PiRawOneImageEncoder(PiOneImageEncoder, PiRawEncoderMixin):
+class PiRawOneImageEncoder(PiOneImageEncoder, PiRawImageMixin):
     """
     Single image encoder for unencoded capture.
 
     This class is a derivative of :class:`PiOneImageEncoder` and the
-    :class:`PiRawEncoderMixin` class intended for use with
+    :class:`PiRawImageMixin` class intended for use with
     :meth:`~PiCamera.capture` (et al) when it is called with an unencoded image
     format.
 
@@ -1369,12 +1408,12 @@ class PiRawOneImageEncoder(PiOneImageEncoder, PiRawEncoderMixin):
     pass
 
 
-class PiRawMultiImageEncoder(PiMultiImageEncoder, PiRawEncoderMixin):
+class PiRawMultiImageEncoder(PiMultiImageEncoder, PiRawImageMixin):
     """
     Multiple image encoder for unencoded capture.
 
     This class is a derivative of :class:`PiMultiImageEncoder` and the
-    :class:`PiRawEncoderMixin` class intended for use with
+    :class:`PiRawImageMixin` class intended for use with
     :meth:`~PiCamera.capture_sequence` when it is called with an unencoded
     image format.
 
@@ -1385,5 +1424,5 @@ class PiRawMultiImageEncoder(PiMultiImageEncoder, PiRawEncoderMixin):
     """
     def _next_output(self, key=PiVideoFrameType.frame):
         super(PiRawMultiImageEncoder, self)._next_output(key)
-        self._image_size = self._expected_size
+        self._image_size = self._frame_size
 

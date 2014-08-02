@@ -120,6 +120,7 @@ def test_bayer_array(camera, mode):
         camera.capture(stream, 'jpeg', bayer=True)
         # Bayer data is always full res
         assert stream.array.shape == (1944, 2592, 3)
+        assert stream.demosaic().shape == (1944, 2592, 3)
 
 def test_motion_array1(camera, mode):
     resolution, framerate = mode

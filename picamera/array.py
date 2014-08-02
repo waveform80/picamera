@@ -464,13 +464,13 @@ class PiBayerArray(PiBaseOutput):
                 self.array.shape[1] + borders[1],
                 self.array.shape[2]), dtype=self.array.dtype)
             rgb[
-                border[0]:self.array.shape[0] - border[0],
-                border[1]:self.array.shape[1] - border[1],
+                border[0]:rgb.shape[0] - border[0],
+                border[1]:rgb.shape[1] - border[1],
                 :] = self.array
             bayer_pad = np.zeros((
-                bayer.shape[0] + borders[0],
-                bayer.shape[1] + borders[1],
-                bayer.shape[2]), dtype=bayer.dtype)
+                self.array.shape[0] + borders[0],
+                self.array.shape[1] + borders[1],
+                self.array.shape[2]), dtype=bayer.dtype)
             bayer_pad[
                 border[0]:bayer_pad.shape[0] - border[0],
                 border[1]:bayer_pad.shape[1] - border[1],

@@ -38,10 +38,21 @@ from __future__ import (
 str = type('')
 
 import os
+import io
 import re
 import math
 import subprocess
 from PIL import Image
+
+
+RAW_FORMATS = {
+    # name   bytes-per-pixel
+    'yuv':  1.5,
+    'rgb':  3,
+    'rgba': 4,
+    'bgr':  3,
+    'bgra': 4,
+    }
 
 
 def verify_video(filename_or_obj, format, resolution):
@@ -50,39 +61,54 @@ def verify_video(filename_or_obj, format, resolution):
     resolution.
     """
     width, height = resolution
-    if isinstance(filename_or_obj, str):
-        p = subprocess.Popen([
-            'avconv',
-            '-f', format,
-            '-i', filename_or_obj,
-            ], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    if format in RAW_FORMATS:
+        size = (
+                math.ceil(width / 32) * 32
+                * math.ceil(height / 16) * 16
+                * RAW_FORMATS[format]
+                )
+        if isinstance(filename_or_obj, str):
+            stream = io.open(filename_or_obj, 'rb')
+        else:
+            stream = filename_or_obj
+        stream.seek(0, os.SEEK_END)
+        assert stream.tell() > 0
+        # Check the stream size is an exact multiple of the frame size
+        assert stream.tell() % size == 0
     else:
-        p = subprocess.Popen([
-            'avconv',
-            '-f', format,
-            '-i', '-',
-            ], stdin=filename_or_obj, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    out = p.communicate()[0]
-    assert p.returncode == 1, 'avconv returned unexpected code %d' % p.returncode
-    state = 'start'
-    for line in out.splitlines():
-        line = line.decode('utf-8').strip()
-        if state == 'start' and re.match(r'^Input #0', line):
-            state = 'input'
-        elif state == 'input' and re.match(r'^Duration', line):
-            state = 'dur'
-        elif state == 'dur' and re.match(r'^Stream #0\.0', line):
-            assert re.match(
-                r'^Stream #0\.0: '
-                r'Video: %s( \(.*\))?, '
-                r'yuvj?420p, '
-                r'%dx%d( \[PAR \d+:\d+ DAR \d+:\d+\])?, '
-                r'\d+ fps, \d+ tbr, \d+k? tbn, \d+k? tbc$' % (
-                    format, width, height),
-                line
-                ), 'Unexpected avconv output: %s' % line
-            return
-    assert False, 'Failed to locate stream analysis in avconv output'
+        if isinstance(filename_or_obj, str):
+            p = subprocess.Popen([
+                'avconv',
+                '-f', format,
+                '-i', filename_or_obj,
+                ], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        else:
+            p = subprocess.Popen([
+                'avconv',
+                '-f', format,
+                '-i', '-',
+                ], stdin=filename_or_obj, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        out = p.communicate()[0]
+        assert p.returncode == 1, 'avconv returned unexpected code %d' % p.returncode
+        state = 'start'
+        for line in out.splitlines():
+            line = line.decode('utf-8').strip()
+            if state == 'start' and re.match(r'^Input #0', line):
+                state = 'input'
+            elif state == 'input' and re.match(r'^Duration', line):
+                state = 'dur'
+            elif state == 'dur' and re.match(r'^Stream #0\.0', line):
+                assert re.match(
+                    r'^Stream #0\.0: '
+                    r'Video: %s( \(.*\))?, '
+                    r'yuvj?420p, '
+                    r'%dx%d( \[PAR \d+:\d+ DAR \d+:\d+\])?, '
+                    r'\d+ fps, \d+ tbr, \d+k? tbn, \d+k? tbc$' % (
+                        format, width, height),
+                    line
+                    ), 'Unexpected avconv output: %s' % line
+                return
+        assert False, 'Failed to locate stream analysis in avconv output'
 
 
 def verify_image(filename_or_obj, format, resolution):
@@ -90,30 +116,22 @@ def verify_image(filename_or_obj, format, resolution):
     Verify that the image in filename_or_obj has the specified format and
     resolution.
     """
-    img = Image.open(filename_or_obj)
-    assert img.size == resolution
-    assert img.format.lower() == format.lower()
-    img.verify()
-
-
-def verify_raw(stream, format, resolution):
-    # Calculate the expected size of the streams for the current
-    # resolution; horizontal resolution is rounded up to the nearest
-    # multiple of 32, and vertical to the nearest multiple of 16 by the
-    # camera for raw data. RGB format holds 3 bytes per pixel, YUV format
-    # holds 1.5 bytes per pixel (1 byte of Y per pixel, and 2 bytes of Cb
-    # and Cr per 4 pixels), etc.
-    size = (
-            math.ceil(resolution[0] / 32) * 32
-            * math.ceil(resolution[1] / 16) * 16
-            * {
-                'yuv': 1.5,
-                'rgb': 3,
-                'bgr': 3,
-                'rgba': 4,
-                'bgra': 4
-                }[format]
-            )
-    stream.seek(0, os.SEEK_END)
-    assert stream.tell() == size
+    width, height = resolution
+    if format in RAW_FORMATS:
+        size = (
+                math.ceil(width / 32) * 32
+                * math.ceil(height / 16) * 16
+                * RAW_FORMATS[format]
+                )
+        if isinstance(filename_or_obj, str):
+            stream = io.open(filename_or_obj, 'rb')
+        else:
+            stream = filename_or_obj
+        stream.seek(0, os.SEEK_END)
+        assert stream.tell() == size
+    else:
+        img = Image.open(filename_or_obj)
+        assert img.size == resolution
+        assert img.format.lower() == format.lower()
+        img.verify()
 

@@ -45,19 +45,22 @@ import picamera
 import pytest
 from PIL import Image
 from collections import namedtuple
-from verify import verify_image, verify_raw
+from verify import verify_image, RAW_FORMATS
 
 
 CaptureCase = namedtuple('CaptureCase', ('format', 'ext', 'options'))
 
 CAPTURE_CASES = (
-    CaptureCase('jpeg', '.jpg', {'quality': 95}),
-    CaptureCase('jpeg', '.jpg', {}),
-    CaptureCase('jpeg', '.jpg', {'resize': (640, 480)}),
-    CaptureCase('jpeg', '.jpg', {'quality': 50}),
-    CaptureCase('gif',  '.gif', {}),
-    #CaptureCase('png',  '.png', {}),
-    CaptureCase('bmp',  '.bmp', {}),
+    CaptureCase('jpeg', '.jpg',  {'quality': 95}),
+    CaptureCase('jpeg', '.jpg',  {}),
+    CaptureCase('jpeg', '.jpg',  {'resize': (640, 480)}),
+    CaptureCase('jpeg', '.jpg',  {'quality': 50}),
+    CaptureCase('gif',  '.gif',  {}),
+    #CaptureCase('png',  '.png',  {}),
+    CaptureCase('bmp',  '.bmp',  {}),
+    ) + tuple(
+    CaptureCase(fmt,    '.data', {})
+    for fmt in RAW_FORMATS
     )
 
 
@@ -70,15 +73,15 @@ def filename_format_options(request):
     request.addfinalizer(fin)
     return filename, request.param.format, request.param.options
 
+# Run tests with a variety of file suffixes and expected formats
+@pytest.fixture(params=CAPTURE_CASES)
+def ext_format_options(request):
+    return request.param.ext, request.param.format, request.param.options
+
 # Run tests with a variety of format specs
 @pytest.fixture(params=CAPTURE_CASES)
 def format_options(request):
     return request.param.format, request.param.options
-
-# Run tests with one of the two supported raw formats
-@pytest.fixture(params=('yuv', 'rgb', 'rgba', 'bgr', 'bgra'))
-def raw_format(request):
-    return request.param
 
 @pytest.fixture(params=(False, True))
 def use_video_port(request):
@@ -88,16 +91,26 @@ def use_video_port(request):
 def burst(request):
     return request.param
 
+def expected_failures(resolution, format, use_video_port):
+    if resolution == (2592, 1944) and format == 'gif' and not use_video_port:
+        pytest.xfail('Camera fails to produce output with max. res GIFs')
+    if resolution == (2592, 1944) and format == 'bmp':
+        pytest.xfail('Camera fails to produce output with max. res BMPs')
+    if resolution == (2592, 1944) and format in ('rgba', 'bgra') and not use_video_port:
+        pytest.xfail('Camera runs out of memory with this combination')
+
 
 def test_capture_to_file(
         camera, previewing, mode, filename_format_options, use_video_port):
     filename, format, options = filename_format_options
     resolution, framerate = mode
-    if resolution == (2592, 1944) and format == 'gif' and not use_video_port:
-        pytest.xfail('Camera fails to produce output with max. res GIFs')
-    if resolution == (2592, 1944) and format == 'bmp':
-        pytest.xfail('Camera fails to produce output with max. res BMPs')
-    camera.capture(filename, use_video_port=use_video_port, **options)
+    expected_failures(resolution, format, use_video_port)
+    camera.capture(
+            filename,
+            # Check that in the case of cooked formats, capture correctly
+            # derives the format from the extension
+            format=format if format in RAW_FORMATS else None,
+            use_video_port=use_video_port, **options)
     if 'resize' in options:
         resolution = options['resize']
     verify_image(filename, format, resolution)
@@ -107,10 +120,7 @@ def test_capture_to_stream(
     stream = io.BytesIO()
     format, options = format_options
     resolution, framerate = mode
-    if resolution == (2592, 1944) and format == 'gif' and not use_video_port:
-        pytest.xfail('Camera fails to produce output with max. res GIFs')
-    if resolution == (2592, 1944) and format == 'bmp':
-        pytest.xfail('Camera fails to produce output with max. res BMPs')
+    expected_failures(resolution, format, use_video_port)
     if 'resize' in options:
         resolution = options['resize']
     camera.capture(stream, format, use_video_port=use_video_port, **options)
@@ -118,30 +128,35 @@ def test_capture_to_stream(
     verify_image(stream, format, resolution)
 
 def test_capture_continuous_to_file(
-        camera, mode, tmpdir, use_video_port, burst):
+        camera, mode, ext_format_options, tmpdir, use_video_port, burst):
+    ext, format, options = ext_format_options
     resolution, framerate = mode
+    expected_failures(resolution, format, use_video_port)
     try:
         for i, filename in enumerate(
                 camera.capture_continuous(os.path.join(
-                    str(tmpdir), 'image{counter:02d}.jpg'),
+                    str(tmpdir), 'image{counter:02d}%s' % ext),
+                    format=format if format in RAW_FORMATS else None,
                     use_video_port=use_video_port, burst=burst)):
-            verify_image(filename, 'jpeg', resolution)
+            verify_image(filename, format, resolution)
             if i == 3:
                 break
     except picamera.PiCameraRuntimeError:
         assert use_video_port and burst
 
 def test_capture_continuous_to_stream(
-        camera, mode, use_video_port, burst):
+        camera, mode, format_options, use_video_port, burst):
+    format, options = format_options
     resolution, framerate = mode
+    expected_failures(resolution, format, use_video_port)
     stream = io.BytesIO()
     try:
         for i, foo in enumerate(
-                camera.capture_continuous(stream, format='jpeg',
+                camera.capture_continuous(stream, format=format,
                     use_video_port=use_video_port, burst=burst)):
             stream.truncate()
             stream.seek(0)
-            verify_image(stream, 'jpeg', resolution)
+            verify_image(stream, format, resolution)
             stream.seek(0)
             if i == 3:
                 break
@@ -149,65 +164,36 @@ def test_capture_continuous_to_stream(
         assert use_video_port and burst
 
 def test_capture_sequence_to_file(
-        camera, mode, tmpdir, use_video_port, burst):
+        camera, mode, ext_format_options, tmpdir, use_video_port, burst):
+    ext, format, options = ext_format_options
     resolution, framerate = mode
-    filenames = [os.path.join(str(tmpdir), 'image%d.jpg' % i) for i in range(3)]
+    expected_failures(resolution, format, use_video_port)
+    filenames = [
+            os.path.join(str(tmpdir), 'image%d%s' % (i, ext))
+            for i in range(3)
+            ]
     try:
         camera.capture_sequence(
-                filenames, use_video_port=use_video_port, burst=burst)
+                filenames, format=format,
+                use_video_port=use_video_port, burst=burst)
         for filename in filenames:
-            verify_image(filename, 'jpeg', resolution)
+            verify_image(filename, format, resolution)
     except picamera.PiCameraRuntimeError:
         assert use_video_port and burst
 
 def test_capture_sequence_to_stream(
-        camera, mode, use_video_port, burst):
+        camera, mode, format_options, use_video_port, burst):
+    format, options = format_options
     resolution, framerate = mode
+    expected_failures(resolution, format, use_video_port)
     streams = [io.BytesIO() for i in range(3)]
     try:
         camera.capture_sequence(
-                streams, use_video_port=use_video_port, burst=burst)
+                streams, format=format,
+                use_video_port=use_video_port, burst=burst)
         for stream in streams:
             stream.seek(0)
-            verify_image(stream, 'jpeg', resolution)
-    except picamera.PiCameraRuntimeError:
-        assert use_video_port and burst
-
-def test_capture_raw(camera, mode, raw_format, use_video_port, burst):
-    resolution, framerate = mode
-    if resolution == (2592, 1944) and raw_format in ('rgba', 'bgra') and not use_video_port:
-        pytest.xfail('Camera runs out of memory with this combination')
-    stream = io.BytesIO()
-    camera.capture(stream, format=raw_format, use_video_port=use_video_port)
-    verify_raw(stream, raw_format, resolution)
-
-def test_capture_continuous_raw(camera, mode, raw_format, use_video_port, burst):
-    resolution, framerate = mode
-    if resolution == (2592, 1944) and raw_format in ('rgba', 'bgra') and not use_video_port:
-        pytest.xfail('Camera runs out of memory with this combination')
-    try:
-        for i, stream in enumerate(camera.capture_continuous(
-                io.BytesIO(), format=raw_format, use_video_port=use_video_port,
-                burst=burst)):
-            if i == 3:
-                break
-            verify_raw(stream, raw_format, resolution)
-            stream.seek(0)
-            stream.truncate()
-    except picamera.PiCameraRuntimeError:
-        assert use_video_port and burst
-
-def test_capture_sequence_raw(camera, mode, raw_format, use_video_port, burst):
-    resolution, framerate = mode
-    if resolution == (2592, 1944) and raw_format in ('rgba', 'bgra') and not use_video_port:
-        pytest.xfail('Camera runs out of memory with this combination')
-    streams = [io.BytesIO() for i in range(3)]
-    try:
-        camera.capture_sequence(
-                streams, format=raw_format, use_video_port=use_video_port,
-                burst=burst)
-        for stream in streams:
-            verify_raw(stream, raw_format, resolution)
+            verify_image(stream, format, resolution)
     except picamera.PiCameraRuntimeError:
         assert use_video_port and burst
 

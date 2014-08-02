@@ -64,6 +64,8 @@ from picamera.encoders import (
     PiVideoFrame,
     PiVideoFrameType,
     PiVideoEncoder,
+    PiRawVideoEncoder,
+    PiCookedVideoEncoder,
     PiImageEncoder,
     PiRawOneImageEncoder,
     PiRawMultiImageEncoder,
@@ -767,7 +769,10 @@ class PiCamera(object):
         pipeline). Finally, *options* includes extra keyword arguments that
         should be passed verbatim to the encoder.
         """
-        return PiVideoEncoder(
+        encoder_class = (
+                PiRawVideoEncoder if format in self.RAW_FORMATS else
+                PiCookedVideoEncoder)
+        return encoder_class(
                 self, camera_port, output_port, format, resize, **options)
 
     def close(self):
