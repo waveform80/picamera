@@ -421,7 +421,7 @@ class PiBayerArray(PiBaseOutput):
         super(PiBayerArray, self).flush()
         self._demo = None
         data = self.buffer[-6404096:]
-        if data[:4] != 'BRCM':
+        if data[:4] != b'BRCM':
             raise PiCameraValueError('Unable to locate Bayer data at end of buffer')
         # Strip header
         data = data[32768:]
