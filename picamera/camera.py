@@ -47,6 +47,7 @@ import mimetypes
 import ctypes as ct
 import fractions
 import threading
+from operator import itemgetter
 
 import picamera.mmal as mmal
 import picamera.bcm_host as bcm_host
@@ -150,6 +151,16 @@ def to_fraction(rational):
     Converts an MMAL_RATIONAL_T to a Fraction instance.
     """
     return fractions.Fraction(rational.num, rational.den)
+
+
+def docstring_values(values, indent=8):
+    """
+    Formats a dictionary of values for inclusion in a docstring.
+    """
+    return ('\n' + ' ' * indent).join(
+        "* ``'%s'``" % k
+        for (k, v) in
+        sorted(values.items(), key=itemgetter(1)))
 
 
 class PiCamera(object):
@@ -2244,19 +2255,9 @@ class PiCamera(object):
 
         When set, the attributes adjusts the strength of the dynamic range
         compression applied to the camera's output. Valid values are given
-        in the table below:
+        in the list below:
 
-        +--------------+----------------------------------------------------+
-        | Value        | Description                                        |
-        +==============+====================================================+
-        | ``'off'``    | Disables dynamic range compression                 |
-        +--------------+----------------------------------------------------+
-        | ``'low'``    | Use a low level of dynamic range compression       |
-        +--------------+----------------------------------------------------+
-        | ``'medium'`` | Use a medium level of dynamic range compression    |
-        +--------------+----------------------------------------------------+
-        | ``'high'``   | Use the maximum level of dynamic range compression |
-        +--------------+----------------------------------------------------+
+        {values}
 
         The default value is ``'off'``. All possible values for the attribute
         can be obtained from the ``PiCamera.DRC_STRENGTHS`` attribute.
@@ -2264,7 +2265,7 @@ class PiCamera(object):
         .. _dynamic range compression: http://en.wikipedia.org/wiki/Gain_compression
 
         .. versionadded:: 1.6
-        """)
+        """.format(values=docstring_values(DRC_STRENGTHS)))
 
     def _get_ISO(self):
         self._check_camera_open()
@@ -2358,28 +2359,21 @@ class PiCamera(object):
         which the camera `determines the exposure`_ as one of the following
         strings:
 
-        +---------------+---------------------------------------------------+
-        | Value         | Description                                       |
-        +===============+===================================================+
-        | ``'average'`` | The camera measures the average of the entire     |
-        |               | scene.                                            |
-        +---------------+---------------------------------------------------+
-        | ``'spot'``    | The camera measures the center of the scene.      |
-        +---------------+---------------------------------------------------+
-        | ``'backlit'`` | The camera measures a larger central area,        |
-        |               | ignoring the edges of the scene.                  |
-        +---------------+---------------------------------------------------+
-        | ``'matrix'``  | The camera measures several points within the     |
-        |               | scene.                                            |
-        +---------------+---------------------------------------------------+
+        {values}
 
-        When set, the property adjusts the camera's metering mode. The property
-        can be set while recordings or previews are in progress. The default
-        value is ``'average'``. All possible values for the attribute can be
-        obtained from the ``PiCamera.METER_MODES`` attribute.
+        When set, the property adjusts the camera's metering mode. All modes
+        set up two regions: a center region, and an outer region. The major
+        `difference between each mode`_ is the size of the center region. The
+        ``'backlit'`` mode has the largest central region (30% of the width),
+        while ``'spot'`` has the smallest (10% of the width).
+
+        The property can be set while recordings or previews are in progress.
+        The default value is ``'average'``. All possible values for the
+        attribute can be obtained from the ``PiCamera.METER_MODES`` attribute.
 
         .. _determines the exposure: http://en.wikipedia.org/wiki/Metering_mode
-        """)
+        .. _difference between each mode: http://www.raspberrypi.org/forums/viewtopic.php?p=565644#p565644
+        """.format(values=docstring_values(METER_MODES)))
 
     def _get_video_stabilization(self):
         self._check_camera_open()
@@ -2501,12 +2495,15 @@ class PiCamera(object):
 
         When queried, the :attr:`exposure_mode` property returns a string
         representing the exposure setting of the camera. The possible values
-        can be obtained from the ``PiCamera.EXPOSURE_MODES`` attribute.
+        can be obtained from the ``PiCamera.EXPOSURE_MODES`` attribute, and
+        are as follows:
+
+        {values}
 
         When set, the property adjusts the camera's exposure mode.  The
         property can be set while recordings or previews are in progress. The
         default value is ``'auto'``.
-        """)
+        """.format(values=docstring_values(EXPOSURE_MODES)))
 
     def _get_awb_mode(self):
         self._check_camera_open()
@@ -2539,12 +2536,15 @@ class PiCamera(object):
 
         When queried, the :attr:`awb_mode` property returns a string
         representing the auto-white-balance setting of the camera. The possible
-        values can be obtained from the ``PiCamera.AWB_MODES`` attribute.
+        values can be obtained from the ``PiCamera.AWB_MODES`` attribute, and
+        are as follows:
+
+        {values}
 
         When set, the property adjusts the camera's auto-white-balance mode.
         The property can be set while recordings or previews are in progress.
         The default value is ``'auto'``.
-        """)
+        """.format(values=docstring_values(AWB_MODES)))
 
     def _get_awb_gains(self):
         self._check_camera_open()
@@ -2632,13 +2632,15 @@ class PiCamera(object):
         When queried, the :attr:`image_effect` property returns a string
         representing the effect the camera will apply to captured video. The
         possible values can be obtained from the ``PiCamera.IMAGE_EFFECTS``
-        attribute.
+        attribute, and are as follows:
+
+        {values}
 
         When set, the property changes the effect applied by the camera.  The
         property can be set while recordings or previews are in progress, but
         only certain effects work while recording video (notably ``'negative'``
         and ``'solarize'``). The default value is ``'none'``.
-        """)
+        """.format(values=docstring_values(IMAGE_EFFECTS)))
 
     def _get_color_effects(self):
         self._check_camera_open()
