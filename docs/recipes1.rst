@@ -167,6 +167,62 @@ The *resize* parameter can also be specified when recording video with the
 :meth:`~picamera.PiCamera.start_recording` method.
 
 
+.. _consistent_capture:
+
+Capturing consistent images
+===========================
+
+You may wish to capture a sequence of images all of which look the same in
+terms of brightness, color, and contrast (this can be useful in timelapse
+photography, for example). Various attributes need to be used in order to
+ensure consistency across multiple shots. Specifically, you need to ensure that
+the camera's exposure time, white balance, and gains are all fixed:
+
+* To fix exposure time, set the :attr:`~picamera.PiCamera.shutter_speed`
+  attribute to a reasonable value, then set
+  :attr:`~picamera.PiCamera.exposure_mode` to ``'off'``.
+* To fix gains, set the :attr:`~picamera.PiCamera.ISO` attribute to an
+  appropriate value (higher values imply higher gains).
+* To fix white balance, set the :attr:`~picamera.PiCamera.awb_mode` to
+  ``'off'``, then set :attr:`~picamera.PiCamera.awb_gains` to a (red, blue)
+  tuple of gains.
+
+It can be difficult to know what appropriate values might be for these
+attributes.  For :attr:`~picamera.PiCamera.ISO`, a simple rule of thumb is that
+100 and 200 are reasonable values for daytime, while 400 and 800 are better for
+low light. To determine a reasonable value for
+:attr:`~picamera.PiCamera.shutter_speed` you can query the
+:attr:`~picamera.PiCamera.exposure_speed` attribute when
+:attr:`~picamera.PiCamera.exposure_mode` is set to something other than
+``'off'``. This will tell you the camera's exposure speed as determined by the
+auto-exposure algorithm. FInally, to determine reasonable values for
+:attr:`~picamera.PiCamera.awb_gains` simply query the property while
+:attr:`~picamera.PiCamera.awb_mode` is set to something other than ``'off'``.
+Again, this will tell you the camera's white balance gains as determined by the
+auto-white-balance algorithm.
+
+The following script provides a brief example of configuring these settings::
+
+    import time
+    import picamera
+
+    with picamera.PiCamera() as camera:
+        camera.resolution = (1280, 720)
+        camera.framerate = 30
+        # Give the camera's auto-exposure and auto-white-balance algorithms
+        # some time to measure the scene and determine appropriate values
+        camera.ISO = 200
+        time.sleep(2)
+        # Now fix the values
+        camera.shutter_speed = camera.exposure_speed
+        camera.exposure_mode = 'off'
+        g = camera.awb_gains
+        camera.awb_mode = 'off'
+        camera.awb_gains = g
+        # Finally, take several photos with the fixed settings
+        camera.capture_sequence(['image%02d.jpg' % i for i in range(10)])
+
+
 .. _timelapse_capture:
 
 Capturing timelapse sequences
@@ -212,6 +268,50 @@ captured filenames)::
         for filename in camera.capture_continuous('img{timestamp:%Y-%m-%d-%H-%M}.jpg'):
             print('Captured %s' % filename)
             wait()
+
+
+.. _dark_capture:
+
+Capturing in low light
+======================
+
+Using similar tricks to those in :ref:`consistent_capture`, the Pi's camera can
+capture images in low light conditions. The primary objective is to set a high
+gain, and a long exposure time to allow the camera to gather as much light as
+possible However, the :attr:`~picamera.PiCamera.shutter_speed` attribute is
+constrained by the camera's :attr:`~picamera.PiCamera.framerate` so the first
+thing we need to do is set a very slow framerate. The following script captures
+an image with a 6 second exposure time (the maximum the Pi's camera module is
+currently capable of)::
+
+    import picamera
+    from time import sleep
+    from fractions import Fraction
+
+    with picamera.PiCamera() as camera:
+        camera.resolution = (1280, 720)
+        # Set a framerate of 1/6fps, then set shutter
+        # speed to 6s and ISO to 800
+        camera.framerate = Fraction(1, 6)
+        camera.shutter_speed = 6000000
+        camera.exposure_mode = 'off'
+        camera.ISO = 800
+        # Give the camera a good long time to measure AWB
+        # (you may wish to use fixed AWB instead)
+        sleep(10)
+        # Finally, capture an image with a 6s exposure. Due
+        # to mode switching on the still port, this will take
+        # longer than 6 seconds
+        camera.capture('dark.jpg')
+
+In anything other than dark conditions, the image produced by this script will
+most likely be completely white or at least heavily over-exposed.
+
+.. note::
+
+    The Pi's camera module uses a `rolling shutter`_. This means that moving
+    subjects may appear distorted if they move relative to the camera. This
+    effect will be exaggerated by using longer exposure times.
 
 
 .. _streaming_capture:
@@ -672,4 +772,5 @@ running as root with ``sudo python``), you can also control the LED via the
 .. _ring buffer: http://en.wikipedia.org/wiki/Circular_buffer
 .. _boot configuration: http://www.raspberrypi.org/documentation/configuration/config-txt.md
 .. _Little Endian: http://en.wikipedia.org/wiki/Endianness
+.. _rolling shutter: http://en.wikipedia.org/wiki/Rolling_shutter
 
