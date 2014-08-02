@@ -89,11 +89,6 @@ def _control_callback(port, buf):
 _control_callback = mmal.MMAL_PORT_BH_CB_T(_control_callback)
 
 
-# Guardian variable set upon initialization of PiCamera and used to ensure that
-# no more than one PiCamera is instantiated at a given time
-_CAMERA = None
-
-
 class PiCameraFraction(fractions.Fraction):
     """
     Extends :class:`~fractions.Fraction` to act as a (numerator, denominator)
@@ -167,11 +162,13 @@ class PiCamera(object):
     """
     Provides a pure Python interface to the Raspberry Pi's camera module.
 
-    Upon construction, this class initializes the camera. As there is only a
-    single camera supported by the Raspberry Pi, this means that only a single
-    instance of this class can exist at any given time (it is effectively a
-    singleton class although it is not implemented as such). The
-    :attr:`resolution` of the camera is initially set to the display's
+    Upon construction, this class initializes the camera. The *camera_num*
+    parameter (which defaults to 0) selects the camera module that the instance
+    will represent. Only the Raspberry Pi compute module currently supports
+    more than one camera, and this class has not yet been tested with more than
+    one module.
+
+    The :attr:`resolution` of the camera is initially set to the display's
     resolution unless the display has been disabled (e.g. with `tvservice -o`)
     in which case a default of 1280x720 is used.
 
@@ -308,12 +305,7 @@ class PiCamera(object):
     _RAW_FORMATS_R    = {v: k for (k, v) in RAW_FORMATS.items()}
     _DRC_STRENGTHS_R  = {v: k for (k, v) in DRC_STRENGTHS.items()}
 
-    def __init__(self):
-        global _CAMERA
-        if _CAMERA:
-            raise PiCameraRuntimeError(
-                "Only one PiCamera object can be in existence at a time")
-        _CAMERA = self
+    def __init__(self, camera_num=0):
         bcm_host.bcm_host_init()
         mimetypes.add_type('application/h264',  '.h264',  False)
         mimetypes.add_type('application/mjpeg', '.mjpg',  False)
@@ -334,7 +326,7 @@ class PiCamera(object):
             'IFD0.Make': 'RaspberryPi',
             }
         try:
-            self._init_camera()
+            self._init_camera(camera_num)
             self._init_defaults()
             self._init_preview()
             self._init_splitter()
@@ -355,7 +347,7 @@ class PiCamera(object):
                 # GPIO reference so we don't try anything further
                 GPIO = None
 
-    def _init_camera(self):
+    def _init_camera(self, num):
         self._camera = ct.POINTER(mmal.MMAL_COMPONENT_T)()
         self._camera_config = mmal.MMAL_PARAMETER_CAMERA_CONFIG_T(
             mmal.MMAL_PARAMETER_HEADER_T(
@@ -374,6 +366,17 @@ class PiCamera(object):
                     "and ensure that the camera has been enabled.")
             else:
                 raise
+
+        mp = mmal.MMAL_PARAMETER_INT32_T(
+            mmal.MMAL_PARAMETER_HEADER_T(
+                mmal.MMAL_PARAMETER_CAMERA_NUM,
+                ct.sizeof(mmal.MMAL_PARAMETER_INT32_T)
+            ),
+            num)
+        mmal_check(
+            mmal.mmal_port_parameter_set(self._camera[0].control, mp.hdr),
+            prefix="Unable to select camera %d" % num)
+
         if not self._camera[0].output_num:
             raise PiCameraError("Camera doesn't have output ports")
 
@@ -797,7 +800,6 @@ class PiCamera(object):
         resources associated with the camera; this is necessary to prevent GPU
         memory leaks.
         """
-        global _CAMERA
         for port in list(self._encoders):
             self.stop_recording(splitter_port=port)
         assert not self.recording
@@ -819,7 +821,6 @@ class PiCamera(object):
         if self._camera:
             mmal.mmal_component_destroy(self._camera)
             self._camera = None
-        _CAMERA = None
 
     def __enter__(self):
         return self
