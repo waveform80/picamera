@@ -516,7 +516,8 @@ class MMAL_PARAMETER_LOGGING_T(ct.Structure):
     MMAL_PARAMETER_SHUTTER_SPEED,
     MMAL_PARAMETER_CUSTOM_AWB_GAINS,
     MMAL_PARAMETER_CAMERA_SETTINGS,
-) = range(MMAL_PARAMETER_GROUP_CAMERA, MMAL_PARAMETER_GROUP_CAMERA + 70)
+    MMAL_PARAMETER_PRIVACY_INDICATOR,
+) = range(MMAL_PARAMETER_GROUP_CAMERA, MMAL_PARAMETER_GROUP_CAMERA + 71)
 
 class MMAL_PARAMETER_THUMBNAIL_CONFIG_T(ct.Structure):
     _fields_ = [
@@ -1013,6 +1014,19 @@ class MMAL_PARAMETER_CAMERA_SETTINGS_T(ct.Structure):
         ('focus_position', ct.c_uint32),
         ]
 
+MMAL_PARAM_PRIVACY_INDICATOR_T = ct.c_uint32 # enum
+(
+    MMAL_PARAMETER_PRIVACY_INDICATOR_OFF,
+    MMAL_PARAMETER_PRIVACY_INDICATOR_ON,
+    MMAL_PARAMETER_PRIVACY_INDICATOR_FORCE_ON,
+) = range(3)
+MMAL_PARAMETER_PRIVACY_INDICATOR_MAX = 0x7fffffff
+
+class MMAL_PARAMETER_PRIVACY_INDICATOR_T(ct.Structure):
+    _fields_ = [
+        ('hdr',           MMAL_PARAMETER_HEADER_T),
+        ]
+
 # mmal_parameters_video.h ####################################################
 
 (
@@ -1061,7 +1075,8 @@ class MMAL_PARAMETER_CAMERA_SETTINGS_T(ct.Structure):
    MMAL_PARAMETER_VIDEO_ENCODE_INLINE_HEADER,
    MMAL_PARAMETER_VIDEO_ENCODE_SEI_ENABLE,
    MMAL_PARAMETER_VIDEO_ENCODE_INLINE_VECTORS,
-) = range(MMAL_PARAMETER_GROUP_VIDEO, MMAL_PARAMETER_GROUP_VIDEO + 45)
+   MMAL_PARAMETER_VIDEO_RENDER_STATS,
+) = range(MMAL_PARAMETER_GROUP_VIDEO, MMAL_PARAMETER_GROUP_VIDEO + 46)
 
 MMAL_DISPLAYTRANSFORM_T  = ct.c_uint32 # enum
 MMAL_DISPLAY_ROT0 = 0
@@ -1318,6 +1333,19 @@ class MMAL_PARAMETER_VIDEO_DRM_PROTECT_BUFFER_T(ct.Structure):
         ('protect',     ct.c_uint32),
         ('mem_handle',  ct.c_uint32),
         ('phys_addr',   ct.c_void_p),
+        ]
+
+class MMAL_PARAMETER_VIDEO_RENDER_STATS_T(ct.Structure):
+    _fields_ = [
+        ('hdr',                 MMAL_PARAMETER_HEADER_T),
+        ('valid',               MMAL_BOOL_T),
+        ('match',               ct.c_uint32),
+        ('period',              ct.c_uint32),
+        ('phase',               ct.c_uint32),
+        ('pixel_clock_nominal', ct.c_uint32),
+        ('pixel_clock',         ct.c_uint32),
+        ('hvs_status',          ct.c_uint32),
+        ('dummy',               ct.c_uint32 * 2),
         ]
 
 # mmal_parameters_audio.h ####################################################
