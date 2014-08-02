@@ -124,41 +124,7 @@ raspi-config``, select the "Enable Camera" option, select "Enable", and then
 How can I take two consecutive pictures with equivalent settings?
 =================================================================
 
-A common request is to "lock down" the camera's settings so that sequences of
-images appear as similar as possible (a typical use-case for this is
-reconstruction of video from captured images, e.g. from a cinefilm). The two
-most important things for this purpose are auto white balance (AWB) and shutter
-speed. Firstly, disable auto white balance and set specific red/blue gains with
-the :attr:`~picamera.PiCamera.awb_mode` and
-:attr:`~picamera.PiCamera.awb_gains` attributes. Secondly, set an exposure mode
-(other than ``'auto'``) and specify a shutter speed with the
-:attr:`~picamera.PiCamera.exposure_mode` and
-:attr:`~picamera.PiCamera.shutter_speed` attributes (bearing in mind that you
-cannot set a shutter speed slower than the current
-:attr:`~picamera.PiCamera.framerate` would allow). You should also set a
-non-zero :attr:`~picamera.PiCamera.ISO` value. For example::
-
-    import picamera
-
-    with picamera.PiCamera() as camera:
-        camera.resolution = (1280, 720)
-        camera.framerate = 1
-        camera.awb_mode = 'off'
-        camera.awb_gains = (1.8, 1.2)
-        camera.exposure_mode = 'night'
-        camera.shutter_speed = 100000
-        camera.ISO = 400
-
-Needless to say, you should not vary other properties (like
-:attr:`~picamera.PiCamera.brightness` and
-:attr:`~picamera.PiCamera.exposure_compensation`) while shooting.
-
-You can determine reasonable auto white balance gains, and shutter speeds by
-querying the :attr:`~picamera.PiCamera.awb_gains` and
-:attr:`~picamera.PiCamera.exposure_speed` attributes while the camera is in the
-default "automatic" mode. Bear in mind that the algorithms that determine these
-values require several frames of input, so you may need to insert pauses in
-your code before sampling these attributes.
+See the :ref:`consistent_capture` recipe.
 
 Can I use picamera with a USB webcam?
 =====================================
