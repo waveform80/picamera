@@ -1066,8 +1066,8 @@ classes, and which method they call to construct these encoders:
 | :meth:`~picamera.PiCamera.capture_sequence`   | :meth:`~picamera.PiCamera._get_images_encoder` | :class:`~picamera.PiCookedMultiImageEncoder` |
 |                                               |                                                | :class:`~picamera.PiRawMultiImageEncoder`    |
 +-----------------------------------------------+------------------------------------------------+----------------------------------------------+
-| :meth:`~picamera.PiCamera.start_recording`    | :meth:`~picamera.PiCamera._get_video_encoder`  | :class:`~picamera.PiVideoEncoder`            |
-| :meth:`~picamera.PiCamera.record_sequence`    |                                                |                                              |
+| :meth:`~picamera.PiCamera.start_recording`    | :meth:`~picamera.PiCamera._get_video_encoder`  | :class:`~picamera.PiCookedVideoEncoder`      |
+| :meth:`~picamera.PiCamera.record_sequence`    |                                                | :class:`~picamera.PiRawVideoEncoder`         |
 +-----------------------------------------------+------------------------------------------------+----------------------------------------------+
 
 It is recommended, particularly in the case of the image encoder classes, that
@@ -1077,15 +1077,15 @@ find that one of the intermediate classes is a better basis for your own
 modifications.
 
 In the following example recipe we will extend the
-:class:`~picamera.PiVideoEncoder` class to store how many I-frames and P-frames
-are captured (the camera's encoder doesn't use B-frames)::
+:class:`~picamera.PiCookedVideoEncoder` class to store how many I-frames and
+P-frames are captured (the camera's encoder doesn't use B-frames)::
 
     import picamera
     import picamera.mmal as mmal
 
 
     # Override PiVideoEncoder to keep track of the number of each type of frame
-    class MyEncoder(picamera.PiVideoEncoder):
+    class MyEncoder(picamera.PiCookedVideoEncoder):
         def start(self, output, motion_output=None):
             self.parent.i_frames = 0
             self.parent.p_frames = 0
