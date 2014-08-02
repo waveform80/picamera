@@ -226,6 +226,7 @@ class PiCamera(object):
         }
 
     EXPOSURE_MODES = {
+        'off':           mmal.MMAL_PARAM_EXPOSUREMODE_OFF,
         'auto':          mmal.MMAL_PARAM_EXPOSUREMODE_AUTO,
         'night':         mmal.MMAL_PARAM_EXPOSUREMODE_NIGHT,
         'nightpreview':  mmal.MMAL_PARAM_EXPOSUREMODE_NIGHTPREVIEW,
