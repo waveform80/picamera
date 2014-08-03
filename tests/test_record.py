@@ -269,8 +269,9 @@ def test_multi_res_record_len(camera, mode):
     finally:
         camera.stop_recording()
     # output1's size should be approximately twice output2's; we give it a bit
-    # of leeway here (20%) in the test
-    assert output1.size > (output2.size * 1.8)
+    # of leeway here (50%) in the test as waiting for an I-frame in slower
+    # framerates can lead to a failure otherwise
+    assert output1.size > (output2.size * 1.5)
 
 class MotionTest(object):
     def __init__(self, camera):

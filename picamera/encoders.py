@@ -1071,9 +1071,9 @@ class PiVideoEncoder(PiEncoder):
                 outputs[PiVideoFrameType.motion_data] = motion_output
             self._next_output.append(outputs)
         # intra_period / framerate gives the time between I-frames (which
-        # should also coincide with SPS headers). We multiply by two to ensure
-        # the timeout is deliberately excessive
-        timeout = float(self._intra_period / self.parent.framerate) * 2.0
+        # should also coincide with SPS headers). We multiply by three to
+        # ensure the timeout is deliberately excessive
+        timeout = float(self._intra_period / self.parent.framerate) * 3.0
         if not self.event.wait(timeout):
             raise PiCameraRuntimeError(
                 'Timed out waiting for an SPS header (ensure inline_headers '
