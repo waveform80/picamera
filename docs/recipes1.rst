@@ -730,6 +730,15 @@ can simply use VLC with a network URL::
 
     vlc tcp/h264://my_pi_address:8000/
 
+.. note::
+
+    VLC (or mplayer) will *not* work for playback on a Pi. Neither is
+    (currently) capable of using the GPU for decoding, and thus they attempt to
+    perform video decoding on the Pi's CPU (which is not powerful enough for
+    the task). You will need to run these applications on a faster machine
+    (though "faster" is a relative term here: even an Atom powered netbook
+    should be quick enough for the task at non-HD resolutions).
+
 
 .. _led_control:
 
