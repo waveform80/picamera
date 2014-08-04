@@ -5,6 +5,44 @@ Change log
 ==========
 
 
+Release 1.7 (2014-08-04)
+========================
+
+1.7 consists once more of new features, and more bug fixes:
+
+* Support for more than one camera on the compute module has been added, but
+  hasn't been tested yet (`#84`_)
+* The :attr:`~picamera.PiCamera.exposure_mode` ``'off'`` has been added to
+  allow locking down the exposure time, along with some new recipes
+  demonstrating this capability (`#116`_)
+* The valid values for various attributes including
+  :attr:`~picamera.PiCamera.awb_mode`, :attr:`~picamera.PiCamera.meter_mode`,
+  and :attr:`~picamera.PiCamera.exposure_mode` are now automatically included
+  in the documentation (`#130`_)
+* Support for unencoded formats (YUV, RGB, etc.) has been added to the
+  :meth:`~picamera.PiCamera.start_recording` method (`#132`_)
+* Several issues in the :class:`~picamera.array.PiBayerArray` class were fixed;
+  this should now work correctly with Python 3, and the
+  :meth:`~picamera.array.PiBayerArray.demosaic` method should operate correctly
+  (`#133`_, `#134`_)
+* A major issue with multi-resolution recordings which caused all recordings
+  to stop prematurely was fixed (`#136`_)
+* Finally, an issue with the example in the documentation for custom encoders
+  was fixed (`#128`_)
+
+Once again, many thanks to the community for another round of excellent bug
+reports!
+
+.. _#84: https://github.com/waveform80/picamera/issues/84
+.. _#116: https://github.com/waveform80/picamera/issues/116
+.. _#128: https://github.com/waveform80/picamera/issues/128
+.. _#130: https://github.com/waveform80/picamera/issues/130
+.. _#132: https://github.com/waveform80/picamera/issues/132
+.. _#133: https://github.com/waveform80/picamera/issues/133
+.. _#134: https://github.com/waveform80/picamera/issues/134
+.. _#136: https://github.com/waveform80/picamera/issues/136
+
+
 Release 1.6 (2014-07-21)
 ========================
 
@@ -51,6 +89,7 @@ As always, many thanks to the community for another great set of bug reports!
 .. _#117: https://github.com/waveform80/picamera/issues/117
 .. _#120: https://github.com/waveform80/picamera/issues/120
 .. _#121: https://github.com/waveform80/picamera/issues/121
+
 
 Release 1.5 (2014-06-11)
 ========================
