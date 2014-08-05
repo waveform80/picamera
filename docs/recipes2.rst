@@ -1046,6 +1046,17 @@ your own code in response to every frame, although naturally whatever code runs
 within the encoder's callback has to be reasonably quick to avoid stalling the
 encoder pipeline.
 
+Writing a custom encoder is quite a bit harder than writing a :ref:`custom
+output <custom_outputs>` and in most cases there's little benefit. The only
+thing a custom encoder gives you that a custom output doesn't is access to the
+buffer header flags. For many output formats (MJPEG and YUV for example), these
+won't tell you anything interesting (i.e. they'll simply indicate that the
+buffer contains a full frame and nothing else). Currently, the only format
+where the buffer header flags contain useful information is H.264. Even then,
+most of the information (I-frame, P-frame, motion information, etc.) would be
+accessible from the :attr:`~picamera.PiCamera.frame` attribute which you could
+access from your custom output's ``write`` method.
+
 The encoder classes defined by picamera form the following hierarchy (shaded
 classes are actually instantiated by the implementation in picamera, white
 classes implement base functionality but aren't technically "abstract"):
