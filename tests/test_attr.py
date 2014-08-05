@@ -177,6 +177,12 @@ def test_sharpness(camera, previewing):
 def test_video_stabilization(camera, previewing):
     boolean_attr(camera, 'video_stabilization')
 
+def test_video_denoise(camera, previewing):
+    boolean_attr(camera, 'video_denoise')
+
+def test_image_denoise(camera, previewing):
+    boolean_attr(camera, 'image_denoise')
+
 def test_hflip(camera, previewing):
     boolean_attr(camera, 'hflip')
 

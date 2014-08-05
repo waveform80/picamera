@@ -2230,6 +2230,80 @@ class PiCamera(object):
         .. versionadded:: 1.6
         """)
 
+    def _get_video_denoise(self):
+        self._check_camera_open()
+        # Note: the MMAL parameter's sense is incorrect; it should be _ENABLE
+        mp = mmal.MMAL_BOOL_T()
+        mmal_check(
+            mmal.mmal_port_parameter_get_boolean(
+                self._camera[0].control,
+                mmal.MMAL_PARAMETER_VIDEO_DENOISE_DISABLE,
+                mp
+                ),
+            prefix="Failed to get video denoise")
+        return mp.value != mmal.MMAL_FALSE
+    def _set_video_denoise(self, value):
+        self._check_camera_open()
+        # Note: the MMAL parameter's sense is incorrect; it should be _ENABLE
+        mmal_check(
+            mmal.mmal_port_parameter_set_boolean(
+                self._camera[0].control,
+                mmal.MMAL_PARAMETER_VIDEO_DENOISE_DISABLE,
+                (mmal.MMAL_FALSE, mmal.MMAL_TRUE)[bool(value)]
+                ),
+            prefix="Failed to set video stabilization")
+    video_denoise = property(
+        _get_video_denoise, _set_video_denoise, doc="""
+        Retrieves or sets whether denoise will be applied to video recordings.
+
+        When queried, the :attr:`video_denoise` property returns a boolean
+        value indicating whether or not the camera software will apply a
+        denoise algorithm to video recordings.
+
+        When set, the property activates or deactivates the denoise algorithm
+        for video recordings. The property can be set while recordings or
+        previews are in progress. The default value is ``False``.
+
+        .. versionadded:: 1.7
+        """)
+
+    def _get_image_denoise(self):
+        self._check_camera_open()
+        # Note: the MMAL parameter's sense is incorrect; it should be _ENABLE
+        mp = mmal.MMAL_BOOL_T()
+        mmal_check(
+            mmal.mmal_port_parameter_get_boolean(
+                self._camera[0].control,
+                mmal.MMAL_PARAMETER_STILLS_DENOISE_DISABLE,
+                mp
+                ),
+            prefix="Failed to get image denoise")
+        return mp.value != mmal.MMAL_FALSE
+    def _set_image_denoise(self, value):
+        self._check_camera_open()
+        # Note: the MMAL parameter's sense is incorrect; it should be _ENABLE
+        mmal_check(
+            mmal.mmal_port_parameter_set_boolean(
+                self._camera[0].control,
+                mmal.MMAL_PARAMETER_STILLS_DENOISE_DISABLE,
+                (mmal.MMAL_FALSE, mmal.MMAL_TRUE)[bool(value)]
+                ),
+            prefix="Failed to set image stabilization")
+    image_denoise = property(
+        _get_image_denoise, _set_image_denoise, doc="""
+        Retrieves or sets whether denoise will be applied to image captures.
+
+        When queried, the :attr:`image_denoise` property returns a boolean
+        value indicating whether or not the camera software will apply a
+        denoise algorithm to image captures.
+
+        When set, the property activates or deactivates the denoise algorithm
+        for image captures. The property can be set while recordings or
+        previews are in progress. The default value is ``False``.
+
+        .. versionadded:: 1.7
+        """)
+
     def _get_drc_strength(self):
         self._check_camera_open()
         mp = mmal.MMAL_PARAMETER_DRC_T(
@@ -2400,20 +2474,13 @@ class PiCamera(object):
         return mp.value != mmal.MMAL_FALSE
     def _set_video_stabilization(self, value):
         self._check_camera_open()
-        try:
-            mmal_check(
-                mmal.mmal_port_parameter_set_boolean(
-                    self._camera[0].control,
-                    mmal.MMAL_PARAMETER_VIDEO_STABILISATION,
-                    {
-                        False: mmal.MMAL_FALSE,
-                        True:  mmal.MMAL_TRUE,
-                        }[value]
-                    ),
-                prefix="Failed to set video stabilization")
-        except KeyError:
-            raise PiCameraValueError(
-                "Invalid video stabilization boolean value: %s" % value)
+        mmal_check(
+            mmal.mmal_port_parameter_set_boolean(
+                self._camera[0].control,
+                mmal.MMAL_PARAMETER_VIDEO_STABILISATION,
+                (mmal.MMAL_FALSE, mmal.MMAL_TRUE)[bool(value)]
+                ),
+            prefix="Failed to set video stabilization")
     video_stabilization = property(
         _get_video_stabilization, _set_video_stabilization, doc="""
         Retrieves or sets the video stabilization mode of the camera.
