@@ -103,6 +103,52 @@ motion_dtype = np.dtype([
     ])
 
 
+def raw_resolution(resolution):
+    width, height = resolution
+    fwidth = (width + 31) // 32 * 32
+    fheight = (height + 15) // 16 * 16
+    return fwidth, fheight
+
+
+def bytes_to_yuv(data, resolution):
+    """
+    Converts a bytes object containing YUV data to a numpy array.
+    """
+    width, height = resolution
+    fwidth, fheight = raw_resolution(resolution)
+    y_len = fwidth * fheight
+    uv_len = (fwidth // 2) * (fheight // 2)
+    if len(data) != (y_len + 2 * uv_len):
+        raise PiCameraValueError(
+            'Incorrect buffer length for resolution %dx%d' % (width, height))
+    # Separate out the Y, U, and V values from the array
+    a = np.frombuffer(data, dtype=np.uint8)
+    Y = a[:y_len]
+    U = a[y_len:-uv_len]
+    V = a[-uv_len:]
+    # Reshape the values into two dimensions, and double the size of the
+    # U and V values (which only have quarter resolution in YUV4:2:0)
+    Y = Y.reshape((fheight, fwidth))
+    U = U.reshape((fheight // 2, fwidth // 2)).repeat(2, axis=0).repeat(2, axis=1)
+    V = V.reshape((fheight // 2, fwidth // 2)).repeat(2, axis=0).repeat(2, axis=1)
+    # Stack the channels together and crop to the actual resolution
+    return np.dstack((Y, U, V))[:height, :width]
+
+
+def bytes_to_rgb(data, resolution):
+    """
+    Converts a bytes objects containing RGB/BGR data to a numpy array.
+    """
+    width, height = resolution
+    fwidth, fheight = raw_resolution(resolution)
+    if len(data) != (fwidth * fheight * 3):
+        raise PiCameraValueError(
+            'Incorrect buffer length for resolution %dx%d' % (width, height))
+    # Crop to the actual resolution
+    return np.frombuffer(data, dtype=np.uint8).\
+            reshape((fheight, fwidth, 3))[:height, :width, :]
+
+
 class PiBaseOutput(object):
     """
     Base class for all custom output classes defined in this module.
@@ -118,8 +164,6 @@ class PiBaseOutput(object):
         self.closed = False
         self.camera = camera
         self.size = size
-        self.buffer = b''
-        self.array = None
 
     def readable(self):
         """
@@ -147,11 +191,10 @@ class PiBaseOutput(object):
 
     def write(self, b):
         """
-        Write the given bytes or bytearray object, *b*, to the internal
-        buffer and return the number of bytes written.
+        This base implementation ignores the data and returns the number of
+        bytes, pretending it has written them.
         """
         self._check_closed()
-        self.buffer += b
         return len(b)
 
     def seek(self, offset, whence=0):
@@ -159,6 +202,63 @@ class PiBaseOutput(object):
         Raises :exc:`NotImplementedError` as this is a non-seekable stream.
         """
         raise NotImplementedError
+
+    def tell(self):
+        """
+        Raises :exc:`NotImplementedError` as this output has no buffer.
+        """
+        raise NotImplementedError
+
+    def truncate(self, size=None):
+        """
+        Raises :exc:`NotImplementedError` as this output has no buffer.
+        """
+        raise NotImplementedError
+
+    def flush(self):
+        """
+        Does nothing in this implementation but can be overriden in descendent
+        classes to do something after capture/recording is complete.
+        """
+        pass
+
+    def _check_closed(self):
+        if self.closed:
+            raise PiCameraValueError('I/O operation on closed output')
+
+    def close(self):
+        """
+        Closes the stream and frees all resources associated with it.
+        """
+        self.closed = True
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        self.close()
+
+
+class PiBufferedOutput(PiBaseOutput):
+    """
+    Base class for buffered output classes.
+
+    This class extends :class:`PiBaseOutput` with an internal buffer which can
+    be used to store up writes until the output is flushed.
+    """
+
+    def __init__(self, camera, size=None):
+        super(PiBufferedOutput, self).__init__(camera, size)
+        self.buffer = b''
+
+    def write(self, b):
+        """
+        Write the given bytes or bytearray object, *b*, to the internal
+        buffer and return the number of bytes written.
+        """
+        result = super(PiBufferedOutput, self).write(b)
+        self.buffer += b
+        return result
 
     def tell(self):
         """
@@ -181,33 +281,49 @@ class PiBaseOutput(object):
         if size is not None:
             self.buffer = self.buffer[:size]
 
-    def flush(self):
-        """
-        Override this method in descendent classes to construct the array from
-        the buffered data available in :attr:`buffer`.
-        """
-        self.array = None
-
-    def _check_closed(self):
-        if self.closed:
-            raise PiCameraValueError('I/O operation on closed file')
-
     def close(self):
         """
-        Closes the stream and frees all resources associated with it.
+        Frees the internal buffer.
         """
-        self.closed = True
+        super(PiBufferedOutput, self).close()
         self.buffer = b''
+
+
+class PiArrayOutput(PiBufferedOutput):
+    """
+    Base class for capture arrays.
+
+    This class extends :class:`PiBufferedOutput` with a numpy array which is
+    intended to be filled when the output is flushed (i.e. at the end of
+    capture).
+    """
+
+    def __init__(self, camera, size=None):
+        super(PiArrayOutput, self).__init__(camera, size)
         self.array = None
 
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_value, exc_traceback):
-        self.close()
+    def close(self):
+        super(PiArrayOutput, self).close()
+        self.array = None
 
 
-class PiRGBArray(PiBaseOutput):
+class PiAnalysisOutput(PiBaseOutput):
+    """
+    Base class for analysis outputs.
+
+    This class extends :class:`PiBaseOutput` with a stub :meth:`analyse` method
+    which will be called for each frame output. In this base implementation the
+    method simply raises :exc:`NotImplementedError`.
+    """
+
+    def analyse(self, array):
+        """
+        Stub method for users to override.
+        """
+        raise NotImplementedError
+
+
+class PiRGBArray(PiArrayOutput):
     """
     Produces a 3-dimensional RGB array from an RGB capture.
 
@@ -260,18 +376,10 @@ class PiRGBArray(PiBaseOutput):
 
     def flush(self):
         super(PiRGBArray, self).flush()
-        width, height = self.size or self.camera.resolution
-        fwidth = (width + 31) // 32 * 32
-        fheight = (height + 15) // 16 * 16
-        if len(self.buffer) != (fwidth * fheight * 3):
-            raise PiCameraValueError(
-                'Incorrect buffer length for resolution %dx%d' % (width, height))
-        # Crop to the actual resolution
-        self.array = np.frombuffer(self.buffer, dtype=np.uint8).\
-                reshape((fheight, fwidth, 3))[:height, :width, :]
+        self.array = bytes_to_rgb(self.buffer, self.size or self.camera.resolution)
 
 
-class PiYUVArray(PiBaseOutput):
+class PiYUVArray(PiArrayOutput):
     """
     Produces 3-dimensional YUV & RGB arrays from a YUV capture.
 
@@ -325,28 +433,7 @@ class PiYUVArray(PiBaseOutput):
 
     def flush(self):
         super(PiYUVArray, self).flush()
-        self._rgb = None
-        width, height = self.size or self.camera.resolution
-        fwidth = (width + 31) // 32 * 32
-        fheight = (height + 15) // 16 * 16
-        y_len = fwidth * fheight
-        uv_len = (fwidth // 2) * (fheight // 2)
-        if len(self.buffer) != (y_len + 2 * uv_len):
-            raise PiCameraValueError(
-                'Incorrect buffer length for resolution %dx%d' % (width, height))
-        # Separate out the Y, U, and V values from the array
-        a = np.frombuffer(self.buffer, dtype=np.uint8)
-        Y = a[:y_len]
-        U = a[y_len:-uv_len]
-        V = a[-uv_len:]
-        # Reshape the values into two dimensions, and double the size of the
-        # U and V values (which only have quarter resolution in YUV4:2:0)
-        Y = Y.reshape((fheight, fwidth))
-        U = U.reshape((fheight // 2, fwidth // 2)).repeat(2, axis=0).repeat(2, axis=1)
-        V = V.reshape((fheight // 2, fwidth // 2)).repeat(2, axis=0).repeat(2, axis=1)
-        # Stack the channels together and crop to the actual resolution
-        YUV = np.dstack((Y, U, V))[:height, :width]
-        self.array = YUV
+        self.array = bytes_to_yuv(self.buffer, self.size or self.camera.resolution)
 
     @property
     def rgb_array(self):
@@ -366,7 +453,7 @@ class PiYUVArray(PiBaseOutput):
         return self._rgb
 
 
-class PiBayerArray(PiBaseOutput):
+class PiBayerArray(PiArrayOutput):
     """
     Produces a 3-dimensional RGB array from raw Bayer data.
 
@@ -495,7 +582,7 @@ class PiBayerArray(PiBaseOutput):
         return self._demo
 
 
-class PiMotionArray(PiBaseOutput):
+class PiMotionArray(PiArrayOutput):
     """
     Produces a 3-dimensional array of motion vectors from the H.264 encoder.
 
@@ -563,7 +650,76 @@ class PiMotionArray(PiBaseOutput):
                 reshape((frames, rows, cols))
 
 
-class PiMotionAnalysis(PiBaseOutput):
+class PiRGBAnalysis(PiAnalysisOutput):
+    """
+    Provides a basis for per-frame RGB analysis classes.
+
+    This custom output class is intended to be used with the
+    :meth:`~picamera.PiCamera.start_recording` method when it is called with
+    *format* set to ``'rgb'`` or ``'bgr`''. While recording is in progress, the
+    :meth:`~PiBaseOutput.write` method converts incoming frame data into a
+    numpy array and calls the stub :meth:`analyse` method with the resulting
+    array (this deliberately raises :exc:`NotImplementedError` in this class;
+    you must override it in your descendent class).
+
+    .. warning::
+
+        Because the :meth:`analyse` method will be running within the encoder's
+        callback, it must be **fast**. Specifically, it needs to return before
+        the next frame is produced. Therefore, if the camera is running at
+        30fps, analyse cannot take more than 1/30s or 33ms to execute (and
+        should take considerably less given that this doesn't take into account
+        encoding overhead). You may wish to adjust the framerate of the camera
+        accordingly.
+
+
+    The array passed to :meth:`analyse` is organized as (rows, columns,
+    channel) where the channels 0, 1, and 2 are R, G, and B respectively (or B,
+    G, R if *format* is ``'bgr'``).
+    """
+
+    def write(self, b):
+        result = super(PiRGBAnalysis, self).write(b)
+        self.analyse(bytes_to_rgb(b, self.size or self.camera.resolution))
+        return result
+
+
+class PiYUVAnalysis(PiAnalysisOutput):
+    """
+    Provides a basis for per-frame YUV analysis classes.
+
+    This custom output class is intended to be used with the
+    :meth:`~picamera.PiCamera.start_recording` method when it is called with
+    *format* set to ``'yuv'``. While recording is in progress, the
+    :meth:`~PiBaseOutput.write` method converts incoming frame data into a
+    numpy array and calls the stub :meth:`analyse` method with the resulting
+    array (this deliberately raises :exc:`NotImplementedError` in this class;
+    you must override it in your descendent class).
+
+    .. warning::
+
+        Because the :meth:`analyse` method will be running within the encoder's
+        callback, it must be **fast**. Specifically, it needs to return before
+        the next frame is produced. Therefore, if the camera is running at
+        30fps, analyse cannot take more than 1/30s or 33ms to execute (and
+        should take considerably less given that this doesn't take into account
+        encoding overhead). You may wish to adjust the framerate of the camera
+        accordingly.
+
+    The array passed to :meth:`analyse` is organized as (rows, columns,
+    channel) where the channel 0 is Y (luminance), while 1 and 2 are U and V
+    (chrominance) respectively. The chrominance values normally have quarter
+    resolution of the luminance values but this class makes all channels equal
+    resolution for ease of use.
+    """
+
+    def write(self, b):
+        result = super(PiYUVAnalysis, self).write(b)
+        self.analyse(bytes_to_yuv(b, self.size or self.camera.resolution))
+        return result
+
+
+class PiMotionAnalysis(PiAnalysisOutput):
     """
     Provides a basis for real-time motion analysis classes.
 
@@ -629,6 +785,7 @@ class PiMotionAnalysis(PiBaseOutput):
         self.rows = None
 
     def write(self, b):
+        result = super(PiMotionAnalysis, self).write(b)
         if self.cols is None:
             width, height = self.size or self.camera.resolution
             self.cols = ((width + 15) // 16) + 1
@@ -636,16 +793,5 @@ class PiMotionAnalysis(PiBaseOutput):
         self.analyse(
                 np.frombuffer(b, dtype=motion_dtype).\
                 reshape((self.rows, self.cols)))
-        return len(b)
+        return result
 
-    def analyse(self, array):
-        """
-        Stub method for users to override.
-        """
-        raise NotImplementedError
-
-    def tell(self):
-        raise NotImplementedError
-
-    def truncate(self, size=None):
-        raise NotImplementedError

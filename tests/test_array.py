@@ -155,6 +155,52 @@ def test_motion_array2(camera, mode):
         # of the expected number
         assert framerate  - 5 <= stream.array.shape[0] <= framerate + 5
 
+def test_yuv_analysis1(camera, mode):
+    resolution, framerate = mode
+    if resolution == (2592, 1944):
+        pytest.xfail('Cannot encode video at max resolution')
+    class YUVTest(picamera.array.PiYUVAnalysis):
+        def analyse(self, a):
+            assert a.shape == (resolution[1], resolution[0], 3)
+    with YUVTest(camera) as stream:
+        camera.start_recording(stream, 'yuv')
+        camera.wait_recording(1)
+        camera.stop_recording()
+
+def test_yuv_analysis2(fake_cam):
+    class YUVTest(picamera.array.PiYUVAnalysis):
+        def analyse(self, a):
+            assert (a[..., 0] == 1).all()
+            assert (a[..., 1] == 2).all()
+            assert (a[..., 2] == 3).all()
+    with YUVTest(fake_cam) as stream:
+        stream.write((b'\x01' * 32 * 16) + (b'\x02' * 16 * 8) + (b'\x03' * 16 * 8))
+        with pytest.raises(picamera.PiCameraValueError):
+            stream.write(b'\x00' * 10)
+
+def test_rgb_analysis1(camera, mode):
+    resolution, framerate = mode
+    if resolution == (2592, 1944):
+        pytest.xfail('Cannot encode video at max resolution')
+    class RGBTest(picamera.array.PiRGBAnalysis):
+        def analyse(self, a):
+            assert a.shape == (resolution[1], resolution[0], 3)
+    with RGBTest(camera) as stream:
+        camera.start_recording(stream, 'rgb')
+        camera.wait_recording(1)
+        camera.stop_recording()
+
+def test_rgb_analysis2(fake_cam):
+    class RGBTest(picamera.array.PiRGBAnalysis):
+        def analyse(self, a):
+            assert (a[..., 0] == 1).all()
+            assert (a[..., 1] == 2).all()
+            assert (a[..., 2] == 3).all()
+    with RGBTest(fake_cam) as stream:
+        stream.write(b'\x01\x02\x03' * 512)
+        with pytest.raises(picamera.PiCameraValueError):
+            stream.write(b'\x00' * 10)
+
 def test_motion_analysis1(camera, mode):
     resolution, framerate = mode
     if resolution == (2592, 1944):
