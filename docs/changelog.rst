@@ -5,7 +5,7 @@ Change log
 ==========
 
 
-Release 1.7 (2014-08-04)
+Release 1.7 (2014-08-08)
 ========================
 
 1.7 consists once more of new features, and more bug fixes:
@@ -21,6 +21,8 @@ Release 1.7 (2014-08-04)
   in the documentation (`#130`_)
 * Support for unencoded formats (YUV, RGB, etc.) has been added to the
   :meth:`~picamera.PiCamera.start_recording` method (`#132`_)
+* A couple of analysis classes have been added to :mod:`picamera.array` to
+  support the new unencoded recording formats (`#139`_)
 * Several issues in the :class:`~picamera.array.PiBayerArray` class were fixed;
   this should now work correctly with Python 3, and the
   :meth:`~picamera.array.PiBayerArray.demosaic` method should operate correctly
@@ -41,6 +43,7 @@ reports!
 .. _#133: https://github.com/waveform80/picamera/issues/133
 .. _#134: https://github.com/waveform80/picamera/issues/134
 .. _#136: https://github.com/waveform80/picamera/issues/136
+.. _#139: https://github.com/waveform80/picamera/issues/139
 
 
 Release 1.6 (2014-07-21)
