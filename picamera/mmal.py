@@ -1028,6 +1028,7 @@ MMAL_PARAMETER_PRIVACY_INDICATOR_MAX = 0x7fffffff
 class MMAL_PARAMETER_PRIVACY_INDICATOR_T(ct.Structure):
     _fields_ = [
         ('hdr',           MMAL_PARAMETER_HEADER_T),
+        ('mode',          MMAL_PARAM_PRIVACY_INDICATOR_T),
         ]
 
 # mmal_parameters_video.h ####################################################
