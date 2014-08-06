@@ -55,6 +55,11 @@ def test_camera_init():
         mmal.mmal_component_create.return_value = 0
         ct.POINTER.return_value.return_value[0].output_num = 0
         ct.sizeof.return_value = 0
+        mmal.mmal_port_parameter_set.return_value = 1
+        with pytest.raises(picamera.PiCameraError) as e:
+            picamera.PiCamera()
+        assert e.value.args[0].startswith("Unable to select camera 0")
+        mmal.mmal_port_parameter_set.return_value = 0
         with pytest.raises(picamera.PiCameraError) as e:
             picamera.PiCamera()
         assert e.value.args[0] == "Camera doesn't have output ports"
@@ -64,11 +69,6 @@ def test_camera_init():
             picamera.PiCamera()
         assert e.value.args[0].startswith("Unable to enable control port")
         mmal.mmal_port_enable.return_value = 0
-        mmal.mmal_port_parameter_set.return_value = 1
-        with pytest.raises(picamera.PiCameraError) as e:
-            picamera.PiCamera()
-        assert e.value.args[0].startswith("Camera control port couldn't be configured")
-        mmal.mmal_port_parameter_set.return_value = 0
         mmal.mmal_port_format_commit.return_value = 0
         for p in picamera.PiCamera.CAMERA_PORTS:
             ct.POINTER.return_value.return_value[0].output[p][0].buffer_num = 1
