@@ -3118,3 +3118,48 @@ class PiCamera(object):
             is not running.
         """)
 
+    def _get_annotate_text(self):
+        self._check_camera_open()
+        mp = mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_T(
+            mmal.MMAL_PARAMETER_HEADER_T(
+                mmal.MMAL_PARAMETER_ANNOTATE,
+                ct.sizeof(mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_T)
+            ))
+        mmal_check(
+            mmal.mmal_port_parameter_get(self._camera[0].control, mp.hdr),
+            prefix="Failed to get annotation status")
+        if mp.enable:
+            return mp.text.decode('ascii')
+        else:
+            return ''
+    def _set_annotate_text(self, value):
+        self._check_camera_open()
+        mp = mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_T(
+            mmal.MMAL_PARAMETER_HEADER_T(
+                mmal.MMAL_PARAMETER_ANNOTATE,
+                ct.sizeof(mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_T)
+            ))
+        if value:
+            mp.enable = True
+            try:
+                mp.text = value.encode('ascii')
+            except ValueError as e:
+                raise PiCameraValueError(str(e))
+        else:
+            mp.enable = False
+        mmal_check(
+            mmal.mmal_port_parameter_set(self._camera[0].control, mp.hdr),
+            prefix="Failed to set annotation status")
+    annotate_text = property(_get_annotate_text, _set_annotate_text, doc="""
+        Retrieves or sets a text annotation for all output.
+
+        When queried, :attr:`annotate_text` property returns returns the
+        current annotation (if no annotation has been set, this is simply
+        a blank string).
+
+        When set, the property immediately applies the annotation to the
+        preview (if it is running) and to any future captures or video
+        recording. Strings longer than 31 characters, or strings containing
+        non-ASCII characters will raise a :exc:`PiCameraValueError`. The
+        default value is ``''``.
+        """)

@@ -82,6 +82,18 @@ def test_analog_gain(camera, previewing):
     # Just test the read-only property returns something sensible
     assert 0.0 <= camera.analog_gain <= 8.0
 
+def test_annotate_text(camera, previewing):
+    camera.annotate_text = ''
+    assert camera.annotate_text == u''
+    camera.annotate_text = 'foo'
+    assert camera.annotate_text == u'foo'
+    camera.annotate_text = 'foo bar baz quux xyzzy'
+    assert camera.annotate_text == u'foo bar baz quux xyzzy'
+    with pytest.raises(picamera.PiCameraValueError):
+        camera.annotate_text = 'this value is way too long for this attribute'
+    with pytest.raises(picamera.PiCameraValueError):
+        camera.annotate_text = 'Oh lá lá'
+
 def test_awb_mode(camera, previewing):
     keyword_attr(camera, 'awb_mode', camera.AWB_MODES)
 

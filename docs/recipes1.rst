@@ -740,6 +740,46 @@ can simply use VLC with a network URL::
     should be quick enough for the task at non-HD resolutions).
 
 
+.. _text_overlay:
+
+Overlaying text on the output
+=============================
+
+The camera includes a rudimentary annotation facility which permits up to 31
+characters of ASCII text to be overlayed on all output (including the preview,
+image captures and video recordings). To achieve this, simply assign a string
+to the :attr:`~picamera.PiCamera.annotate_text` attribute::
+
+    import picamera
+    import time
+
+    with picamera.PiCamera() as camera:
+        camera.resolution = (640, 480)
+        camera.framerate = 24
+        camera.start_preview()
+        camera.annotate_text = 'Hello world!'
+        time.sleep(2)
+        # Take a picture including the annotation
+        camera.capture('foo.jpg')
+
+With a little ingenuity, it's possible to display longer strings::
+
+    import picamera
+    import time
+    import itertools
+
+    s = "This message would be far too long to display normally..."
+
+    with picamera.PiCamera() as camera:
+        camera.resolution = (640, 480)
+        camera.framerate = 24
+        camera.start_preview()
+        camera.annotate_text = ' ' * 31
+        for c in itertools.cycle(s):
+            camera.annotate_text = camera.annotate_text[1:30] + c
+            time.sleep(0.1)
+
+
 .. _led_control:
 
 Controlling the LED

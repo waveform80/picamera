@@ -520,7 +520,8 @@ class MMAL_PARAMETER_LOGGING_T(ct.Structure):
     MMAL_PARAMETER_PRIVACY_INDICATOR,
     MMAL_PARAMETER_VIDEO_DENOISE,
     MMAL_PARAMETER_STILLS_DENOISE,
-) = range(MMAL_PARAMETER_GROUP_CAMERA, MMAL_PARAMETER_GROUP_CAMERA + 73)
+    MMAL_PARAMETER_ANNOTATE,
+) = range(MMAL_PARAMETER_GROUP_CAMERA, MMAL_PARAMETER_GROUP_CAMERA + 74)
 
 class MMAL_PARAMETER_THUMBNAIL_CONFIG_T(ct.Structure):
     _fields_ = [
@@ -1029,6 +1030,20 @@ class MMAL_PARAMETER_PRIVACY_INDICATOR_T(ct.Structure):
     _fields_ = [
         ('hdr',           MMAL_PARAMETER_HEADER_T),
         ('mode',          MMAL_PARAM_PRIVACY_INDICATOR_T),
+        ]
+
+MMAL_CAMERA_ANNOTATE_MAX_TEXT_LEN = 32
+
+class MMAL_PARAMETER_CAMERA_ANNOTATE_T(ct.Structure):
+    _fields_ = [
+        ('hdr',              MMAL_PARAMETER_HEADER_T),
+        ('enable',           MMAL_BOOL_T),
+        ('text',             ct.c_char * MMAL_CAMERA_ANNOTATE_MAX_TEXT_LEN),
+        ('show_shutter',     MMAL_BOOL_T),
+        ('show_analog_gain', MMAL_BOOL_T),
+        ('show_lens',        MMAL_BOOL_T),
+        ('show_caf',         MMAL_BOOL_T),
+        ('show_motion',      MMAL_BOOL_T),
         ]
 
 # mmal_parameters_video.h ####################################################
