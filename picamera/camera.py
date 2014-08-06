@@ -2232,23 +2232,21 @@ class PiCamera(object):
 
     def _get_video_denoise(self):
         self._check_camera_open()
-        # Note: the MMAL parameter's sense is incorrect; it should be _ENABLE
         mp = mmal.MMAL_BOOL_T()
         mmal_check(
             mmal.mmal_port_parameter_get_boolean(
                 self._camera[0].control,
-                mmal.MMAL_PARAMETER_VIDEO_DENOISE_DISABLE,
+                mmal.MMAL_PARAMETER_VIDEO_DENOISE,
                 mp
                 ),
             prefix="Failed to get video denoise")
         return mp.value != mmal.MMAL_FALSE
     def _set_video_denoise(self, value):
         self._check_camera_open()
-        # Note: the MMAL parameter's sense is incorrect; it should be _ENABLE
         mmal_check(
             mmal.mmal_port_parameter_set_boolean(
                 self._camera[0].control,
-                mmal.MMAL_PARAMETER_VIDEO_DENOISE_DISABLE,
+                mmal.MMAL_PARAMETER_VIDEO_DENOISE,
                 (mmal.MMAL_FALSE, mmal.MMAL_TRUE)[bool(value)]
                 ),
             prefix="Failed to set video stabilization")
@@ -2269,23 +2267,21 @@ class PiCamera(object):
 
     def _get_image_denoise(self):
         self._check_camera_open()
-        # Note: the MMAL parameter's sense is incorrect; it should be _ENABLE
         mp = mmal.MMAL_BOOL_T()
         mmal_check(
             mmal.mmal_port_parameter_get_boolean(
                 self._camera[0].control,
-                mmal.MMAL_PARAMETER_STILLS_DENOISE_DISABLE,
+                mmal.MMAL_PARAMETER_STILLS_DENOISE,
                 mp
                 ),
             prefix="Failed to get image denoise")
         return mp.value != mmal.MMAL_FALSE
     def _set_image_denoise(self, value):
         self._check_camera_open()
-        # Note: the MMAL parameter's sense is incorrect; it should be _ENABLE
         mmal_check(
             mmal.mmal_port_parameter_set_boolean(
                 self._camera[0].control,
-                mmal.MMAL_PARAMETER_STILLS_DENOISE_DISABLE,
+                mmal.MMAL_PARAMETER_STILLS_DENOISE,
                 (mmal.MMAL_FALSE, mmal.MMAL_TRUE)[bool(value)]
                 ),
             prefix="Failed to set image stabilization")
