@@ -776,8 +776,26 @@ With a little ingenuity, it's possible to display longer strings::
         camera.start_preview()
         camera.annotate_text = ' ' * 31
         for c in itertools.cycle(s):
-            camera.annotate_text = camera.annotate_text[1:30] + c
+            camera.annotate_text = camera.annotate_text[1:31] + c
             time.sleep(0.1)
+
+And of course, it can be used to display (and embed) a timestamp in
+recordings::
+
+    import picamera
+    import datetime as dt
+
+    with picamera.PiCamera() as camera:
+        camera.resolution = (1280, 720)
+        camera.framerate = 24
+        camera.start_preview()
+        camera.annotate_text = dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        camera.start_recording('timestamped.h264')
+        start = dt.datetime.now()
+        while (dt.datetime.now() - start).seconds < 30:
+            camera.annotate_text = dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            camera.wait_recording(0.2)
+        camera.stop_recording()
 
 
 .. _led_control:
