@@ -46,6 +46,10 @@ import warnings
 
 _lib = ct.CDLL('libmmal.so')
 
+# vcos_platform.h ############################################################
+
+VCOS_UNSIGNED = ct.c_uint32
+
 # vcos_types.h ###############################################################
 
 def VCOS_ALIGN_UP(value, round_to):
@@ -1705,7 +1709,7 @@ class MMAL_QUEUE_T(ct.Structure):
     _fields_ = []
 
 mmal_queue_create = _lib.mmal_queue_create
-mmal_queue_create.argtypes = [ct.POINTER(MMAL_QUEUE_T), ct.POINTER(MMAL_BUFFER_HEADER_T)]
+mmal_queue_create.argtypes = []
 mmal_queue_create.restype = ct.POINTER(MMAL_QUEUE_T)
 
 mmal_queue_put = _lib.mmal_queue_put
@@ -1723,6 +1727,10 @@ mmal_queue_get.restype = ct.POINTER(MMAL_BUFFER_HEADER_T)
 mmal_queue_wait = _lib.mmal_queue_wait
 mmal_queue_wait.argtypes = [ct.POINTER(MMAL_QUEUE_T)]
 mmal_queue_wait.restype = ct.POINTER(MMAL_BUFFER_HEADER_T)
+
+mmal_queue_timedwait = _lib.mmal_queue_timedwait
+mmal_queue_timedwait.argtypes = [ct.POINTER(MMAL_QUEUE_T), VCOS_UNSIGNED]
+mmal_queue_timedwait.restype = ct.POINTER(MMAL_BUFFER_HEADER_T)
 
 mmal_queue_length = _lib.mmal_queue_length
 mmal_queue_length.argtypes = [ct.POINTER(MMAL_QUEUE_T)]
