@@ -5,11 +5,12 @@ Change log
 ==========
 
 
-Release 1.7 (2014-08-08)
+Release 1.7 (2014-08-22)
 ========================
 
 1.7 consists once more of new features, and more bug fixes:
 
+* Text overlay on preview, image, and video output is now possible (`#16`_)
 * Support for more than one camera on the compute module has been added, but
   hasn't been tested yet (`#84`_)
 * The :attr:`~picamera.PiCamera.exposure_mode` ``'off'`` has been added to
@@ -33,8 +34,9 @@ Release 1.7 (2014-08-08)
   was fixed (`#128`_)
 
 Once again, many thanks to the community for another round of excellent bug
-reports!
+reports - and many thanks to 6by9 and jamesh
 
+.. _#16: https://github.com/waveform80/picamera/issues/16
 .. _#84: https://github.com/waveform80/picamera/issues/84
 .. _#116: https://github.com/waveform80/picamera/issues/116
 .. _#128: https://github.com/waveform80/picamera/issues/128
