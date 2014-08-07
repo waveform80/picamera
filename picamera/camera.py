@@ -2934,6 +2934,7 @@ class PiCamera(object):
         """)
 
     def _get_preview_alpha(self):
+        self._check_camera_open()
         mp = mmal.MMAL_DISPLAYREGION_T(
             mmal.MMAL_PARAMETER_HEADER_T(
                 mmal.MMAL_PARAMETER_DISPLAYREGION,
@@ -2983,6 +2984,7 @@ class PiCamera(object):
         """)
 
     def _get_preview_layer(self):
+        self._check_camera_open()
         mp = mmal.MMAL_DISPLAYREGION_T(
             mmal.MMAL_PARAMETER_HEADER_T(
                 mmal.MMAL_PARAMETER_DISPLAYREGION,
@@ -3026,6 +3028,7 @@ class PiCamera(object):
         """)
 
     def _get_preview_fullscreen(self):
+        self._check_camera_open()
         mp = mmal.MMAL_DISPLAYREGION_T(
             mmal.MMAL_PARAMETER_HEADER_T(
                 mmal.MMAL_PARAMETER_DISPLAYREGION,
@@ -3070,6 +3073,7 @@ class PiCamera(object):
         """)
 
     def _get_preview_window(self):
+        self._check_camera_open()
         mp = mmal.MMAL_DISPLAYREGION_T(
             mmal.MMAL_PARAMETER_HEADER_T(
                 mmal.MMAL_PARAMETER_DISPLAYREGION,
