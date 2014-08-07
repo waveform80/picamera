@@ -34,7 +34,8 @@ Release 1.7 (2014-08-22)
   was fixed (`#128`_)
 
 Once again, many thanks to the community for another round of excellent bug
-reports - and many thanks to 6by9 and jamesh
+reports - and many thanks to 6by9 and jamesh for their excellent work on the
+firmware and official utilities!
 
 .. _#16: https://github.com/waveform80/picamera/issues/16
 .. _#84: https://github.com/waveform80/picamera/issues/84
