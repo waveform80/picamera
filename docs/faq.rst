@@ -89,38 +89,6 @@ are attached.
 
 .. _requires 250mA: http://www.raspberrypi.org/help/faqs/#cameraPower
 
-"Out of memory" when initializing the camera
-============================================
-
-If you see something like this when trying to create an instance of
-:class:`~picamera.PiCamera`::
-
-    >>> import picamera
-    >>> camera = picamera.PiCamera()
-    mmal: mmal_vc_component_create: failed to create component 'vc.ril.camera' (1:ENOMEM)
-    mmal: mmal_component_create_core: could not create component 'vc.ril.camera' (1)
-    Traceback (most recent call last):
-      File "<stdin>", line 1, in <module>
-      File "/usr/lib/python2.7/dist-packages/picamera/camera.py", line 257, in __init__
-        self._init_camera()
-      File "/usr/lib/python2.7/dist-packages/picamera/camera.py", line 288, in _init_camera
-        prefix="Failed to create camera component")
-      File "/usr/lib/python2.7/dist-packages/picamera/exc.py", line 112, in mmal_check
-        raise PiCameraMMALError(status, prefix)
-    picamera.exc.PiCameraMMALError: Failed to create camera component: Out of memory
-
-This usually means that you haven't enabled the Pi's camera module. Run ``sudo
-raspi-config``, select the "Enable Camera" option, select "Enable", and then
-"Finish". You will need to reboot to complete the process.
-
-.. note::
-
-    Enabling the camera doesn't affect the camera itself. Rather, it tells the
-    operating system to load the firmware for the camera on the next boot.  If
-    you re-install your operating system for whatever reason (or switch SD
-    cards for another operating system) you will need to re-enable the camera
-    in this way.
-
 How can I take two consecutive pictures with equivalent settings?
 =================================================================
 
