@@ -155,10 +155,10 @@ def test_record_to_stream(camera, previewing, mode, format_options):
         stream2.seek(0)
         verify_video(stream2, format, resolution)
 
-def test_record_sequence_to_file(camera, mode, tmpdir):
+def test_record_sequence_to_file(camera, mode, tempdir):
     resolution, framerate = mode
     expected_failures(resolution, 'h264', {})
-    filenames = [os.path.join(str(tmpdir), 'clip%d.h264' % i) for i in range(3)]
+    filenames = [os.path.join(tempdir, 'clip%d.h264' % i) for i in range(3)]
     for filename in camera.record_sequence(filenames):
         camera.wait_recording(1)
     for filename in filenames:

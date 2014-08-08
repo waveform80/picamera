@@ -128,14 +128,14 @@ def test_capture_to_stream(
     verify_image(stream, format, resolution)
 
 def test_capture_continuous_to_file(
-        camera, mode, ext_format_options, tmpdir, use_video_port, burst):
+        camera, mode, ext_format_options, tempdir, use_video_port, burst):
     ext, format, options = ext_format_options
     resolution, framerate = mode
     expected_failures(resolution, format, use_video_port)
     try:
         for i, filename in enumerate(
                 camera.capture_continuous(os.path.join(
-                    str(tmpdir), 'image{counter:02d}%s' % ext),
+                    tempdir, 'image{counter:02d}%s' % ext),
                     format=format if format in RAW_FORMATS else None,
                     use_video_port=use_video_port, burst=burst)):
             verify_image(filename, format, resolution)
@@ -164,12 +164,12 @@ def test_capture_continuous_to_stream(
         assert use_video_port and burst
 
 def test_capture_sequence_to_file(
-        camera, mode, ext_format_options, tmpdir, use_video_port, burst):
+        camera, mode, ext_format_options, tempdir, use_video_port, burst):
     ext, format, options = ext_format_options
     resolution, framerate = mode
     expected_failures(resolution, format, use_video_port)
     filenames = [
-            os.path.join(str(tmpdir), 'image%d%s' % (i, ext))
+            os.path.join(tempdir, 'image%d%s' % (i, ext))
             for i in range(3)
             ]
     try:

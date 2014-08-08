@@ -39,6 +39,8 @@ str = type('')
 
 import picamera
 import pytest
+import tempfile
+import shutil
 
 
 # The basic camera fixture returns a camera which is not running a preview.
@@ -85,4 +87,15 @@ def mode(request, camera):
     request.addfinalizer(fin)
     return request.param
 
+# A fixture for temporary directories which cleans them up immediately after
+# usage (the built-in tmpdir fixture only cleans up after several test runs
+# and with the number of picamera tests that now exist, that can easily fill
+# the 16Gb SD card in the dev rig)
+@pytest.fixture()
+def tempdir(request):
+    dirname = tempfile.mkdtemp()
+    def fin():
+        shutil.rmtree(dirname)
+    request.addfinalizer(fin)
+    return dirname
 
