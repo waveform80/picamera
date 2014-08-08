@@ -5,7 +5,7 @@ Change log
 ==========
 
 
-Release 1.7 (2014-08-22)
+Release 1.7 (2014-08-08)
 ========================
 
 1.7 consists once more of new features, and more bug fixes:
