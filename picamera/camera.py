@@ -963,9 +963,8 @@ class PiCamera(object):
 
         * *bitrate* - The bitrate at which video will be encoded. Defaults to
           17000000 (17Mbps) if not specified.  The maximum value is 25000000
-          (25Mbps). Bitrate 0 is special and seems to indicate a "reasonable
-          bitrate" default, but should be avoided due to a firmware issue
-          which prevents :meth:`split_recording` from working when it is used.
+          (25Mbps). Bitrate 0 indicates the encoder should not use bitrate
+          control (the encoder is limited by the quality only).
 
         * *quality* - Specifies the quality that the encoder should attempt
           to maintain. For the ``'h264'`` format, use values between 10 and 40

@@ -107,8 +107,7 @@ def test_record_to_file(camera, previewing, mode, filenames_format_options):
         verify2 = (
                 format != 'h264' or (
                     options.get('inline_headers', True) and
-                    options.get('intra_period', 1) and
-                    options.get('bitrate', 1)
+                    options.get('intra_period', 1)
                     )
                 )
         if verify2:
@@ -137,8 +136,7 @@ def test_record_to_stream(camera, previewing, mode, format_options):
         verify2 = (
                 format != 'h264' or (
                     options.get('inline_headers', True) and
-                    options.get('intra_period', 1) and
-                    options.get('bitrate', 1)
+                    options.get('intra_period', 1)
                     )
                 )
         if verify2:

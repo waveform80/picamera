@@ -904,9 +904,6 @@ class PiVideoEncoder(PiEncoder):
 
         if not (0 <= bitrate <= 25000000):
             raise PiCameraValueError('bitrate must be between 0 and 25Mbps')
-        if bitrate == 0:
-            warnings.warn(PiCameraWarning(
-                'split_recording does not operate with bitrate set to 0'))
         self.output_port[0].format[0].bitrate = bitrate
         self.output_port[0].format[0].es[0].video.frame_rate.num = 0
         self.output_port[0].format[0].es[0].video.frame_rate.den = 1
