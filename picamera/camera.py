@@ -455,7 +455,7 @@ class PiCamera(object):
         self.color_effects = None
         self.rotation = 0
         self.hflip = self.vflip = False
-        self.crop = (0.0, 0.0, 1.0, 1.0)
+        self.zoom = (0.0, 0.0, 1.0, 1.0)
 
     def _init_splitter(self):
         # Create a splitter component for the video port. This is to permit
@@ -1760,6 +1760,9 @@ class PiCamera(object):
         """)
 
     def _get_raw_format(self):
+        warnings.warn(
+            'PiCamera.raw_format is deprecated; use required format directly '
+            'with capture methods instead', DeprecationWarning)
         return self._raw_format
     def _set_raw_format(self, value):
         warnings.warn(
@@ -2883,7 +2886,7 @@ class PiCamera(object):
         default value is ``False``.
         """)
 
-    def _get_crop(self):
+    def _get_zoom(self):
         self._check_camera_open()
         mp = mmal.MMAL_PARAMETER_INPUT_CROP_T(
             mmal.MMAL_PARAMETER_HEADER_T(
@@ -2892,20 +2895,20 @@ class PiCamera(object):
                 ))
         mmal_check(
             mmal.mmal_port_parameter_get(self._camera[0].control, mp.hdr),
-            prefix="Failed to get crop")
+            prefix="Failed to get zoom")
         return (
             mp.rect.x / 65535.0,
             mp.rect.y / 65535.0,
             mp.rect.width / 65535.0,
             mp.rect.height / 65535.0,
             )
-    def _set_crop(self, value):
+    def _set_zoom(self, value):
         self._check_camera_open()
         try:
             x, y, w, h = value
         except (TypeError, ValueError) as e:
             raise PiCameraValueError(
-                "Invalid crop rectangle (x, y, w, h) tuple: %s" % value)
+                "Invalid zoom rectangle (x, y, w, h) tuple: %s" % value)
         mp = mmal.MMAL_PARAMETER_INPUT_CROP_T(
             mmal.MMAL_PARAMETER_HEADER_T(
                 mmal.MMAL_PARAMETER_INPUT_CROP,
@@ -2920,16 +2923,33 @@ class PiCamera(object):
             )
         mmal_check(
             mmal.mmal_port_parameter_set(self._camera[0].control, mp.hdr),
-            prefix="Failed to set crop")
-    crop = property(_get_crop, _set_crop, doc="""
-        Retrieves or sets the crop applied to the camera's input.
+            prefix="Failed to set zoom")
+    zoom = property(_get_zoom, _set_zoom, doc="""
+        Retrieves or sets the zoom applied to the camera's input.
 
-        When queried, the :attr:`crop` property returns a ``(x, y, w, h)``
+        When queried, the :attr:`zoom` property returns a ``(x, y, w, h)``
         tuple of floating point values ranging from 0.0 to 1.0, indicating the
-        proportion of the image to include in the output (the "Region of
-        Interest" or ROI). The default value is ``(0.0, 0.0, 1.0, 1.0)`` which
-        indicates that everything should be included. The property can be set
-        while recordings or previews are in progress.
+        proportion of the image to include in the output (this is also known as
+        the "Region of Interest" or ROI). The default value is ``(0.0, 0.0,
+        1.0, 1.0)`` which indicates that everything should be included. The
+        property can be set while recordings or previews are in progress.
+        """)
+
+    def _get_crop(self):
+        warnings.warn(
+            'PiCamera.crop is deprecated; use zoom instead',
+            DeprecationWarning)
+        return self.zoom
+    def _set_crop(self, value):
+        warnings.warn(
+            'PiCamera.crop is deprecated; use zoom instead',
+            DeprecationWarning)
+        self.zoom = value
+    crop = property(_get_crop, _set_crop, doc="""
+        Retrieves or sets the zoom applied to the camera's input.
+
+        .. deprecated:: 1.8
+            Please use the :attr:`zoom` attribute instead.
         """)
 
     def _get_preview_alpha(self):

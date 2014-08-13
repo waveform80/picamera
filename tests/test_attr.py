@@ -219,18 +219,18 @@ def test_shutter_speed(camera, previewing):
         camera.framerate = save_framerate
         camera.shutter_speed = 0
 
-def test_crop(camera, previewing):
-    save_crop = camera.crop
+def test_zoom(camera, previewing):
+    save_zoom = camera.zoom
     try:
-        camera.crop = (0.0, 0.0, 1.0, 1.0)
-        assert camera.crop == (0.0, 0.0, 1.0, 1.0)
-        camera.crop = (0.2, 0.2, 0.6, 0.6)
-        assert camera.crop == (0.2, 0.2, 0.6, 0.6)
-        camera.crop = (0.1, 0.1, 0.8, 0.8)
+        camera.zoom = (0.0, 0.0, 1.0, 1.0)
+        assert camera.zoom == (0.0, 0.0, 1.0, 1.0)
+        camera.zoom = (0.2, 0.2, 0.6, 0.6)
+        assert camera.zoom == (0.2, 0.2, 0.6, 0.6)
+        camera.zoom = (0.1, 0.1, 0.8, 0.8)
         # 0.1 doesn't quite make the round trip...
-        assert camera.crop == (int(0.1*65535.0)/65535.0, int(0.1*65535.0)/65535.0, 0.8, 0.8)
+        assert camera.zoom == (int(0.1*65535.0)/65535.0, int(0.1*65535.0)/65535.0, 0.8, 0.8)
     finally:
-        camera.crop = save_crop
+        camera.zoom = save_zoom
 
 # XXX The preview properties work, but don't return correct values unless the
 # preview is actually running; if this isn't expected behaviour then we should
