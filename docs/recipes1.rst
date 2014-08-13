@@ -140,6 +140,26 @@ convert the stream to a numpy array and read the array with `OpenCV`_::
     # use the following...
     image = image[:, :, ::-1]
 
+If you want to avoid the JPEG encoding and decoding (which is lossy) and
+potentially speed up the process, you can now use the classes in the
+:mod:`picamera.array` module. As OpenCV images are simply numpy arrays arranged
+in BGR order, one can use the :class:`~picamera.array.PiRGBArray` class and
+simply capture with the ``'bgr'`` format (given that RGB and BGR data is the
+same size and configuration, just with reversed color planes)::
+
+    import time
+    import picamera
+    import picamera.array
+    import cv2
+
+    with picamera.PiCamera() as camera:
+        camera.start_preview()
+        time.sleep(2)
+        with picamera.array.PiRGBArray(camera) as stream:
+            camera.capture(stream, format='bgr')
+            # At this point the image is available as stream.array
+            image = stream.array
+
 
 .. _resize_capture:
 
