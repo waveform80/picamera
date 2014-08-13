@@ -42,7 +42,24 @@ PiBaseOutput
 ============
 
 .. autoclass:: PiBaseOutput
-    :members:
+
+
+PiBufferedOutput
+================
+
+.. autoclass:: PiBufferedOutput
+
+
+PiArrayOutput
+=============
+
+.. autoclass:: PiArrayOutput
+
+
+PiAnalysisOutput
+================
+
+.. autoclass:: PiAnalysisOutput
 
 
 PiRGBArray
@@ -67,6 +84,18 @@ PiMotionArray
 =============
 
 .. autoclass:: PiMotionArray
+
+
+PiRGBAnalysis
+=============
+
+.. autoclass:: PiRGBAnalysis
+
+
+PiYUVAnalysis
+=============
+
+.. autoclass:: PiYUVAnalysis
 
 
 PiMotionAnalysis
@@ -341,7 +370,7 @@ class PiRGBArray(PiArrayOutput):
                         output.array.shape[1], output.array.shape[0]))
 
     You can re-use the output to produce multiple arrays by emptying it with
-    truncate(0) between captures::
+    ``truncate(0)`` between captures::
 
         import picamera
         import picamera.array
