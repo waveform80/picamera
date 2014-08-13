@@ -39,6 +39,14 @@ If you ever need to remove your installation::
     python3-picamera package is already installed (it is included by default
     in recent versions of `NOOBS`_).
 
+.. note::
+
+    The release of the picamera package on Raspbian lags behind the release of
+    picamera packages on PyPI (see :ref:`system_install2` below) by a few days.
+    If you find yourself unable to upgrade immediately following a release
+    announcement, you can either switch to a PyPI installation or wait a few
+    days for the Raspbian packages to arrive in the repository.
+
 .. _Raspbian: http://www.raspbian.org/
 .. _NOOBS: http://www.raspberrypi.org/downloads/
 

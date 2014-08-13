@@ -123,3 +123,24 @@ the ``pip`` utility. This can be done with the following command in Raspbian::
 
     $ sudo apt-get install python-pip
 
+How come I can't upgrade to the latest version?
+===============================================
+
+If you are using Raspbian, firstly check that you haven't got both a PyPI
+(``pip``) and an apt (``apt-get``) installation of picamera installed
+simultaneously. If you have, one will be taking precedence and it may not be
+the most up to date version.
+
+Secondly, please understand that while the PyPI release process is entirely
+automated (so as soon as a new picamera release is announced, it will be
+available on PyPI), the release process for Raspbian packages is semi-manual.
+There is typically a delay of a few days after a release before updated
+picamera packages become accessible in the Raspbian repository.
+
+Users desperate to try the latest version make choose to uninstall their
+``apt`` based copy (uninstall instructions are provided in the
+:ref:`installation instructions <raspbian_install2>`, and install using
+:ref:`pip instead <system_install2>`. However, be aware that keeping a PyPI
+based installation up to date is a more manual process (sticking with ``apt``
+ensures everything gets upgraded with a simple ``sudo apt-get upgrade``
+command).
