@@ -1,3 +1,27 @@
+picamera (1.7-1) stable; urgency=low
+
+  * Text overlay on preview, image, and video output is now possible (#16)
+  * Support for more than one camera on the compute module has been added, but
+    hasn't been tested yet (#84)
+  * The exposure_mode 'off' has been added to allow locking down the exposure
+    time, along with some new recipes demonstrating this capability (#116)
+  * The valid values for various attributes including awb_mode, meter_mode,
+    and exposure_mode are now automatically included in the documentation
+    (#130)
+  * Support for unencoded formats (YUV, RGB, etc.) has been added to the
+    start_recording method (#132)
+  * A couple of analysis classes have been added to picamera.array to support
+    the new unencoded recording formats (#139)
+  * Several issues in the PiBayerArray class were fixed; this should now work
+    correctly with Python 3, and the demosaic method should operate correctly
+    (#133, #134)
+  * A major issue with multi-resolution recordings which caused all recordings
+    to stop prematurely was fixed (#136)
+  * Finally, an issue with the example in the documentation for custom encoders
+    was fixed (#128)
+
+ -- Dave Hughes <dave@waveform.org.uk>  Fri, 08 Aug 2014 19:02:27 +0100
+
 picamera (1.6-1) stable; urgency=low
 
   * The awb_gains attribute is no longer write-only; you can now read it to
