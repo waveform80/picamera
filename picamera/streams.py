@@ -187,20 +187,28 @@ class CircularIO(io.IOBase):
         If 0 bytes are returned, and *n* was not 0, this indicates end of the
         stream.
         """
-        with self.lock:
-            if self._pos == self._length:
-                return b''
-            if n == -1:
-                n = self._length - self._pos
-            from_index, from_offset = self._pos_index, self._pos_offset
-            self._set_pos(self._pos + n)
-            result = self._data[from_index][from_offset:from_offset + n]
-            # Bah ... can't slice a deque
-            for i in range(from_index + 1, self._pos_index):
-                result += self._data[i]
-            if from_index < self._pos_index < len(self._data):
-                result += self._data[self._pos_index][:self._pos_offset]
-            return result
+        if n == -1:
+            return self.readall()
+        else:
+            with self.lock:
+                if self._pos == self._length:
+                    return b''
+                from_index, from_offset = self._pos_index, self._pos_offset
+                self._set_pos(self._pos + n)
+                result = self._data[from_index][from_offset:from_offset + n]
+                # Bah ... can't slice a deque
+                for i in range(from_index + 1, self._pos_index):
+                    result += self._data[i]
+                if from_index < self._pos_index < len(self._data):
+                    result += self._data[self._pos_index][:self._pos_offset]
+                return result
+
+    def readall(self):
+        """
+        Read and return all bytes from the stream until EOF, using multiple
+        calls to the stream if necessary.
+        """
+        return self.read(self._length - self._pos)
 
     def read1(self, n=-1):
         """
