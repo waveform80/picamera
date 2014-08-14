@@ -38,28 +38,10 @@ imported.
 
 The following classes are defined in the module:
 
-PiBaseOutput
-============
-
-.. autoclass:: PiBaseOutput
-
-
-PiBufferedOutput
-================
-
-.. autoclass:: PiBufferedOutput
-
-
 PiArrayOutput
 =============
 
 .. autoclass:: PiArrayOutput
-
-
-PiAnalysisOutput
-================
-
-.. autoclass:: PiAnalysisOutput
 
 
 PiRGBArray
@@ -84,6 +66,12 @@ PiMotionArray
 =============
 
 .. autoclass:: PiMotionArray
+
+
+PiAnalysisOutput
+================
+
+.. autoclass:: PiAnalysisOutput
 
 
 PiRGBAnalysis
@@ -119,6 +107,8 @@ try:
 except NameError:
     pass
 
+import io
+
 import numpy as np
 from numpy.lib.stride_tricks import as_strided
 
@@ -133,6 +123,11 @@ motion_dtype = np.dtype([
 
 
 def raw_resolution(resolution):
+    """
+    Round a (width, height) tuple up to the nearest multiple of 32 horizontally
+    and 16 vertically (as this is what the Pi's camera module does for
+    unencoded output).
+    """
     width, height = resolution
     fwidth = (width + 31) // 32 * 32
     fheight = (height + 15) // 16 * 16
@@ -141,7 +136,7 @@ def raw_resolution(resolution):
 
 def bytes_to_yuv(data, resolution):
     """
-    Converts a bytes object containing YUV data to a numpy array.
+    Converts a bytes object containing YUV data to a `numpy`_ array.
     """
     width, height = resolution
     fwidth, fheight = raw_resolution(resolution)
@@ -166,7 +161,7 @@ def bytes_to_yuv(data, resolution):
 
 def bytes_to_rgb(data, resolution):
     """
-    Converts a bytes objects containing RGB/BGR data to a numpy array.
+    Converts a bytes objects containing RGB/BGR data to a `numpy`_ array.
     """
     width, height = resolution
     fwidth, fheight = raw_resolution(resolution)
@@ -178,178 +173,24 @@ def bytes_to_rgb(data, resolution):
             reshape((fheight, fwidth, 3))[:height, :width, :]
 
 
-class PiBaseOutput(object):
-    """
-    Base class for all custom output classes defined in this module.
-
-    This class is not intended for direct use, but is a useful base-class for
-    constructing :ref:`custom outputs <custom_outputs>`. The :meth:`write`
-    method simply appends data to the :attr:`buffer` attribute until the
-    :meth:`flush` method is called which in descendent classes is expected to
-    construct a `numpy`_ array from the buffered data.
-    """
-    def __init__(self, camera, size=None):
-        super(PiBaseOutput, self).__init__()
-        self.closed = False
-        self.camera = camera
-        self.size = size
-
-    def readable(self):
-        """
-        Returns ``False``, indicating that the stream doesn't support :meth:`read`.
-        """
-        return False
-
-    def writable(self):
-        """
-        Returns ``True``, indicating that the stream supports :meth:`write`.
-        """
-        return True
-
-    def seekable(self):
-        """
-        Returns ``False``, indicating that the stream doesn't support :meth:`seek`.
-        """
-        return False
-
-    def read(self, n=-1):
-        """
-        Raises :exc:`NotImplementedError` as this is a write-only stream.
-        """
-        raise NotImplementedError
-
-    def write(self, b):
-        """
-        This base implementation ignores the data and returns the number of
-        bytes, pretending it has written them.
-        """
-        self._check_closed()
-        return len(b)
-
-    def seek(self, offset, whence=0):
-        """
-        Raises :exc:`NotImplementedError` as this is a non-seekable stream.
-        """
-        raise NotImplementedError
-
-    def tell(self):
-        """
-        Raises :exc:`NotImplementedError` as this output has no buffer.
-        """
-        raise NotImplementedError
-
-    def truncate(self, size=None):
-        """
-        Raises :exc:`NotImplementedError` as this output has no buffer.
-        """
-        raise NotImplementedError
-
-    def flush(self):
-        """
-        Does nothing in this implementation but can be overriden in descendent
-        classes to do something after capture/recording is complete.
-        """
-        pass
-
-    def _check_closed(self):
-        if self.closed:
-            raise PiCameraValueError('I/O operation on closed output')
-
-    def close(self):
-        """
-        Closes the stream and frees all resources associated with it.
-        """
-        self.closed = True
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_value, exc_traceback):
-        self.close()
-
-
-class PiBufferedOutput(PiBaseOutput):
-    """
-    Base class for buffered output classes.
-
-    This class extends :class:`PiBaseOutput` with an internal buffer which can
-    be used to store up writes until the output is flushed.
-    """
-
-    def __init__(self, camera, size=None):
-        super(PiBufferedOutput, self).__init__(camera, size)
-        self.buffer = b''
-
-    def write(self, b):
-        """
-        Write the given bytes or bytearray object, *b*, to the internal
-        buffer and return the number of bytes written.
-        """
-        result = super(PiBufferedOutput, self).write(b)
-        self.buffer += b
-        return result
-
-    def tell(self):
-        """
-        Returns the current stream position (always equal to the length of
-        the internal buffer in this implementation).
-        """
-        self._check_closed()
-        return len(self.buffer)
-
-    def truncate(self, size=None):
-        """
-        Resize the stream to the given *size* in bytes (or the current position
-        if *size* is not specified). This resizing can only reduce the
-        current stream size in this implementation.
-
-        As this stream is non-seekable and the position is dictated by the
-        internal buffer size, shrinking the stream changes the position.
-        """
-        self._check_closed()
-        if size is not None:
-            self.buffer = self.buffer[:size]
-
-    def close(self):
-        """
-        Frees the internal buffer.
-        """
-        super(PiBufferedOutput, self).close()
-        self.buffer = b''
-
-
-class PiArrayOutput(PiBufferedOutput):
+class PiArrayOutput(io.BytesIO):
     """
     Base class for capture arrays.
 
-    This class extends :class:`PiBufferedOutput` with a numpy array which is
-    intended to be filled when the output is flushed (i.e. at the end of
-    capture).
+    This class extends :class:`io.BytesIO` with a `numpy`_ array which is
+    intended to be filled when :meth:`~io.IOBase.flush` is called (i.e. at the
+    end of capture).
     """
 
     def __init__(self, camera, size=None):
-        super(PiArrayOutput, self).__init__(camera, size)
+        super(PiArrayOutput, self).__init__()
+        self.camera = camera
+        self.size = size
         self.array = None
 
     def close(self):
         super(PiArrayOutput, self).close()
         self.array = None
-
-
-class PiAnalysisOutput(PiBaseOutput):
-    """
-    Base class for analysis outputs.
-
-    This class extends :class:`PiBaseOutput` with a stub :meth:`analyse` method
-    which will be called for each frame output. In this base implementation the
-    method simply raises :exc:`NotImplementedError`.
-    """
-
-    def analyse(self, array):
-        """
-        Stub method for users to override.
-        """
-        raise NotImplementedError
 
 
 class PiRGBArray(PiArrayOutput):
@@ -405,7 +246,7 @@ class PiRGBArray(PiArrayOutput):
 
     def flush(self):
         super(PiRGBArray, self).flush()
-        self.array = bytes_to_rgb(self.buffer, self.size or self.camera.resolution)
+        self.array = bytes_to_rgb(self.getvalue(), self.size or self.camera.resolution)
 
 
 class PiYUVArray(PiArrayOutput):
@@ -462,7 +303,7 @@ class PiYUVArray(PiArrayOutput):
 
     def flush(self):
         super(PiYUVArray, self).flush()
-        self.array = bytes_to_yuv(self.buffer, self.size or self.camera.resolution)
+        self.array = bytes_to_yuv(self.getvalue(), self.size or self.camera.resolution)
 
     @property
     def rgb_array(self):
@@ -536,7 +377,7 @@ class PiBayerArray(PiArrayOutput):
     def flush(self):
         super(PiBayerArray, self).flush()
         self._demo = None
-        data = self.buffer[-6404096:]
+        data = self.getvalue()[-6404096:]
         if data[:4] != b'BRCM':
             raise PiCameraValueError('Unable to locate Bayer data at end of buffer')
         # Strip header
@@ -674,9 +515,36 @@ class PiMotionArray(PiArrayOutput):
         width, height = self.size or self.camera.resolution
         cols = ((width + 15) // 16) + 1
         rows = (height + 15) // 16
-        frames = len(self.buffer) // (cols * rows * motion_dtype.itemsize)
-        self.array = np.frombuffer(self.buffer, dtype=motion_dtype).\
-                reshape((frames, rows, cols))
+        b = self.getvalue()
+        frames = len(b) // (cols * rows * motion_dtype.itemsize)
+        self.array = np.frombuffer(b, dtype=motion_dtype).reshape((frames, rows, cols))
+
+
+class PiAnalysisOutput(io.IOBase):
+    """
+    Base class for analysis outputs.
+
+    This class extends :class:`io.IOBase` with a stub :meth:`analyse` method
+    which will be called for each frame output. In this base implementation the
+    method simply raises :exc:`NotImplementedError`.
+    """
+
+    def __init__(self, camera, size=None):
+        super(PiAnalysisOutput, self).__init__()
+        self.camera = camera
+        self.size = size
+
+    def writeable(self):
+        return True
+
+    def write(self, b):
+        return len(b)
+
+    def analyse(self, array):
+        """
+        Stub method for users to override.
+        """
+        raise NotImplementedError
 
 
 class PiRGBAnalysis(PiAnalysisOutput):
