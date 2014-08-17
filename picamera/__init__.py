@@ -125,7 +125,7 @@ PiRawMixin
 PiCookedVideoEncoder
 ====================
 
-..autoclass:: PiCookedVideoEncoder
+.. autoclass:: PiCookedVideoEncoder
     :members:
     :private-members:
 
@@ -157,7 +157,7 @@ PiMultiImageEncoder
 PiRawImageMixin
 ===============
 
-..autoclass:: PiRawImageMixin
+.. autoclass:: PiRawImageMixin
     :members:
     :private-members:
 

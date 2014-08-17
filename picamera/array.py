@@ -553,7 +553,7 @@ class PiRGBAnalysis(PiAnalysisOutput):
 
     This custom output class is intended to be used with the
     :meth:`~picamera.PiCamera.start_recording` method when it is called with
-    *format* set to ``'rgb'`` or ``'bgr`''. While recording is in progress, the
+    *format* set to ``'rgb'`` or ``'bgr'``. While recording is in progress, the
     :meth:`~PiBaseOutput.write` method converts incoming frame data into a
     numpy array and calls the stub :meth:`analyse` method with the resulting
     array (this deliberately raises :exc:`NotImplementedError` in this class;
@@ -568,7 +568,6 @@ class PiRGBAnalysis(PiAnalysisOutput):
         should take considerably less given that this doesn't take into account
         encoding overhead). You may wish to adjust the framerate of the camera
         accordingly.
-
 
     The array passed to :meth:`analyse` is organized as (rows, columns,
     channel) where the channels 0, 1, and 2 are R, G, and B respectively (or B,
