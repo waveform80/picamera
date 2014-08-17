@@ -2296,7 +2296,7 @@ class PiCamera(object):
 
         When set, the property activates or deactivates the denoise algorithm
         for video recordings. The property can be set while recordings or
-        previews are in progress. The default value is ``False``.
+        previews are in progress. The default value is ``True``.
 
         .. versionadded:: 1.7
         """)
@@ -2331,7 +2331,7 @@ class PiCamera(object):
 
         When set, the property activates or deactivates the denoise algorithm
         for image captures. The property can be set while recordings or
-        previews are in progress. The default value is ``False``.
+        previews are in progress. The default value is ``True``.
 
         .. versionadded:: 1.7
         """)
