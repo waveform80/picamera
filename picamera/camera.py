@@ -67,11 +67,15 @@ from picamera.encoders import (
     PiVideoEncoder,
     PiRawVideoEncoder,
     PiCookedVideoEncoder,
-    PiImageEncoder,
     PiRawOneImageEncoder,
     PiRawMultiImageEncoder,
     PiCookedOneImageEncoder,
     PiCookedMultiImageEncoder,
+    )
+from picamera.renderers import (
+    PiPreviewRenderer,
+    PiOverlayRenderer,
+    PiNullSink,
     )
 
 try:
@@ -315,12 +319,15 @@ class PiCamera(object):
         self._camera = None
         self._camera_config = None
         self._preview = None
-        self._preview_connection = None
-        self._null_sink = None
+        self._preview_alpha = 255
+        self._preview_layer = 2
+        self._preview_fullscreen = True
+        self._preview_window = None
         self._splitter = None
         self._splitter_connection = None
         self._encoders_lock = threading.Lock()
         self._encoders = {}
+        self._overlays = set()
         self._raw_format = 'yuv'
         self._exif_tags = {
             'IFD0.Model': 'RP_OV5647',
@@ -478,54 +485,12 @@ class PiCamera(object):
             self._splitter[0].input[0])
 
     def _init_preview(self):
-        # Create and enable the preview component, but don't actually connect
-        # it to the camera at this time
-        self._preview = ct.POINTER(mmal.MMAL_COMPONENT_T)()
-        mmal_check(
-            mmal.mmal_component_create(
-                mmal.MMAL_COMPONENT_DEFAULT_VIDEO_RENDERER, self._preview),
-            prefix="Failed to create preview component")
-        if not self._preview[0].input_num:
-            raise PiCameraError("No input ports on preview component")
-
-        mp = mmal.MMAL_DISPLAYREGION_T(
-            mmal.MMAL_PARAMETER_HEADER_T(
-                mmal.MMAL_PARAMETER_DISPLAYREGION,
-                ct.sizeof(mmal.MMAL_DISPLAYREGION_T)
-            ))
-        mp.set = (
-            mmal.MMAL_DISPLAY_SET_LAYER |
-            mmal.MMAL_DISPLAY_SET_ALPHA |
-            mmal.MMAL_DISPLAY_SET_FULLSCREEN)
-        mp.layer = 2
-        mp.alpha = 255
-        mp.fullscreen = 1
-        mmal_check(
-            mmal.mmal_port_parameter_set(self._preview[0].input[0], mp.hdr),
-            prefix="Unable to set preview port parameters")
-
-        mmal_check(
-            mmal.mmal_component_enable(self._preview),
-            prefix="Preview component couldn't be enabled")
-
         # Create a null-sink component, enable it and connect it to the
         # camera's preview port. If nothing is connected to the preview port,
         # the camera doesn't measure exposure and captured images gradually
         # fade to black (issue #22)
-        self._null_sink = ct.POINTER(mmal.MMAL_COMPONENT_T)()
-        mmal_check(
-            mmal.mmal_component_create(
-                mmal.MMAL_COMPONENT_DEFAULT_NULL_SINK, self._null_sink),
-            prefix="Failed to create null sink component")
-        if not self._null_sink[0].input_num:
-            raise PiCameraError("No input ports on null sink component")
-        mmal_check(
-            mmal.mmal_component_enable(self._null_sink),
-            prefix="Null sink component couldn't be enabled")
-
-        self._preview_connection = self._connect_ports(
-            self._camera[0].output[self.CAMERA_PREVIEW_PORT],
-            self._null_sink[0].input[0])
+        self._preview = PiNullSink(
+            self, self._camera[0].output[self.CAMERA_PREVIEW_PORT])
 
     def _connect_ports(self, output_port, input_port):
         result = ct.POINTER(mmal.MMAL_CONNECTION_T)()
@@ -563,7 +528,7 @@ class PiCamera(object):
             mmal.mmal_connection_disable(self._splitter_connection),
             prefix="Failed to disable splitter connection")
         mmal_check(
-            mmal.mmal_connection_disable(self._preview_connection),
+            mmal.mmal_connection_disable(self._preview.connection),
             prefix="Failed to disable preview connection")
         mmal_check(
             mmal.mmal_component_disable(self._camera),
@@ -575,7 +540,7 @@ class PiCamera(object):
             mmal.mmal_component_enable(self._camera),
             prefix="Failed to enable camera")
         mmal_check(
-            mmal.mmal_connection_enable(self._preview_connection),
+            mmal.mmal_connection_enable(self._preview.connection),
             prefix="Failed to enable preview connection")
         mmal_check(
             mmal.mmal_connection_enable(self._splitter_connection),
@@ -804,21 +769,17 @@ class PiCamera(object):
         for port in list(self._encoders):
             self.stop_recording(splitter_port=port)
         assert not self.recording
+        for overlay in list(self._overlays):
+            self.remove_overlay(overlay)
+        if self._preview:
+            self._preview.close()
+            self._preview = None
         if self._splitter_connection:
             mmal.mmal_connection_destroy(self._splitter_connection)
             self._splitter_connection = None
-        if self._preview_connection:
-            mmal.mmal_connection_destroy(self._preview_connection)
-            self._preview_connection = None
-        if self._null_sink:
-            mmal.mmal_component_destroy(self._null_sink)
-            self._null_sink = None
         if self._splitter:
             mmal.mmal_component_destroy(self._splitter)
             self._splitter = None
-        if self._preview:
-            mmal.mmal_component_destroy(self._preview)
-            self._preview = None
         if self._camera:
             mmal.mmal_component_destroy(self._camera)
             self._camera = None
@@ -829,59 +790,131 @@ class PiCamera(object):
     def __exit__(self, exc_type, exc_value, exc_tb):
         self.close()
 
-    def start_preview(self):
+    def start_preview(
+            self, layer=None, alpha=None, fullscreen=None, window=None):
         """
-        Displays the preview window.
+        Displays the preview overlay.
 
-        This method starts a new preview running at the configured resolution
-        (see :attr:`resolution`). Most camera properties can be modified "live"
-        while the preview is running (e.g. :attr:`brightness`). The preview
-        overrides whatever is currently visible on the display. More
-        specifically, the preview does not rely on a graphical environment like
-        X-Windows (it can run quite happily from a TTY console); it is simply
-        an overlay on the Pi's video output.
+        This method starts a preview running in the specified *layer* (higher
+        numbered layers obscure lower numbered layers), with the given *alpha*
+        (where 255 indicates complete opacity, and 0 is total transparency),
+        and at the location specified by a combination of *fullscreen* and
+        *window* the latter of which is a 4-tuple ``(x, y, width, height)``.
+        The *layer* defaults to ``2``, while *alpha*, *fullscreen*, and
+        *window* default to a completely opaque preview filling the screen.
 
-        To stop the preview and reveal the display again, call
-        :meth:`stop_preview`. The preview can be started and stopped multiple
-        times during the lifetime of the :class:`PiCamera` object.
+        This means the default preview overrides whatever is currently visible
+        on the display. More specifically, the preview does not rely on a
+        graphical environment like X-Windows (it can run quite happily from a
+        TTY console); it is simply an overlay on the Pi's video output. To stop
+        the preview and reveal the display again, call :meth:`stop_preview`.
+        The preview can be started and stopped multiple times during the
+        lifetime of the :class:`PiCamera` object.
+
+        All other camera properties can be modified "live" while the preview is
+        running (e.g. :attr:`brightness`).
 
         .. note::
-            Because the preview typically obscures the screen, ensure you have
-            a means of stopping a preview before starting one. If the preview
-            obscures your interactive console you won't be able to Alt+Tab back
-            to it as the preview isn't in a window. If you are in an
-            interactive Python session, simply pressing Ctrl+D usually suffices
-            to terminate the environment, including the camera and its
+
+            Because the default preview typically obscures the screen, ensure
+            you have a means of stopping a preview before starting one. If the
+            preview obscures your interactive console you won't be able to
+            Alt+Tab back to it as the preview isn't in a window. If you are in
+            an interactive Python session, simply pressing Ctrl+D usually
+            suffices to terminate the environment, including the camera and its
             associated preview.
         """
         self._check_camera_open()
-        # Switch the camera's preview port from the null sink to the
-        # preview component
-        if self._preview_connection:
-            mmal.mmal_connection_destroy(self._preview_connection)
-            self._null_connection = None
-        self._preview_connection = self._connect_ports(
-            self._camera[0].output[self.CAMERA_PREVIEW_PORT],
-            self._preview[0].input[0])
+        self._preview.close()
+        renderer = PiPreviewRenderer(
+            self, self._camera[0].output[self.CAMERA_PREVIEW_PORT],
+            layer=layer if layer is not None else self._preview_layer,
+            alpha=alpha if alpha is not None else self._preview_alpha,
+            fullscreen=fullscreen if fullscreen is not None else self._preview_fullscreen,
+            window=window if window is not None else self._preview_window)
+        self._preview = renderer
+        return renderer
 
     def stop_preview(self):
         """
-        Closes the preview window display.
+        Hides the preview overlay.
 
         If :meth:`start_preview` has previously been called, this method shuts
-        down the preview display which generally results in the underlying TTY
-        becoming visible again. If a preview is not currently running, no
-        exception is raised - the method will simply do nothing.
+        down the preview display which generally results in the underlying
+        display becoming visible again. If a preview is not currently running,
+        no exception is raised - the method will simply do nothing.
         """
         self._check_camera_open()
-        # This is the reverse of start_preview; disconnect the camera from the
-        # preview component (if it's connected) and connect it to the null sink
-        if self._preview_connection:
-            mmal.mmal_connection_destroy(self._preview_connection)
-            self._preview_connection = None
-        self._preview_connection = self._connect_ports(
-            self._camera[0].output[self.CAMERA_PREVIEW_PORT],
-            self._null_sink[0].input[0])
+        self._preview.close()
+        self._preview = PiNullSink(
+            self, self._camera[0].output[self.CAMERA_PREVIEW_PORT])
+
+    def add_overlay(
+            self, source, size=None, layer=0, alpha=255,
+            fullscreen=True, window=None):
+        """
+        Adds a static overlay to the preview output.
+
+        This method creates a new static overlay using the same rendering
+        mechanism as the preview. Overlays will appear on the Pi's video
+        output, but will not appear in captures or video recordings. Multiple
+        overlays can exist; each call to :meth:`add_overlay` returns a new
+        :class:`PiOverlayRenderer` instance representing the overlay.
+
+        The optional *size* parameter specifies the size of the source image as
+        a ``(width, height)`` tuple. If this is omitted or ``None`` then the
+        size is assumed to be the same as the camera's current
+        :attr:`resolution`.
+
+        The *source* must be an object that supports the :ref:`buffer protocol
+        <bufferobjects>` which has the same length as an image in `RGB`_ format
+        (colors represented as interleaved unsigned bytes) with the specified
+        *size* after the width has been rounded up to the nearest multiple of
+        32, and the height has been rounded up to the nearest multiple of 16.
+
+        For example, if *size* is ``(1280, 720)``, then *source* must be a
+        buffer with length 1280 x 720 x 3 bytes, or 2,764,800 bytes (because
+        1280 is a multiple of 32, and 720 is a multiple of 16 no extra rounding
+        is required).  However, if *size* is ``(97, 57)``, then *source* must
+        be a buffer with length 128 x 64 x 3 bytes, or 24,576 bytes (pixels
+        beyond column 97 and row 57 in the source will be ignored).
+
+        New overlays default to *layer* 0, whilst the preview defaults to layer
+        2. Higher numbered layers obscure lower numbered layers, hence new
+        overlays will be invisible (if the preview is running) by default. You
+        can make the new overlay visible either by making any existing preview
+        transparent (with the :attr:`~PiRenderer.alpha` property) or by moving
+        the overlay into a layer higher than the preview (with the
+        :attr:`~PiRenderer.layer` property). All other parameters have the same
+        meaning as in :meth:`start_preview`, although as mentioned above the
+        *layer* has a different default.
+
+        All camera properties except :attr:`resolution` and :attr:`framerate`
+        can be modified while overlays exist. The reason for these exceptions
+        is that the overlay has a static resolution and changing the camera's
+        mode would require resizing of the source.
+
+        .. _RGB: http://en.wikipedia.org/wiki/RGB
+        """
+        renderer = PiOverlayRenderer(
+            self, source, size, layer, alpha, fullscreen, window)
+        self._overlays.add(renderer)
+        return renderer
+
+    def remove_overlay(self, overlay):
+        """
+        Removes a static overlay from the preview output.
+
+        This method removes an overlay which was previously created by
+        :meth:`add_overlay`. The *overlay* parameter specifies the
+        :class:`PiRenderer` instance that was returned by :meth:`add_overlay`.
+        """
+        if not overlay in self._overlays:
+            raise PiCameraRuntimeError(
+                "The specified overlay is not owned by this instance of "
+                "PiCamera")
+        overlay.close()
+        self._overlays.remove(overlay)
 
     def start_recording(
             self, output, format=None, resize=None, splitter_port=1, **options):
@@ -1634,13 +1667,14 @@ class PiCamera(object):
         """
         Returns ``True`` if the :meth:`start_preview` method has been called,
         and no :meth:`stop_preview` call has been made yet.
+
+        .. deprecated:: 1.8
+            Test whether :attr:`preview` is ``None`` instead.
         """
-        return (
-                bool(self._preview_connection)
-                and self._preview_connection[0].is_enabled
-                and self._preview_connection[0].in_[0].name.startswith(
-                    mmal.MMAL_COMPONENT_DEFAULT_VIDEO_RENDERER)
-                )
+        warnings.warn(
+            'PiCamera.previewing is deprecated; test PiCamera.preview instead',
+            DeprecationWarning)
+        return isinstance(self._preview, PiPreviewRenderer)
 
     @property
     def exif_tags(self):
@@ -2937,12 +2971,12 @@ class PiCamera(object):
 
     def _get_crop(self):
         warnings.warn(
-            'PiCamera.crop is deprecated; use zoom instead',
+            'PiCamera.crop is deprecated; use PiCamera.zoom instead',
             DeprecationWarning)
         return self.zoom
     def _set_crop(self, value):
         warnings.warn(
-            'PiCamera.crop is deprecated; use zoom instead',
+            'PiCamera.crop is deprecated; use PiCamera.zoom instead',
             DeprecationWarning)
         self.zoom = value
     crop = property(_get_crop, _set_crop, doc="""
@@ -2952,193 +2986,154 @@ class PiCamera(object):
             Please use the :attr:`zoom` attribute instead.
         """)
 
+    def _get_overlays(self):
+        return self._overlays
+    overlays = property(_get_overlays, doc="""
+        Retrieves all active :class:`PiRenderer` overlays.
+
+        If no overlays are current active, :attr:`overlays` will return an
+        empty iterable. Otherwise, it will return an iterable of
+        :class:`PiRenderer` instances which are currently acting as overlays.
+        Note that the preview renderer is an exception to this: it is *not*
+        included as an overlay despite being derived from :class:`PiRenderer`.
+        """)
+
+    def _get_preview(self):
+        self._check_camera_open()
+        if isinstance(self._preview, PiPreviewRenderer):
+            return self._preview
+    preview = property(_get_preview, doc="""
+        Retrieves the :class:`PiRenderer` displaying the camera preview.
+
+        If no preview is currently active, :attr:`preview` will return
+        ``None``.  Otherwise, it will return the instance of
+        :class:`PiRenderer` which is currently connected to the camera's
+        preview port for rendering what the camera sees. You can use the
+        attributes of the :class:`PiRenderer` class to configure the appearance
+        of the preview. For example, to make the preview semi-transparent::
+
+            import picamera
+
+            with picamera.PiCamera() as camera:
+                camera.start_preview()
+                camera.preview.alpha = 128
+
+        .. versionadded:: 1.8
+        """)
+
     def _get_preview_alpha(self):
         self._check_camera_open()
-        mp = mmal.MMAL_DISPLAYREGION_T(
-            mmal.MMAL_PARAMETER_HEADER_T(
-                mmal.MMAL_PARAMETER_DISPLAYREGION,
-                ct.sizeof(mmal.MMAL_DISPLAYREGION_T)
-            ))
-        mmal_check(
-            mmal.mmal_port_parameter_get(self._preview[0].input[0], mp.hdr),
-            prefix="Failed to get preview alpha")
-        return mp.alpha
+        warnings.warn(
+            'PiCamera.preview_alpha is deprecated; '
+            'use PiCamera.preview.alpha instead',
+            DeprecationWarning)
+        if self.preview:
+            return self.preview.alpha
+        else:
+            return self._preview_alpha
     def _set_preview_alpha(self, value):
         self._check_camera_open()
-        try:
-            if not (0 <= value <= 255):
-                raise PiCameraValueError(
-                    "Invalid alpha value: %d (valid range 0..255)" % value)
-        except TypeError:
-            raise PiCameraValueError("Invalid alpha value: %s" % value)
-        mp = mmal.MMAL_DISPLAYREGION_T(
-            mmal.MMAL_PARAMETER_HEADER_T(
-                mmal.MMAL_PARAMETER_DISPLAYREGION,
-                ct.sizeof(mmal.MMAL_DISPLAYREGION_T)
-                ),
-            set=mmal.MMAL_DISPLAY_SET_ALPHA,
-            alpha=value
-            )
-        mmal_check(
-            mmal.mmal_port_parameter_set(self._preview[0].input[0], mp.hdr),
-            prefix="Failed to set preview alpha")
+        warnings.warn(
+            'PiCamera.preview_alpha is deprecated; '
+            'use PiCamera.preview.alpha instead',
+            DeprecationWarning)
+        if self.preview:
+            self.preview.alpha = value
+        else:
+            self._preview_alpha = value
     preview_alpha = property(_get_preview_alpha, _set_preview_alpha, doc="""
         Retrieves or sets the opacity of the preview window.
 
-        When queried, the :attr:`preview_alpha` property returns a value
-        between 0 and 255 indicating the opacity of the preview window, where 0
-        is completely transparent and 255 is completely opaque. The default
-        value is 255. The property can be set while recordings or previews are
-        in progress.
-
-        .. note::
-
-            If the preview is not running, the property will not reflect
-            changes to it, but they will be in effect next time the preview is
-            started. In other words, you can set preview_alpha to 128, but
-            querying it will still return 255 (the default) until you call
-            :meth:`start_preview` at which point the preview will appear
-            semi-transparent and :attr:`preview_alpha` will suddenly return
-            128. This appears to be a firmware issue.
+        .. deprecated:: 1.8
+            Please use the :attr:`~PiRenderer.alpha` attribute of the
+            :attr:`preview` object instead.
         """)
 
     def _get_preview_layer(self):
         self._check_camera_open()
-        mp = mmal.MMAL_DISPLAYREGION_T(
-            mmal.MMAL_PARAMETER_HEADER_T(
-                mmal.MMAL_PARAMETER_DISPLAYREGION,
-                ct.sizeof(mmal.MMAL_DISPLAYREGION_T)
-            ))
-        mmal_check(
-            mmal.mmal_port_parameter_get(self._preview[0].input[0], mp.hdr),
-            prefix="Failed to get preview alpha")
-        return mp.layer
+        warnings.warn(
+            'PiCamera.preview_layer is deprecated; '
+            'use PiCamera.preview.layer instead',
+            DeprecationWarning)
+        if self.preview:
+            return self.preview.layer
+        else:
+            return self._preview_layer
     def _set_preview_layer(self, value):
         self._check_camera_open()
-        try:
-            if not (0 <= value <= 255):
-                raise PiCameraValueError(
-                    "Invalid layer value: %d (valid range 0..255)" % value)
-        except TypeError:
-            raise PiCameraValueError("Invalid layer value: %s" % value)
-        mp = mmal.MMAL_DISPLAYREGION_T(
-            mmal.MMAL_PARAMETER_HEADER_T(
-                mmal.MMAL_PARAMETER_DISPLAYREGION,
-                ct.sizeof(mmal.MMAL_DISPLAYREGION_T)
-                ),
-            set=mmal.MMAL_DISPLAY_SET_LAYER,
-            layer=value
-            )
-        mmal_check(
-            mmal.mmal_port_parameter_set(self._preview[0].input[0], mp.hdr),
-            prefix="Failed to set preview layer")
+        warnings.warn(
+            'PiCamera.preview_layer is deprecated; '
+            'use PiCamera.preview.layer instead',
+            DeprecationWarning)
+        if self.preview:
+            self.preview.layer = value
+        else:
+            self._preview_layer = value
     preview_layer = property(
             _get_preview_layer, _set_preview_layer, doc="""
         Retrieves of sets the layer of the preview window.
 
-        The :attr:`preview_layer` property is an integer which controls the
-        layer that the preview window occupies. It defaults to 2 which results
-        in the preview appearing above all other output.
-
-        .. warning::
-
-            Operation of this attribute is not yet fully understood. The
-            documentation above is incomplete and may be incorrect!
+        .. deprecated:: 1.8
+            Please use the :attr:`~PiRenderer.layer` attribute of the
+            :attr:`preview` object instead.
         """)
 
     def _get_preview_fullscreen(self):
         self._check_camera_open()
-        mp = mmal.MMAL_DISPLAYREGION_T(
-            mmal.MMAL_PARAMETER_HEADER_T(
-                mmal.MMAL_PARAMETER_DISPLAYREGION,
-                ct.sizeof(mmal.MMAL_DISPLAYREGION_T)
-            ))
-        mmal_check(
-            mmal.mmal_port_parameter_get(self._preview[0].input[0], mp.hdr),
-            prefix="Failed to get preview fullscreen")
-        return mp.fullscreen != mmal.MMAL_FALSE
+        warnings.warn(
+            'PiCamera.preview_fullscreen is deprecated; '
+            'use PiCamera.preview.fullscreen instead',
+            DeprecationWarning)
+        if self.preview:
+            return self.preview.fullscreen
+        else:
+            return self._preview_fullscreen
     def _set_preview_fullscreen(self, value):
         self._check_camera_open()
-        value = bool(value)
-        mp = mmal.MMAL_DISPLAYREGION_T(
-            mmal.MMAL_PARAMETER_HEADER_T(
-                mmal.MMAL_PARAMETER_DISPLAYREGION,
-                ct.sizeof(mmal.MMAL_DISPLAYREGION_T)
-                ),
-            set=mmal.MMAL_DISPLAY_SET_FULLSCREEN,
-            fullscreen={
-                False: mmal.MMAL_FALSE,
-                True:  mmal.MMAL_TRUE,
-                }[value]
-            )
-        mmal_check(
-            mmal.mmal_port_parameter_set(self._preview[0].input[0], mp.hdr),
-            prefix="Failed to set preview fullscreen")
+        warnings.warn(
+            'PiCamera.preview_fullscreen is deprecated; '
+            'use PiCamera.preview.fullscreen instead',
+            DeprecationWarning)
+        if self.preview:
+            self.preview.fullscreen = value
+        else:
+            self._preview_fullscreen = value
     preview_fullscreen = property(
             _get_preview_fullscreen, _set_preview_fullscreen, doc="""
         Retrieves or sets full-screen for the preview window.
 
-        The :attr:`preview_fullscreen` property is a bool which controls
-        whether the preview window takes up the entire display or not. When
-        set to ``False``, the :attr:`preview_window` property can be used to
-        control the precise size of the preview display. The property can be
-        set while recordings or previews are active.
-
-        .. note::
-
-            The :attr:`preview_fullscreen` attribute is afflicted by the same
-            issue as :attr:`preview_alpha` with regards to changes while the
-            preview is not running.
+        .. deprecated:: 1.8
+            Please use the :attr:`~PiRenderer.fullscreen` attribute of the
+            :attr:`preview` object instead.
         """)
 
     def _get_preview_window(self):
         self._check_camera_open()
-        mp = mmal.MMAL_DISPLAYREGION_T(
-            mmal.MMAL_PARAMETER_HEADER_T(
-                mmal.MMAL_PARAMETER_DISPLAYREGION,
-                ct.sizeof(mmal.MMAL_DISPLAYREGION_T)
-            ))
-        mmal_check(
-            mmal.mmal_port_parameter_get(self._preview[0].input[0], mp.hdr),
-            prefix="Failed to get preview window")
-        return (
-            mp.dest_rect.x,
-            mp.dest_rect.y,
-            mp.dest_rect.width,
-            mp.dest_rect.height,
-            )
+        warnings.warn(
+            'PiCamera.preview_window is deprecated; '
+            'use PiCamera.preview.window instead',
+            DeprecationWarning)
+        if self.preview:
+            return self.preview.window
+        else:
+            return self._preview_window
     def _set_preview_window(self, value):
         self._check_camera_open()
-        try:
-            x, y, w, h = value
-        except (TypeError, ValueError) as e:
-            raise PiCameraValueError(
-                "Invalid window rectangle (x, y, w, h) tuple: %s" % value)
-        mp = mmal.MMAL_DISPLAYREGION_T(
-            mmal.MMAL_PARAMETER_HEADER_T(
-                mmal.MMAL_PARAMETER_DISPLAYREGION,
-                ct.sizeof(mmal.MMAL_DISPLAYREGION_T)
-                ),
-            set=mmal.MMAL_DISPLAY_SET_DEST_RECT,
-            dest_rect=mmal.MMAL_RECT_T(x, y, w, h),
-            )
-        mmal_check(
-            mmal.mmal_port_parameter_set(self._preview[0].input[0], mp.hdr),
-            prefix="Failed to set preview window")
-    preview_window = property(_get_preview_window, _set_preview_window, doc="""
+        warnings.warn(
+            'PiCamera.preview_window is deprecated; '
+            'use PiCamera.preview.window instead',
+            DeprecationWarning)
+        if self.preview:
+            self.preview.window = value
+        else:
+            self._preview_window = value
+    preview_window = property(
+            _get_preview_window, _set_preview_window, doc="""
         Retrieves or sets the size of the preview window.
 
-        When the :attr:`preview_fullscreen` property is set to ``False``, the
-        :attr:`preview_window` property specifies the size and position of the
-        preview window on the display. The property is a 4-tuple consisting of
-        ``(x, y, width, height)``. The property can be set while recordings or
-        previews are active.
-
-        .. note::
-
-            The :attr:`preview_window` attribute is afflicted by the same issue
-            as :attr:`preview_alpha` with regards to changes while the preview
-            is not running.
+        .. deprecated:: 1.8
+            Please use the :attr:`~PiRenderer.window` attribute of the
+            :attr:`preview` object instead.
         """)
 
     def _get_annotate_text(self):

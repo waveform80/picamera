@@ -238,32 +238,32 @@ def test_zoom(camera, previewing):
 
 def test_preview_alpha(camera, previewing):
     if previewing:
-        numeric_attr(camera, 'preview_alpha', 0, 255)
+        numeric_attr(camera.preview, 'alpha', 0, 255)
 
 def test_preview_layer(camera, previewing):
     if previewing:
-        numeric_attr(camera, 'preview_layer', 0, 255)
+        numeric_attr(camera.preview, 'layer', 0, 255)
 
 def test_preview_fullscreen(camera, previewing):
     if previewing:
-        boolean_attr(camera, 'preview_fullscreen')
+        boolean_attr(camera.preview, 'fullscreen')
 
 def test_preview_window(camera, previewing):
     if previewing:
-        camera.preview_window = (0, 0, 320, 240)
-        assert camera.preview_window == (0, 0, 320, 240)
-        camera.preview_window = (1280-320, 720-240, 320, 240)
-        assert camera.preview_window == (1280-320, 720-240, 320, 240)
-        camera.preview_window = (0, 0, 640, 360)
-        assert camera.preview_window == (0, 0, 640, 360)
-        camera.preview_window = (0, 720-360, 640, 360)
-        assert camera.preview_window == (0, 720-360, 640, 360)
-        camera.preview_window = (1280-640, 0, 640, 360)
-        assert camera.preview_window == (1280-640, 0, 640, 360)
-        camera.preview_window = (1280-640, 720-360, 640, 360)
-        assert camera.preview_window == (1280-640, 720-360, 640, 360)
-        camera.preview_window = (0, 0, 1920, 1080)
-        assert camera.preview_window == (0, 0, 1920, 1080)
+        camera.preview.window = (0, 0, 320, 240)
+        assert camera.preview.window == (0, 0, 320, 240)
+        camera.preview.window = (1280-320, 720-240, 320, 240)
+        assert camera.preview.window == (1280-320, 720-240, 320, 240)
+        camera.preview.window = (0, 0, 640, 360)
+        assert camera.preview.window == (0, 0, 640, 360)
+        camera.preview.window = (0, 720-360, 640, 360)
+        assert camera.preview.window == (0, 720-360, 640, 360)
+        camera.preview.window = (1280-640, 0, 640, 360)
+        assert camera.preview.window == (1280-640, 0, 640, 360)
+        camera.preview.window = (1280-640, 720-360, 640, 360)
+        assert camera.preview.window == (1280-640, 720-360, 640, 360)
+        camera.preview.window = (0, 0, 1920, 1080)
+        assert camera.preview.window == (0, 0, 1920, 1080)
 
 def test_framerate(camera, previewing):
     save_framerate = camera.framerate

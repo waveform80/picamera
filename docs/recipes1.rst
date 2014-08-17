@@ -760,6 +760,107 @@ can simply use VLC with a network URL::
     should be quick enough for the task at non-HD resolutions).
 
 
+.. _image_overlay:
+
+Overlaying images on the preview
+================================
+
+The camera preview system can operate multiple layered renderers
+simultaneously.  While the picamera library only permits a single renderer to
+be connected to the camera's preview port, it does permit additional renderers
+to be created which display a static image. These overlayed renderers can be
+used to create simple user interfaces.
+
+.. note::
+
+    Overlay images will *not* appear in image captures or video recordings. If
+    you need to embed additional information in the output of the camera,
+    please refer to :ref:`text_overlay`.
+
+One difficulty of working with overlay renderers is that they expect unencoded
+RGB input which is padded up to the camera's block size. The camera's block
+size is 32x16 so any image data provided to a renderer must have a width which
+is a multiple of 32, and a height which is a multiple of 16. The specific RGB
+format expected is interleaved unsigned bytes. If all this sounds complicated,
+don't worry; it's quite simple to produce in practice.
+
+The following example demonstrates loading an arbitrary size image with PIL,
+padding it to the required size, and producing the unencoded RGB data for the
+call to :meth:`~picamera.PiCamera.add_overlay`)::
+
+    import picamera
+    from PIL import Image
+    from time import sleep
+
+    with picamera.PiCamera() as camera:
+        camera.resolution = (1280, 720)
+        camera.framerate = 24
+        camera.start_preview()
+
+        # Load the arbitrarily sized image
+        img = Image.open('overlay.png')
+        # Create an image padded to the required size with
+        # mode 'RGB'
+        pad = Image.new('RGB', (
+            (img.size[0] + 31 // 32) * 32,
+            (img.size[1] + 15 // 16) * 16,
+            ))
+        # Paste the original image into the padded one
+        pad.paste(img, (0, 0))
+
+        # Add the overlay with the padded image as the source,
+        # but the original image's dimensions
+        o = camera.add_overlay(pad.tostring(), size=img.size)
+        # By default, the overlay is in layer 0, beneath the
+        # preview (which defaults to layer 2). Here we make
+        # the new overlay semi-transparent, then move it above
+        # the preview
+        o.alpha = 128
+        o.layer = 3
+
+        # Wait indefinitely until the user terminates the script
+        while True:
+            sleep(1)
+
+Alternatively, instead of using an image file as the source, you can produce an
+overlay directly from a numpy array. In the following example, we construct
+a numpy array with the same resolution as the screen, then draw a white cross
+through the center and overlay it on the preview as a simple cross-hair::
+
+    import time
+    import picamera
+    import numpy as np
+
+    # Create an array representing a 1280x720 image of
+    # a cross through the center of the display. The shape of
+    # the array must be of the form (height, width, color)
+    a = np.zeros((720, 1280, 3), dtype=np.uint8)
+    a[360, :, :] = 0xff
+    a[:, 640, :] = 0xff
+
+    with picamera.PiCamera() as camera:
+        camera.resolution = (1280, 720)
+        camera.framerate = 24
+        camera.start_preview()
+        # Add the overlay directly into layer 3 with transparency;
+        # we can omit the size parameter of add_overlay as the
+        # size is the same as the camera's resolution
+        camera.add_overlay(np.getbuffer(a), layer=3, alpha=64)
+
+        # Wait indefinitely until the user terminates the script
+        while True:
+            time.sleep(1)
+
+Given that overlayed renderers can be hidden (by moving them below the
+preview's :attr:`~picamera.PiRenderer.layer` which defaults to 2), made
+semi-transparent (with the :attr:`~picamera.PiRenderer.alpha` property), and
+resized so that they don't :attr:`fill the screen
+<picamera.PiRenderer.fullscreen>`, they can be used to construct simple user
+interfaces.
+
+.. versionadded:: 1.8
+
+
 .. _text_overlay:
 
 Overlaying text on the output
@@ -816,6 +917,8 @@ recordings::
             camera.annotate_text = dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             camera.wait_recording(0.2)
         camera.stop_recording()
+
+.. versionadded:: 1.7
 
 
 .. _led_control:
