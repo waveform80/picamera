@@ -42,6 +42,7 @@ PiArrayOutput
 =============
 
 .. autoclass:: PiArrayOutput
+    :members:
 
 
 PiRGBArray
@@ -72,6 +73,7 @@ PiAnalysisOutput
 ================
 
 .. autoclass:: PiAnalysisOutput
+    :members:
 
 
 PiRGBAnalysis
@@ -108,11 +110,12 @@ except NameError:
     pass
 
 import io
+import warnings
 
 import numpy as np
 from numpy.lib.stride_tricks import as_strided
 
-from .exc import PiCameraValueError
+from .exc import PiCameraValueError, PiCameraDeprecated
 
 
 motion_dtype = np.dtype([
@@ -191,6 +194,29 @@ class PiArrayOutput(io.BytesIO):
     def close(self):
         super(PiArrayOutput, self).close()
         self.array = None
+
+    def truncate(self, size=None):
+        """
+        Resize the stream to the given size in bytes (or the current position
+        if size is not specified). This resizing can extend or reduce the
+        current file size.  The new file size is returned.
+
+        In prior versions of picamera, truncation also changed the position of
+        the stream (because prior versions of these stream classes were
+        non-seekable). This functionality is now deprecated; scripts should
+        use :meth:`~io.BytesIO.seek` and :meth:`truncate` as one would with
+        regular :class:`~io.BytesIO` instances.
+        """
+        if size is not None:
+            warnings.warn(
+                PiCameraDeprecated(
+                    'This method changes the position of the stream to the '
+                    'truncated length; this is deprecated functionality and '
+                    'you should not rely on it (seek before or after truncate '
+                    'to ensure position is consistent)'))
+        super(PiArrayOutput, self).truncate(size)
+        if size is not None:
+            self.seek(size)
 
 
 class PiRGBArray(PiArrayOutput):

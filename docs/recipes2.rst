@@ -846,7 +846,7 @@ to the in-memory ring-buffer::
         # simultaneously
         with io.open('before.h264', 'wb') as output:
             for frame in stream.frames:
-                if frame.header:
+                if frame.frame_type == picamera.PiVideoFrameType.sps_header:
                     stream.seek(frame.position)
                     break
             while True:

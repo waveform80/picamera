@@ -47,6 +47,12 @@ class PiCameraWarning(Warning):
     """
 
 
+class PiCameraDeprecated(PiCameraWarning, DeprecationWarning):
+    """
+    Raised when deprecated functionality in picamera is used.
+    """
+
+
 class PiCameraError(Exception):
     """
     Base class for PiCamera errors.

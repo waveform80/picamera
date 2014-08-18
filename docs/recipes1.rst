@@ -201,14 +201,14 @@ the camera's exposure time, white balance, and gains are all fixed:
 * To fix exposure time, set the :attr:`~picamera.PiCamera.shutter_speed`
   attribute to a reasonable value, then set
   :attr:`~picamera.PiCamera.exposure_mode` to ``'off'``.
-* To fix gains, set the :attr:`~picamera.PiCamera.ISO` attribute to an
+* To fix gains, set the :attr:`~picamera.PiCamera.iso` attribute to an
   appropriate value (higher values imply higher gains).
 * To fix white balance, set the :attr:`~picamera.PiCamera.awb_mode` to
   ``'off'``, then set :attr:`~picamera.PiCamera.awb_gains` to a (red, blue)
   tuple of gains.
 
 It can be difficult to know what appropriate values might be for these
-attributes.  For :attr:`~picamera.PiCamera.ISO`, a simple rule of thumb is that
+attributes.  For :attr:`~picamera.PiCamera.iso`, a simple rule of thumb is that
 100 and 200 are reasonable values for daytime, while 400 and 800 are better for
 low light. To determine a reasonable value for
 :attr:`~picamera.PiCamera.shutter_speed` you can query the
@@ -231,7 +231,7 @@ The following script provides a brief example of configuring these settings::
         camera.framerate = 30
         # Give the camera's auto-exposure and auto-white-balance algorithms
         # some time to measure the scene and determine appropriate values
-        camera.ISO = 200
+        camera.iso = 200
         time.sleep(2)
         # Now fix the values
         camera.shutter_speed = camera.exposure_speed
@@ -315,7 +315,7 @@ currently capable of)::
         camera.framerate = Fraction(1, 6)
         camera.shutter_speed = 6000000
         camera.exposure_mode = 'off'
-        camera.ISO = 800
+        camera.iso = 800
         # Give the camera a good long time to measure AWB
         # (you may wish to use fixed AWB instead)
         sleep(10)
@@ -581,7 +581,7 @@ to waiting::
         with stream.lock:
             # Find the first header frame in the video
             for frame in stream.frames:
-                if frame.header:
+                if frame.frame_type == picamera.PiVideoFrameType.sps_header:
                     stream.seek(frame.position)
                     break
             # Write the rest of the stream to disk
@@ -786,7 +786,7 @@ don't worry; it's quite simple to produce in practice.
 
 The following example demonstrates loading an arbitrary size image with PIL,
 padding it to the required size, and producing the unencoded RGB data for the
-call to :meth:`~picamera.PiCamera.add_overlay`)::
+call to :meth:`~picamera.PiCamera.add_overlay`::
 
     import picamera
     from PIL import Image

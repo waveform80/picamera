@@ -59,6 +59,7 @@ from picamera.exc import (
     PiCameraNotRecording,
     PiCameraAlreadyRecording,
     PiCameraMMALError,
+    PiCameraDeprecated,
     mmal_check,
     )
 from picamera.encoders import (
@@ -99,9 +100,21 @@ class PiCameraFraction(fractions.Fraction):
     tuple when required.
     """
     def __len__(self):
+        warnings.warn(
+            PiCameraDeprecated(
+                'Accessing framerate as a tuple is deprecated; this value is '
+                'now a Fraction, so you can query the numerator and '
+                'denominator properties directly, convert to an int or float, '
+                'or perform arithmetic operations and comparisons directly'))
         return 2
 
     def __getitem__(self, index):
+        warnings.warn(
+            PiCameraDeprecated(
+                'Accessing framerate as a tuple is deprecated; this value is '
+                'now a Fraction, so you can query the numerator and '
+                'denominator properties directly, convert to an int or float, '
+                'or perform arithmetic operations and comparisons directly'))
         if index == 0:
             return self.numerator
         elif index == 1:
@@ -132,10 +145,15 @@ def to_rational(value):
             try:
                 # tuple
                 n, d = value
+                warnings.warn(
+                    PiCameraDeprecated(
+                        "Setting framerate or gains as a tuple is deprecated; "
+                        "please use one of Python's many numeric classes like "
+                        "int, float, Decimal, or Fraction instead"))
             except (TypeError, ValueError):
-                # anything else...
-                n = int(value)
-                d = 1
+                # try and convert anything else (e.g. Decimal) to a Fraction
+                value = Fraction(value)
+                n, d = value.numerator, value.denominator
     # Ensure denominator is reasonable
     if d == 0:
         raise PiCameraValueError("Denominator cannot be 0")
@@ -1020,6 +1038,11 @@ class PiCamera(object):
             The *quantization* parameter was deprecated in favor of *quality*,
             and the *motion_output* parameter was added.
         """
+        if 'quantization' in options:
+            warnings.warn(
+                PiCameraDeprecated(
+                    'The quantization option is deprecated; please use '
+                    'quality instead (same value)'))
         with self._encoders_lock:
             camera_port, output_port = self._get_ports(True, splitter_port)
             format = self._get_video_format(output, format)
@@ -1331,6 +1354,11 @@ class PiCamera(object):
             an option for the ``'jpeg'`` format
 
         """
+        if format == 'raw':
+            warnings.warn(
+                PiCameraDeprecated(
+                    'The "raw" format option is deprecated; specify the '
+                    'required format directly instead ("yuv", "rgb", etc.)'))
         with self._encoders_lock:
             camera_port, output_port = self._get_ports(use_video_port, splitter_port)
             format = self._get_image_format(output, format)
@@ -1672,8 +1700,9 @@ class PiCamera(object):
             Test whether :attr:`preview` is ``None`` instead.
         """
         warnings.warn(
-            'PiCamera.previewing is deprecated; test PiCamera.preview instead',
-            DeprecationWarning)
+            PiCameraDeprecated(
+                'PiCamera.previewing is deprecated; test PiCamera.preview '
+                'is not None instead'))
         return isinstance(self._preview, PiPreviewRenderer)
 
     @property
@@ -1795,13 +1824,15 @@ class PiCamera(object):
 
     def _get_raw_format(self):
         warnings.warn(
-            'PiCamera.raw_format is deprecated; use required format directly '
-            'with capture methods instead', DeprecationWarning)
+            PiCameraDeprecated(
+                'PiCamera.raw_format is deprecated; use required format '
+                'directly with capture methods instead'))
         return self._raw_format
     def _set_raw_format(self, value):
         warnings.warn(
-            'PiCamera.raw_format is deprecated; use required format directly '
-            'with capture methods instead', DeprecationWarning)
+            PiCameraDeprecated(
+                'PiCamera.raw_format is deprecated; use required format '
+                'directly with capture methods instead'))
         try:
             self.RAW_FORMATS[value]
         except KeyError:
@@ -1912,7 +1943,7 @@ class PiCamera(object):
     def _set_resolution(self, value):
         self._check_camera_open()
         self._check_recording_stopped()
-        n, d = self.framerate
+        f = self.framerate
         try:
             w, h = value
         except (TypeError, ValueError) as e:
@@ -1935,8 +1966,8 @@ class PiCamera(object):
             fmt.video.crop.width = w
             fmt.video.crop.height = h
             if port != self.CAMERA_CAPTURE_PORT:
-                fmt.video.frame_rate.num = n
-                fmt.video.frame_rate.den = d
+                fmt.video.frame_rate.num = f.numerator
+                fmt.video.frame_rate.den = f.denominator
             mmal_check(
                 mmal.mmal_port_format_commit(self._camera[0].output[port]),
                 prefix="Camera video format couldn't be set")
@@ -2386,6 +2417,23 @@ class PiCamera(object):
         """.format(values=docstring_values(DRC_STRENGTHS)))
 
     def _get_ISO(self):
+        warnings.warn(
+            PiCameraDeprecated(
+                'PiCamera.ISO is deprecated; use PiCamera.iso instead'))
+        return self.iso
+    def _set_ISO(self, value):
+        warnings.warn(
+            PiCameraDeprecated(
+                'PiCamera.ISO is deprecated; use PiCamera.iso instead'))
+        self.iso = value
+    ISO = property(_get_ISO, _set_ISO, doc="""
+        Retrieves or sets the apparent ISO setting of the camera.
+
+        .. deprecated:: 1.8
+            Please use the :attr:`iso` attribute instead.
+        """)
+
+    def _get_iso(self):
         self._check_camera_open()
         mp = ct.c_uint32()
         mmal_check(
@@ -2394,40 +2442,40 @@ class PiCamera(object):
                 mmal.MMAL_PARAMETER_ISO,
                 mp
                 ),
-            prefix="Failed to get ISO")
+            prefix="Failed to get iso")
         return mp.value
-    def _set_ISO(self, value):
+    def _set_iso(self, value):
         self._check_camera_open()
         try:
             if not (0 <= value <= 800):
                 raise PiCameraValueError(
-                    "Invalid ISO value: %d (valid range 0..800)" % value)
+                    "Invalid iso value: %d (valid range 0..800)" % value)
         except TypeError:
-            raise PiCameraValueError("Invalid ISO value: %s" % value)
+            raise PiCameraValueError("Invalid iso value: %s" % value)
         mmal_check(
             mmal.mmal_port_parameter_set_uint32(
                 self._camera[0].control,
                 mmal.MMAL_PARAMETER_ISO,
                 value
                 ),
-            prefix="Failed to set ISO")
-    ISO = property(_get_ISO, _set_ISO, doc="""
+            prefix="Failed to set iso")
+    iso = property(_get_iso, _set_iso, doc="""
         Retrieves or sets the apparent ISO setting of the camera.
 
-        When queried, the :attr:`ISO` property returns the ISO setting of the
+        When queried, the :attr:`iso` property returns the ISO setting of the
         camera, a value which represents the `sensitivity of the camera to
-        light`_. Lower ISO speeds (e.g. 100) imply less sensitivity than higher
-        ISO speeds (e.g. 400 or 800). Lower sensitivities tend to produce less
+        light`_. Lower values (e.g. 100) imply less sensitivity than higher
+        values (e.g. 400 or 800). Lower sensitivities tend to produce less
         "noisy" (smoother) images, but operate poorly in low light conditions.
 
         When set, the property adjusts the sensitivity of the camera. Valid
-        values are between 0 (auto) and 800. The actual value used when ISO is
+        values are between 0 (auto) and 800. The actual value used when iso is
         explicitly set will be one of the following values (whichever is
         closest): 100, 200, 320, 400, 500, 640, 800.
 
-        ISO can be adjusted while previews or recordings are in progress. The
-        default value is 0 which means the ISO is automatically set according
-        to image-taking conditions.
+        The attribute can be adjusted while previews or recordings are in
+        progress. The default value is 0 which means automatically determine a
+        value according to image-taking conditions.
 
         .. note::
 
@@ -2438,7 +2486,7 @@ class PiCamera(object):
 
         .. note::
 
-            With ISO settings other than 0 (auto), the :attr:`exposure_mode`
+            With iso settings other than 0 (auto), the :attr:`exposure_mode`
             property becomes non-functional.
 
         .. _sensitivity of the camera to light: http://en.wikipedia.org/wiki/Film_speed#Digital
@@ -2971,13 +3019,13 @@ class PiCamera(object):
 
     def _get_crop(self):
         warnings.warn(
-            'PiCamera.crop is deprecated; use PiCamera.zoom instead',
-            DeprecationWarning)
+            PiCameraDeprecated(
+                'PiCamera.crop is deprecated; use PiCamera.zoom instead'))
         return self.zoom
     def _set_crop(self, value):
         warnings.warn(
-            'PiCamera.crop is deprecated; use PiCamera.zoom instead',
-            DeprecationWarning)
+            PiCameraDeprecated(
+                'PiCamera.crop is deprecated; use PiCamera.zoom instead'))
         self.zoom = value
     crop = property(_get_crop, _set_crop, doc="""
         Retrieves or sets the zoom applied to the camera's input.
@@ -3024,9 +3072,9 @@ class PiCamera(object):
     def _get_preview_alpha(self):
         self._check_camera_open()
         warnings.warn(
-            'PiCamera.preview_alpha is deprecated; '
-            'use PiCamera.preview.alpha instead',
-            DeprecationWarning)
+            PiCameraDeprecated(
+                'PiCamera.preview_alpha is deprecated; use '
+                'PiCamera.preview.alpha instead'))
         if self.preview:
             return self.preview.alpha
         else:
@@ -3034,9 +3082,9 @@ class PiCamera(object):
     def _set_preview_alpha(self, value):
         self._check_camera_open()
         warnings.warn(
-            'PiCamera.preview_alpha is deprecated; '
-            'use PiCamera.preview.alpha instead',
-            DeprecationWarning)
+            PiCameraDeprecated(
+                'PiCamera.preview_alpha is deprecated; use '
+                'PiCamera.preview.alpha instead'))
         if self.preview:
             self.preview.alpha = value
         else:
@@ -3052,9 +3100,9 @@ class PiCamera(object):
     def _get_preview_layer(self):
         self._check_camera_open()
         warnings.warn(
-            'PiCamera.preview_layer is deprecated; '
-            'use PiCamera.preview.layer instead',
-            DeprecationWarning)
+            PiCameraDeprecated(
+                'PiCamera.preview_layer is deprecated; '
+                'use PiCamera.preview.layer instead'))
         if self.preview:
             return self.preview.layer
         else:
@@ -3062,9 +3110,9 @@ class PiCamera(object):
     def _set_preview_layer(self, value):
         self._check_camera_open()
         warnings.warn(
-            'PiCamera.preview_layer is deprecated; '
-            'use PiCamera.preview.layer instead',
-            DeprecationWarning)
+            PiCameraDeprecated(
+                'PiCamera.preview_layer is deprecated; '
+                'use PiCamera.preview.layer instead'))
         if self.preview:
             self.preview.layer = value
         else:
@@ -3081,9 +3129,9 @@ class PiCamera(object):
     def _get_preview_fullscreen(self):
         self._check_camera_open()
         warnings.warn(
-            'PiCamera.preview_fullscreen is deprecated; '
-            'use PiCamera.preview.fullscreen instead',
-            DeprecationWarning)
+            PiCameraDeprecated(
+                'PiCamera.preview_fullscreen is deprecated; '
+                'use PiCamera.preview.fullscreen instead'))
         if self.preview:
             return self.preview.fullscreen
         else:
@@ -3091,9 +3139,9 @@ class PiCamera(object):
     def _set_preview_fullscreen(self, value):
         self._check_camera_open()
         warnings.warn(
-            'PiCamera.preview_fullscreen is deprecated; '
-            'use PiCamera.preview.fullscreen instead',
-            DeprecationWarning)
+            PiCameraDeprecated(
+                'PiCamera.preview_fullscreen is deprecated; '
+                'use PiCamera.preview.fullscreen instead'))
         if self.preview:
             self.preview.fullscreen = value
         else:
@@ -3110,9 +3158,9 @@ class PiCamera(object):
     def _get_preview_window(self):
         self._check_camera_open()
         warnings.warn(
-            'PiCamera.preview_window is deprecated; '
-            'use PiCamera.preview.window instead',
-            DeprecationWarning)
+            PiCameraDeprecated(
+                'PiCamera.preview_window is deprecated; '
+                'use PiCamera.preview.window instead'))
         if self.preview:
             return self.preview.window
         else:
@@ -3120,9 +3168,9 @@ class PiCamera(object):
     def _set_preview_window(self, value):
         self._check_camera_open()
         warnings.warn(
-            'PiCamera.preview_window is deprecated; '
-            'use PiCamera.preview.window instead',
-            DeprecationWarning)
+            PiCameraDeprecated(
+                'PiCamera.preview_window is deprecated; '
+                'use PiCamera.preview.window instead'))
         if self.preview:
             self.preview.window = value
         else:

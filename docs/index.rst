@@ -27,6 +27,7 @@ Table of Contents
    recipes2
    faq
    fov
+   deprecated
    api
    array
    changelog

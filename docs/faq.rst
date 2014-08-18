@@ -14,11 +14,12 @@ preview works quite happily from the command line, even without anyone logged
 in).
 
 That said, the preview area can be resized and repositioned via the
-:attr:`~picamera.PiCamera.preview_window` attribute. If your program can
-respond to window repositioning and sizing events you can "cheat" and position
-the preview within the borders of the target window. However, there's currently
-no way to allow anything to appear on top of the preview so this is an
-imperfect solution at best.
+:attr:`~picamera.PiRenderer.window` attribute of the
+:attr:`~picamera.PiCamera.preview` object. If your program can respond to
+window repositioning and sizing events you can "cheat" and position the preview
+within the borders of the target window. However, there's currently no way to
+allow anything to appear on top of the preview so this is an imperfect solution
+at best.
 
 Help! I started a preview and can't see my console!
 ===================================================
@@ -32,10 +33,10 @@ console. However, the simplest way of getting your display back is usually
 to hit ``Ctrl+D`` to terminate the Python process (which should also shut down
 the camera).
 
-Before starting a preview, you may want to set
-:attr:`~picamera.PiCamera.preview_alpha` to something like 128. This should
-ensure that when the preview is display it is partially transparent so you can
-still see your console.
+When starting a preview, you may want to set the *alpha* parameter of the
+:meth:`~picamera.PiCamera.start_preview` method to something like 128. This
+should ensure that when the preview is displayed, it is partially transparent
+so you can still see your console.
 
 How much power does the camera require?
 =======================================

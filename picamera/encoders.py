@@ -51,11 +51,11 @@ from collections import namedtuple
 import picamera.mmal as mmal
 from picamera.exc import (
     mmal_check,
-    PiCameraWarning,
     PiCameraError,
     PiCameraMMALError,
     PiCameraValueError,
     PiCameraRuntimeError,
+    PiCameraDeprecated,
     )
 
 
@@ -181,6 +181,11 @@ class PiVideoFrame(namedtuple('PiVideoFrame', (
             Please compare :attr:`frame_type` to
             :attr:`PiVideoFrameType.key_frame` instead.
         """
+        warnings.warn(
+            PiCameraDeprecated(
+                'PiVideoFrame.keyframe is deprecated; please check '
+                'PiVideoFrame.frame_type for equality with '
+                'PiVideoFrameType.key_frame instead'))
         return self.frame_type == PiVideoFrameType.key_frame
 
     @property
@@ -194,6 +199,11 @@ class PiVideoFrame(namedtuple('PiVideoFrame', (
             Please compare :attr:`frame_type` to
             :attr:`PiVideoFrameType.sps_header` instead.
         """
+        warnings.warn(
+            PiCameraDeprecated(
+                'PiVideoFrame.header is deprecated; please check '
+                'PiVideoFrame.frame_type for equality with '
+                'PiVideoFrameType.sps_header instead'))
         return self.frame_type == PiVideoFrameType.sps_header
 
 
