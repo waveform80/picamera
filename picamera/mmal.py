@@ -1728,9 +1728,15 @@ mmal_queue_wait = _lib.mmal_queue_wait
 mmal_queue_wait.argtypes = [ct.POINTER(MMAL_QUEUE_T)]
 mmal_queue_wait.restype = ct.POINTER(MMAL_BUFFER_HEADER_T)
 
-mmal_queue_timedwait = _lib.mmal_queue_timedwait
-mmal_queue_timedwait.argtypes = [ct.POINTER(MMAL_QUEUE_T), VCOS_UNSIGNED]
-mmal_queue_timedwait.restype = ct.POINTER(MMAL_BUFFER_HEADER_T)
+try:
+    mmal_queue_timedwait = _lib.mmal_queue_timedwait
+except AttributeError:
+    # mmal_queue_timedwait doesn't exist in older firmwares. We don't use it
+    # anyway, so ignore it if we don't find it
+    pass
+else:
+    mmal_queue_timedwait.argtypes = [ct.POINTER(MMAL_QUEUE_T), VCOS_UNSIGNED]
+    mmal_queue_timedwait.restype = ct.POINTER(MMAL_BUFFER_HEADER_T)
 
 mmal_queue_length = _lib.mmal_queue_length
 mmal_queue_length.argtypes = [ct.POINTER(MMAL_QUEUE_T)]
