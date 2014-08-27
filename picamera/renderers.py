@@ -40,7 +40,11 @@ str = type('')
 import ctypes as ct
 
 import picamera.mmal as mmal
-from picamera.exc import PiCameraRuntimeError, mmal_check
+from picamera.exc import (
+    PiCameraRuntimeError,
+    PiCameraValueError,
+    mmal_check,
+    )
 
 
 def _overlay_callback(port, buf):
@@ -71,8 +75,12 @@ class PiRenderer(object):
     """
 
     def __init__(
-            self, parent, layer=0, alpha=255, fullscreen=True, window=None):
+            self, parent, layer=0, alpha=255, fullscreen=True, window=None,
+            crop=None, rotation=0, vflip=False, hflip=False):
         # Create and enable the renderer component
+        self._rotation = 0
+        self._vflip = False
+        self._hflip = False
         self.parent = parent
         self.renderer = ct.POINTER(mmal.MMAL_COMPONENT_T)()
         mmal_check(
@@ -83,26 +91,16 @@ class PiRenderer(object):
             if not self.renderer[0].input_num:
                 raise PiCameraError("No input ports on renderer component")
 
-            mp = mmal.MMAL_DISPLAYREGION_T(
-                mmal.MMAL_PARAMETER_HEADER_T(
-                    mmal.MMAL_PARAMETER_DISPLAYREGION,
-                    ct.sizeof(mmal.MMAL_DISPLAYREGION_T)
-                ),
-                set=(
-                    mmal.MMAL_DISPLAY_SET_LAYER |
-                    mmal.MMAL_DISPLAY_SET_ALPHA |
-                    mmal.MMAL_DISPLAY_SET_FULLSCREEN),
-                layer=layer,
-                alpha=alpha,
-                fullscreen=(mmal.MMAL_FALSE, mmal.MMAL_TRUE)[bool(fullscreen)]
-                )
+            self.layer = layer
+            self.alpha = alpha
+            self.fullscreen = fullscreen
             if window is not None:
-                x, y, w, h = window
-                mp.set |= mmal.MMAL_DISPLAY_SET_DEST_RECT
-                mp.dest_rect = mmal.MMAL_RECT_T(x, y, w, h)
-            mmal_check(
-                mmal.mmal_port_parameter_set(self.renderer[0].input[0], mp.hdr),
-                prefix="Unable to set renderer port parameters")
+                self.window = window
+            if crop is not None:
+                self.crop = crop
+            self.rotation = rotation
+            self.vflip = vflip
+            self.hflip = hflip
 
             mmal_check(
                 mmal.mmal_component_enable(self.renderer),
@@ -279,6 +277,164 @@ class PiRenderer(object):
         active.
         """)
 
+    def _get_crop(self):
+        mp = mmal.MMAL_DISPLAYREGION_T(
+            mmal.MMAL_PARAMETER_HEADER_T(
+                mmal.MMAL_PARAMETER_DISPLAYREGION,
+                ct.sizeof(mmal.MMAL_DISPLAYREGION_T)
+            ))
+        mmal_check(
+            mmal.mmal_port_parameter_get(self.renderer[0].input[0], mp.hdr),
+            prefix="Failed to get crop")
+        return (
+            mp.src_rect.x,
+            mp.src_rect.y,
+            mp.src_rect.width,
+            mp.src_rect.height,
+            )
+    def _set_crop(self, value):
+        try:
+            x, y, w, h = value
+        except (TypeError, ValueError) as e:
+            raise PiCameraValueError(
+                "Invalid crop rectangle (x, y, w, h) tuple: %s" % value)
+        mp = mmal.MMAL_DISPLAYREGION_T(
+            mmal.MMAL_PARAMETER_HEADER_T(
+                mmal.MMAL_PARAMETER_DISPLAYREGION,
+                ct.sizeof(mmal.MMAL_DISPLAYREGION_T)
+                ),
+            set=mmal.MMAL_DISPLAY_SET_SRC_RECT,
+            src_rect=mmal.MMAL_RECT_T(x, y, w, h),
+            )
+        mmal_check(
+            mmal.mmal_port_parameter_set(self.renderer[0].input[0], mp.hdr),
+            prefix="Failed to set crop")
+    crop = property(_get_crop, _set_crop, doc="""
+        Retrieves or sets the area to read from the source.
+
+        The :attr:`crop` property specifies the rectangular area that the
+        renderer will read from the source as a 4-tuple of ``(x, y, width,
+        height)``. The special value ``(0, 0, 0, 0)`` (which is also the
+        default) means to read entire area of the source. The property can be
+        set while recordings or previews are active.
+
+        For example, if the camera's resolution is currently configured as
+        1280x720, setting this attribute to ``(160, 160, 640, 400)`` will
+        crop the preview to the center 640x400 pixels of the input. Note that
+        this property does not affect the size of the output rectangle,
+        which is controlled with :attr:`fullscreen` and :attr:`window`.
+
+        .. note::
+
+            This property only affects the renderer; it has no bearing on image
+            captures or recordings (unlike the :attr:`~picamera.PiCamera.zoom`
+            property of the :class:`~picamera.PiCamera` class).
+        """)
+
+    def _get_rotation(self):
+        return self._rotation
+    def _set_rotation(self, value):
+        try:
+            value = ((int(value) % 360) // 90) * 90
+        except ValueError:
+            raise PiCameraValueError("Invalid rotation angle: %s" % value)
+        self._set_transform(
+                self._get_transform(value, self._vflip, self._hflip))
+        self._rotation = value
+    rotation = property(_get_rotation, _set_rotation, doc="""
+        Retrieves of sets the current rotation of the renderer.
+
+        When queried, the :attr:`rotation` property returns the rotation
+        applied to the renderer. Valid values are 0, 90, 180, and 270.
+
+        When set, the property changes the rotation applied to the renderer's
+        output. The property can be set while recordings or previews are
+        active. The default is 0.
+
+        .. note::
+
+            This property only affects the renderer; it has no bearing on image
+            captures or recordings (unlike the
+            :attr:`~picamera.PiCamera.rotation` property of the
+            :class:`~picamera.PiCamera` class).
+        """)
+
+    def _get_vflip(self):
+        return self._vflip
+    def _set_vflip(self, value):
+        value = bool(value)
+        self._set_transform(
+                self._get_transform(self._rotation, value, self._hflip))
+        self._vflip = value
+    vflip = property(_get_vflip, _set_vflip, doc="""
+        Retrieves of sets whether the renderer's output is vertically flipped.
+
+        When queried, the :attr:`vflip` property returns a boolean indicating
+        whether or not the renderer's output is vertically flipped. The
+        property can be set while recordings or previews are in progress. The
+        default is ``False``.
+
+        .. note::
+
+            This property only affects the renderer; it has no bearing on image
+            captures or recordings (unlike the :attr:`~picamera.PiCamera.vflip`
+            property of the :class:`~picamera.PiCamera` class).
+        """)
+
+    def _get_hflip(self):
+        return self._hflip
+    def _set_hflip(self, value):
+        value = bool(value)
+        self._set_transform(
+                self._get_transform(self._rotation, self._vflip, value))
+        self._hflip = value
+    hflip = property(_get_hflip, _set_hflip, doc="""
+        Retrieves of sets whether the renderer's output is horizontally
+        flipped.
+
+        When queried, the :attr:`vflip` property returns a boolean indicating
+        whether or not the renderer's output is horizontally flipped. The
+        property can be set while recordings or previews are in progress. The
+        default is ``False``.
+
+        .. note::
+
+            This property only affects the renderer; it has no bearing on image
+            captures or recordings (unlike the :attr:`~picamera.PiCamera.hflip`
+            property of the :class:`~picamera.PiCamera` class).
+        """)
+
+    def _get_transform(self, rotate, vflip, hflip):
+        # Use a (horizontally) mirrored transform if one of vflip or hflip is
+        # set. If vflip is set, rotate by an extra 180 degrees to make up for
+        # the lack of a "true" vertical flip
+        mirror = vflip ^ hflip
+        if vflip:
+            rotate = (rotate + 180) % 360
+        return {
+            (0,   False): mmal.MMAL_DISPLAY_ROT0,
+            (90,  False): mmal.MMAL_DISPLAY_ROT90,
+            (180, False): mmal.MMAL_DISPLAY_ROT180,
+            (270, False): mmal.MMAL_DISPLAY_ROT270,
+            (0,   True):  mmal.MMAL_DISPLAY_MIRROR_ROT0,
+            (90,  True):  mmal.MMAL_DISPLAY_MIRROR_ROT90,
+            (180, True):  mmal.MMAL_DISPLAY_MIRROR_ROT180,
+            (270, True):  mmal.MMAL_DISPLAY_MIRROR_ROT270,
+            }[(rotate, mirror)]
+
+    def _set_transform(self, value):
+        mp = mmal.MMAL_DISPLAYREGION_T(
+            mmal.MMAL_PARAMETER_HEADER_T(
+                mmal.MMAL_PARAMETER_DISPLAYREGION,
+                ct.sizeof(mmal.MMAL_DISPLAYREGION_T)
+                ),
+            set=mmal.MMAL_DISPLAY_SET_TRANSFORM,
+            transform=value,
+            )
+        mmal_check(
+            mmal.mmal_port_parameter_set(self.renderer[0].input[0], mp.hdr),
+            prefix="Failed to set transform")
+
 
 class PiOverlayRenderer(PiRenderer):
     """
@@ -311,9 +467,11 @@ class PiOverlayRenderer(PiRenderer):
 
     def __init__(
             self, parent, source, size=None, layer=0, alpha=255,
-            fullscreen=True, window=None):
+            fullscreen=True, window=None, crop=None, rotation=0, vflip=False,
+            hflip=False):
         super(PiOverlayRenderer, self).__init__(
-            parent, layer, alpha, fullscreen, window)
+            parent, layer, alpha, fullscreen, window, crop,
+            rotation, vflip, hflip)
 
         # Copy format from camera's preview port, then adjust the encoding to
         # RGB888 and optionally adjust the resolution and size
@@ -390,10 +548,11 @@ class PiPreviewRenderer(PiRenderer):
     """
 
     def __init__(
-            self, parent, source, layer=2, alpha=255,
-            fullscreen=True, window=None):
+            self, parent, source, layer=2, alpha=255, fullscreen=True,
+            window=None, crop=None, rotation=0, vflip=False, hflip=False):
         super(PiPreviewRenderer, self).__init__(
-            parent, layer, alpha, fullscreen, window)
+            parent, layer, alpha, fullscreen, window, crop,
+            rotation, vflip, hflip)
         self.connection = self.parent._connect_ports(
             source, self.renderer[0].input[0])
 

@@ -265,6 +265,26 @@ def test_preview_window(camera, previewing):
         camera.preview.window = (0, 0, 1920, 1080)
         assert camera.preview.window == (0, 0, 1920, 1080)
 
+def test_preview_rotation(camera, previewing):
+    if previewing:
+        save_value = camera.preview.rotation
+        try:
+            for value in range(0, 360):
+                camera.preview.rotation = value
+                assert camera.preview.rotation == [0, 90, 180, 270][value // 90]
+            camera.preview.rotation = 360
+            assert camera.preview.rotation == 0
+        finally:
+            camera.preview.rotation = save_value
+
+def test_preview_vflip(camera, previewing):
+    if previewing:
+        boolean_attr(camera.preview, 'vflip')
+
+def test_preview_hflip(camera, previewing):
+    if previewing:
+        boolean_attr(camera.preview, 'hflip')
+
 def test_framerate(camera, previewing):
     save_framerate = camera.framerate
     try:

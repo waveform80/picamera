@@ -191,8 +191,8 @@ class PiCamera(object):
     one module.
 
     The :attr:`resolution` of the camera is initially set to the display's
-    resolution unless the display has been disabled (e.g. with `tvservice -o`)
-    in which case a default of 1280x720 is used.
+    resolution unless the display has been disabled (e.g. with ``tvservice
+    -o``) in which case a default of 1280x720 is used.
 
     No preview or recording is started automatically upon construction.  Use
     the :meth:`capture` method to capture images, the :meth:`start_recording`
@@ -205,8 +205,7 @@ class PiCamera(object):
     when the camera is idle.
 
     When you are finished with the camera, you should ensure you call the
-    :meth:`close` method to release the camera resources (failure to do this
-    leads to GPU memory leaks)::
+    :meth:`close` method to release the camera resources::
 
         camera = PiCamera()
         try:
@@ -808,18 +807,17 @@ class PiCamera(object):
     def __exit__(self, exc_type, exc_value, exc_tb):
         self.close()
 
-    def start_preview(
-            self, layer=None, alpha=None, fullscreen=None, window=None):
+    def start_preview(self, **options):
         """
         Displays the preview overlay.
 
-        This method starts a preview running in the specified *layer* (higher
-        numbered layers obscure lower numbered layers), with the given *alpha*
-        (where 255 indicates complete opacity, and 0 is total transparency),
-        and at the location specified by a combination of *fullscreen* and
-        *window* the latter of which is a 4-tuple ``(x, y, width, height)``.
-        The *layer* defaults to ``2``, while *alpha*, *fullscreen*, and
-        *window* default to a completely opaque preview filling the screen.
+        This method starts a camera preview as an overlay on the Pi's primary
+        display (HDMI or composite). A :class:`PiRenderer` instance (more
+        specifically, a :class:`PiPreviewRenderer`) is constructed with the
+        keyword arguments captured in *options*, and is returned from the
+        method (this instance is also accessible from the :attr:`preview`
+        attribute for as long as the renderer remains active).  By default, the
+        renderer will be opaque and fullscreen.
 
         This means the default preview overrides whatever is currently visible
         on the display. More specifically, the preview does not rely on a
@@ -844,12 +842,12 @@ class PiCamera(object):
         """
         self._check_camera_open()
         self._preview.close()
+        options.setdefault('layer', self._preview_layer)
+        options.setdefault('alpha', self._preview_alpha)
+        options.setdefault('fullscreen', self._preview_fullscreen)
+        options.setdefault('window', self._preview_window)
         renderer = PiPreviewRenderer(
-            self, self._camera[0].output[self.CAMERA_PREVIEW_PORT],
-            layer=layer if layer is not None else self._preview_layer,
-            alpha=alpha if alpha is not None else self._preview_alpha,
-            fullscreen=fullscreen if fullscreen is not None else self._preview_fullscreen,
-            window=window if window is not None else self._preview_window)
+            self, self._camera[0].output[self.CAMERA_PREVIEW_PORT], **options)
         self._preview = renderer
         return renderer
 
@@ -867,9 +865,7 @@ class PiCamera(object):
         self._preview = PiNullSink(
             self, self._camera[0].output[self.CAMERA_PREVIEW_PORT])
 
-    def add_overlay(
-            self, source, size=None, layer=0, alpha=255,
-            fullscreen=True, window=None):
+    def add_overlay(self, source, size=None, **options):
         """
         Adds a static overlay to the preview output.
 
@@ -891,10 +887,10 @@ class PiCamera(object):
         32, and the height has been rounded up to the nearest multiple of 16.
 
         For example, if *size* is ``(1280, 720)``, then *source* must be a
-        buffer with length 1280 x 720 x 3 bytes, or 2,764,800 bytes (because
+        buffer with length 1280 × 720 × 3 bytes, or 2,764,800 bytes (because
         1280 is a multiple of 32, and 720 is a multiple of 16 no extra rounding
         is required).  However, if *size* is ``(97, 57)``, then *source* must
-        be a buffer with length 128 x 64 x 3 bytes, or 24,576 bytes (pixels
+        be a buffer with length 128 × 64 × 3 bytes, or 24,576 bytes (pixels
         beyond column 97 and row 57 in the source will be ignored).
 
         New overlays default to *layer* 0, whilst the preview defaults to layer
@@ -903,19 +899,18 @@ class PiCamera(object):
         can make the new overlay visible either by making any existing preview
         transparent (with the :attr:`~PiRenderer.alpha` property) or by moving
         the overlay into a layer higher than the preview (with the
-        :attr:`~PiRenderer.layer` property). All other parameters have the same
-        meaning as in :meth:`start_preview`, although as mentioned above the
-        *layer* has a different default.
+        :attr:`~PiRenderer.layer` property).
 
-        All camera properties except :attr:`resolution` and :attr:`framerate`
-        can be modified while overlays exist. The reason for these exceptions
-        is that the overlay has a static resolution and changing the camera's
-        mode would require resizing of the source.
+        All keyword arguments captured in *options* are passed onto the
+        :class:`PiRenderer` constructor. All camera properties except
+        :attr:`resolution` and :attr:`framerate` can be modified while overlays
+        exist. The reason for these exceptions is that the overlay has a static
+        resolution and changing the camera's mode would require resizing of the
+        source.
 
         .. _RGB: http://en.wikipedia.org/wiki/RGB
         """
-        renderer = PiOverlayRenderer(
-            self, source, size, layer, alpha, fullscreen, window)
+        renderer = PiOverlayRenderer(self, source, size, **options)
         self._overlays.add(renderer)
         return renderer
 
@@ -2885,9 +2880,9 @@ class PiCamera(object):
         When queried, the :attr:`rotation` property returns the rotation
         applied to the image. Valid values are 0, 90, 180, and 270.
 
-        When set, the property changes the color effect applied by the camera.
-        The property can be set while recordings or previews are in progress.
-        The default value is ``0``.
+        When set, the property changes the rotation applied to the camera's
+        input. The property can be set while recordings or previews are in
+        progress. The default value is ``0``.
         """)
 
     def _get_vflip(self):
