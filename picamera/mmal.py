@@ -641,7 +641,7 @@ class MMAL_PARAMETER_IMAGEFX_T(ct.Structure):
         ('value', MMAL_PARAM_IMAGEFX_T),
         ]
 
-MMAL_MAX_IMAGEFX_PARAMETERS = 5
+MMAL_MAX_IMAGEFX_PARAMETERS = 6
 
 class MMAL_PARAMETER_IMAGEFX_PARAMETERS_T(ct.Structure):
     _fields_ = [

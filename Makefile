@@ -136,7 +136,7 @@ $(DIST_DSC): $(PY_SOURCES) $(DEB_SOURCES)
 	mkdir -p dist/
 	for f in $(DIST_DSC); do cp ../$${f##*/} dist/; done
 
-release: $(PY_SOURCES) $(DOC_SOURCES)
+release: $(PY_SOURCES) $(DOC_SOURCES) $(DEB_SOURCES)
 	$(MAKE) clean
 	# ensure there are no current uncommitted changes
 	test -z "$(shell git status --porcelain)"
@@ -153,6 +153,7 @@ upload: $(PY_SOURCES) $(DOC_SOURCES) $(DIST_DEB) $(DIST_DSC)
 	$(PYTHON) $(PYFLAGS) setup.py sdist upload
 	./maildebs.py $(DIST_DEB) $(DIST_DSC)
 	git push --tags
+	git push
 
 .PHONY: all install develop test doc source egg zip tar deb dist clean tags release upload
 

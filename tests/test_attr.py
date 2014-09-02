@@ -160,8 +160,58 @@ def test_exposure_compensation(camera, previewing):
 def test_exposure_mode(camera, previewing):
     keyword_attr(camera, 'exposure_mode', camera.EXPOSURE_MODES)
 
-def test_image_effect(camera, previewing):
-    keyword_attr(camera, 'image_effect', camera.IMAGE_EFFECTS)
+def test_image_effects1(camera, previewing):
+    valid_combinations = {
+        'solarize': [
+            (False, 128, 128, 128, 0),
+            (True, 128, 128, 128, 0),
+            (False, 16, 192, 0, 0),
+            (128, 128, 128, 0),
+            0,
+            ],
+        'colorbalance': [
+            (0, 1, 1, 1, 0, 0),
+            (0, 0.5, 0.5, 0.5),
+            (0.451, 1, 1),
+            (0, 1.0, 0.5, 0.75, -64, 64),
+            ],
+        'colorpoint': [0, (1,), (2,), 3],
+        'colorswap':  [0, (1,)],
+        'posterise':  [2, (30,), 16],
+        'blur':       [1, (2,)],
+        'film':       [(0, 0, 0), (50, 128, 128)],
+        'watercolor': [(), (128, 128)],
+        }
+    try:
+        for effect in camera.IMAGE_EFFECTS:
+            camera.image_effect = effect
+            assert camera.image_effect_params is None
+            if effect in valid_combinations:
+                for params in valid_combinations[effect]:
+                    camera.image_effect_params = params
+                    assert camera.image_effect_params == params
+    finally:
+        camera.effect = 'none'
+
+def test_image_effects2(camera, previewing):
+    invalid_combinations = {
+        'solarize':     [(3, 3, 3), ()],
+        'colorpoint':   [(1, 1), ()],
+        'colorbalance': [(1,), False, ()],
+        'colorswap':    [(1, 1), ()],
+        'posterise':    [(1, 1), ()],
+        'blur':         [(1, 1), ()],
+        'film':         [(1, 1), (), (12, 2, 3, 4)],
+        'watercolor':   [1, (1, 2, 3)],
+        }
+    try:
+        for effect, params_sets in invalid_combinations.items():
+            camera.image_effect = effect
+            for params in params_sets:
+                with pytest.raises(picamera.PiCameraValueError):
+                    camera.image_effect_params = params
+    finally:
+        camera.image_effect = 'none'
 
 def test_drc_strength(camera, previewing):
     keyword_attr(camera, 'drc_strength', camera.DRC_STRENGTHS)

@@ -346,6 +346,7 @@ class PiCamera(object):
         self._encoders = {}
         self._overlays = set()
         self._raw_format = 'yuv'
+        self._image_effect_params = None
         self._exif_tags = {
             'IFD0.Model': 'RP_OV5647',
             'IFD0.Make': 'RaspberryPi',
@@ -2778,6 +2779,7 @@ class PiCamera(object):
             mmal_check(
                 mmal.mmal_port_parameter_set(self._camera[0].control, mp.hdr),
                 prefix="Failed to set image effect")
+            self._image_effect_params = None
         except KeyError:
             raise PiCameraValueError("Invalid image effect: %s" % value)
     image_effect = property(_get_image_effect, _set_image_effect, doc="""
@@ -2795,6 +2797,157 @@ class PiCamera(object):
         only certain effects work while recording video (notably ``'negative'``
         and ``'solarize'``). The default value is ``'none'``.
         """.format(values=docstring_values(IMAGE_EFFECTS)))
+
+    def _get_image_effect_params(self):
+        self._check_camera_open()
+        return self._image_effect_params
+    def _set_image_effect_params(self, value):
+        self._check_camera_open()
+        to_int = lambda x: int(x)
+        to_byte = lambda x: max(0, min(255, int(x)))
+        to_bool = lambda x: (0, 1)[bool(x)]
+        to_8dot8 = lambda x: int(x * 256)
+        valid_transforms = {
+            'solarize': [
+                (to_bool, to_byte, to_byte, to_byte, to_byte),
+                (to_byte, to_byte, to_byte, to_byte),
+                (to_bool,),
+                ],
+            'colorpoint': [
+                (lambda x: max(0, min(3, int(x))),),
+                ],
+            'colorbalance': [
+                (to_8dot8, to_8dot8, to_8dot8, to_8dot8, to_int, to_int),
+                (to_8dot8, to_8dot8, to_8dot8, to_8dot8),
+                (to_8dot8, to_8dot8, to_8dot8),
+                ],
+            'colorswap': [
+                (to_bool,),
+                ],
+            'posterise': [
+                (lambda x: max(2, min(31, int(x))),),
+                ],
+            'blur': [
+                (lambda x: max(1, min(2, int(x))),),
+                ],
+            'film': [
+                (to_byte, to_byte, to_byte),
+                ],
+            'watercolor': [
+                (),
+                (to_byte, to_byte),
+                ]
+            }
+        # Ensure params is a tuple
+        try:
+            params = tuple(i for i in value)
+        except TypeError:
+            params = (value,)
+        # Find the parameter combination for the current effect
+        effect = self.image_effect
+        param_transforms = [
+            transforms for transforms in valid_transforms.get(effect, [])
+            if len(transforms) == len(params)
+            ]
+        if not param_transforms:
+            raise PiCameraValueError(
+                'invalid set of parameters for effect "%s"' % effect)
+        param_transforms = param_transforms[0]
+        params = tuple(
+            transform(p)
+            for (transform, p) in zip(param_transforms, params)
+            )
+        mp = mmal.MMAL_PARAMETER_IMAGEFX_PARAMETERS_T(
+            mmal.MMAL_PARAMETER_HEADER_T(
+                mmal.MMAL_PARAMETER_IMAGE_EFFECT_PARAMETERS,
+                ct.sizeof(mmal.MMAL_PARAMETER_IMAGEFX_PARAMETERS_T)
+                ),
+            effect=self.IMAGE_EFFECTS[effect],
+            num_effect_params=len(params),
+            effect_parameter=params,
+            )
+        mmal_check(
+            mmal.mmal_port_parameter_set(self._camera[0].control, mp.hdr),
+            prefix="Failed to set image effect parameters")
+        self._image_effect_params = value
+    image_effect_params = property(_get_image_effect_params, _set_image_effect_params, doc="""
+        Retrieves or sets the parameters for the current :attr:`effect
+        <image_effect>`.
+
+        When queried, the :attr:`image_effect_params` property either returns
+        ``None`` (for effects which have no configurable parameters, or if no
+        parameters have been configured), or a tuple of numeric values up to
+        six elements long.
+
+        When set, the property changes the parameters of the current
+        :attr:`effect <image_effect>` as a sequence of numbers, or a single
+        number. Attempting to set parameters on an effect which does not
+        support parameters, or providing an incompatible set of parameters for
+        an effect will raise a :exc:`PiCameraValueError` exception.
+
+        The effects which have parameters, and what combinations those
+        parameters can take is as follows:
+
+        +--------------------+----------------+-----------------------------------------+
+        | Effect             | Parameters     | Description                             |
+        +====================+================+=========================================+
+        | ``'solarize'``     | *yuv*,         | *yuv* controls whether data is          |
+        |                    | *x0*, *y1*,    | processed as RGB (0) or YUV(1). Input   |
+        |                    | *y2*, *y3*     | values from 0 to *x0* - 1 are remapped  |
+        |                    |                | linearly onto the range 0 to *y0*.      |
+        |                    |                | Values from *x0* to 255 are remapped    |
+        |                    |                | linearly onto the range *y1* to *y2*.   |
+        |                    +----------------+-----------------------------------------+
+        |                    | *x0*, *y0*,    | Same as above, but *yuv* defaults to    |
+        |                    | *y1*, *y2*     | 0 (process as RGB).                     |
+        |                    +----------------+-----------------------------------------+
+        |                    | *yuv*          | Same as above, but *x0*, *y0*, *y1*,    |
+        |                    |                | *y2* default to 128, 128, 128, 0        |
+        |                    |                | respectively.                           |
+        +--------------------+----------------+-----------------------------------------+
+        | ``'colorpoint'``   | *quadrant*     | *quadrant* specifies which quadrant     |
+        |                    |                | of the U/V space to retain chroma       |
+        |                    |                | from: 0=green, 1=red/yellow, 2=blue,    |
+        |                    |                | 3=purple. There is no default; this     |
+        |                    |                | effect does nothing until parameters    |
+        |                    |                | are set.                                |
+        +--------------------+----------------+-----------------------------------------+
+        | ``'colorbalance'`` | *lens*,        | *lens* specifies the lens shading       |
+        |                    | *r*, *g*, *b*, | strength (0.0 to 256.0, where 0.0       |
+        |                    | *u*, *v*       | indicates lens shading has no effect).  |
+        |                    |                | *r*, *g*, *b* are multipliers for their |
+        |                    |                | respective color channels (0.0 to       |
+        |                    |                | 256.0). *u* and *v* are offsets added   |
+        |                    |                | to the U/V plane (0 to 255).            |
+        |                    +----------------+-----------------------------------------+
+        |                    | *lens*,        | Same as above but *u* are defaulted     |
+        |                    | *r*, *g*, *b*  | to 0.                                   |
+        |                    +----------------+-----------------------------------------+
+        |                    | *lens*,        | Same as above but *g* also defaults to  |
+        |                    | *r*, *b*       | to 1.0.                                 |
+        +--------------------+----------------+-----------------------------------------+
+        | ``'colorswap'``    | *dir*          | If *dir* is 0, swap RGB to BGR. If      |
+        |                    |                | *dir* is 1, swap RGB to BRG.            |
+        +--------------------+----------------+-----------------------------------------+
+        | ``'posterise'``    | *steps*        | Control the quantization steps for the  |
+        |                    |                | image. Valid values are 2 to 32, and    |
+        |                    |                | the default is 4.                       |
+        +--------------------+----------------+-----------------------------------------+
+        | ``'blur'``         | *size*         | Specifies the size of the kernel. Valid |
+        |                    |                | values are 1 or 2.                      |
+        +--------------------+----------------+-----------------------------------------+
+        | ``'film'``         | *strength*,    | *strength* specifies the strength of    |
+        |                    | *u*, *v*       | effect. *u* and *v* are offsets added   |
+        |                    |                | to the U/V plane (0 to 255).            |
+        +--------------------+----------------+-----------------------------------------+
+        | ``'watercolor'``   | *u*, *v*       | *u* and *v* specify offsets to add to   |
+        |                    |                | the U/V plane (0 to 255).               |
+        |                    +----------------+-----------------------------------------+
+        |                    |                | No parameters indicates no U/V effect.  |
+        +--------------------+----------------+-----------------------------------------+
+
+        .. versionadded:: 1.8
+        """)
 
     def _get_color_effects(self):
         self._check_camera_open()
