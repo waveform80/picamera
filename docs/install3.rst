@@ -9,6 +9,38 @@ with their own advantages and disadvantages. Have a read of the sections below
 and select an installation method which conforms to your needs.
 
 
+.. _firmware3:
+
+Firmware upgrades
+=================
+
+The behaviour of the Pi's camera module is dictated by the Pi's firmware. Over
+time, considerable work has gone into fixing bugs and extending the
+functionality of the Pi's camera module through new firmware releases. Whilst
+the picamera library attempts to maintain backward compatibility with older Pi
+firmwares, it is only tested against the latest firmware at the time of
+release, and not all functionality may be available if you are running an older
+firmware. As an example, the :attr:`~picamera.PiCamera.annotate_text` attribute
+relies on a recent firmware; older firmwares lacked the functionality.
+
+To keep your firmware up to date use the following command, and reboot once
+successfully complete::
+
+    $ sudo rpi-update
+
+You can determine the revision of your current firmware with the following
+command::
+
+    $ uname -a
+
+The firmware revision is the number after the ``#``::
+
+    Linux kermit 3.12.26+ #707 PREEMPT Sat Aug 30 17:39:19 BST 2014 armv6l GNU/Linux
+                            /
+                           /
+      firmware revision --+
+
+
 .. _raspbian_install3:
 
 Raspbian installation
