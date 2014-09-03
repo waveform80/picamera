@@ -420,6 +420,16 @@ class PiCamera(object):
         if not self._camera[0].output_num:
             raise PiCameraError("Camera doesn't have output ports")
 
+        mp = mmal.MMAL_PARAMETER_INT32_T(
+            mmal.MMAL_PARAMETER_HEADER_T(
+                mmal.MMAL_PARAMETER_CAMERA_NUM,
+                ct.sizeof(mmal.MMAL_PARAMETER_INT32_T)
+            ),
+            num)
+        mmal_check(
+            mmal.mmal_port_parameter_set(self._camera[0].control, mp.hdr),
+            prefix="Unable to select camera %d" % num)
+
         mmal_check(
             mmal.mmal_port_enable(
                 self._camera[0].control,
@@ -452,18 +462,21 @@ class PiCamera(object):
 
         for p in self.CAMERA_PORTS:
             port = self._camera[0].output[p]
-            mp = mmal.MMAL_PARAMETER_STEREOSCOPIC_MODE_T(
-                mmal.MMAL_PARAMETER_HEADER_T(
-                    mmal.MMAL_PARAMETER_STEREOSCOPIC_MODE,
-                    ct.sizeof(mmal.MMAL_PARAMETER_STEREOSCOPIC_MODE_T),
-                ),
-                mode=stereo_mode,
-                decimate=stereo_decimate,
-                swap_eyes=False,
-                )
-            mmal_check(
-                mmal.mmal_port_parameter_set(port, mp.hdr),
-                prefix="Unable to set stereoscopic mode on output %d" % p)
+            # Don't attempt to set this if stereo mode isn't requested as it'll
+            # break compatibility on older firmwares
+            if stereo_mode != mmal.MMAL_STEREOSCOPIC_MODE_NONE:
+                mp = mmal.MMAL_PARAMETER_STEREOSCOPIC_MODE_T(
+                    mmal.MMAL_PARAMETER_HEADER_T(
+                        mmal.MMAL_PARAMETER_STEREOSCOPIC_MODE,
+                        ct.sizeof(mmal.MMAL_PARAMETER_STEREOSCOPIC_MODE_T),
+                    ),
+                    mode=stereo_mode,
+                    decimate=stereo_decimate,
+                    swap_eyes=False,
+                    )
+                mmal_check(
+                    mmal.mmal_port_parameter_set(port, mp.hdr),
+                    prefix="Unable to set stereoscopic mode on output %d" % p)
             fmt = port[0].format
             fmt[0].encoding = mmal.MMAL_ENCODING_I420 if p != self.CAMERA_PREVIEW_PORT else mmal.MMAL_ENCODING_OPAQUE
             fmt[0].encoding_variant = mmal.MMAL_ENCODING_I420
@@ -486,16 +499,6 @@ class PiCamera(object):
             if p != self.CAMERA_PREVIEW_PORT:
                 port[0].buffer_num = port[0].buffer_num_min
                 port[0].buffer_size = port[0].buffer_size_recommended
-
-        mp = mmal.MMAL_PARAMETER_INT32_T(
-            mmal.MMAL_PARAMETER_HEADER_T(
-                mmal.MMAL_PARAMETER_CAMERA_NUM,
-                ct.sizeof(mmal.MMAL_PARAMETER_INT32_T)
-            ),
-            num)
-        mmal_check(
-            mmal.mmal_port_parameter_set(self._camera[0].control, mp.hdr),
-            prefix="Unable to select camera %d" % num)
 
         mmal_check(
             mmal.mmal_component_enable(self._camera),
