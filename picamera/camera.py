@@ -1358,7 +1358,8 @@ class PiCamera(object):
         additional options, which are:
 
         * *quality* - Defines the quality of the JPEG encoder as an integer
-          ranging from 1 to 100. Defaults to 85.
+          ranging from 1 to 100. Defaults to 85. Please note that JPEG quality
+          is not a percentage and `definitions of quality`_ vary widely.
 
         * *thumbnail* - Defines the size and quality of the thumbnail to embed
           in the Exif metadata. Specifying ``None`` disables thumbnail
@@ -1385,6 +1386,7 @@ class PiCamera(object):
             The *splitter_port* parameter was added, and *bayer* was added as
             an option for the ``'jpeg'`` format
 
+        .. _definitions of quality: http://photo.net/learn/jpeg/#qual
         """
         if format == 'raw':
             warnings.warn(
