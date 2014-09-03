@@ -525,7 +525,8 @@ class MMAL_PARAMETER_LOGGING_T(ct.Structure):
     MMAL_PARAMETER_VIDEO_DENOISE,
     MMAL_PARAMETER_STILLS_DENOISE,
     MMAL_PARAMETER_ANNOTATE,
-) = range(MMAL_PARAMETER_GROUP_CAMERA, MMAL_PARAMETER_GROUP_CAMERA + 74)
+    MMAL_PARAMETER_STEREOSCOPIC_MODE,
+) = range(MMAL_PARAMETER_GROUP_CAMERA, MMAL_PARAMETER_GROUP_CAMERA + 75)
 
 class MMAL_PARAMETER_THUMBNAIL_CONFIG_T(ct.Structure):
     _fields_ = [
@@ -632,7 +633,8 @@ MMAL_PARAM_IMAGEFX_T = ct.c_uint32 # enum
     MMAL_PARAM_IMAGEFX_CARTOON,
     MMAL_PARAM_IMAGEFX_DEINTERLACE_DOUBLE,
     MMAL_PARAM_IMAGEFX_DEINTERLACE_ADV,
-) = range(25)
+    MMAL_PARAM_IMAGEFX_DEINTERLACE_FAST,
+) = range(26)
 MMAL_PARAM_IMAGEFX_MAX = 0x7fffffff
 
 class MMAL_PARAMETER_IMAGEFX_T(ct.Structure):
@@ -1048,6 +1050,22 @@ class MMAL_PARAMETER_CAMERA_ANNOTATE_T(ct.Structure):
         ('show_lens',        MMAL_BOOL_T),
         ('show_caf',         MMAL_BOOL_T),
         ('show_motion',      MMAL_BOOL_T),
+        ]
+
+MMAL_STEREOSCOPIC_MODE_T = ct.c_uint32 # enum
+(
+    MMAL_STEREOSCOPIC_MODE_NONE,
+    MMAL_STEREOSCOPIC_MODE_SIDE_BY_SIDE,
+    MMAL_STEREOSCOPIC_MODE_BOTTOM,
+) = range(3)
+MMAL_STEREOSCOPIC_MODE_MAX = 0x7fffffff
+
+class MMAL_PARAMETER_STEREOSCOPIC_MODE_T(ct.Structure):
+    _fields_ = [
+        ('hdr',        MMAL_PARAMETER_HEADER_T),
+        ('mode',       MMAL_STEREOSCOPIC_MODE_T),
+        ('decimate',   MMAL_BOOL_T),
+        ('swap_eyes',  MMAL_BOOL_T),
         ]
 
 # mmal_parameters_video.h ####################################################

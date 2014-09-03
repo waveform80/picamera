@@ -190,6 +190,22 @@ class PiCamera(object):
     more than one camera, and this class has not yet been tested with more than
     one module.
 
+    The *stereo_mode* and *stereo_decimate* parameters configure dual cameras
+    on a compute module for sterescopic mode. These parameters can only be set
+    at construction time; they cannot be altered later without closing the
+    :class:`PiCamera` instance and recreating it. The *stereo_mode* parameter
+    defaults to ``'none'`` (no stereoscopic mode) but can be set to
+    ``'side-by-side'`` or ``'top-bottom'`` to activate a stereoscopic mode. If
+    the *stereo_decimate* parameter is ``True``, the resolution of the two
+    cameras will be halved so that the resulting image has the same dimensions
+    as if stereoscopic mode were not being used.
+
+    .. warning::
+
+        Stereoscopic mode is untested in picamera at this time. If you have the
+        necessary hardware, the author would be most interested to hear of your
+        experiences!
+
     The :attr:`resolution` of the camera is initially set to the display's
     resolution unless the display has been disabled (e.g. with ``tvservice
     -o``) in which case a default of 1280x720 is used.
@@ -320,14 +336,21 @@ class PiCamera(object):
         'bgra': mmal.MMAL_ENCODING_BGRA,
         }
 
+    STEREO_MODES = {
+        'none':         mmal.MMAL_STEREOSCOPIC_MODE_NONE,
+        'side-by-side': mmal.MMAL_STEREOSCOPIC_MODE_SIDE_BY_SIDE,
+        'top-bottom':   mmal.MMAL_STEREOSCOPIC_MODE_BOTTOM,
+        }
+
     _METER_MODES_R    = {v: k for (k, v) in METER_MODES.items()}
     _EXPOSURE_MODES_R = {v: k for (k, v) in EXPOSURE_MODES.items()}
     _AWB_MODES_R      = {v: k for (k, v) in AWB_MODES.items()}
     _IMAGE_EFFECTS_R  = {v: k for (k, v) in IMAGE_EFFECTS.items()}
     _RAW_FORMATS_R    = {v: k for (k, v) in RAW_FORMATS.items()}
     _DRC_STRENGTHS_R  = {v: k for (k, v) in DRC_STRENGTHS.items()}
+    _STEREO_MODES_R   = {v: k for (k, v) in STEREO_MODES.items()}
 
-    def __init__(self, camera_num=0):
+    def __init__(self, camera_num=0, stereo_mode='none', stereo_decimate=False):
         bcm_host.bcm_host_init()
         mimetypes.add_type('application/h264',  '.h264',  False)
         mimetypes.add_type('application/mjpeg', '.mjpg',  False)
@@ -352,7 +375,8 @@ class PiCamera(object):
             'IFD0.Make': 'RaspberryPi',
             }
         try:
-            self._init_camera(camera_num)
+            self._init_camera(
+                camera_num, self.STEREO_MODES[stereo_mode], stereo_decimate)
             self._init_defaults()
             self._init_preview()
             self._init_splitter()
@@ -373,7 +397,7 @@ class PiCamera(object):
                 # GPIO reference so we don't try anything further
                 GPIO = None
 
-    def _init_camera(self, num):
+    def _init_camera(self, num, stereo_mode, stereo_decimate):
         self._camera = ct.POINTER(mmal.MMAL_COMPONENT_T)()
         self._camera_config = mmal.MMAL_PARAMETER_CAMERA_CONFIG_T(
             mmal.MMAL_PARAMETER_HEADER_T(
@@ -392,16 +416,6 @@ class PiCamera(object):
                     "and ensure that the camera has been enabled.")
             else:
                 raise
-
-        mp = mmal.MMAL_PARAMETER_INT32_T(
-            mmal.MMAL_PARAMETER_HEADER_T(
-                mmal.MMAL_PARAMETER_CAMERA_NUM,
-                ct.sizeof(mmal.MMAL_PARAMETER_INT32_T)
-            ),
-            num)
-        mmal_check(
-            mmal.mmal_port_parameter_set(self._camera[0].control, mp.hdr),
-            prefix="Unable to select camera %d" % num)
 
         if not self._camera[0].output_num:
             raise PiCameraError("Camera doesn't have output ports")
@@ -438,6 +452,18 @@ class PiCamera(object):
 
         for p in self.CAMERA_PORTS:
             port = self._camera[0].output[p]
+            mp = mmal.MMAL_PARAMETER_STEREOSCOPIC_MODE_T(
+                mmal.MMAL_PARAMETER_HEADER_T(
+                    mmal.MMAL_PARAMETER_STEREOSCOPIC_MODE,
+                    ct.sizeof(mmal.MMAL_PARAMETER_STEREOSCOPIC_MODE_T),
+                ),
+                mode=stereo_mode,
+                decimate=stereo_decimate,
+                swap_eyes=False,
+                )
+            mmal_check(
+                mmal.mmal_port_parameter_set(port, mp.hdr),
+                prefix="Unable to set stereoscopic mode on output %d" % p)
             fmt = port[0].format
             fmt[0].encoding = mmal.MMAL_ENCODING_I420 if p != self.CAMERA_PREVIEW_PORT else mmal.MMAL_ENCODING_OPAQUE
             fmt[0].encoding_variant = mmal.MMAL_ENCODING_I420
@@ -460,6 +486,16 @@ class PiCamera(object):
             if p != self.CAMERA_PREVIEW_PORT:
                 port[0].buffer_num = port[0].buffer_num_min
                 port[0].buffer_size = port[0].buffer_size_recommended
+
+        mp = mmal.MMAL_PARAMETER_INT32_T(
+            mmal.MMAL_PARAMETER_HEADER_T(
+                mmal.MMAL_PARAMETER_CAMERA_NUM,
+                ct.sizeof(mmal.MMAL_PARAMETER_INT32_T)
+            ),
+            num)
+        mmal_check(
+            mmal.mmal_port_parameter_set(self._camera[0].control, mp.hdr),
+            prefix="Unable to select camera %d" % num)
 
         mmal_check(
             mmal.mmal_component_enable(self._camera),
