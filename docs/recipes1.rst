@@ -845,11 +845,13 @@ through the center and overlay it on the preview as a simple cross-hair::
         # Add the overlay directly into layer 3 with transparency;
         # we can omit the size parameter of add_overlay as the
         # size is the same as the camera's resolution
-        camera.add_overlay(np.getbuffer(a), layer=3, alpha=64)
-
-        # Wait indefinitely until the user terminates the script
-        while True:
-            time.sleep(1)
+        o = camera.add_overlay(np.getbuffer(a), layer=3, alpha=64)
+        try:
+            # Wait indefinitely until the user terminates the script
+            while True:
+                time.sleep(1)
+        finally:
+            camera.remove_overlay(o)
 
 Given that overlayed renderers can be hidden (by moving them below the
 preview's :attr:`~picamera.PiRenderer.layer` which defaults to 2), made

@@ -40,6 +40,7 @@ str = type('')
 import numpy as np
 import picamera
 import picamera.array
+import picamera.mmal as mmal
 import pytest
 import mock
 
@@ -228,4 +229,33 @@ def test_motion_analysis1(camera, mode):
             '/dev/null', 'h264', motion_output=stream, resize=resize)
         camera.wait_recording(1)
         camera.stop_recording()
+
+def test_overlay_array1(camera, mode):
+    resolution, framerate = mode
+    # Draw a cross overlay
+    w, h = resolution
+    w = mmal.VCOS_ALIGN_UP(w, 32)
+    h = mmal.VCOS_ALIGN_UP(h, 16)
+    a = np.zeros((h, w, 3), dtype=np.uint8)
+    a[resolution[1] // 2, :, :] = 0xff
+    a[:, resolution[0] // 2, :] = 0xff
+    overlay = camera.add_overlay(a, resolution, alpha=128)
+    assert len(camera.overlays) == 1
+    assert camera.overlays[0].alpha == 128
+    camera.remove_overlay(overlay)
+    assert not camera.overlays
+
+def test_overlay_array2(camera, mode):
+    resolution, framerate = mode
+    # Construct an array 25x25 big and display it at 10x10 on the screen
+    a = np.zeros((32, 32, 3), dtype=np.uint8)
+    a[:25, :25, :] = 0xff
+    overlay = camera.add_overlay(
+        a, (25, 25), layer=3, fullscreen=False, window=(10, 10, 25, 25))
+    assert len(camera.overlays) == 1
+    assert not camera.overlays[0].fullscreen
+    assert camera.overlays[0].window == (10, 10, 25, 25)
+    assert camera.overlays[0].layer == 3
+    camera.remove_overlay(overlay)
+    assert not camera.overlays
 

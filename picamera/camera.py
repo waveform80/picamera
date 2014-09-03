@@ -367,7 +367,7 @@ class PiCamera(object):
         self._splitter_connection = None
         self._encoders_lock = threading.Lock()
         self._encoders = {}
-        self._overlays = set()
+        self._overlays = []
         self._raw_format = 'yuv'
         self._image_effect_params = None
         self._exif_tags = {
@@ -948,7 +948,7 @@ class PiCamera(object):
         .. _RGB: http://en.wikipedia.org/wiki/RGB
         """
         renderer = PiOverlayRenderer(self, source, size, **options)
-        self._overlays.add(renderer)
+        self._overlays.append(renderer)
         return renderer
 
     def remove_overlay(self, overlay):
