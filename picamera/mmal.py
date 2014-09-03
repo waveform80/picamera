@@ -1134,6 +1134,22 @@ class MMAL_PARAMETER_CAMERA_ANNOTATE_T(ct.Structure):
         ('show_motion',      MMAL_BOOL_T),
         ]
 
+MMAL_CAMERA_ANNOTATE_MAX_TEXT_LEN_V2 = 256
+
+class MMAL_PARAMETER_CAMERA_ANNOTATE_V2_T(ct.Structure):
+    _fields_ = [
+        ('hdr',                   MMAL_PARAMETER_HEADER_T),
+        ('enable',                MMAL_BOOL_T),
+        ('show_shutter',          MMAL_BOOL_T),
+        ('show_analog_gain',      MMAL_BOOL_T),
+        ('show_lens',             MMAL_BOOL_T),
+        ('show_caf',              MMAL_BOOL_T),
+        ('show_motion',           MMAL_BOOL_T),
+        ('show_frame_num',        MMAL_BOOL_T),
+        ('black_text_background', MMAL_BOOL_T),
+        ('text',                  ct.c_char * MMAL_CAMERA_ANNOTATE_MAX_TEXT_LEN_V2),
+        ]
+
 MMAL_STEREOSCOPIC_MODE_T = ct.c_uint32 # enum
 (
     MMAL_STEREOSCOPIC_MODE_NONE,

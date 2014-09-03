@@ -2908,7 +2908,8 @@ class PiCamera(object):
             mmal.mmal_port_parameter_set(self._camera[0].control, mp.hdr),
             prefix="Failed to set image effect parameters")
         self._image_effect_params = value
-    image_effect_params = property(_get_image_effect_params, _set_image_effect_params, doc="""
+    image_effect_params = property(
+            _get_image_effect_params, _set_image_effect_params, doc="""
         Retrieves or sets the parameters for the current :attr:`effect
         <image_effect>`.
 
@@ -3372,26 +3373,29 @@ class PiCamera(object):
 
     def _get_annotate_text(self):
         self._check_camera_open()
-        mp = mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_T(
+        mp = mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V2_T(
             mmal.MMAL_PARAMETER_HEADER_T(
                 mmal.MMAL_PARAMETER_ANNOTATE,
-                ct.sizeof(mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_T)
+                ct.sizeof(mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V2_T)
             ))
         mmal_check(
             mmal.mmal_port_parameter_get(self._camera[0].control, mp.hdr),
-            prefix="Failed to get annotation status")
+            prefix="Failed to get annotation text")
         if mp.enable:
             return mp.text.decode('ascii')
         else:
             return ''
     def _set_annotate_text(self, value):
         self._check_camera_open()
-        mp = mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_T(
+        mp = mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V2_T(
             mmal.MMAL_PARAMETER_HEADER_T(
                 mmal.MMAL_PARAMETER_ANNOTATE,
-                ct.sizeof(mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_T)
+                ct.sizeof(mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V2_T)
             ))
-        if value:
+        mmal_check(
+            mmal.mmal_port_parameter_get(self._camera[0].control, mp.hdr),
+            prefix="Failed to get annotation status")
+        if value or bool(mp.show_frame_num):
             mp.enable = True
             try:
                 mp.text = value.encode('ascii')
@@ -3401,17 +3405,88 @@ class PiCamera(object):
             mp.enable = False
         mmal_check(
             mmal.mmal_port_parameter_set(self._camera[0].control, mp.hdr),
-            prefix="Failed to set annotation status")
+            prefix="Failed to set annotation text")
     annotate_text = property(_get_annotate_text, _set_annotate_text, doc="""
         Retrieves or sets a text annotation for all output.
 
-        When queried, :attr:`annotate_text` property returns returns the
-        current annotation (if no annotation has been set, this is simply
-        a blank string).
+        When queried, the :attr:`annotate_text` property returns the current
+        annotation (if no annotation has been set, this is simply a blank
+        string).
 
         When set, the property immediately applies the annotation to the
         preview (if it is running) and to any future captures or video
-        recording. Strings longer than 31 characters, or strings containing
+        recording. Strings longer than 255 characters, or strings containing
         non-ASCII characters will raise a :exc:`PiCameraValueError`. The
         default value is ``''``.
         """)
+
+    def _get_annotate_frame_num(self):
+        self._check_camera_open()
+        mp = mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V2_T(
+            mmal.MMAL_PARAMETER_HEADER_T(
+                mmal.MMAL_PARAMETER_ANNOTATE,
+                ct.sizeof(mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V2_T)
+            ))
+        mmal_check(
+            mmal.mmal_port_parameter_get(self._camera[0].control, mp.hdr),
+            prefix="Failed to get annotation frame number")
+        return mp.show_frame_num != mmal.MMAL_FALSE
+    def _set_annotate_frame_num(self, value):
+        self._check_camera_open()
+        mp = mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V2_T(
+            mmal.MMAL_PARAMETER_HEADER_T(
+                mmal.MMAL_PARAMETER_ANNOTATE,
+                ct.sizeof(mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V2_T)
+            ))
+        mmal_check(
+            mmal.mmal_port_parameter_get(self._camera[0].control, mp.hdr),
+            prefix="Failed to get annotation status")
+        mp.enable = bool(value) or bool(mp.text)
+        mp.show_frame_num = bool(value)
+        mmal_check(
+            mmal.mmal_port_parameter_set(self._camera[0].control, mp.hdr),
+            prefix="Failed to set annotation frame number")
+    annotate_frame_num = property(
+            _get_annotate_frame_num, _set_annotate_frame_num, doc="""
+        Controls whether the current frame number is drawn as an annotation.
+
+        The :attr:`annotate_frame_num` attribute is a bool indicating whether
+        or not the current frame number is rendered as an annotation, similar
+        to :attr:`annotate_text`. The default is ``False``.
+        """)
+
+    def _get_annotate_background(self):
+        self._check_camera_open()
+        mp = mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V2_T(
+            mmal.MMAL_PARAMETER_HEADER_T(
+                mmal.MMAL_PARAMETER_ANNOTATE,
+                ct.sizeof(mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V2_T)
+            ))
+        mmal_check(
+            mmal.mmal_port_parameter_get(self._camera[0].control, mp.hdr),
+            prefix="Failed to get annotation background")
+        return mp.black_text_background != mmal.MMAL_FALSE
+    def _set_annotate_background(self, value):
+        self._check_camera_open()
+        mp = mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V2_T(
+            mmal.MMAL_PARAMETER_HEADER_T(
+                mmal.MMAL_PARAMETER_ANNOTATE,
+                ct.sizeof(mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V2_T)
+            ))
+        mmal_check(
+            mmal.mmal_port_parameter_get(self._camera[0].control, mp.hdr),
+            prefix="Failed to get annotation status")
+        mp.black_text_background = bool(value)
+        mmal_check(
+            mmal.mmal_port_parameter_set(self._camera[0].control, mp.hdr),
+            prefix="Failed to set annotation background")
+    annotate_background = property(
+            _get_annotate_background, _set_annotate_background, doc="""
+        Controls whether a black background is drawn behind the annotation.
+
+        The :attr:`annotate_bg` attribute is a bool indicating whether or not a
+        black background will be drawn behind the :attr:`annotation text
+        <annotate_text>`. The background will appear in all output including
+        image captures and video recording. The default is ``False``.
+        """)
+

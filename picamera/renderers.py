@@ -219,7 +219,7 @@ class PiRenderer(object):
                 ct.sizeof(mmal.MMAL_DISPLAYREGION_T)
                 ),
             set=mmal.MMAL_DISPLAY_SET_FULLSCREEN,
-            fullscreen=(mmal.MMAL_FALSE, mmal.MMAL_TRUE)[bool(value)]
+            fullscreen=bool(value)
             )
         mmal_check(
             mmal.mmal_port_parameter_set(self.renderer[0].input[0], mp.hdr),

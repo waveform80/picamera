@@ -90,9 +90,15 @@ def test_annotate_text(camera, previewing):
     camera.annotate_text = 'foo bar baz quux xyzzy'
     assert camera.annotate_text == u'foo bar baz quux xyzzy'
     with pytest.raises(picamera.PiCameraValueError):
-        camera.annotate_text = 'this value is way too long for this attribute'
+        camera.annotate_text = 'abcd' * 64
     with pytest.raises(picamera.PiCameraValueError):
         camera.annotate_text = 'Oh lá lá'
+
+def test_annotate_background(camera, previewing):
+    boolean_attr(camera, 'annotate_background')
+
+def test_annotate_frame_num(camera, previewing):
+    boolean_attr(camera, 'annotate_frame_num')
 
 def test_awb_mode(camera, previewing):
     keyword_attr(camera, 'awb_mode', camera.AWB_MODES)

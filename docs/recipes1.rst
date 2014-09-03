@@ -866,7 +866,7 @@ interfaces.
 Overlaying text on the output
 =============================
 
-The camera includes a rudimentary annotation facility which permits up to 31
+The camera includes a rudimentary annotation facility which permits up to 255
 characters of ASCII text to be overlayed on all output (including the preview,
 image captures and video recordings). To achieve this, simply assign a string
 to the :attr:`~picamera.PiCamera.annotate_text` attribute::
@@ -900,8 +900,9 @@ With a little ingenuity, it's possible to display longer strings::
             camera.annotate_text = camera.annotate_text[1:31] + c
             time.sleep(0.1)
 
-And of course, it can be used to display (and embed) a timestamp in
-recordings::
+And of course, it can be used to display (and embed) a timestamp in recordings
+(this recipe also demonstrates drawing a background behind the timestamp for
+contrast with the :attr:`~picamera.PiCamera.annotate_bg` attribute)::
 
     import picamera
     import datetime as dt
@@ -910,6 +911,7 @@ recordings::
         camera.resolution = (1280, 720)
         camera.framerate = 24
         camera.start_preview()
+        camera.annotate_bg = True
         camera.annotate_text = dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         camera.start_recording('timestamped.h264')
         start = dt.datetime.now()
