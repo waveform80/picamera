@@ -1926,14 +1926,36 @@ class PiCamera(object):
         n, d = to_rational(value)
         if not (0 <= n / d <= 90):
             raise PiCameraValueError("Invalid framerate: %.2ffps" % (n / d))
+        if n / d >= 1.0:
+            fps_low = 1
+            fps_high = 30
+        elif n / d >= 0.166:
+            fps_low = fractions.Fraction(166, 1000)
+            fps_high = fractions.Fraction(999, 1000)
+        else:
+            fps_low = fractions.Fraction(50, 1000)
+            fps_high = fractions.Fraction(166, 1000)
         self._disable_camera()
-        for port in (self.CAMERA_VIDEO_PORT, self.CAMERA_PREVIEW_PORT):
-            fmt = self._camera[0].output[port][0].format[0].es[0]
-            fmt.video.frame_rate.num = n
-            fmt.video.frame_rate.den = d
+        for port_num in self.CAMERA_PORTS:
+            port = self._camera[0].output[port_num]
+            mp = mmal.MMAL_PARAMETER_FPS_RANGE_T(
+                mmal.MMAL_PARAMETER_HEADER_T(
+                    mmal.MMAL_PARAMETER_FPS_RANGE,
+                    ct.sizeof(mmal.MMAL_PARAMETER_FPS_RANGE_T)
+                ),
+                fps_low=mmal.MMAL_RATIONAL_T(*to_rational(fps_low)),
+                fps_high=mmal.MMAL_RATIONAL_T(*to_rational(fps_high)),
+                )
             mmal_check(
-                mmal.mmal_port_format_commit(self._camera[0].output[port]),
-                prefix="Camera video format couldn't be set")
+                mmal.mmal_port_parameter_set(port, mp.hdr),
+                prefix="Framerate limits couldn't be set on port %d" % port_num)
+            if port_num != self.CAMERA_CAPTURE_PORT:
+                fmt = port[0].format[0].es[0]
+                fmt.video.frame_rate.num = n
+                fmt.video.frame_rate.den = d
+                mmal_check(
+                    mmal.mmal_port_format_commit(port),
+                    prefix="Camera video format couldn't be set on port %d" % port_num)
         self._enable_camera()
     framerate = property(_get_framerate, _set_framerate, doc="""
         Retrieves or sets the framerate at which video-port based image
@@ -1992,10 +2014,12 @@ class PiCamera(object):
         self._camera_config.max_preview_video_w = w
         self._camera_config.max_preview_video_h = h
         mmal_check(
-            mmal.mmal_port_parameter_set(self._camera[0].control, self._camera_config.hdr),
+            mmal.mmal_port_parameter_set(
+                self._camera[0].control, self._camera_config.hdr),
             prefix="Failed to set preview resolution")
-        for port in (self.CAMERA_CAPTURE_PORT, self.CAMERA_VIDEO_PORT, self.CAMERA_PREVIEW_PORT):
-            fmt = self._camera[0].output[port][0].format[0].es[0]
+        for port_num in self.CAMERA_PORTS:
+            port = self._camera[0].output[port_num]
+            fmt = port[0].format[0].es[0]
             fmt.video.width = mmal.VCOS_ALIGN_UP(w, 32)
             fmt.video.height = mmal.VCOS_ALIGN_UP(h, 16)
             fmt.video.crop.x = 0
@@ -2006,8 +2030,8 @@ class PiCamera(object):
                 fmt.video.frame_rate.num = f.numerator
                 fmt.video.frame_rate.den = f.denominator
             mmal_check(
-                mmal.mmal_port_format_commit(self._camera[0].output[port]),
-                prefix="Camera video format couldn't be set")
+                mmal.mmal_port_format_commit(port),
+                prefix="Camera video format couldn't be set on port %d" % port_num)
         self._enable_camera()
     resolution = property(_get_resolution, _set_resolution, doc="""
         Retrieves or sets the resolution at which image captures, video
