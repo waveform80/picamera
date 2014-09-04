@@ -5,6 +5,52 @@ Change log
 ==========
 
 
+Release 1.8 (2014-09-05)
+========================
+
+1.8 consists of several new features and the usual bug fixes:
+
+* A new chapter on detecting and correcting deprecated functionality was added
+  to the docs (`#149`_)
+* Stereoscopic cameras are now tentatively supported on the Pi compute module.
+  Please note I have no hardware for testing this, so the implementation is
+  possibly (probably!) wrong; bug reports welcome! (`#153`_)
+* Text annotation functionality has been extended; up to 255 characters are now
+  possible, and the new :attr:`~picamera.PiCamera.annotate_frame_num` attribute
+  adds rendering of the current frame number. In addition, the new
+  :attr:`~picamera.PiCamera.annotate_background` flag permits a dark background
+  to be rendered behind all annotations for contrast (`#160`_)
+* Arbitrary image overlays can now be drawn on the preview using the new
+  :meth:`~picamera.PiCamera.add_overlay` method. A new recipe has been included
+  demonstrating overlays from PIL images and numpy arrays. As part of this work
+  the preview system was substantially changed; all older scripts should
+  continue to work but please be aware that most preview attributes are now
+  deprecated; the new :attr:`~picamera.PiCamera.preview` attribute replaces
+  them (`#144`_)
+* Image effect parameters can now be controlled via the new
+  :attr:`~picamera.PiCamera.image_effect_params` attribute (`#143`_)
+* A bug in the handling of framerates meant that long exposures (>1s) weren't
+  operating correctly. This *should* be fixed, but I'd be grateful if users
+  could test this and let me know for certain (Exif metadata reports the
+  configured exposure speed so it can't be used to determine if things are
+  actually working) (`#135`_)
+* A bug in 1.7 broke compatibility with older firmwares (resulting in an error
+  message mentioning "mmal_queue_timedwait"). The library should now on older
+  firmwares (`#154`_)
+* Finally, the confusingly named :attr:`~picamera.PiCamera.crop` attribute was
+  changed to a deprecated alias for the new :attr:`~picamera.PiCamera.zoom`
+  attribute (`#146`_)
+
+.. _#135: https://github.com/waveform80/picamera/issues/135
+.. _#143: https://github.com/waveform80/picamera/issues/143
+.. _#144: https://github.com/waveform80/picamera/issues/144
+.. _#146: https://github.com/waveform80/picamera/issues/146
+.. _#149: https://github.com/waveform80/picamera/issues/149
+.. _#153: https://github.com/waveform80/picamera/issues/153
+.. _#154: https://github.com/waveform80/picamera/issues/154
+.. _#160: https://github.com/waveform80/picamera/issues/160
+
+
 Release 1.7 (2014-08-08)
 ========================
 
