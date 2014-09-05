@@ -2530,7 +2530,7 @@ class PiCamera(object):
         "noisy" (smoother) images, but operate poorly in low light conditions.
 
         When set, the property adjusts the sensitivity of the camera. Valid
-        values are between 0 (auto) and 800. The actual value used when iso is
+        values are between 0 (auto) and 1600. The actual value used when iso is
         explicitly set will be one of the following values (whichever is
         closest): 100, 200, 320, 400, 500, 640, 800.
 
