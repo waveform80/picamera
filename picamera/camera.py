@@ -2550,6 +2550,17 @@ class PiCamera(object):
             With iso settings other than 0 (auto), the :attr:`exposure_mode`
             property becomes non-functional.
 
+        .. note::
+
+            Some users on the Pi camera forum have noted that higher ISO values
+            than 800 (specifically up to 1600) can be achieved in certain
+            conditions with :attr:`exposure_mode` set to ``'sports'`` and
+            :attr:`iso` set to 0.  It doesn't appear to be possible to manually
+            request an ISO setting higher than 800, but the picamera library
+            will permit settings up to 1600 in case the underlying firmware
+            permits such settings in particular circumstances.
+
+
         .. _sensitivity of the camera to light: http://en.wikipedia.org/wiki/Film_speed#Digital
         """)
 
