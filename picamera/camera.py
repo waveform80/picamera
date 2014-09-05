@@ -2508,7 +2508,7 @@ class PiCamera(object):
     def _set_iso(self, value):
         self._check_camera_open()
         try:
-            if not (0 <= value <= 800):
+            if not (0 <= value <= 1600):
                 raise PiCameraValueError(
                     "Invalid iso value: %d (valid range 0..800)" % value)
         except TypeError:
