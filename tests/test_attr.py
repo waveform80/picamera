@@ -242,6 +242,9 @@ def test_saturation(camera, previewing):
 def test_sharpness(camera, previewing):
     numeric_attr(camera, 'sharpness', -100, 100)
 
+def test_iso(camera, previewing):
+    numeric_attr(camera, 'iso', 0, 1600)
+
 def test_video_stabilization(camera, previewing):
     boolean_attr(camera, 'video_stabilization')
 

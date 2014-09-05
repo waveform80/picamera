@@ -134,9 +134,10 @@ def test_motion_array1(camera, mode):
         width = ((resolution[0] + 15) // 16) + 1
         height = (resolution[1] + 15) // 16
         assert stream.array.shape[1:] == (height, width)
-        # Number of frames isn't going to be exact - make sure we're within 10
-        # of the expected number
-        assert framerate  - 5 <= stream.array.shape[0] <= framerate + 5
+        # Number of frames isn't going to be exact and due to start-up costs
+        # in recent firmwares a lower bound seems difficult to calculate. Make
+        # sure we get at least 1 frame and no more than we expect
+        assert 1 < stream.array.shape[0] <= framerate
 
 def test_motion_array2(camera, mode):
     resolution, framerate = mode
@@ -152,9 +153,10 @@ def test_motion_array2(camera, mode):
         width = ((resize[0] + 15) // 16) + 1
         height = (resize[1] + 15) // 16
         assert stream.array.shape[1:] == (height, width)
-        # Number of frames isn't going to be exact - make sure we're within 10
-        # of the expected number
-        assert framerate  - 5 <= stream.array.shape[0] <= framerate + 5
+        # Number of frames isn't going to be exact and due to start-up costs
+        # in recent firmwares a lower bound seems difficult to calculate. Make
+        # sure we get at least 1 frame and no more than we expect
+        assert 1 < stream.array.shape[0] <= framerate
 
 def test_yuv_analysis1(camera, mode):
     resolution, framerate = mode
