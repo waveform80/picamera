@@ -46,6 +46,15 @@ class Mock(object):
     def __mul__(self, other):
         return Mock()
 
+    def __and__(self, other):
+        return Mock()
+
+    def __bool__(self):
+        return False
+
+    def __nonzero__(self):
+        return False
+
     @classmethod
     def __getattr__(cls, name):
         if name in ('__file__', '__path__'):
