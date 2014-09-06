@@ -249,7 +249,7 @@ Finally, to run the test suite, execute the following command::
 
 .. warning::
 
-    The test suite takes a *very* long time to execute (at least an hour on an
+    The test suite takes a *very* long time to execute (at least 4 hours on an
     overclocked Pi). Depending on configuration, it can also lockup the camera
     requiring a reboot to reset, so ensure you are familiar with SSH or using
     alternate TTYs to access a command line in the event you need to reboot.
