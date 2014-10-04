@@ -81,6 +81,12 @@ from picamera.renderers import (
 
 try:
     import RPi.GPIO as GPIO
+    GPIO_LED_PIN = {
+        0: 5,  # compute module (XXX is this correct?)
+        1: 5,  # model B rev 1
+        2: 5,  # model B rev 2
+        3: 32, # model B+
+        }[GPIO.RPI_REVISION]
 except ImportError:
     # Can't find RPi.GPIO so just null-out the reference
     GPIO = None
@@ -390,7 +396,7 @@ class PiCamera(object):
             try:
                 GPIO.setmode(GPIO.BCM)
                 GPIO.setwarnings(False)
-                GPIO.setup(5, GPIO.OUT, initial=GPIO.LOW)
+                GPIO.setup(GPIO_LED_PIN, GPIO.OUT, initial=GPIO.LOW)
                 self._used_led = True
             except RuntimeError:
                 # We're probably not running as root. In this case, forget the
@@ -1054,7 +1060,7 @@ class PiCamera(object):
 
         * *quality* - Specifies the quality that the encoder should attempt
           to maintain. For the ``'h264'`` format, use values between 10 and 40
-          where 10 is extremely high quality, and 40 is extremely low (20-25 is
+          where 10 is extremely high quality, and 40 is extremely low (20-2GPIO_LED_PIN is
           usually a reasonable range for H.264 encoding). For the ``mjpeg``
           format, use JPEG quality values between 1 and 100 (where higher
           values are higher quality). Quality 0 is special and seems to be
@@ -1842,7 +1848,7 @@ class PiCamera(object):
             raise PiCameraRuntimeError(
                 "GPIO library not found, or not accessible; please install "
                 "RPi.GPIO and run the script as root")
-        GPIO.output(5, bool(value))
+        GPIO.output(GPIO_LED_PIN, bool(value))
     led = property(None, _set_led, doc="""
         Sets the state of the camera's LED via GPIO.
 
