@@ -714,7 +714,7 @@ is used for the array permitting easy access to x, y, and SAD values::
             ('y', 'i1'),
             ('sad', 'u2'),
             ])
-    frames = motion_data.shape[0] // (cols * rows * motion_data.dtype.itemsize)
+    frames = motion_data.shape[0] // (cols * rows)
     motion_data = motion_data.reshape((frames, rows, cols))
 
     # Access the data for the first frame
@@ -742,6 +742,7 @@ from the magnitude of each frame's motion vectors::
     width = 640
     height = 480
     cols = (width + 15) // 16
+    cols += 1
     rows = (height + 15) // 16
 
     m = np.fromfile(
@@ -750,7 +751,7 @@ from the magnitude of each frame's motion vectors::
             ('y', 'i1'),
             ('sad', 'u2'),
             ])
-    frames = m.shape[0] // (cols * rows * m.dtype.itemsize)
+    frames = m.shape[0] // (cols * rows)
     m = m.reshape((frames, rows, cols))
 
     for frame in range(frames):
