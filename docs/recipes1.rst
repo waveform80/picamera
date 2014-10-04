@@ -298,7 +298,7 @@ Capturing in low light
 Using similar tricks to those in :ref:`consistent_capture`, the Pi's camera can
 capture images in low light conditions. The primary objective is to set a high
 gain, and a long exposure time to allow the camera to gather as much light as
-possible However, the :attr:`~picamera.PiCamera.shutter_speed` attribute is
+possible. However, the :attr:`~picamera.PiCamera.shutter_speed` attribute is
 constrained by the camera's :attr:`~picamera.PiCamera.framerate` so the first
 thing we need to do is set a very slow framerate. The following script captures
 an image with a 6 second exposure time (the maximum the Pi's camera module is
@@ -561,7 +561,7 @@ buffer underlying the stream).
 A typical use-case for this sort of storage is security applications where one
 wishes to detect motion and only record to disk the video where motion was
 detected. This example keeps 20 seconds of video in memory until the
-``write_now`` function returns ``True`` (in this implementation, this is random
+``write_now`` function returns ``True`` (in this implementation this is random
 but one could, for example, replace this with some sort of motion detection
 algorithm). Once ``write_now`` returns ``True``, the script waits 10 more
 seconds (so that the buffer contains 10 seconds of video from before the event,
@@ -904,7 +904,7 @@ With a little ingenuity, it's possible to display longer strings::
 
 And of course, it can be used to display (and embed) a timestamp in recordings
 (this recipe also demonstrates drawing a background behind the timestamp for
-contrast with the :attr:`~picamera.PiCamera.annotate_bg` attribute)::
+contrast with the :attr:`~picamera.PiCamera.annotate_background` attribute)::
 
     import picamera
     import datetime as dt
@@ -913,7 +913,7 @@ contrast with the :attr:`~picamera.PiCamera.annotate_bg` attribute)::
         camera.resolution = (1280, 720)
         camera.framerate = 24
         camera.start_preview()
-        camera.annotate_bg = True
+        camera.annotate_background = True
         camera.annotate_text = dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         camera.start_recording('timestamped.h264')
         start = dt.datetime.now()

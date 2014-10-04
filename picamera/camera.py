@@ -3522,9 +3522,9 @@ class PiCamera(object):
             _get_annotate_background, _set_annotate_background, doc="""
         Controls whether a black background is drawn behind the annotation.
 
-        The :attr:`annotate_bg` attribute is a bool indicating whether or not a
-        black background will be drawn behind the :attr:`annotation text
-        <annotate_text>`. The background will appear in all output including
-        image captures and video recording. The default is ``False``.
+        The :attr:`annotate_background` attribute is a bool indicating whether
+        or not a black background will be drawn behind the :attr:`annotation
+        text <annotate_text>`. The background will appear in all output
+        including image captures and video recording. The default is ``False``.
         """)
 
