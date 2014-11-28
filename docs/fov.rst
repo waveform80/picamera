@@ -16,21 +16,21 @@ Camera Modes
 
 The Pi's camera has a discrete set of input modes which are as follows:
 
-+------------+--------------+------------+-------+-------+---------+
-| Resolution | Aspect Ratio | Framerates | Video | Image | FoV     |
-+============+==============+============+=======+=======+=========+
-| 2592x1944  | 4:3          | 1-15fps    | x     | x     | Full    |
-+------------+--------------+------------+-------+-------+---------+
-| 1296x972   | 4:3          | 1-42fps    | x     |       | Full    |
-+------------+--------------+------------+-------+-------+---------+
-| 1296x730   | 16:9         | 1-49fps    | x     |       | Full    |
-+------------+--------------+------------+-------+-------+---------+
-| 640x480    | 4:3          | 42.1-60fps | x     |       | Full    |
-+------------+--------------+------------+-------+-------+---------+
-| 640x480    | 4:3          | 60.1-90fps | x     |       | Full    |
-+------------+--------------+------------+-------+-------+---------+
-| 1920x1080  | 16:9         | 1-30fps    | x     |       | Partial |
-+------------+--------------+------------+-------+-------+---------+
++------------+--------------+------------+-------+-------+---------+---------+
+| Resolution | Aspect Ratio | Framerates | Video | Image | FoV     | Binning |
++============+==============+============+=======+=======+=========+=========+
+| 2592x1944  | 4:3          | 1-15fps    | x     | x     | Full    | None    |
++------------+--------------+------------+-------+-------+---------+---------+
+| 1296x972   | 4:3          | 1-42fps    | x     |       | Full    | 2x2     |
++------------+--------------+------------+-------+-------+---------+---------+
+| 1296x730   | 16:9         | 1-49fps    | x     |       | Full    | 2x2     |
++------------+--------------+------------+-------+-------+---------+---------+
+| 640x480    | 4:3          | 42.1-60fps | x     |       | Full    | 4x4     |
++------------+--------------+------------+-------+-------+---------+---------+
+| 640x480    | 4:3          | 60.1-90fps | x     |       | Full    | 4x4     |
++------------+--------------+------------+-------+-------+---------+---------+
+| 1920x1080  | 16:9         | 1-30fps    | x     |       | Partial | None    |
++------------+--------------+------------+-------+-------+---------+---------+
 
 .. note::
 
@@ -39,9 +39,10 @@ The Pi's camera has a discrete set of input modes which are as follows:
     FoV. Please use ``sudo rpi-update`` to upgrade to the latest firmware.
 
 Modes with full field of view (FoV) capture from the whole area of the
-camera's sensor (2592x1944 pixels). Modes with partial FoV only capture from
-the center 1920x1080 pixels. The difference between these areas is shown in the
-illustration below:
+camera's sensor (2592x1944 pixels), using the specified amount of `binning`_
+to achieve the requested resolution. Modes with partial FoV only capture from
+the center 1920x1080 pixels. The difference between these areas is shown in
+the illustration below:
 
 .. image:: sensor_area.png
     :width: 640px
@@ -99,6 +100,8 @@ A few examples are given below to clarify the operation of this heuristic:
   (temporarily) select the 2592x1944 mode while the capture is performed (this
   is what causes the flicker you sometimes see when a preview is running while
   a still image is captured).
+
+.. _binning: http://www.andor.com/learning-academy/ccd-binning-what-does-binning-mean
 
 
 .. _under_the_hood:
