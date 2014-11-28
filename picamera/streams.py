@@ -447,7 +447,7 @@ class PiCameraCircularIO(CircularIO):
             size = bitrate * seconds // 8
         super(PiCameraCircularIO, self).__init__(size)
         self.camera = camera
-        self._data = PiCameraDequeHack(camera)
+        self._data = PiCameraDequeHack(camera, splitter_port)
 
     @property
     def frames(self):
