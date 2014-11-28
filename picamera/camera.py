@@ -196,6 +196,13 @@ class PiCamera(object):
     more than one camera, and this class has not yet been tested with more than
     one module.
 
+    The *resolution* and *framerate* parameters can be used to specify an
+    initial resolution and framerate. If they are not specified, the
+    *framerate* will default to 30fps, and the *resolution* will default to the
+    connected display's resolution or 1280x720 if no display can be detected.
+    If specified, resolution must be a tuple of `(width, height)`, and
+    framerate must be a rational value (integer, float, fraction, etc).
+
     The *stereo_mode* and *stereo_decimate* parameters configure dual cameras
     on a compute module for sterescopic mode. These parameters can only be set
     at construction time; they cannot be altered later without closing the
@@ -356,7 +363,9 @@ class PiCamera(object):
     _DRC_STRENGTHS_R  = {v: k for (k, v) in DRC_STRENGTHS.items()}
     _STEREO_MODES_R   = {v: k for (k, v) in STEREO_MODES.items()}
 
-    def __init__(self, camera_num=0, stereo_mode='none', stereo_decimate=False):
+    def __init__(
+            self, camera_num=0, stereo_mode='none', stereo_decimate=False,
+            resolution=None, framerate=None):
         bcm_host.bcm_host_init()
         mimetypes.add_type('application/h264',  '.h264',  False)
         mimetypes.add_type('application/mjpeg', '.mjpg',  False)
@@ -380,9 +389,24 @@ class PiCamera(object):
             'IFD0.Model': 'RP_OV5647',
             'IFD0.Make': 'RaspberryPi',
             }
+        if resolution is None:
+            # Get screen resolution
+            w = ct.c_uint32()
+            h = ct.c_uint32()
+            if bcm_host.graphics_get_display_size(0, w, h) == -1:
+                w = 1280
+                h = 720
+            else:
+                w = int(w.value)
+                h = int(h.value)
+            resolution = (w, h)
+        if framerate is None:
+            framerate = fractions.Fraction(
+                self.DEFAULT_FRAME_RATE_NUM, self.DEFAULT_FRAME_RATE_DEN)
         try:
             self._init_camera(
-                camera_num, self.STEREO_MODES[stereo_mode], stereo_decimate)
+                camera_num, resolution, framerate,
+                self.STEREO_MODES[stereo_mode], stereo_decimate)
             self._init_defaults()
             self._init_preview()
             self._init_splitter()
@@ -403,7 +427,8 @@ class PiCamera(object):
                 # GPIO reference so we don't try anything further
                 GPIO = None
 
-    def _init_camera(self, num, stereo_mode, stereo_decimate):
+    def _init_camera(
+            self, num, resolution, framerate, stereo_mode, stereo_decimate):
         self._camera = ct.POINTER(mmal.MMAL_COMPONENT_T)()
         self._camera_config = mmal.MMAL_PARAMETER_CAMERA_CONFIG_T(
             mmal.MMAL_PARAMETER_HEADER_T(
@@ -442,15 +467,8 @@ class PiCamera(object):
                 _control_callback),
             prefix="Unable to enable control port")
 
-        # Get screen resolution
-        w = ct.c_uint32()
-        h = ct.c_uint32()
-        if bcm_host.graphics_get_display_size(0, w, h) == -1:
-            w = 1280
-            h = 720
-        else:
-            w = int(w.value)
-            h = int(h.value)
+        w, h = resolution
+        fn, fd = to_rational(framerate)
         cc = self._camera_config
         cc.max_stills_w = w
         cc.max_stills_h = h
@@ -493,8 +511,8 @@ class PiCamera(object):
             fmt[0].es[0].video.crop.width = w
             fmt[0].es[0].video.crop.height = h
             # 0 implies variable frame-rate
-            fmt[0].es[0].video.frame_rate.num = self.DEFAULT_FRAME_RATE_NUM if p != self.CAMERA_CAPTURE_PORT else 0
-            fmt[0].es[0].video.frame_rate.den = self.DEFAULT_FRAME_RATE_DEN
+            fmt[0].es[0].video.frame_rate.num = fn if p != self.CAMERA_CAPTURE_PORT else 0
+            fmt[0].es[0].video.frame_rate.den = fd if p != self.CAMERA_CAPTURE_PORT else 1
             mmal_check(
                 mmal.mmal_port_format_commit(self._camera[0].output[p]),
                 prefix="Camera %s format couldn't be set" % {
