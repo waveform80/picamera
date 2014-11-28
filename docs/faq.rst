@@ -38,6 +38,17 @@ When starting a preview, you may want to set the *alpha* parameter of the
 should ensure that when the preview is displayed, it is partially transparent
 so you can still see your console.
 
+The preview doesn't work on my PiTFT screen
+===========================================
+
+The camera's preview system directly overlays the Pi's output on the HDMI or
+composite video ports. At this time, it will not operate with GPIO-driven
+displays like the PiTFT. Some projects, like the `Adafruit Touchscreen Camera
+project`, have approximated a preview by rapidly capturing unencoded images and
+displaying them on the PiTFT instead.
+
+.. _Adafruit Touchscreen Camera project: https://learn.adafruit.com/diy-wifi-raspberry-pi-touch-cam/overview
+
 How much power does the camera require?
 =======================================
 

@@ -40,6 +40,15 @@ The firmware revision is the number after the ``#``::
                            /
       firmware revision --+
 
+.. note::
+
+    Please note that the `PiTFT`_ screen (and similar GPIO-driven screens)
+    requires a custom firmware for operation. This firmware lags behind the
+    official firmware and at the time of writing lacks several features
+    including long exposures and text overlays.
+
+.. _PiTFT: http://www.adafruit.com/product/1601
+
 
 .. _raspbian_install2:
 
