@@ -1957,12 +1957,17 @@ class PiCamera(object):
         """)
 
     def _set_camera_mode(self, old_mode, new_mode, framerate, resolution):
-        # Need some jiggery-pokery to support older firmwares here. If the old
-        # and new modes are both 0 (which would always be the case on firmware
-        # that don't support forcing the sensor mode), don't attempt to set the
-        # mode at all. Otherwise, always attempt to set the mode (even if it
-        # apparently hasn't changed as this seems to be necessary with certain
-        # mode transitions).
+        """
+        A utility method for setting a new camera mode, framerate, and
+        resolution.
+
+        This method is used by the setters of the :attr:`resolution`,
+        :attr:`framerate`, and :attr:`sensor_mode` properties. It assumes that
+        the camera has already been disabled and will be enabled after being
+        called. The *old_mode* and *new_mode* arguments are required to ensure
+        correct operation on older firmwares (specifically that we don't try to
+        set the sensor mode when both old and new modes are 0 or automatic).
+        """
         if old_mode != 0 and new_mode != 0:
             mmal_check(
                 mmal.mmal_port_parameter_set_uint32(
@@ -2095,7 +2100,7 @@ class PiCamera(object):
                 raise PiCameraValueError(
                     "Invalid sensor mode: %d (valid range 0..7)" % value)
         except TypeError:
-            raise PiCameraValueError("Invalid saturation value: %s" % value)
+            raise PiCameraValueError("Invalid sensor mode: %s" % value)
         self._disable_camera()
         self._set_camera_mode(
             old_mode=mode, new_mode=value,
