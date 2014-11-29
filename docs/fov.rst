@@ -16,21 +16,23 @@ Camera Modes
 
 The Pi's camera has a discrete set of input modes which are as follows:
 
-+------------+--------------+------------+-------+-------+---------+---------+
-| Resolution | Aspect Ratio | Framerates | Video | Image | FoV     | Binning |
-+============+==============+============+=======+=======+=========+=========+
-| 2592x1944  | 4:3          | 1-15fps    | x     | x     | Full    | None    |
-+------------+--------------+------------+-------+-------+---------+---------+
-| 1296x972   | 4:3          | 1-42fps    | x     |       | Full    | 2x2     |
-+------------+--------------+------------+-------+-------+---------+---------+
-| 1296x730   | 16:9         | 1-49fps    | x     |       | Full    | 2x2     |
-+------------+--------------+------------+-------+-------+---------+---------+
-| 640x480    | 4:3          | 42.1-60fps | x     |       | Full    | 4x4     |
-+------------+--------------+------------+-------+-------+---------+---------+
-| 640x480    | 4:3          | 60.1-90fps | x     |       | Full    | 4x4     |
-+------------+--------------+------------+-------+-------+---------+---------+
-| 1920x1080  | 16:9         | 1-30fps    | x     |       | Partial | None    |
-+------------+--------------+------------+-------+-------+---------+---------+
++---+------------+--------------+-------------+-------+-------+---------+---------+
+| # | Resolution | Aspect Ratio | Framerates  | Video | Image | FoV     | Binning |
++===+============+==============+=============+=======+=======+=========+=========+
+| 1 | 1920x1080  | 16:9         | 1-30fps     | x     |       | Partial | None    |
++---+------------+--------------+-------------+-------+-------+---------+---------+
+| 2 | 2592x1944  | 4:3          | 1-15fps     | x     | x     | Full    | None    |
++---+------------+--------------+-------------+-------+-------+---------+---------+
+| 3 | 2592x1944  | 4:3          | 0.1666-1fps | x     | x     | Full    | None    |
++---+------------+--------------+-------------+-------+-------+---------+---------+
+| 4 | 1296x972   | 4:3          | 1-42fps     | x     |       | Full    | 2x2     |
++---+------------+--------------+-------------+-------+-------+---------+---------+
+| 5 | 1296x730   | 16:9         | 1-49fps     | x     |       | Full    | 2x2     |
++---+------------+--------------+-------------+-------+-------+---------+---------+
+| 6 | 640x480    | 4:3          | 42.1-60fps  | x     |       | Full    | 4x4     |
++---+------------+--------------+-------------+-------+-------+---------+---------+
+| 7 | 640x480    | 4:3          | 60.1-90fps  | x     |       | Full    | 4x4     |
++---+------------+--------------+-------------+-------+-------+---------+---------+
 
 .. note::
 
@@ -48,10 +50,12 @@ the illustration below:
     :width: 640px
     :align: center
 
-Which input mode is used cannot be *directly* controlled, but is selected based
-on the requested :attr:`~picamera.PiCamera.resolution` and
-:attr:`~picamera.PiCamera.framerate`. The rules governing which input mode is
-selected are as follows:
+The input mode can be manually specified with the *sensor_mode* parameter in
+the :class:`~picamera.PiCamera` constructor (using one of the values from the #
+column in the table above). This defaults to 0 indicating that the mode should
+be selected automatically based on the requested
+:attr:`~picamera.PiCamera.resolution` and :attr:`~picamera.PiCamera.framerate`.
+The rules governing which input mode is selected are as follows:
 
 * The mode must be acceptable. Video modes can be used for video recording,
   or for image captures from the video port (i.e. when *use_video_port* is

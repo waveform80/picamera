@@ -57,7 +57,7 @@ camera encoders), and the concrete encoder classes: :class:`PiVideoEncoder`,
 PiCamera
 ========
 
-.. autoclass:: PiCamera()
+.. autoclass:: PiCamera
     :members:
     :private-members:
 

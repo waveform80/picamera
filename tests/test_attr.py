@@ -344,6 +344,18 @@ def test_preview_hflip(camera, previewing):
     if previewing:
         boolean_attr(camera.preview, 'hflip')
 
+@pytest.mark.xfail(reason="Fails when camera init uses mode 0")
+def test_sensor_mode(camera, previewing):
+    save_mode = camera.sensor_mode
+    try:
+        for mode in range(8):
+            camera.sensor_mode = mode
+            assert camera.sensor_mode == mode
+        with pytest.raises(picamera.PiCameraError):
+            camera.sensor_mode = 10
+    finally:
+        camera.sensor_mode = save_mode
+
 def test_framerate(camera, previewing):
     save_framerate = camera.framerate
     try:

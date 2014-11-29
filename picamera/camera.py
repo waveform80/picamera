@@ -197,11 +197,19 @@ class PiCamera(object):
     one module.
 
     The *resolution* and *framerate* parameters can be used to specify an
-    initial resolution and framerate. If they are not specified, the
-    *framerate* will default to 30fps, and the *resolution* will default to the
-    connected display's resolution or 1280x720 if no display can be detected.
+    initial :attr:`resolution` and :attr:`framerate`. If they are not
+    specified, the *framerate* will default to 30fps, and the *resolution* will
+    default to the connected display's resolution or 1280x720 if no display can
+    be detected (e.g. if the display has been disabled with ``tvservice -o``).
     If specified, resolution must be a tuple of `(width, height)`, and
     framerate must be a rational value (integer, float, fraction, etc).
+
+    The *sensor_mode* parameter can be used to force the camera's initial
+    :attr:`sensor_mode` to a particular value. This defaults to 0 indicating
+    that the sensor mode should be selected automatically based on the
+    requested *resolution* and *framerate*. The possible values for this
+    parameter, along with a description of the heuristic used with the default
+    can be found in the :ref:`camera_modes` section.
 
     The *stereo_mode* and *stereo_decimate* parameters configure dual cameras
     on a compute module for sterescopic mode. These parameters can only be set
@@ -218,10 +226,6 @@ class PiCamera(object):
         Stereoscopic mode is untested in picamera at this time. If you have the
         necessary hardware, the author would be most interested to hear of your
         experiences!
-
-    The :attr:`resolution` of the camera is initially set to the display's
-    resolution unless the display has been disabled (e.g. with ``tvservice
-    -o``) in which case a default of 1280x720 is used.
 
     No preview or recording is started automatically upon construction.  Use
     the :meth:`capture` method to capture images, the :meth:`start_recording`
@@ -365,7 +369,7 @@ class PiCamera(object):
 
     def __init__(
             self, camera_num=0, stereo_mode='none', stereo_decimate=False,
-            resolution=None, framerate=None):
+            resolution=None, framerate=None, sensor_mode=0):
         bcm_host.bcm_host_init()
         mimetypes.add_type('application/h264',  '.h264',  False)
         mimetypes.add_type('application/mjpeg', '.mjpg',  False)
@@ -405,7 +409,7 @@ class PiCamera(object):
                 self.DEFAULT_FRAME_RATE_NUM, self.DEFAULT_FRAME_RATE_DEN)
         try:
             self._init_camera(
-                camera_num, resolution, framerate,
+                camera_num, sensor_mode, resolution, framerate,
                 self.STEREO_MODES[stereo_mode], stereo_decimate)
             self._init_defaults()
             self._init_preview()
@@ -428,7 +432,8 @@ class PiCamera(object):
                 GPIO = None
 
     def _init_camera(
-            self, num, resolution, framerate, stereo_mode, stereo_decimate):
+            self, num, sensor_mode, resolution, framerate,
+            stereo_mode, stereo_decimate):
         self._camera = ct.POINTER(mmal.MMAL_COMPONENT_T)()
         self._camera_config = mmal.MMAL_PARAMETER_CAMERA_CONFIG_T(
             mmal.MMAL_PARAMETER_HEADER_T(
@@ -460,6 +465,17 @@ class PiCamera(object):
         mmal_check(
             mmal.mmal_port_parameter_set(self._camera[0].control, mp.hdr),
             prefix="Unable to select camera %d" % num)
+
+        if sensor_mode != 0:
+            # Don't set sensor mode if 0 is selected, to support older
+            # firmwares
+            mmal_check(
+                mmal.mmal_port_parameter_set_uint32(
+                    self._camera[0].control,
+                    mmal.MMAL_PARAMETER_CAMERA_CUSTOM_SENSOR_CONFIG,
+                    sensor_mode
+                    ),
+                prefix="Failed to set sensor mode")
 
         mmal_check(
             mmal.mmal_port_enable(
@@ -1940,16 +1956,23 @@ class PiCamera(object):
             been initialized, but the camera has not yet returned any frames.
         """)
 
-    def _get_framerate(self):
-        self._check_camera_open()
-        fmt = self._camera[0].output[self.CAMERA_VIDEO_PORT][0].format[0].es[0]
-        return PiCameraFraction(fmt.video.frame_rate.num, fmt.video.frame_rate.den)
-    def _set_framerate(self, value):
-        self._check_camera_open()
-        self._check_recording_stopped()
-        n, d = to_rational(value)
-        if not (0 <= n / d <= 90):
-            raise PiCameraValueError("Invalid framerate: %.2ffps" % (n / d))
+    def _set_camera_mode(self, old_mode, new_mode, framerate, resolution):
+        # Need some jiggery-pokery to support older firmwares here. If the old
+        # and new modes are both 0 (which would always be the case on firmware
+        # that don't support forcing the sensor mode), don't attempt to set the
+        # mode at all. Otherwise, always attempt to set the mode (even if it
+        # apparently hasn't changed as this seems to be necessary with certain
+        # mode transitions).
+        if old_mode != 0 and new_mode != 0:
+            mmal_check(
+                mmal.mmal_port_parameter_set_uint32(
+                    self._camera[0].control,
+                    mmal.MMAL_PARAMETER_CAMERA_CUSTOM_SENSOR_CONFIG,
+                    new_mode
+                    ),
+                prefix="Failed to set sensor mode")
+        w, h = resolution
+        n, d = framerate
         if n / d >= 1.0:
             fps_low = 1
             fps_high = 30
@@ -1959,7 +1982,14 @@ class PiCamera(object):
         else:
             fps_low = fractions.Fraction(50, 1000)
             fps_high = fractions.Fraction(166, 1000)
-        self._disable_camera()
+        self._camera_config.max_stills_w = w
+        self._camera_config.max_stills_h = h
+        self._camera_config.max_preview_video_w = w
+        self._camera_config.max_preview_video_h = h
+        mmal_check(
+            mmal.mmal_port_parameter_set(
+                self._camera[0].control, self._camera_config.hdr),
+            prefix="Failed to set preview resolution")
         for port_num in self.CAMERA_PORTS:
             port = self._camera[0].output[port_num]
             mp = mmal.MMAL_PARAMETER_FPS_RANGE_T(
@@ -1973,13 +2003,36 @@ class PiCamera(object):
             mmal_check(
                 mmal.mmal_port_parameter_set(port, mp.hdr),
                 prefix="Framerate limits couldn't be set on port %d" % port_num)
+            fmt = port[0].format[0].es[0]
+            fmt.video.width = mmal.VCOS_ALIGN_UP(w, 32)
+            fmt.video.height = mmal.VCOS_ALIGN_UP(h, 16)
+            fmt.video.crop.x = 0
+            fmt.video.crop.y = 0
+            fmt.video.crop.width = w
+            fmt.video.crop.height = h
             if port_num != self.CAMERA_CAPTURE_PORT:
-                fmt = port[0].format[0].es[0]
                 fmt.video.frame_rate.num = n
                 fmt.video.frame_rate.den = d
-                mmal_check(
-                    mmal.mmal_port_format_commit(port),
-                    prefix="Camera video format couldn't be set on port %d" % port_num)
+            mmal_check(
+                mmal.mmal_port_format_commit(port),
+                prefix="Camera video format couldn't be set on port %d" % port_num)
+
+    def _get_framerate(self):
+        self._check_camera_open()
+        fmt = self._camera[0].output[self.CAMERA_VIDEO_PORT][0].format[0].es[0]
+        return PiCameraFraction(fmt.video.frame_rate.num, fmt.video.frame_rate.den)
+    def _set_framerate(self, value):
+        self._check_camera_open()
+        self._check_recording_stopped()
+        mode = self.sensor_mode
+        resolution = self.resolution
+        n, d = to_rational(value)
+        if not (0 <= n / d <= 90):
+            raise PiCameraValueError("Invalid framerate: %.2ffps" % (n / d))
+        self._disable_camera()
+        self._set_camera_mode(
+            old_mode=mode, new_mode=mode,
+            framerate=(n, d), resolution=resolution)
         self._enable_camera()
     framerate = property(_get_framerate, _set_framerate, doc="""
         Retrieves or sets the framerate at which video-port based image
@@ -2013,8 +2066,62 @@ class PiCamera(object):
             This attribute, in combination with :attr:`resolution`, determines
             the mode that the camera operates in. The actual sensor framerate
             and resolution used by the camera is influenced, but not directly
-            set, by this property. See :ref:`camera_modes` for more
+            set, by this property. See :attr:`sensor_mode` for more
             information.
+
+        The initial value of this property can be specified with the
+        *framerate* parameter in the :class:`PiCamera` constructor.
+        """)
+
+    def _get_sensor_mode(self):
+        self._check_camera_open()
+        mp = ct.c_uint32()
+        mmal_check(
+            mmal.mmal_port_parameter_get_uint32(
+                self._camera[0].control,
+                mmal.MMAL_PARAMETER_CAMERA_CUSTOM_SENSOR_CONFIG,
+                mp
+                ),
+            prefix="Failed to get sensor mode")
+        return mp.value
+    def _set_sensor_mode(self, value):
+        self._check_camera_open()
+        self._check_recording_stopped()
+        mode = self.sensor_mode
+        resolution = self.resolution
+        framerate = to_rational(self.framerate)
+        try:
+            if not (0 <= value <= 7):
+                raise PiCameraValueError(
+                    "Invalid sensor mode: %d (valid range 0..7)" % value)
+        except TypeError:
+            raise PiCameraValueError("Invalid saturation value: %s" % value)
+        self._disable_camera()
+        self._set_camera_mode(
+            old_mode=mode, new_mode=value,
+            framerate=framerate, resolution=resolution)
+        self._enable_camera()
+    sensor_mode = property(_get_sensor_mode, _set_sensor_mode, doc="""
+        Retrieves or sets the input mode of the camera's sensor.
+
+        This is an advanced property which can be used to control the camera's
+        sensor mode. By default, mode 0 is used which allows the camera to
+        automatically select an input mode based on the requested
+        :attr:`resolution` and :attr:`framerate`. Valid values are currently
+        between 0 and 7. The set of valid sensor modes (along with the
+        heuristic used to select one automatically) are detailed in the
+        :ref:`camera_modes` section of the documentation.
+
+        .. note::
+
+            At the time of writing, setting this property does nothing unless
+            the camera has been initialized with a sensor mode other than 0.
+            Furthermore, some mode transitions appear to require setting the
+            property twice (in a row). This appears to be a firmware
+            limitation.
+
+        The initial value of this property can be specified with the
+        *sensor_mode* parameter in the :class:`PiCamera` constructor.
         """)
 
     def _get_resolution(self):
@@ -2026,36 +2133,17 @@ class PiCamera(object):
     def _set_resolution(self, value):
         self._check_camera_open()
         self._check_recording_stopped()
-        f = self.framerate
+        mode = self.sensor_mode
+        framerate = self.framerate
         try:
             w, h = value
         except (TypeError, ValueError) as e:
             raise PiCameraValueError(
                 "Invalid resolution (width, height) tuple: %s" % value)
         self._disable_camera()
-        self._camera_config.max_stills_w = w
-        self._camera_config.max_stills_h = h
-        self._camera_config.max_preview_video_w = w
-        self._camera_config.max_preview_video_h = h
-        mmal_check(
-            mmal.mmal_port_parameter_set(
-                self._camera[0].control, self._camera_config.hdr),
-            prefix="Failed to set preview resolution")
-        for port_num in self.CAMERA_PORTS:
-            port = self._camera[0].output[port_num]
-            fmt = port[0].format[0].es[0]
-            fmt.video.width = mmal.VCOS_ALIGN_UP(w, 32)
-            fmt.video.height = mmal.VCOS_ALIGN_UP(h, 16)
-            fmt.video.crop.x = 0
-            fmt.video.crop.y = 0
-            fmt.video.crop.width = w
-            fmt.video.crop.height = h
-            if port != self.CAMERA_CAPTURE_PORT:
-                fmt.video.frame_rate.num = f.numerator
-                fmt.video.frame_rate.den = f.denominator
-            mmal_check(
-                mmal.mmal_port_format_commit(port),
-                prefix="Camera video format couldn't be set on port %d" % port_num)
+        self._set_camera_mode(
+            old_mode=mode, new_mode=mode,
+            framerate=framerate, resolution=(w, h))
         self._enable_camera()
     resolution = property(_get_resolution, _set_resolution, doc="""
         Retrieves or sets the resolution at which image captures, video
@@ -2081,8 +2169,11 @@ class PiCamera(object):
             This attribute, in combination with :attr:`framerate`, determines
             the mode that the camera operates in. The actual sensor framerate
             and resolution used by the camera is influenced, but not directly
-            set, by this property. See :ref:`camera_modes` for more
+            set, by this property. See :attr:`sensor_mode` for more
             information.
+
+        The initial value of this property can be specified with the
+        *resolution* parameter in the :class:`PiCamera` constructor.
         """)
 
     def _get_still_encoding(self):
