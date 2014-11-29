@@ -340,18 +340,15 @@ class PiCameraDequeHack(deque):
         super(PiCameraDequeHack, self).__init__()
         self.camera = camera
         self.splitter_port = splitter_port
-        self._last_frame = None
 
     def append(self, item):
         encoder = self.camera._encoders[self.splitter_port]
-        if self._last_frame:
-            assert self._last_frame <= encoder.frame.index
-            if self._last_frame == encoder.frame.index:
-                return super(PiCameraDequeHack, self).append((item, None))
-        # If the chunk being appended is the end of a new frame, include
-        # the frame's metadata from the camera
-        self._last_frame = encoder.frame.index
-        return super(PiCameraDequeHack, self).append((item, encoder.frame))
+        if encoder.frame.complete:
+            # If the chunk being appended is the end of a new frame, include
+            # the frame's metadata from the camera
+            return super(PiCameraDequeHack, self).append((item, encoder.frame))
+        else:
+            return super(PiCameraDequeHack, self).append((item, None))
 
     def pop(self):
         return super(PiCameraDequeHack, self).pop()[0]
@@ -385,6 +382,7 @@ class PiCameraDequeHack(deque):
                     video_size=pos,
                     split_size=pos,
                     timestamp=frame.timestamp,
+                    complete=frame.complete,
                     )
                 # Only yield the frame meta-data if the start of the frame
                 # still exists in the stream

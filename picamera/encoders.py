@@ -99,6 +99,7 @@ class PiVideoFrame(namedtuple('PiVideoFrame', (
     'video_size',    # the size (in bytes) of the video so far
     'split_size',    # the size (in bytes) of the video since the last split
     'timestamp',     # the presentation timestamp (PTS) of the frame
+    'complete',      # whether the frame is complete or not
     ))):
     """
     This class is a namedtuple derivative used to store information about a
@@ -109,8 +110,8 @@ class PiVideoFrame(namedtuple('PiVideoFrame', (
     .. attribute:: index
 
         Returns the zero-based number of the frame. This is a monotonic counter
-        that is simply incremented every time the camera returns a frame-end
-        buffer. As a consequence, this attribute cannot be used to detect
+        that is simply incremented every time the camera starts outputting a
+        new frame. As a consequence, this attribute cannot be used to detect
         dropped frames. Nor does it necessarily represent actual frames; it
         will be incremented for SPS headers and motion data buffers too.
 
@@ -122,18 +123,18 @@ class PiVideoFrame(namedtuple('PiVideoFrame', (
 
     .. attribute:: frame_size
 
-        Returns the size in bytes of the current frame.
+        Returns the size in bytes of the current frame. If a frame is written
+        in multiple chunks, this value will increment while :attr:`index`
+        remains static. Query :attr:`complete` to determine whether the frame
+        has been completely output yet.
 
     .. attribute:: video_size
 
         Returns the size in bytes of the entire video up to the current frame.
         Note that this is unlikely to match the size of the actual file/stream
-        written so far. Firstly this is because the frame attribute is only
-        updated when the encoder outputs the *end* of a frame, which will cause
-        the reported size to be smaller than the actual amount written.
-        Secondly this is because a stream may utilize buffering which will
-        cause the actual amount written (e.g. to disk) to lag behind the value
-        reported by this attribute.
+        written so far. This is because a stream may utilize buffering which
+        will cause the actual amount written (e.g. to disk) to lag behind the
+        value reported by this attribute.
 
     .. attribute:: split_size
 
@@ -158,9 +159,18 @@ class PiVideoFrame(namedtuple('PiVideoFrame', (
             are querying this property you will need to check the value is not
             ``None`` before using it.
 
+    .. attribute:: complete
+
+        Returns a bool indicating whether the current frame is complete or not.
+        If the frame is complete then :attr:`frame_size` will not increment
+        any further, and will reset for the next frame.
+
     .. versionchanged:: 1.5
         Deprecated :attr:`header` and :attr:`keyframe` attributes and added the
         new :attr:`frame_type` attribute instead.
+
+    .. versionchanged:: 1.9
+        Added the :attr:`complete` attribute.
     """
 
     @property
@@ -1051,14 +1061,14 @@ class PiVideoEncoder(PiEncoder):
         """
         Extended to initialize video frame meta-data tracking.
         """
-        self._size = 0 # internal counter for frame size
         self.frame = PiVideoFrame(
-                index=-1,
+                index=0,
                 frame_type=None,
                 frame_size=0,
                 video_size=0,
                 split_size=0,
                 timestamp=0,
+                complete=False,
                 )
         if motion_output is not None:
             self._open_output(motion_output, PiVideoFrameType.motion_data)
@@ -1101,33 +1111,38 @@ class PiVideoEncoder(PiEncoder):
         splitting video recording to the next output when :meth:`split` is
         called.
         """
-        self._size += buf[0].length
-        if buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_FRAME_END:
-            self.frame = PiVideoFrame(
-                    index=self.frame.index + 1,
-                    frame_type=
-                        PiVideoFrameType.key_frame
-                        if buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_KEYFRAME else
-                        PiVideoFrameType.sps_header
-                        if buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_CONFIG else
-                        PiVideoFrameType.motion_data
-                        if buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_CODECSIDEINFO else
-                        PiVideoFrameType.frame,
-                    frame_size=self._size,
-                    video_size=
-                        self.frame.video_size
-                        if buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_CODECSIDEINFO else
-                        self.frame.video_size + self._size,
-                    split_size=
-                        self.frame.split_size
-                        if buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_CODECSIDEINFO else
-                        self.frame.split_size + self._size,
-                    timestamp=
-                        None
-                        if buf[0].pts in (0, mmal.MMAL_TIME_UNKNOWN) else
-                        buf[0].pts,
-                    )
-            self._size = 0
+        self.frame = PiVideoFrame(
+            index=
+                self.frame.index + 1
+                if self.frame.complete else
+                self.frame.index,
+            frame_type=
+                PiVideoFrameType.key_frame
+                if buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_KEYFRAME else
+                PiVideoFrameType.sps_header
+                if buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_CONFIG else
+                PiVideoFrameType.motion_data
+                if buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_CODECSIDEINFO else
+                PiVideoFrameType.frame,
+            frame_size=
+                buf[0].length
+                if self.frame.complete else
+                self.frame.frame_size + buf[0].length,
+            video_size=
+                self.frame.video_size
+                if buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_CODECSIDEINFO else
+                self.frame.video_size + buf[0].length,
+            split_size=
+                self.frame.split_size
+                if buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_CODECSIDEINFO else
+                self.frame.split_size + buf[0].length,
+            timestamp=
+                None
+                if buf[0].pts in (0, mmal.MMAL_TIME_UNKNOWN) else
+                buf[0].pts,
+            complete=
+                bool(buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_FRAME_END),
+            )
         if self.format != 'h264' or (buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_CONFIG):
             with self.outputs_lock:
                 try:
@@ -1146,6 +1161,7 @@ class PiVideoEncoder(PiEncoder):
                                 video_size=self.frame.video_size,
                                 split_size=0,
                                 timestamp=self.frame.timestamp,
+                                complete=self.frame.complete,
                                 )
                 self.event.set()
         if buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_CODECSIDEINFO:
