@@ -254,6 +254,9 @@ def test_video_denoise(camera, previewing):
 def test_image_denoise(camera, previewing):
     boolean_attr(camera, 'image_denoise')
 
+def test_still_stats(camera, previewing):
+    boolean_attr(camera, 'still_stats')
+
 def test_hflip(camera, previewing):
     boolean_attr(camera, 'hflip')
 

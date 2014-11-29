@@ -254,6 +254,12 @@ class PiCamera(object):
         with PiCamera() as camera:
             # do something with the camera
             pass
+
+    .. versionchanged:: 1.8
+        Added *stereo_mode* and *stereo_decimate* parameters
+
+    .. versionchanged:: 1.9
+        Added *resolution*, *framerate*, and *sensor_mode* parameters
     """
 
     CAMERA_PREVIEW_PORT = 0
@@ -2127,6 +2133,8 @@ class PiCamera(object):
 
         The initial value of this property can be specified with the
         *sensor_mode* parameter in the :class:`PiCamera` constructor.
+
+        .. versionadded:: 1.9
         """)
 
     def _get_resolution(self):
@@ -2179,6 +2187,51 @@ class PiCamera(object):
 
         The initial value of this property can be specified with the
         *resolution* parameter in the :class:`PiCamera` constructor.
+        """)
+
+    def _get_still_stats(self):
+        self._check_camera_open()
+        mp = mmal.MMAL_BOOL_T()
+        mmal_check(
+            mmal.mmal_port_parameter_get_boolean(
+                self._camera[0].control,
+                mmal.MMAL_PARAMETER_CAPTURE_STATS_PASS,
+                mp
+                ),
+            prefix="Failed to get still statistics pass")
+        return mp.value != mmal.MMAL_FALSE
+    def _set_still_stats(self, value):
+        self._check_camera_open()
+        mmal_check(
+            mmal.mmal_port_parameter_set_boolean(
+                self._camera[0].control,
+                mmal.MMAL_PARAMETER_CAPTURE_STATS_PASS,
+                (mmal.MMAL_FALSE, mmal.MMAL_TRUE)[bool(value)]
+                ),
+            prefix="Failed to set still statistics pass")
+    still_stats = property(_get_still_stats, _set_still_stats, doc="""
+        Retrieves or sets whether statistics will be calculated from still
+        frames or the prior preview frame.
+
+        When queried, the :attr:`still_stats` property returns a boolean value
+        indicating when scene statistics will be calculated for still captures
+        (that is, captures where the *use_video_port* parameter of
+        :meth:`capture` is ``False``).  When this property is ``False`` (the
+        default), statistics will be calculated from the preceding preview
+        frame (this also applies when the preview is not visible). When `True`,
+        statistics will be calculated from the captured image itself.
+
+        When set, the propetry controls when scene statistics will be
+        calculated for still captures. The property can be set while recordings
+        or previews are in progress. The default value is ``False``.
+
+        The advantages to calculating scene statistics from the captured image
+        are that time between startup and capture is reduced as only the AGC
+        (automatic gain control) has to converge. The downside is that
+        processing time for captures increases and that white balance and gain
+        won't necessarily match the preview.
+
+        .. versionadded:: 1.9
         """)
 
     def _get_still_encoding(self):
