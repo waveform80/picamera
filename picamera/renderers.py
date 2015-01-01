@@ -508,6 +508,12 @@ class PiOverlayRenderer(PiRenderer):
 
         self.update(source)
 
+    def close(self):
+        super(PiOverlayRenderer, self).close()
+        if self.pool:
+            mmal.mmal_pool_destroy(self.pool)
+            self.pool = None
+
     def update(self, source):
         """
         Update the overlay with a new source of data.
