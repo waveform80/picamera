@@ -103,7 +103,7 @@ def verify_video(filename_or_obj, format, resolution):
                     r'Video: %s( \(.*\))?, '
                     r'yuvj?420p, '
                     r'%dx%d( \[PAR \d+:\d+ DAR \d+:\d+\])?, '
-                    r'\d+ fps, \d+ tbr, \d+k? tbn, \d+k? tbc$' % (
+                    r'\d+ fps, \d+ tbr, \d+k? tbn(, \d+k? tbc)?$' % (
                         format, width, height),
                     line
                     ), 'Unexpected avconv output: %s' % line
