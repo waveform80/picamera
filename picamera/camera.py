@@ -2907,6 +2907,16 @@ class PiCamera(object):
         When set, the property adjusts the camera's exposure mode.  The
         property can be set while recordings or previews are in progress. The
         default value is ``'auto'``.
+
+        .. note::
+
+            Exposure mode ``'off'`` is special: this disables the camera's
+            automatic gain control, fixing the values of :attr:`digital_gain`
+            and :attr:`analog_gain`. Please note that these properties are not
+            directly settable, and default to low values when the camera is
+            first initialized. Therefore it is important to let them settle on
+            higher values before disabling automatic gain control otherwise
+            all frames captured will appear black.
         """.format(values=docstring_values(EXPOSURE_MODES)))
 
     def _get_awb_mode(self):
@@ -2939,7 +2949,7 @@ class PiCamera(object):
         Retrieves or sets the auto-white-balance mode of the camera.
 
         When queried, the :attr:`awb_mode` property returns a string
-        representing the auto-white-balance setting of the camera. The possible
+        representing the auto white balance setting of the camera. The possible
         values can be obtained from the ``PiCamera.AWB_MODES`` attribute, and
         are as follows:
 
@@ -2948,6 +2958,12 @@ class PiCamera(object):
         When set, the property adjusts the camera's auto-white-balance mode.
         The property can be set while recordings or previews are in progress.
         The default value is ``'auto'``.
+
+        .. note::
+
+            AWB mode ``'off'`` is special: this disables the camera's automatic
+            white balance permitting manual control of the white balance via
+            the :attr:`awb_gains` property.
         """.format(values=docstring_values(AWB_MODES)))
 
     def _get_awb_gains(self):

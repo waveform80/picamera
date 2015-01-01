@@ -199,27 +199,28 @@ ensure consistency across multiple shots. Specifically, you need to ensure that
 the camera's exposure time, white balance, and gains are all fixed:
 
 * To fix exposure time, set the :attr:`~picamera.PiCamera.shutter_speed`
-  attribute to a reasonable value, then set
+  attribute to a reasonable value.
+* To fix exposure gains, let :attr:`~picamera.PiCamera.analog_gain` and
+  :attr:`~picamera.PiCamera.digital_gain` settle on reasonable values, then set
   :attr:`~picamera.PiCamera.exposure_mode` to ``'off'``.
-* To fix gains, set the :attr:`~picamera.PiCamera.iso` attribute to an
-  appropriate value (higher values imply higher gains).
 * To fix white balance, set the :attr:`~picamera.PiCamera.awb_mode` to
   ``'off'``, then set :attr:`~picamera.PiCamera.awb_gains` to a (red, blue)
   tuple of gains.
+* Optionally, set :attr:`~picamera.PiCamera.iso` to a fixed value.
 
 It can be difficult to know what appropriate values might be for these
 attributes.  For :attr:`~picamera.PiCamera.iso`, a simple rule of thumb is that
 100 and 200 are reasonable values for daytime, while 400 and 800 are better for
 low light. To determine a reasonable value for
 :attr:`~picamera.PiCamera.shutter_speed` you can query the
-:attr:`~picamera.PiCamera.exposure_speed` attribute when
-:attr:`~picamera.PiCamera.exposure_mode` is set to something other than
-``'off'``. This will tell you the camera's exposure speed as determined by the
-auto-exposure algorithm. FInally, to determine reasonable values for
-:attr:`~picamera.PiCamera.awb_gains` simply query the property while
-:attr:`~picamera.PiCamera.awb_mode` is set to something other than ``'off'``.
-Again, this will tell you the camera's white balance gains as determined by the
-auto-white-balance algorithm.
+:attr:`~picamera.PiCamera.exposure_speed` attribute.  For exposure gains, it's
+usually enough to wait until :attr:`~picamera.PiCamera.analog_gain` is greater
+than 1 (the default, which will produce entirely black frames) before
+:attr:`~picamera.PiCamera.exposure_mode` is set to ``'off'``.  Finally, to
+determine reasonable values for :attr:`~picamera.PiCamera.awb_gains` simply
+query the property while :attr:`~picamera.PiCamera.awb_mode` is set to
+something other than ``'off'``.  Again, this will tell you the camera's white
+balance gains as determined by the auto-white-balance algorithm.
 
 The following script provides a brief example of configuring these settings::
 
@@ -229,10 +230,9 @@ The following script provides a brief example of configuring these settings::
     with picamera.PiCamera() as camera:
         camera.resolution = (1280, 720)
         camera.framerate = 30
-        # Give the camera's auto-exposure and auto-white-balance algorithms
-        # some time to measure the scene and determine appropriate values
-        camera.iso = 200
-        time.sleep(2)
+        # Wait for analog gain to settle on a higher value than 1
+        while camera.analog_gain <= 1:
+            time.sleep(0.1)
         # Now fix the values
         camera.shutter_speed = camera.exposure_speed
         camera.exposure_mode = 'off'
