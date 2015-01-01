@@ -88,7 +88,7 @@ def format_options(request):
 def expected_failures(resolution, format, options):
     if resolution == (2592, 1944) and 'resize' not in options:
         pytest.xfail('Cannot encode video at max resolution')
-    if resolution[1] > 480 and format == 'mjpeg':
+    if resolution[1] > 1080 and format == 'mjpeg':
         pytest.xfail('Locks up camera')
 
 
