@@ -5,6 +5,55 @@ Change log
 ==========
 
 
+Release 1.9 (2015-01-01)
+========================
+
+1.9 consists mostly of bug fixes with a couple of minor new features:
+
+* The camera's sensor mode can now be forced to a particular setting upon
+  camera initialization with the new ``sensor_mode`` parameter to
+  :class:`~picamera.PiCamera` (`#165`_)
+* The camera's initial framerate and resolution can also be specified as
+  keyword arguments to the :class:`~picamera.PiCamera` initializer. This is
+  primarily intended to reduce initialization time (`#180`_)
+* Added the :attr:`~picamera.PiCamera.still_stats` attribute which controls
+  whether an extra statistics pass is made when capturing images from the still
+  port (`#166`_)
+* Fixed the :attr:`~picamera.PiCamera.led` attribute so it should now work on
+  the Raspberry Pi model B+ (`#170`_)
+* Fixed a nasty memory leak in overlay renderers which caused the camera to run
+  out of memory when overlays were repeatedly created and destroyed (`#174`_)
+* Fixed a long standing issue with MJPEG recording which caused camera lockups
+  when resolutions greater than VGA were used (`#47`_ and `#179`_)
+* Fixed a bug with incorrect frame metadata in
+  :class:`~picamera.PiCameraCircularIO`. Unfortunately this required breaking
+  backwards compatibility to some extent. If you use this class and rely on the
+  frame metadata, please familiarize yourself with the new
+  :attr:`~picamera.PiVideoFrame.complete` attribute (`#177`_)
+* Fixed a bug which caused :class:`~picamera.PiCameraCircularIO` to ignore the
+  splitter port it was recording against (`#176`_)
+* Several documentation issues got fixed too (`#167`_, `#168`_, `#171`_,
+  `#172`_, `#182`_)
+
+Many thanks to the community for providing several of these fixes as pull
+requests, and thanks for all the great bug reports. Happy new year everyone!
+
+.. _#47: https://github.com/waveform80/picamera/issues/47
+.. _#165: https://github.com/waveform80/picamera/issues/165
+.. _#166: https://github.com/waveform80/picamera/issues/166
+.. _#167: https://github.com/waveform80/picamera/issues/167
+.. _#168: https://github.com/waveform80/picamera/issues/168
+.. _#170: https://github.com/waveform80/picamera/issues/170
+.. _#171: https://github.com/waveform80/picamera/issues/171
+.. _#172: https://github.com/waveform80/picamera/issues/172
+.. _#174: https://github.com/waveform80/picamera/issues/174
+.. _#176: https://github.com/waveform80/picamera/issues/176
+.. _#177: https://github.com/waveform80/picamera/issues/177
+.. _#179: https://github.com/waveform80/picamera/issues/179
+.. _#180: https://github.com/waveform80/picamera/issues/180
+.. _#182: https://github.com/waveform80/picamera/issues/182
+
+
 Release 1.8 (2014-09-05)
 ========================
 
