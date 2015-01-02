@@ -1,3 +1,30 @@
+picamera (1.9-1) stable; urgency=low
+
+  * The camera's sensor mode can now be forced to a particular setting upon
+    camera initialization with the new sensor_mode parameter to PiCamera()
+    (#165)
+  * The camera's initial framerate and resolution can also be specified as
+    keyword arguments to the PiCamera initializer. This is primarily intended
+    to reduce initialization time (#180)
+  * Added the still_stats attribute which controls whether an extra statistics
+    pass is made when capturing images from the still port (#166)
+  * Fixed the led attribute so it should now work on the Raspberry Pi model B+
+    (#170)
+  * Fixed a nasty memory leak in overlay renderers which caused the camera to
+    run out of memory when overlays were repeatedly created and destroyed
+    (#174)
+  * Fixed a long standing issue with MJPEG recording which caused camera
+    lockups when resolutions greater than VGA were used (#47 and #179)
+  * Fixed a bug with incorrect frame metadata in PiCameraCircularIO.
+    Unfortunately this required breaking backwards compatibility to some
+    extent. If you use this class and rely on the frame metadata, please
+    familiarize yourself with the new complete attribute (#177)
+  * Fixed a bug which caused PiCameraCircularIO to ignore the splitter port it
+    was recording against (#176)
+  * Several documentation issues got fixed too (#167, #168, #171, #172, #182)
+
+ -- Dave Hughes <dave@waveform.org.uk>  Fri, 02 Jan 2015 02:51:24 +0000
+
 picamera (1.8-1) stable; urgency=low
 
   * A new chapter on detecting and correcting deprecated functionality was
