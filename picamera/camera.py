@@ -158,7 +158,7 @@ def to_rational(value):
                         "int, float, Decimal, or Fraction instead"))
             except (TypeError, ValueError):
                 # try and convert anything else (e.g. Decimal) to a Fraction
-                value = Fraction(value)
+                value = fractions.Fraction(value)
                 n, d = value.numerator, value.denominator
     # Ensure denominator is reasonable
     if d == 0:

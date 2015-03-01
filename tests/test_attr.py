@@ -434,3 +434,8 @@ def test_resolution(camera, previewing):
     finally:
         camera.resolution = save_resolution
 
+def test_to_rational():
+    n, d = camera.to_rational(1)
+    assert d == 1
+    n, d = camera.to_rational(Decimal(1))
+    assert d == 1
