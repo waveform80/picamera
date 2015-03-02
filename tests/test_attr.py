@@ -41,6 +41,7 @@ import picamera
 import pytest
 import time
 from fractions import Fraction
+from decimal import Decimal
 
 
 def numeric_attr(camera, attr, value_min, value_max, step=1):
@@ -378,6 +379,9 @@ def test_framerate(camera, previewing):
         camera.framerate = Fraction(30, 2)
         n, d = camera.framerate
         assert n/d == 15
+        camera.framerate = Decimal(30)
+        n, d = camera.framerate
+        assert n/d == 30
         camera.framerate = 60
         n, d = camera.framerate
         assert n/d == 60
