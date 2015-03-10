@@ -23,11 +23,6 @@ release, and not all functionality may be available if you are running an older
 firmware. As an example, the :attr:`~picamera.PiCamera.annotate_text` attribute
 relies on a recent firmware; older firmwares lacked the functionality.
 
-To keep your firmware up to date use the following command, and reboot once
-successfully complete::
-
-    $ sudo rpi-update
-
 You can determine the revision of your current firmware with the following
 command::
 
@@ -39,6 +34,25 @@ The firmware revision is the number after the ``#``::
                             /
                            /
       firmware revision --+
+
+On Raspbian, the standard upgrade procedure should keep your firmware
+up to date::
+
+    $ sudo apt-get update
+    $ sudo apt-get upgrade
+
+.. warning::
+
+    Previously, these documents have suggested using the ``rpi-update`` utility
+    to update the Pi's firmware; this is now discouraged. If you have
+    previously used the ``rpi-update`` utility to update your firmware, you can
+    switch back to using ``apt`` to manage it with the following commands::
+
+        $ sudo apt-get update
+        $ sudo apt-get install --reinstall libraspberrypi0 libraspberrypi-{bin,dev,doc} raspberrypi-bootloader
+        $ sudo rm /boot/.firmware_revision
+
+    You will need to reboot after doing so.
 
 .. note::
 

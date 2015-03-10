@@ -38,7 +38,8 @@ The Pi's camera has a discrete set of input modes which are as follows:
 
     This table is accurate as of firmware revision #656. Firmwares prior to
     this had a more restricted set of modes, and all video modes had partial
-    FoV. Please use ``sudo rpi-update`` to upgrade to the latest firmware.
+    FoV. Please use ``sudo apt-get dist-upgrade`` to upgrade to the latest
+    firmware.
 
 Modes with full field of view (FoV) capture from the whole area of the
 camera's sensor (2592x1944 pixels), using the specified amount of `binning`_
