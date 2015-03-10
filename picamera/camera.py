@@ -81,12 +81,6 @@ from picamera.renderers import (
 
 try:
     import RPi.GPIO as GPIO
-    GPIO_LED_PIN = {
-        0: 5,  # compute module (XXX is this correct?)
-        1: 5,  # model B rev 1
-        2: 5,  # model B rev 2
-        3: 32, # model B+
-        }[GPIO.RPI_REVISION]
 except ImportError:
     # Can't find RPi.GPIO so just null-out the reference
     GPIO = None
@@ -227,6 +221,12 @@ class PiCamera(object):
         necessary hardware, the author would be most interested to hear of your
         experiences!
 
+    The *led_pin* parameter can be used to specify the GPIO pin which should be
+    used to control the camera's LED via the :attr:`led` attribute. If this is
+    not specified, it should default to the correct value for your Pi platform.
+    You should only need to specify this parameter if you are using a custom
+    DeviceTree blob (this is only typical on the `Compute Module`_ platform).
+
     No preview or recording is started automatically upon construction.  Use
     the :meth:`capture` method to capture images, the :meth:`start_recording`
     method to begin recording video, or the :meth:`start_preview` method to
@@ -260,6 +260,8 @@ class PiCamera(object):
 
     .. versionchanged:: 1.9
         Added *resolution*, *framerate*, and *sensor_mode* parameters
+
+    .. _Compute Module: http://www.raspberrypi.org/documentation/hardware/computemodule/cmio-camera.md
     """
 
     CAMERA_PREVIEW_PORT = 0
@@ -375,12 +377,27 @@ class PiCamera(object):
 
     def __init__(
             self, camera_num=0, stereo_mode='none', stereo_decimate=False,
-            resolution=None, framerate=None, sensor_mode=0):
+            resolution=None, framerate=None, sensor_mode=0, led_pin=None):
         bcm_host.bcm_host_init()
         mimetypes.add_type('application/h264',  '.h264',  False)
         mimetypes.add_type('application/mjpeg', '.mjpg',  False)
         mimetypes.add_type('application/mjpeg', '.mjpeg', False)
         self._used_led = False
+        if GPIO and led_pin is None:
+            try:
+                led_pin = {
+                    (0, 0): 2,  # compute module (default for cam 0)
+                    (0, 1): 30, # compute module (default for cam 1)
+                    (1, 0): 5,  # Pi 1 model B rev 1
+                    (2, 0): 5,  # Pi 1 model B rev 2 or model A
+                    (3, 0): 32, # Pi 1 model B+ or Pi 2 model B
+                    }[(GPIO.RPI_REVISION, camera_num)]
+            except KeyError:
+                raise PiCameraError(
+                        'Unable to determine default GPIO LED pin for RPi '
+                        'revision %d and camera num %d' % (
+                            GPIO.RPI_REVISION, camera_num))
+        self._led_pin = led_pin
         self._camera = None
         self._camera_config = None
         self._preview = None
@@ -430,7 +447,7 @@ class PiCamera(object):
             try:
                 GPIO.setmode(GPIO.BCM)
                 GPIO.setwarnings(False)
-                GPIO.setup(GPIO_LED_PIN, GPIO.OUT, initial=GPIO.LOW)
+                GPIO.setup(self._led_pin, GPIO.OUT, initial=GPIO.LOW)
                 self._used_led = True
             except RuntimeError:
                 # We're probably not running as root. In this case, forget the
@@ -1888,7 +1905,7 @@ class PiCamera(object):
             raise PiCameraRuntimeError(
                 "GPIO library not found, or not accessible; please install "
                 "RPi.GPIO and run the script as root")
-        GPIO.output(GPIO_LED_PIN, bool(value))
+        GPIO.output(self._led_pin, bool(value))
     led = property(None, _set_led, doc="""
         Sets the state of the camera's LED via GPIO.
 
@@ -1903,6 +1920,18 @@ class PiCamera(object):
             This is a write-only property. While it can be used to control the
             camera's LED, you cannot query the state of the camera's LED using
             this property.
+
+        .. warning::
+
+            There are circumstances in which the camera firmware may override
+            an existing LED setting. For example, in the case that the firmware
+            resets the camera (as can happen with a CSI-2 timeout), the LED may
+            also be reset. If you wish to guarantee that the LED remain off at
+            all times, you may prefer to use the ``disable_camera_led`` option
+            in `config.txt`_ (this has the added advantage that sudo privileges
+            and GPIO access are not required, at least for LED control).
+
+        .. _config.txt: http://www.raspberrypi.org/documentation/configuration/config-txt.md
         """)
 
     def _get_raw_format(self):
