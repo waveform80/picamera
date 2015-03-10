@@ -911,7 +911,7 @@ class PiVideoEncoder(PiEncoder):
     def _create_encoder(
             self, bitrate=17000000, intra_period=None, profile='high',
             quantization=0, quality=0, inline_headers=True, sei=False,
-            motion_output=None):
+            motion_output=None, intra_refresh=None):
         """
         Extends the base :meth:`~PiEncoder._create_encoder` implementation to
         configure the video encoder for H.264 or MJPEG output.
@@ -1008,6 +1008,30 @@ class PiVideoEncoder(PiEncoder):
                     mmal.mmal_port_parameter_get(self.output_port, mp.hdr),
                     prefix="Unable to get encoder intra_period")
                 self._intra_period = mp.value
+
+            if intra_refresh is not None:
+                # Get the intra-refresh structure first as there are several
+                # other fields in it which we don't wish to overwrite
+                mp = mmal.MMAL_PARAMETER_VIDEO_INTRA_REFRESH_T(
+                        mmal.MMAL_PARAMETER_HEADER_T(
+                            mmal.MMAL_PARAMETER_VIDEO_INTRA_REFRESH,
+                            ct.sizeof(mmal.MMAL_PARAMETER_VIDEO_INTRA_REFRESH_T),
+                            ))
+                # Deliberately avoid checking whether this call succeeds
+                mmal.mmal_port_parameter_get(self.output_port, mp.hdr)
+                try:
+                    mp.refresh_mode = {
+                        'cyclic':     mmal.MMAL_VIDEO_INTRA_REFRESH_CYCLIC,
+                        'adaptive':   mmal.MMAL_VIDEO_INTRA_REFRESH_ADAPTIVE,
+                        'both':       mmal.MMAL_VIDEO_INTRA_REFRESH_BOTH,
+                        'cyclicrows': mmal.MMAL_VIDEO_INTRA_REFRESH_CYCLIC_MROWS,
+                        }[intra_refresh]
+                except KeyError:
+                    raise PiCameraValueError(
+                        "Invalid intra_refresh %s" % intra_refresh)
+                mmal_check(
+                    mmal.mmal_port_parameter_set(self.output_port, mp.hdr),
+                    prefix="Unable to set encoder intra_refresh")
 
         elif self.format == 'mjpeg':
             # MJPEG doesn't have an intra_period setting as such, but as every
