@@ -38,6 +38,7 @@ from __future__ import (
 str = type('')
 
 import picamera
+from picamera.color import Color
 import pytest
 import time
 from fractions import Fraction
@@ -84,19 +85,52 @@ def test_analog_gain(camera, previewing):
     assert 0.0 <= camera.analog_gain <= 8.0
 
 def test_annotate_text(camera, previewing):
-    camera.annotate_text = ''
-    assert camera.annotate_text == u''
-    camera.annotate_text = 'foo'
-    assert camera.annotate_text == u'foo'
-    camera.annotate_text = 'foo bar baz quux xyzzy'
-    assert camera.annotate_text == u'foo bar baz quux xyzzy'
-    with pytest.raises(picamera.PiCameraValueError):
-        camera.annotate_text = ('abcd' * 64) + 'a'
-    with pytest.raises(picamera.PiCameraValueError):
-        camera.annotate_text = 'Oh lá lá'
+    save_value = camera.annotate_text
+    try:
+        camera.annotate_text = ''
+        assert camera.annotate_text == u''
+        camera.annotate_text = 'foo'
+        assert camera.annotate_text == u'foo'
+        camera.annotate_text = 'foo bar baz quux xyzzy'
+        assert camera.annotate_text == u'foo bar baz quux xyzzy'
+        with pytest.raises(picamera.PiCameraValueError):
+            camera.annotate_text = ('abcd' * 64) + 'a'
+        with pytest.raises(picamera.PiCameraValueError):
+            camera.annotate_text = 'Oh lá lá'
+    finally:
+        camera.annotate_text = save_value
+
+def test_annotate_text_size(camera, previewing):
+    numeric_attr(camera, 'annotate_text_size', 6, 160)
+
+def test_annotate_foreground(camera, previewing):
+    save_value = camera.annotate_foreground
+    try:
+        camera.annotate_foreground = Color('black')
+        camera.annotate_foreground = Color('white')
+        camera.annotate_foreground = Color.from_yuv(0.5, 0, 0)
+        with pytest.raises(picamera.PiCameraValueError):
+            camera.annotate_foreground = 'white'
+        with pytest.raises(picamera.PiCameraValueError):
+            camera.annotate_foreground = 0
+        with pytest.raises(picamera.PiCameraValueError):
+            camera.annotate_foreground = None
+    finally:
+        camera.annotate_foreground = save_value
 
 def test_annotate_background(camera, previewing):
-    boolean_attr(camera, 'annotate_background')
+    save_value = camera.annotate_background
+    try:
+        camera.annotate_background = Color('black')
+        camera.annotate_background = Color('white')
+        camera.annotate_background = Color(128, 128, 0)
+        with pytest.raises(picamera.PiCameraValueError):
+            camera.annotate_background = 'black'
+        with pytest.raises(picamera.PiCameraValueError):
+            camera.annotate_background = 0
+        camera.annotate_background = None
+    finally:
+        camera.annotate_background = save_value
 
 def test_annotate_frame_num(camera, previewing):
     boolean_attr(camera, 'annotate_frame_num')
@@ -438,8 +472,3 @@ def test_resolution(camera, previewing):
     finally:
         camera.resolution = save_resolution
 
-def test_to_rational():
-    n, d = camera.to_rational(1)
-    assert d == 1
-    n, d = camera.to_rational(Decimal(1))
-    assert d == 1

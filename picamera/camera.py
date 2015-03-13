@@ -60,6 +60,7 @@ from picamera.exc import (
     PiCameraAlreadyRecording,
     PiCameraMMALError,
     PiCameraDeprecated,
+    PiCameraFallback,
     mmal_check,
     )
 from picamera.encoders import (
@@ -78,6 +79,7 @@ from picamera.renderers import (
     PiOverlayRenderer,
     PiNullSink,
     )
+from picamera.color import Color
 
 try:
     import RPi.GPIO as GPIO
@@ -277,6 +279,7 @@ class PiCamera(object):
     MAX_VIDEO_RESOLUTION = (1920, 1080) # Deprecated - use MAX_RESOLUTION instead
     DEFAULT_FRAME_RATE_NUM = 30  # Deprecated, read framerate property instead
     DEFAULT_FRAME_RATE_DEN = 1   # Deprecated, read framerate property instead
+    DEFAULT_ANNOTATE_SIZE = 32
     VIDEO_OUTPUT_BUFFERS_NUM = 3 # Deprecated, no replacement
     CAPTURE_TIMEOUT = 30
 
@@ -412,6 +415,7 @@ class PiCamera(object):
         self._overlays = []
         self._raw_format = 'yuv'
         self._image_effect_params = None
+        self._annotate_v3 = None
         self._exif_tags = {
             'IFD0.Model': 'RP_OV5647',
             'IFD0.Make': 'RaspberryPi',
@@ -583,6 +587,24 @@ class PiCamera(object):
         self.rotation = 0
         self.hflip = self.vflip = False
         self.zoom = (0.0, 0.0, 1.0, 1.0)
+        # Determine whether the camera's firmware supports the ANNOTATE_V3
+        # structure
+        mp = mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V3_T(
+            mmal.MMAL_PARAMETER_HEADER_T(
+                mmal.MMAL_PARAMETER_ANNOTATE,
+                ct.sizeof(mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V3_T)
+            ))
+        try:
+            mmal_check(
+                mmal.mmal_port_parameter_get(self._camera[0].control, mp.hdr),
+                prefix="Failed to get annotation background")
+        except PiCameraMMALError:
+            if e.status == mmal.MMAL_EINVAL:
+                self._annotate_v3 = False
+            else:
+                raise
+        else:
+            self._annotate_v3 = True
 
     def _init_splitter(self):
         # Create a splitter component for the video port. This is to permit
@@ -2498,7 +2520,7 @@ class PiCamera(object):
             30fps, the shutter speed cannot be slower than 33,333µs (1/fps).
         """)
 
-    def _get_settings(self):
+    def _get_camera_settings(self):
         """
         Returns the current camera settings as an MMAL structure.
 
@@ -2516,9 +2538,34 @@ class PiCamera(object):
             prefix="Failed to get camera settings")
         return mp
 
+    def _get_annotate_settings(self):
+        """
+        Returns the current annotation settings as an MMAL structure.
+
+        This is a utility method for :meth:`_get_annotate_text`,
+        :math:`_get_annotate_background`, etc. all of which rely on the
+        MMAL_PARAMETER_CAMERA_ANNOTATE_Vn structure to determine their values.
+        """
+        if self._annotate_v3:
+            mp = mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V3_T(
+                mmal.MMAL_PARAMETER_HEADER_T(
+                    mmal.MMAL_PARAMETER_ANNOTATE,
+                    ct.sizeof(mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V3_T)
+                ))
+        else:
+            mp = mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V2_T(
+                mmal.MMAL_PARAMETER_HEADER_T(
+                    mmal.MMAL_PARAMETER_ANNOTATE,
+                    ct.sizeof(mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V2_T)
+                ))
+        mmal_check(
+            mmal.mmal_port_parameter_get(self._camera[0].control, mp.hdr),
+            prefix="Failed to get annotation settings")
+        return mp
+
     def _get_exposure_speed(self):
         self._check_camera_open()
-        return self._get_settings().exposure
+        return self._get_camera_settings().exposure
     exposure_speed = property(
         _get_exposure_speed, doc="""
         Retrieves the current shutter speed of the camera.
@@ -2536,7 +2583,7 @@ class PiCamera(object):
 
     def _get_analog_gain(self):
         self._check_camera_open()
-        return to_fraction(self._get_settings().analog_gain)
+        return to_fraction(self._get_camera_settings().analog_gain)
     analog_gain = property(
         _get_analog_gain, doc="""
         Retrieves the current analog gain of the camera.
@@ -2551,7 +2598,7 @@ class PiCamera(object):
 
     def _get_digital_gain(self):
         self._check_camera_open()
-        return to_fraction(self._get_settings().digital_gain)
+        return to_fraction(self._get_camera_settings().digital_gain)
     digital_gain = property(
         _get_digital_gain, doc="""
         Retrieves the current digital gain of the camera.
@@ -3001,7 +3048,7 @@ class PiCamera(object):
 
     def _get_awb_gains(self):
         self._check_camera_open()
-        mp = self._get_settings()
+        mp = self._get_camera_settings()
         return (
             to_fraction(mp.awb_red_gain),
             to_fraction(mp.awb_blue_gain),
@@ -3633,36 +3680,20 @@ class PiCamera(object):
 
     def _get_annotate_text(self):
         self._check_camera_open()
-        mp = mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V2_T(
-            mmal.MMAL_PARAMETER_HEADER_T(
-                mmal.MMAL_PARAMETER_ANNOTATE,
-                ct.sizeof(mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V2_T)
-            ))
-        mmal_check(
-            mmal.mmal_port_parameter_get(self._camera[0].control, mp.hdr),
-            prefix="Failed to get annotation text")
+        mp = self._get_annotate_settings()
         if mp.enable:
             return mp.text.decode('ascii')
         else:
             return ''
     def _set_annotate_text(self, value):
         self._check_camera_open()
-        mp = mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V2_T(
-            mmal.MMAL_PARAMETER_HEADER_T(
-                mmal.MMAL_PARAMETER_ANNOTATE,
-                ct.sizeof(mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V2_T)
-            ))
-        mmal_check(
-            mmal.mmal_port_parameter_get(self._camera[0].control, mp.hdr),
-            prefix="Failed to get annotation status")
-        if value or bool(mp.show_frame_num):
-            mp.enable = True
+        mp = self._get_annotate_settings()
+        mp.enable = bool(value or mp.show_frame_num)
+        if mp.enable:
             try:
                 mp.text = value.encode('ascii')
             except ValueError as e:
                 raise PiCameraValueError(str(e))
-        else:
-            mp.enable = False
         mmal_check(
             mmal.mmal_port_parameter_set(self._camera[0].control, mp.hdr),
             prefix="Failed to set annotation text")
@@ -3682,26 +3713,12 @@ class PiCamera(object):
 
     def _get_annotate_frame_num(self):
         self._check_camera_open()
-        mp = mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V2_T(
-            mmal.MMAL_PARAMETER_HEADER_T(
-                mmal.MMAL_PARAMETER_ANNOTATE,
-                ct.sizeof(mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V2_T)
-            ))
-        mmal_check(
-            mmal.mmal_port_parameter_get(self._camera[0].control, mp.hdr),
-            prefix="Failed to get annotation frame number")
+        mp = self._get_annotate_settings()
         return mp.show_frame_num != mmal.MMAL_FALSE
     def _set_annotate_frame_num(self, value):
         self._check_camera_open()
-        mp = mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V2_T(
-            mmal.MMAL_PARAMETER_HEADER_T(
-                mmal.MMAL_PARAMETER_ANNOTATE,
-                ct.sizeof(mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V2_T)
-            ))
-        mmal_check(
-            mmal.mmal_port_parameter_get(self._camera[0].control, mp.hdr),
-            prefix="Failed to get annotation status")
-        mp.enable = bool(value) or bool(mp.text)
+        mp = self._get_annotate_settings()
+        mp.enable = bool(value or mp.text)
         mp.show_frame_num = bool(value)
         mmal_check(
             mmal.mmal_port_parameter_set(self._camera[0].control, mp.hdr),
@@ -3715,38 +3732,173 @@ class PiCamera(object):
         to :attr:`annotate_text`. The default is ``False``.
         """)
 
+    def _get_annotate_text_size(self):
+        self._check_camera_open()
+        mp = self._get_annotate_settings()
+        if self._annotate_v3:
+            return mp.text_size or self.DEFAULT_ANNOTATE_SIZE
+        else:
+            return self.DEFAULT_ANNOTATE_SIZE
+    def _set_annotate_text_size(self, value):
+        self._check_camera_open()
+        if not (6 <= value <= 160):
+            raise PiCameraValueError(
+                "Invalid annotation text size: %d (valid range 6-160)" % value)
+        if not self._annotate_v3:
+            if value != self.DEFAULT_ANNOTATE_SIZE:
+                warnings.warn(
+                    PiCameraFallback(
+                        "Firmware does not support setting annotation text "
+                        "size; using default (%d) instead" % self.DEFAULT_ANNOTATE_SIZE))
+            return
+        mp = self._get_annotate_settings()
+        mp.text_size = value
+        mmal_check(
+            mmal.mmal_port_parameter_set(self._camera[0].control, mp.hdr),
+            prefix="Failed to set annotation text size")
+    annotate_text_size = property(
+            _get_annotate_text_size, _set_annotate_text_size, doc="""
+        Controls the size of the annotation text.
+
+        The :attr:`annotate_text_size` attribute is an int which determines how
+        large the annotation text will appear on the display. Valid values are
+        in the range 6 to 160, inclusive. The default is %d.
+        """ % DEFAULT_ANNOTATE_SIZE)
+
+    def _get_annotate_foreground(self):
+        self._check_camera_open()
+        mp = self._get_annotate_settings()
+        if self._annotate_v3 and mp.custom_text_color:
+            return Color.from_yuv_bytes(
+                    mp.custom_text_Y,
+                    mp.custom_text_U,
+                    mp.custom_text_V)
+        else:
+            return Color('white')
+    def _set_annotate_foreground(self, value):
+        self._check_camera_open()
+        if not isinstance(value, Color):
+            raise PiCameraValueError(
+                'annotate_foreground must be a Color')
+        elif not self._annotate_v3:
+            if value.rgb_bytes != (255, 255, 255):
+                warnings.warn(
+                    PiCameraFallback(
+                        "Firmware does not support setting a custom foreground "
+                        "annotation color; using white instead"))
+            return
+        mp = self._get_annotate_settings()
+        mp.custom_text_color = True
+        (
+            mp.custom_text_Y,
+            mp.custom_text_U,
+            mp.custom_text_V,
+            ) = value.yuv_bytes
+        mmal_check(
+            mmal.mmal_port_parameter_set(self._camera[0].control, mp.hdr),
+            prefix="Failed to set annotation foreground")
+    annotate_foreground = property(
+            _get_annotate_foreground, _set_annotate_foreground, doc="""
+        Controls the color of the annotation text.
+
+        The :attr:`annotate_foreground` attribute specifies, partially, the
+        color of the annotation text. The value is specified as a
+        :class:`Color`. The default is white.
+
+        .. note::
+            The underlying firmware does not directly support setting all
+            components of the text color, only the Y' component of a `Y'UV`_
+            tuple. This is roughly (but not precisely) analogous to the
+            "brightness" of a color, so you may choose to think of this as
+            setting how bright the annotation text will be relative to its
+            background. In order to specify just the Y' component when setting
+            this attribute, you may choose to construct the :class:`Color`
+            instance as follows::
+
+                camera.annotate_foreground = Color(y=0.2, u=0, v=0)
+
+        .. _Y'UV: https://en.wikipedia.org/wiki/YUV
+        """)
+
     def _get_annotate_background(self):
         self._check_camera_open()
-        mp = mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V2_T(
-            mmal.MMAL_PARAMETER_HEADER_T(
-                mmal.MMAL_PARAMETER_ANNOTATE,
-                ct.sizeof(mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V2_T)
-            ))
-        mmal_check(
-            mmal.mmal_port_parameter_get(self._camera[0].control, mp.hdr),
-            prefix="Failed to get annotation background")
-        return mp.black_text_background != mmal.MMAL_FALSE
+        mp = self._get_annotate_settings()
+        if self._annotate_v3:
+            if mp.enable_text_background:
+                if mp.custom_background_color:
+                    return Color.from_yuv_bytes(
+                        mp.custom_background_Y,
+                        mp.custom_background_U,
+                        mp.custom_background_V)
+                else:
+                    return Color('black')
+            else:
+                return None
+        else:
+            if mp.black_text_background:
+                return Color('black')
+            else:
+                return None
     def _set_annotate_background(self, value):
         self._check_camera_open()
-        mp = mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V2_T(
-            mmal.MMAL_PARAMETER_HEADER_T(
-                mmal.MMAL_PARAMETER_ANNOTATE,
-                ct.sizeof(mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V2_T)
-            ))
-        mmal_check(
-            mmal.mmal_port_parameter_get(self._camera[0].control, mp.hdr),
-            prefix="Failed to get annotation status")
-        mp.black_text_background = bool(value)
+        if value is True:
+            warnings.warn(
+                PiCameraDeprecated(
+                    'Setting PiCamera.annotate_background to True is '
+                    'deprecated; use PiCamera.color.Color("black") instead'))
+            value = Color('black')
+        elif value is False:
+            warnings.warn(
+                PiCameraDeprecated(
+                    'Setting PiCamera.annotate_background to False is '
+                    'deprecated; use None instead'))
+            value = None
+        elif value is None:
+            pass
+        elif not isinstance(value, Color):
+            raise PiCameraValueError(
+                'annotate_background must be a Color or None')
+        elif not self._annotate_v3 and value.rgb_bytes != (0, 0, 0):
+            warnings.warn(
+                PiCameraFallback(
+                    "Firmware does not support setting a custom background "
+                    "annotation color; using black instead"))
+        mp = self._get_annotate_settings()
+        if self._annotate_v3:
+            if value is None:
+                mp.enable_text_background = False
+            else:
+                mp.enable_text_background = True
+                mp.custom_background_color = True
+                (
+                    mp.custom_background_Y,
+                    mp.custom_background_U,
+                    mp.custom_background_V,
+                    ) = value.yuv_bytes
+        else:
+            if value is None:
+                mp.black_text_background = False
+            else:
+                mp.black_text_background = True
         mmal_check(
             mmal.mmal_port_parameter_set(self._camera[0].control, mp.hdr),
             prefix="Failed to set annotation background")
     annotate_background = property(
             _get_annotate_background, _set_annotate_background, doc="""
-        Controls whether a black background is drawn behind the annotation.
+        Controls what background is drawn behind the annotation.
 
-        The :attr:`annotate_background` attribute is a bool indicating whether
-        or not a black background will be drawn behind the :attr:`annotation
-        text <annotate_text>`. The background will appear in all output
-        including image captures and video recording. The default is ``False``.
+        The :attr:`annotate_background` attribute specifies if a background
+        will be drawn behind the :attr:`annotation text <annotate_text>` and,
+        if so, what color it will be. The value is specified as a
+        :class:`Color` or ``None`` if no background should be drawn. The
+        default is ``None``.
+
+        .. note::
+
+            For backward compatibility purposes, the value ``False`` will be
+            treated as ``None``, and the value ``True`` will be treated as the
+            color black. The "truthiness" of the values returned by the
+            attribute are backward compatible although the values themselves
+            are not.
         """)
 

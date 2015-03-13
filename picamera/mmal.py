@@ -1150,6 +1150,32 @@ class MMAL_PARAMETER_CAMERA_ANNOTATE_V2_T(ct.Structure):
         ('text',                  ct.c_char * MMAL_CAMERA_ANNOTATE_MAX_TEXT_LEN_V2),
         ]
 
+MMAL_CAMERA_ANNOTATE_MAX_TEXT_LEN_V3 = 256
+
+class MMAL_PARAMETER_CAMERA_ANNOTATE_V3_T(ct.Structure):
+    _fields_ = [
+        ('hdr',                     MMAL_PARAMETER_HEADER_T),
+        ('enable',                  MMAL_BOOL_T),
+        ('show_shutter',            MMAL_BOOL_T),
+        ('show_analog_gain',        MMAL_BOOL_T),
+        ('show_lens',               MMAL_BOOL_T),
+        ('show_caf',                MMAL_BOOL_T),
+        ('show_motion',             MMAL_BOOL_T),
+        ('show_frame_num',          MMAL_BOOL_T),
+        ('enable_text_background',  MMAL_BOOL_T),
+        ('custom_background_color', MMAL_BOOL_T),
+        ('custom_background_Y',     ct.c_uint8),
+        ('custom_background_U',     ct.c_uint8),
+        ('custom_background_V',     ct.c_uint8),
+        ('dummy1',                  ct.c_uint8),
+        ('custom_text_color',       MMAL_BOOL_T),
+        ('custom_text_Y',           ct.c_uint8),
+        ('custom_text_U',           ct.c_uint8),
+        ('custom_text_V',           ct.c_uint8),
+        ('text_size',               ct.c_uint8),
+        ('text',                    ct.c_char * MMAL_CAMERA_ANNOTATE_MAX_TEXT_LEN_V3),
+        ]
+
 MMAL_STEREOSCOPIC_MODE_T = ct.c_uint32 # enum
 (
     MMAL_STEREOSCOPIC_MODE_NONE,
@@ -1973,6 +1999,7 @@ mmal_event_format_changed_get.restype = ct.POINTER(MMAL_EVENT_FORMAT_CHANGED_T)
 # mmal_encodings.h ###########################################################
 
 MMAL_ENCODING_H264            = MMAL_FOURCC('H264')
+MMAL_ENCODING_MVC             = MMAL_FOURCC('MVC ')
 MMAL_ENCODING_H263            = MMAL_FOURCC('H263')
 MMAL_ENCODING_MP4V            = MMAL_FOURCC('MP4V')
 MMAL_ENCODING_MP2V            = MMAL_FOURCC('MP2V')
