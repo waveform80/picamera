@@ -20,8 +20,9 @@ functionality of the Pi's camera module through new firmware releases. Whilst
 the picamera library attempts to maintain backward compatibility with older Pi
 firmwares, it is only tested against the latest firmware at the time of
 release, and not all functionality may be available if you are running an older
-firmware. As an example, the :attr:`~picamera.PiCamera.annotate_text` attribute
-relies on a recent firmware; older firmwares lacked the functionality.
+firmware. As an example, the :attr:`~picamera.camera.PiCamera.annotate_text`
+attribute relies on a recent firmware; older firmwares lacked the
+functionality.
 
 You can determine the revision of your current firmware with the following
 command::
