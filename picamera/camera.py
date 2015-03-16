@@ -636,7 +636,7 @@ class PiCamera(object):
             mmal_check(
                 mmal.mmal_port_parameter_get(self._camera[0].control, mp.hdr),
                 prefix="Failed to get annotation background")
-        except PiCameraMMALError:
+        except PiCameraMMALError as e:
             if e.status == mmal.MMAL_EINVAL:
                 self._annotate_v3 = False
             else:
