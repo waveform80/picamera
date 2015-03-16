@@ -905,7 +905,8 @@ With a little ingenuity, it's possible to display longer strings::
 
 And of course, it can be used to display (and embed) a timestamp in recordings
 (this recipe also demonstrates drawing a background behind the timestamp for
-contrast with the :attr:`~picamera.camera.PiCamera.annotate_background` attribute)::
+contrast with the :attr:`~picamera.camera.PiCamera.annotate_background`
+attribute)::
 
     import picamera
     import datetime as dt
@@ -914,7 +915,7 @@ contrast with the :attr:`~picamera.camera.PiCamera.annotate_background` attribut
         camera.resolution = (1280, 720)
         camera.framerate = 24
         camera.start_preview()
-        camera.annotate_background = True
+        camera.annotate_background = picamera.Color('black')
         camera.annotate_text = dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         camera.start_recording('timestamped.h264')
         start = dt.datetime.now()
