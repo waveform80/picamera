@@ -3947,8 +3947,8 @@ class PiCamera(object):
         The :attr:`annotate_background` attribute specifies if a background
         will be drawn behind the :attr:`annotation text <annotate_text>` and,
         if so, what color it will be. The value is specified as a
-        :class:`Color` or ``None`` if no background should be drawn. The
-        default is ``None``.
+        :class:`~picamera.color.Color` or ``None`` if no background should be
+        drawn. The default is ``None``.
 
         .. note::
 
