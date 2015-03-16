@@ -1,8 +1,8 @@
 .. _api:
 
-=============
-API Reference
-=============
+==========================
+API - ``picamera`` Package
+==========================
 
 .. automodule:: picamera
 

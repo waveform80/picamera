@@ -17,11 +17,11 @@ Start a preview for 10 seconds with the default settings::
     finally:
         camera.close()
 
-Note that you should always ensure you call :meth:`~picamera.PiCamera.close` on
-the PiCamera object to clean up resources.  The following example demonstrates
-that Python's ``with`` statement can be used to achieve this implicitly; when
-the ``with`` block ends, :meth:`~picamera.PiCamera.close` will be called
-implicitly::
+Note that you should always ensure you call
+:meth:`~picamera.camera.PiCamera.close` on the PiCamera object to clean up
+resources.  The following example demonstrates that Python's ``with`` statement
+can be used to achieve this implicitly; when the ``with`` block ends,
+:meth:`~picamera.camera.PiCamera.close` will be called implicitly::
 
     import time
     import picamera
@@ -67,12 +67,12 @@ been disabled (e.g. with `tvservice -o`), then the default resolution is
 
 .. note::
 
-    Note that :meth:`~picamera.PiCamera.wait_recording` is used above instead
-    of :func:`time.sleep`. This method checks for errors (e.g. out of disk
-    space) while the recording is running and raises an exception if one
+    Note that :meth:`~picamera.camera.PiCamera.wait_recording` is used above
+    instead of :func:`time.sleep`. This method checks for errors (e.g. out of
+    disk space) while the recording is running and raises an exception if one
     occurs. If :func:`time.sleep` was used instead the exception would be
-    raised by :meth:`~picamera.PiCamera.stop_recording` but only after the full
-    waiting time had run.
+    raised by :meth:`~picamera.camera.PiCamera.stop_recording` but only after
+    the full waiting time had run.
 
 This example demonstrates starting a preview, setting some parameters
 and then capturing an image while the preview is running::
@@ -93,7 +93,7 @@ and then capturing an image while the preview is running::
         camera.stop_preview()
 
 The following example customizes the Exif tags to embed in the image before
-calling :meth:`~picamera.PiCamera.capture`::
+calling :meth:`~picamera.camera.PiCamera.capture`::
 
     import time
     import picamera
@@ -107,12 +107,12 @@ calling :meth:`~picamera.PiCamera.capture`::
         camera.capture('foo.jpg')
         camera.stop_preview()
 
-See the documentation for :attr:`~picamera.PiCamera.exif_tags` for a complete
-list of the supported tags.
+See the documentation for :attr:`~picamera.camera.PiCamera.exif_tags` for a
+complete list of the supported tags.
 
 The next example demonstrates capturing a series of images as a numbered series
 with a one minute delay between each capture using the
-:meth:`~picamera.PiCamera.capture_continuous` method::
+:meth:`~picamera.camera.PiCamera.capture_continuous` method::
 
     import time
     import picamera
@@ -130,7 +130,7 @@ with a one minute delay between each capture using the
 
 This example demonstrates capturing low resolution JPEGs extremely rapidly
 using the video-port capability of the
-:meth:`~picamera.PiCamera.capture_sequence` method. The framerate of the
+:meth:`~picamera.camera.PiCamera.capture_sequence` method. The framerate of the
 captures is displayed afterward::
 
     import time

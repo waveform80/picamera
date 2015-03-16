@@ -15,7 +15,8 @@ Capturing to a file
 ===================
 
 Capturing an image to a file is as simple as specifying the name of the file as
-the output of whatever :meth:`~picamera.PiCamera.capture` method you require::
+the output of whatever :meth:`~picamera.camera.PiCamera.capture` method you
+require::
 
     import time
     import picamera
@@ -40,7 +41,7 @@ Capturing to a stream
 Capturing an image to a file-like object (a :func:`~socket.socket`, a
 :class:`io.BytesIO` stream, an existing open file object, etc.) is as simple as
 specifying that object as the output of whatever
-:meth:`~picamera.PiCamera.capture` method you're using::
+:meth:`~picamera.camera.PiCamera.capture` method you're using::
 
     import io
     import time
@@ -171,7 +172,7 @@ processing on images, you may wish to capture smaller images than the current
 resolution of the camera. Although such resizing can be performed using
 libraries like PIL or OpenCV, it is considerably more efficient to have the
 Pi's GPU perform the resizing when capturing the image. This can be done with
-the *resize* parameter of the :meth:`~picamera.PiCamera.capture` methods::
+the *resize* parameter of the :meth:`~picamera.camera.PiCamera.capture` methods::
 
     import time
     import picamera
@@ -184,7 +185,7 @@ the *resize* parameter of the :meth:`~picamera.PiCamera.capture` methods::
         camera.capture('foo.jpg', resize=(320, 240))
 
 The *resize* parameter can also be specified when recording video with the
-:meth:`~picamera.PiCamera.start_recording` method.
+:meth:`~picamera.camera.PiCamera.start_recording` method.
 
 
 .. _consistent_capture:
@@ -198,27 +199,27 @@ photography, for example). Various attributes need to be used in order to
 ensure consistency across multiple shots. Specifically, you need to ensure that
 the camera's exposure time, white balance, and gains are all fixed:
 
-* To fix exposure time, set the :attr:`~picamera.PiCamera.shutter_speed`
+* To fix exposure time, set the :attr:`~picamera.camera.PiCamera.shutter_speed`
   attribute to a reasonable value.
-* To fix exposure gains, let :attr:`~picamera.PiCamera.analog_gain` and
-  :attr:`~picamera.PiCamera.digital_gain` settle on reasonable values, then set
-  :attr:`~picamera.PiCamera.exposure_mode` to ``'off'``.
-* To fix white balance, set the :attr:`~picamera.PiCamera.awb_mode` to
-  ``'off'``, then set :attr:`~picamera.PiCamera.awb_gains` to a (red, blue)
+* To fix exposure gains, let :attr:`~picamera.camera.PiCamera.analog_gain` and
+  :attr:`~picamera.camera.PiCamera.digital_gain` settle on reasonable values, then set
+  :attr:`~picamera.camera.PiCamera.exposure_mode` to ``'off'``.
+* To fix white balance, set the :attr:`~picamera.camera.PiCamera.awb_mode` to
+  ``'off'``, then set :attr:`~picamera.camera.PiCamera.awb_gains` to a (red, blue)
   tuple of gains.
-* Optionally, set :attr:`~picamera.PiCamera.iso` to a fixed value.
+* Optionally, set :attr:`~picamera.camera.PiCamera.iso` to a fixed value.
 
 It can be difficult to know what appropriate values might be for these
-attributes.  For :attr:`~picamera.PiCamera.iso`, a simple rule of thumb is that
+attributes.  For :attr:`~picamera.camera.PiCamera.iso`, a simple rule of thumb is that
 100 and 200 are reasonable values for daytime, while 400 and 800 are better for
 low light. To determine a reasonable value for
-:attr:`~picamera.PiCamera.shutter_speed` you can query the
-:attr:`~picamera.PiCamera.exposure_speed` attribute.  For exposure gains, it's
-usually enough to wait until :attr:`~picamera.PiCamera.analog_gain` is greater
+:attr:`~picamera.camera.PiCamera.shutter_speed` you can query the
+:attr:`~picamera.camera.PiCamera.exposure_speed` attribute.  For exposure gains, it's
+usually enough to wait until :attr:`~picamera.camera.PiCamera.analog_gain` is greater
 than 1 (the default, which will produce entirely black frames) before
-:attr:`~picamera.PiCamera.exposure_mode` is set to ``'off'``.  Finally, to
-determine reasonable values for :attr:`~picamera.PiCamera.awb_gains` simply
-query the property while :attr:`~picamera.PiCamera.awb_mode` is set to
+:attr:`~picamera.camera.PiCamera.exposure_mode` is set to ``'off'``.  Finally, to
+determine reasonable values for :attr:`~picamera.camera.PiCamera.awb_gains` simply
+query the property while :attr:`~picamera.camera.PiCamera.awb_mode` is set to
 something other than ``'off'``.  Again, this will tell you the camera's white
 balance gains as determined by the auto-white-balance algorithm.
 
@@ -249,7 +250,7 @@ Capturing timelapse sequences
 =============================
 
 The simplest way to capture long time-lapse sequences is with the
-:meth:`~picamera.PiCamera.capture_continuous` method. With this method, the
+:meth:`~picamera.camera.PiCamera.capture_continuous` method. With this method, the
 camera captures images continually until you tell it to stop. Images are
 automatically given unique names and you can easily control the delay between
 captures. The following example shows how to capture images with a 5 minute
@@ -298,8 +299,8 @@ Capturing in low light
 Using similar tricks to those in :ref:`consistent_capture`, the Pi's camera can
 capture images in low light conditions. The primary objective is to set a high
 gain, and a long exposure time to allow the camera to gather as much light as
-possible. However, the :attr:`~picamera.PiCamera.shutter_speed` attribute is
-constrained by the camera's :attr:`~picamera.PiCamera.framerate` so the first
+possible. However, the :attr:`~picamera.camera.PiCamera.shutter_speed` attribute is
+constrained by the camera's :attr:`~picamera.camera.PiCamera.framerate` so the first
 thing we need to do is set a very slow framerate. The following script captures
 an image with a 6 second exposure time (the maximum the Pi's camera module is
 currently capable of)::
@@ -457,14 +458,14 @@ Recording a video to a file is simple::
         camera.wait_recording(60)
         camera.stop_recording()
 
-Note that we use :meth:`~picamera.PiCamera.wait_recording` in the example above
+Note that we use :meth:`~picamera.camera.PiCamera.wait_recording` in the example above
 instead of :func:`time.sleep` which we've been using in the image capture
-recipes above. The :meth:`~picamera.PiCamera.wait_recording` method is similar
+recipes above. The :meth:`~picamera.camera.PiCamera.wait_recording` method is similar
 in that it will pause for the number of seconds specified, but unlike
 :func:`time.sleep` it will continually check for recording errors (e.g. an out
 of disk space condition) while it is waiting. If we had used :func:`time.sleep`
 instead, such errors would only be raised by the
-:meth:`~picamera.PiCamera.stop_recording` call (which could be long after the
+:meth:`~picamera.camera.PiCamera.stop_recording` call (which could be long after the
 error actually occurred).
 
 
@@ -511,7 +512,7 @@ Recording over multiple files
 =============================
 
 If you wish split your recording over multiple files, you can use the
-:meth:`~picamera.PiCamera.split_recording` method to accomplish this::
+:meth:`~picamera.camera.PiCamera.split_recording` method to accomplish this::
 
     import picamera
 
@@ -526,10 +527,10 @@ If you wish split your recording over multiple files, you can use the
 
 This should produce 10 video files named ``1.h264``, ``2.h264``, etc. each of
 which is approximately 5 seconds long (approximately because the
-:meth:`~picamera.PiCamera.split_recording` method will only split files at a
+:meth:`~picamera.camera.PiCamera.split_recording` method will only split files at a
 key-frame).
 
-The :meth:`~picamera.PiCamera.record_sequence` method can also be used to
+The :meth:`~picamera.camera.PiCamera.record_sequence` method can also be used to
 achieve this with slightly cleaner code::
 
     import picamera
@@ -541,7 +542,7 @@ achieve this with slightly cleaner code::
             camera.wait_recording(5)
 
 .. versionchanged:: 1.3
-    The :meth:`~picamera.PiCamera.record_sequence` method was introduced in
+    The :meth:`~picamera.camera.PiCamera.record_sequence` method was introduced in
     version 1.3
 
 
@@ -552,7 +553,7 @@ Recording to a circular stream
 
 This is similar to :ref:`stream_record` but uses a special kind of in-memory
 stream provided by the picamera library. The
-:class:`~picamera.PiCameraCircularIO` class implements a `ring buffer`_ based
+:class:`~picamera.streams.PiCameraCircularIO` class implements a `ring buffer`_ based
 stream, specifically for video recording.  This enables you to keep an
 in-memory stream containing the last *n* seconds of video recorded (where *n*
 is determined by the bitrate of the video recording and the size of the ring
@@ -786,7 +787,7 @@ don't worry; it's quite simple to produce in practice.
 
 The following example demonstrates loading an arbitrary size image with PIL,
 padding it to the required size, and producing the unencoded RGB data for the
-call to :meth:`~picamera.PiCamera.add_overlay`::
+call to :meth:`~picamera.camera.PiCamera.add_overlay`::
 
     import picamera
     from PIL import Image
@@ -854,11 +855,11 @@ through the center and overlay it on the preview as a simple cross-hair::
             camera.remove_overlay(o)
 
 Given that overlayed renderers can be hidden (by moving them below the
-preview's :attr:`~picamera.PiRenderer.layer` which defaults to 2), made
-semi-transparent (with the :attr:`~picamera.PiRenderer.alpha` property), and
-resized so that they don't :attr:`fill the screen
-<picamera.PiRenderer.fullscreen>`, they can be used to construct simple user
-interfaces.
+preview's :attr:`~picamera.renderers.PiRenderer.layer` which defaults to 2),
+made semi-transparent (with the :attr:`~picamera.renderers.PiRenderer.alpha`
+property), and resized so that they don't :attr:`fill the screen
+<picamera.renderers.PiRenderer.fullscreen>`, they can be used to construct
+simple user interfaces.
 
 .. versionadded:: 1.8
 
@@ -871,7 +872,7 @@ Overlaying text on the output
 The camera includes a rudimentary annotation facility which permits up to 255
 characters of ASCII text to be overlayed on all output (including the preview,
 image captures and video recordings). To achieve this, simply assign a string
-to the :attr:`~picamera.PiCamera.annotate_text` attribute::
+to the :attr:`~picamera.camera.PiCamera.annotate_text` attribute::
 
     import picamera
     import time
@@ -904,7 +905,7 @@ With a little ingenuity, it's possible to display longer strings::
 
 And of course, it can be used to display (and embed) a timestamp in recordings
 (this recipe also demonstrates drawing a background behind the timestamp for
-contrast with the :attr:`~picamera.PiCamera.annotate_background` attribute)::
+contrast with the :attr:`~picamera.camera.PiCamera.annotate_background` attribute)::
 
     import picamera
     import datetime as dt
@@ -942,7 +943,7 @@ the LED (e.g. blue-tack or electricians tape). Another method is to use the
 However, provided you have the `RPi.GPIO`_ package installed, and provided your
 Python process is running with sufficient privileges (typically this means
 running as root with ``sudo python``), you can also control the LED via the
-:attr:`~picamera.PiCamera.led` attribute::
+:attr:`~picamera.camera.PiCamera.led` attribute::
 
     import picamera
 

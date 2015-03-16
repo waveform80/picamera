@@ -28,221 +28,34 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 """
-This package primarily provides the :class:`PiCamera` class which is a pure
-Python interface to the Raspberry Pi's camera module. Various ancillary classes
-are provided for usage with :class:`PiCamera` including :class:`PiVideoFrame`
-(for holding video frame meta-data), :class:`PiCameraCircularIO` (for recording
-video to a ring-buffer), :class:`PiEncoder` (an abstract base class for
-camera encoders), and the concrete encoder classes: :class:`PiVideoEncoder`,
-:class:`PiCookedOneImageEncoder`, :class:`PiCookedMultiImageEncoder`,
-:class:`PiRawOneImageEncoder`, and :class:`PiRawMultiImageEncoder`.
+The picamera package consists of several modules which provide a pure Python
+interface to the Raspberry Pi's camera module. The package is only intended to
+run on a Raspberry Pi, and expects to be able to load the MMAL library
+(libmmal.so) upon import.
 
-.. note::
+The classes defined by most modules in this package are available directly from
+the :mod:`picamera` namespace. In other words, the following code is typically
+all that is required to access classes in the package::
 
-    In the documentation below several apparently "private" methods are
-    documented (i.e. methods which have names beginning with an underscore).
-    Most users can ignore these methods; they are intended for those developers
-    that wish to override or extend the encoder implementations used by
-    picamera.
+    import picamera
 
-    Some may question, given that these methods are intended to be overridden,
-    why they are declared with a leading underscore (which in the Python idiom
-    suggests that these methods are "private" to the class). In the cases where
-    such methods are documented, the author intends these methods to have
-    "protected" status (in the idiom of C++ and Object Pascal). That is to say,
-    they are not intended to be used outside of the declaring class, but are
-    intended to be accessible to, and overridden by, descendent classes.
+The :mod:`picamera.array` module is an exception to this as it depends on the
+third-party `numpy`_ package (this avoids making numpy a mandatory dependency
+for picamera).
 
+.. _numpy: http://www.numpy.org/
 
-PiCamera
-========
 
-.. autoclass:: PiCamera
-    :members:
-    :private-members:
+The following sections document the various modules available within the
+package:
 
-
-PiCameraCircularIO
-==================
-
-.. autoclass:: PiCameraCircularIO
-    :members:
-
-
-CircularIO
-==========
-
-.. autoclass:: CircularIO
-    :members:
-
-
-PiVideoFrameType
-================
-
-.. autoclass:: PiVideoFrameType
-    :members:
-
-
-PiVideoFrame
-============
-
-.. autoclass:: PiVideoFrame(index, frame_type, frame_size, video_size, split_size, timestamp)
-    :members:
-
-
-PiEncoder
-=========
-
-.. autoclass:: PiEncoder
-    :members:
-    :private-members:
-
-
-PiVideoEncoder
-==============
-
-.. autoclass:: PiVideoEncoder
-    :members:
-    :private-members:
-
-
-PiImageEncoder
-==============
-
-.. autoclass:: PiImageEncoder
-    :members:
-    :private-members:
-
-
-PiRawMixin
-==========
-
-.. autoclass:: PiRawMixin
-    :members:
-    :private-members:
-
-
-PiCookedVideoEncoder
-====================
-
-.. autoclass:: PiCookedVideoEncoder
-    :members:
-    :private-members:
-
-
-PiRawVideoEncoder
-=================
-
-.. autoclass:: PiRawVideoEncoder
-    :members:
-    :private-members:
-
-
-PiOneImageEncoder
-=================
-
-.. autoclass:: PiOneImageEncoder
-    :members:
-    :private-members:
-
-
-PiMultiImageEncoder
-===================
-
-.. autoclass:: PiMultiImageEncoder
-    :members:
-    :private-members:
-
-
-PiRawImageMixin
-===============
-
-.. autoclass:: PiRawImageMixin
-    :members:
-    :private-members:
-
-
-PiCookedOneImageEncoder
-=======================
-
-.. autoclass:: PiCookedOneImageEncoder
-    :members:
-    :private-members:
-
-
-PiRawOneImageEncoder
-====================
-
-.. autoclass:: PiRawOneImageEncoder
-    :members:
-    :private-members:
-
-
-PiCookedMultiImageEncoder
-=========================
-
-.. autoclass:: PiCookedMultiImageEncoder
-    :members:
-    :private-members:
-
-
-PiRawMultiImageEncoder
-======================
-
-.. autoclass:: PiRawMultiImageEncoder
-    :members:
-    :private-members:
-
-
-PiRenderer
-==========
-
-.. autoclass:: PiRenderer
-    :members:
-
-
-PiOverlayRenderer
-=================
-
-.. autoclass:: PiOverlayRenderer
-    :members:
-
-
-PiPreviewRenderer
-=================
-
-.. autoclass:: PiPreviewRenderer
-    :members:
-
-
-PiNullSink
-==========
-
-.. autoclass:: PiNullSink
-    :members:
-
-
-Exceptions
-==========
-
-.. autoexception:: PiCameraWarning
-
-.. autoexception:: PiCameraError
-
-.. autoexception:: PiCameraValueError
-
-.. autoexception:: PiCameraRuntimeError
-
-.. autoexception:: PiCameraClosed
-
-.. autoexception:: PiCameraNotRecording
-
-.. autoexception:: PiCameraAlreadyRecording
-
-.. autoexception:: PiCameraMMALError
-
-.. autofunction:: mmal_check
-
+* :mod:`picamera.camera`
+* :mod:`picamera.encoders`
+* :mod:`picamera.streams`
+* :mod:`picamera.renderers`
+* :mod:`picamera.color`
+* :mod:`picamera.exc`
+* :mod:`picamera.array`
 """
 
 from __future__ import (
@@ -291,5 +104,5 @@ from picamera.renderers import (
     PiNullSink,
     )
 from picamera.streams import PiCameraCircularIO, CircularIO
-
+from picamera.color import Color, Red, Green, Blue, Hue, Lightness, Saturation
 

@@ -7,12 +7,12 @@ Deprecated Functionality
 The picamera library is (at the time of writing) nearly a year old and has
 grown quite rapidly in this time. Occasionally, when adding new functionality
 to the library, the API is obvious and natural (e.g.
-:meth:`~picamera.PiCamera.start_recording` and
-:meth:`~picamera.PiCamera.stop_recording`). At other times, it's been less
-obvious (e.g. unencoded captures) and my initial attempts have proven to be
-less than ideal. In such situations I've endeavoured to improve the API without
-breaking backward compatibility by introducing new methods or attributes and
-deprecating the old ones.
+:meth:`~picamera.camera.PiCamera.start_recording` and
+:meth:`~picamera.camera.PiCamera.stop_recording`). At other times, it's been
+less obvious (e.g. unencoded captures) and my initial attempts have proven to
+be less than ideal. In such situations I've endeavoured to improve the API
+without breaking backward compatibility by introducing new methods or
+attributes and deprecating the old ones.
 
 This means that, as of release 1.8, there's quite a lot of deprecated
 functionality floating around the library which it would be nice to tidy up,
@@ -33,7 +33,7 @@ Of course, that still means people need a way of determining whether their
 scripts use any deprecated functionality in the picamera library. All
 deprecated functionality is documented, and the documentation includes pointers
 to the intended replacement functionality (see
-:attr:`~picamera.PiCamera.raw_format` for example). However, Python also
+:attr:`~picamera.camera.PiCamera.raw_format` for example). However, Python also
 provides excellent methods for determining automatically whether any deprecated
 functionality is being used via the :mod:`warnings` module.
 
@@ -197,11 +197,11 @@ Unencoded captures
 ------------------
 
 In very early versions of picamera, unencoded captures were created by
-specifying the ``'raw'`` format with the :meth:`~picamera.PiCamera.capture`
-method, with the :attr:`~picamera.PiCamera.raw_format` attribute providing the
-actual encoding. The attribute is deprecated, as is usage of the value
-``'raw'`` with the *format* parameter of all the capture methods. Hence, code
-like this::
+specifying the ``'raw'`` format with the
+:meth:`~picamera.camera.PiCamera.capture` method, with the
+:attr:`~picamera.camera.PiCamera.raw_format` attribute providing the actual
+encoding. The attribute is deprecated, as is usage of the value ``'raw'`` with
+the *format* parameter of all the capture methods. Hence, code like this::
 
     camera.raw_format = 'rgb'
     camera.capture('output.data', format='raw')
@@ -216,8 +216,9 @@ should be replaced with the following::
 Recording quality
 -----------------
 
-The *quantization* parameter for :meth:`~picamera.PiCamera.start_recording` and
-:meth:`~picamera.PiCamera.record_sequence` is deprecated in favor of the
+The *quantization* parameter for
+:meth:`~picamera.camera.PiCamera.start_recording` and
+:meth:`~picamera.camera.PiCamera.record_sequence` is deprecated in favor of the
 *quality* parameter; this change was made to keep the recording methods
 consistent with the capture methods, and to make the meaning of the parameter
 more obvious to newcomers. The values of the parameter remain the same (i.e.
@@ -284,15 +285,15 @@ Preview functions
 Release 1.8 introduced rather sweeping changes to the preview system to
 incorporate the ability to create multiple static overlays on top of the
 preview. As a result, the preview system is no longer "part of" the
-:class:`~picamera.PiCamera` class. Instead, it is represented by the
-:attr:`~picamera.PiCamera.preview` attribute which is a separate
-:class:`~picamera.PiPreviewRenderer` instance when the preview is active. In
-turn this meant that :attr:`~picamera.PiCamera.preview_alpha` was deprecated in
-favor of the :attr:`~picamera.PiRenderer.alpha` property of the new
-:attr:`~picamera.PiCamera.preview` attribute. Similar changes were made to
-:attr:`~picamera.PiCamera.preview_layer`,
-:attr:`~picamera.PiCamera.preview_fullscreen`, and
-:attr:`~picamera.PiCamera.preview_window`. Hence, the following code::
+:class:`~picamera.camera.PiCamera` class. Instead, it is represented by the
+:attr:`~picamera.camera.PiCamera.preview` attribute which is a separate
+:class:`~picamera.renderers.PiPreviewRenderer` instance when the preview is
+active. In turn this meant that :attr:`~picamera.camera.PiCamera.preview_alpha`
+was deprecated in favor of the :attr:`~picamera.PiRenderer.alpha` property of
+the new :attr:`~picamera.camera.PiCamera.preview` attribute. Similar changes
+were made to :attr:`~picamera.camera.PiCamera.preview_layer`,
+:attr:`~picamera.camera.PiCamera.preview_fullscreen`, and
+:attr:`~picamera.camera.PiCamera.preview_window`. Hence, the following code::
 
     camera.start_preview()
     camera.preview_alpha = 128
@@ -307,12 +308,12 @@ should be replaced with::
     camera.preview.window = (0, 0, 640, 480)
 
 Not an enormous change, but the eagle-eyed will have noticed that the
-:attr:`~picamera.PiCamera.preview` attribute is set to ``None`` when the
+:attr:`~picamera.camera.PiCamera.preview` attribute is set to ``None`` when the
 preview is not active. This means that setting the
-:attr:`~picamera.PiRenderer.alpha` property *before* the preview is active is
-no longer possible. To accomodate this use-case, optional parameters were added
-to :meth:`~picamera.PiCamera.start_preview` to provide initial settings for the
-preview renderer. Therefore, the following code::
+:attr:`~picamera.renderers.PiRenderer.alpha` property *before* the preview is
+active is no longer possible. To accomodate this use-case, optional parameters
+were added to :meth:`~picamera.camera.PiCamera.start_preview` to provide
+initial settings for the preview renderer. Therefore, the following code::
 
     camera.preview_alpha = 128
     camera.preview_fullscreen = False
@@ -324,9 +325,10 @@ should be replaced with::
     camera.start_preview(
         alpha=128, fullscreen=False, window=(0, 0, 640, 480))
 
-Finally, the :attr:`~picamera.PiCamera.previewing` attribute is now obsolete
-(and thus deprecated) as its functionality can be trivially obtained by checking
-the :attr:`~picamera.PiCamera.preview` attribute. Hence, the following code::
+Finally, the :attr:`~picamera.camera.PiCamera.previewing` attribute is now
+obsolete (and thus deprecated) as its functionality can be trivially obtained
+by checking the :attr:`~picamera.camera.PiCamera.preview` attribute. Hence, the
+following code::
 
     if camera.previewing:
         print('The camera preview is running')
@@ -396,12 +398,12 @@ correct course of action::
 Confusing crop
 --------------
 
-In release 1.8, the :attr:`~picamera.PiCamera.crop` attribute was renamed to
-:attr:`~picamera.PiCamera.zoom`; the old name was retained as a deprecated
-alias for backward compatibility. This change was made as ``crop`` was a
-thoroughly misleading name for the attribute (which actually sets the "region
-of interest" for the sensor), leading to numerous support questions. Hence,
-the following code::
+In release 1.8, the :attr:`~picamera.camera.PiCamera.crop` attribute was
+renamed to :attr:`~picamera.camera.PiCamera.zoom`; the old name was retained as
+a deprecated alias for backward compatibility. This change was made as ``crop``
+was a thoroughly misleading name for the attribute (which actually sets the
+"region of interest" for the sensor), leading to numerous support questions.
+Hence, the following code::
 
     camera.crop = (0.25, 0.25, 0.5, 0.5)
 
@@ -415,11 +417,12 @@ should be changed to::
 Incorrect ISO capitalisation
 ----------------------------
 
-In release 1.8, the :attr:`~picamera.PiCamera.ISO` attribute was renamed to
-:attr:`~picamera.PiCamera.iso` for compliance with `PEP-8`_ (even though it's
-an acronym this is still more consistent with the existing API; consider
-:attr:`~picamera.PiCamera.led`, :attr:`~picamera.PiCamera.awb_mode`, and so
-on). This means the following code::
+In release 1.8, the :attr:`~picamera.camera.PiCamera.ISO` attribute was renamed
+to :attr:`~picamera.camera.PiCamera.iso` for compliance with `PEP-8`_ (even
+though it's an acronym this is still more consistent with the existing API;
+consider :attr:`~picamera.camera.PiCamera.led`,
+:attr:`~picamera.camera.PiCamera.awb_mode`, and so on). This means the
+following code::
 
     camera.ISO = 100
 
@@ -438,11 +441,12 @@ firmware. This expanded the number of possible frame types from a simple
 key-frame / non-key-frame affair, to a multitude of possibilities (P-frame,
 I-frame, SPS/PPS header, motion vector data, and who knows in future). Rather
 than keep adding more and more boolean fields to the
-:class:`~picamera.PiVideoFrame` named tuple, release 1.5 introduced the
-:class:`~picamera.PiVideoFrameType` enumeration used by the
-:attr:`~picamera.PiVideoFrame.frame_type` attribute and deprecated the
-:attr:`~picamera.PiVideoFrame.keyframe` and
-:attr:`~picamera.PiVideoFrame.header` attributes. Hence, the following code::
+:class:`~picamera.encoders.PiVideoFrame` named tuple, release 1.5 introduced
+the :class:`~picamera.encoders.PiVideoFrameType` enumeration used by the
+:attr:`~picamera.encoders.PiVideoFrame.frame_type` attribute and deprecated the
+:attr:`~picamera.encoders.PiVideoFrame.keyframe` and
+:attr:`~picamera.encoders.PiVideoFrame.header` attributes. Hence, the following
+code::
 
     if camera.frame.keyframe:
         handle_keyframe()
@@ -470,6 +474,49 @@ frame type)::
         picamera.PiVideoFrameType.frame:      handle_frame,
         }[camera.frame.frame_type]
     handler()
+
+
+.. _deprecated_annotate_background:
+
+Annotation background color
+---------------------------
+
+In release 1.10, the :attr:`~picamera.camera.PiCamera.annotate_background`
+attribute was enhanced to support setting the background color of annotation
+text. Older versions of picamera treated this attribute as a bool (``False``
+for no background, ``True`` to draw a black background).
+
+In order to provide the new functionality while maintaining a certain amount of
+backward compatibility the new attribute accepts ``None`` for no background
+(note that the "truthiness" of ``None`` is the same as ``False`` so existing
+tests should continue to work), and a :class:`~picamera.Color` instance for a
+custom background color (:class:`~picamera.Color` instances are "truthy" so
+again, existing tests against the attribute continue to work).
+
+Setting the attribute as a bool is now deprecated. Hence, the following code::
+
+    camera.annotate_background = False
+    camera.annotate_background = True
+
+should be replaced with::
+
+    camera.annotate_background = None
+    camera.annotate_background = picamera.Color('black')
+
+Naive tests against the attribute should work as normal, but specific tests
+(which are considered bad practice anyway), should be re-written. For example::
+
+    if camera.annotate_background == False:
+        pass
+    if camera.annotate_background is True:
+        pass
+
+should become::
+
+    if not camera.annotate_background:
+        pass
+    if camera.annotate_background:
+        pass
 
 
 .. _semantic versioning: http://semver.org/

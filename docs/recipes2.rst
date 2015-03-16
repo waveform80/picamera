@@ -141,14 +141,15 @@ RGB data directly.
     provide the raw bayer data from the camera's sensor. Rather, it provides
     access to the image data after GPU processing, but before format encoding
     (JPEG, PNG, etc). Currently, the only method of accessing the raw bayer
-    data is via the *bayer* parameter to the :meth:`~picamera.PiCamera.capture`
-    method. See :ref:`bayer_data` for more information.
+    data is via the *bayer* parameter to the
+    :meth:`~picamera.camera.PiCamera.capture` method. See :ref:`bayer_data` for
+    more information.
 
 .. versionchanged:: 1.0
-    The :attr:`~picamera.PiCamera.raw_format` attribute is now deprecated, as
-    is the ``'raw'`` format specification for the
-    :meth:`~picamera.PiCamera.capture` method. Simply use the ``'yuv'`` format
-    instead, as shown in the code above.
+    The :attr:`~picamera.camera.PiCamera.raw_format` attribute is now
+    deprecated, as is the ``'raw'`` format specification for the
+    :meth:`~picamera.camera.PiCamera.capture` method. Simply use the ``'yuv'``
+    format instead, as shown in the code above.
 
 .. versionchanged:: 1.5
     Added note about new :mod:`picamera.array` module.
@@ -162,7 +163,7 @@ Unencoded image capture (RGB format)
 The RGB format is rather larger than the `YUV`_ format discussed in the section
 above, but is more useful for most analyses. To have the camera produce output
 in `RGB`_ format, you simply need to specify ``'rgb'`` as the format for the
-:meth:`~picamera.PiCamera.capture` method instead::
+:meth:`~picamera.camera.PiCamera.capture` method instead::
 
     import time
     import picamera
@@ -218,9 +219,9 @@ Loading the resulting RGB data into a `numpy`_ array is simple::
     image = image.astype(np.float, copy=False)
     image = image / 255.0
 
-This recipe is now encapsulated in the :class:`~picamera.array.PiRGBArray` class
-in the :mod:`picamera.array` module, which means the same can be achieved as
-follows::
+This recipe is now encapsulated in the :class:`~picamera.array.PiRGBArray`
+class in the :mod:`picamera.array` module, which means the same can be achieved
+as follows::
 
     import time
     import picamera
@@ -242,10 +243,10 @@ follows::
     capture from the video port if you require full resolution.
 
 .. versionchanged:: 1.0
-    The :attr:`~picamera.PiCamera.raw_format` attribute is now deprecated, as
-    is the ``'raw'`` format specification for the
-    :meth:`~picamera.PiCamera.capture` method. Simply use the ``'rgb'`` format
-    instead, as shown in the code above.
+    The :attr:`~picamera.camera.PiCamera.raw_format` attribute is now
+    deprecated, as is the ``'raw'`` format specification for the
+    :meth:`~picamera.camera.PiCamera.capture` method. Simply use the ``'rgb'``
+    format instead, as shown in the code above.
 
 .. versionchanged:: 1.5
     Added note about new :mod:`picamera.array` module.
@@ -258,7 +259,7 @@ Rapid capture and processing
 
 The camera is capable of capturing a sequence of images extremely rapidly by
 utilizing its video-capture capabilities with a JPEG encoder (via the
-``use_video_port`` parameter). However, there are several things to note about
+*use_video_port* parameter). However, there are several things to note about
 using this technique:
 
 * When using video-port based capture only the video recording area is
@@ -271,18 +272,18 @@ using this technique:
 * Captures typically appear "granier" with this technique. Captures from the
   still port use a slower, more intensive denoise algorithm.
 
-All capture methods support the ``use_video_port`` option, but the methods
-differ in their ability to rapidly capture sequential frames. So, whilst
-:meth:`~picamera.PiCamera.capture` and
-:meth:`~picamera.PiCamera.capture_continuous` both support ``use_video_port``,
-:meth:`~picamera.PiCamera.capture_sequence` is by far the fastest method
-(because it does not re-initialize an encoder prior to each capture). Using
-this method, the author has managed 30fps JPEG captures at a resolution of
-1024x768.
+All capture methods support the *use_video_port* option, but the methods differ
+in their ability to rapidly capture sequential frames. So, whilst
+:meth:`~picamera.camera.PiCamera.capture` and
+:meth:`~picamera.camera.PiCamera.capture_continuous` both support
+*use_video_port*, :meth:`~picamera.camera.PiCamera.capture_sequence` is by far
+the fastest method (because it does not re-initialize an encoder prior to each
+capture). Using this method, the author has managed 30fps JPEG captures at a
+resolution of 1024x768.
 
-By default, :meth:`~picamera.PiCamera.capture_sequence` is particularly suited to
-capturing a fixed number of frames rapidly, as in the following example which
-captures a "burst" of 5 images::
+By default, :meth:`~picamera.camera.PiCamera.capture_sequence` is particularly
+suited to capturing a fixed number of frames rapidly, as in the following
+example which captures a "burst" of 5 images::
 
     import time
     import picamera
@@ -327,7 +328,7 @@ filenames for processing instead of specifying every single filename manually::
 However, this still doesn't let us capture an arbitrary number of frames until
 some condition is satisfied. To do this we need to use a generator function to
 provide the list of filenames (or more usefully, streams) to the
-:meth:`~picamera.PiCamera.capture_sequence` method::
+:meth:`~picamera.camera.PiCamera.capture_sequence` method::
 
     import time
     import picamera
@@ -454,8 +455,8 @@ Following on from :ref:`rapid_capture`, we can combine the video-port capture
 technique with :ref:`streaming_capture`. The server side script doesn't change
 (it doesn't really care what capture technique is being used - it just reads
 JPEGs off the wire). The changes to the client side script can be minimal at
-first - just add ``use_video_port=True`` to the
-:meth:`~picamera.PiCamera.capture_continuous` call::
+first - just set *use_video_port* to ``True`` in the
+:meth:`~picamera.camera.PiCamera.capture_continuous` call::
 
     import io
     import socket
@@ -635,8 +636,8 @@ performing analysis on a low-resolution stream, while simultaneously recording
 a high resolution stream for storage or viewing.
 
 The following simple recipe demonstrates using the *splitter_port* parameter of
-the :meth:`~picamera.PiCamera.start_recording` method to begin two simultaneous
-recordings, each with a different resolution::
+the :meth:`~picamera.camera.PiCamera.start_recording` method to begin two
+simultaneous recordings, each with a different resolution::
 
     import picamera
 
@@ -667,9 +668,10 @@ Recording motion vector data
 The Pi's camera is capable of outputting the motion vector estimates that the
 camera's H.264 encoder calculates while generating compressed video. These can
 be directed to a separate output file (or file-like object) with the
-*motion_output* parameter of the :meth:`~picamera.PiCamera.start_recording`
-method. Like the normal *output* parameter this accepts a string representing a
-filename, or a file-like object::
+*motion_output* parameter of the
+:meth:`~picamera.camera.PiCamera.start_recording` method. Like the normal
+*output* parameter this accepts a string representing a filename, or a
+file-like object::
 
     import picamera
 
@@ -806,11 +808,11 @@ Splitting to/from a circular stream
 
 This example builds on the one in :ref:`circular_record1` and the one in
 :ref:`record_and_capture` to demonstrate the beginnings of a security
-application. As before, a :class:`~picamera.PiCameraCircularIO` instance is
-used to keep the last few seconds of video recorded in memory. While the video
-is being recorded, video-port-based still captures are taken to provide a
-motion detection routine with some input (the actual motion detection algorithm
-is left as an exercise for the reader).
+application. As before, a :class:`~picamera.streams.PiCameraCircularIO`
+instance is used to keep the last few seconds of video recorded in memory.
+While the video is being recorded, video-port-based still captures are taken to
+provide a motion detection routine with some input (the actual motion detection
+algorithm is left as an exercise for the reader).
 
 Once motion is detected, the last 10 seconds of video are written to disk, and
 video recording is split to another disk file to proceed until motion is no
@@ -883,15 +885,15 @@ to the in-memory ring-buffer::
             camera.stop_recording()
 
 This example also demonstrates writing the circular buffer to disk in an
-efficient manner using the :meth:`~picamera.CircularIO.read1` method (as
-opposed to :meth:`~picamera.CircularIO.read`).
+efficient manner using the :meth:`~picamera.streams.CircularIO.read1` method
+(as opposed to :meth:`~picamera.streams.CircularIO.read`).
 
 .. note::
 
-    Note that :meth:`~picamera.CircularIO.read1` does not guarantee to return
-    the number of bytes requested, even if they are available in the underlying
-    stream; it simply returns as many as are available from a single chunk up
-    to the limit specified.
+    Note that :meth:`~picamera.streams.CircularIO.read1` does not guarantee to
+    return the number of bytes requested, even if they are available in the
+    underlying stream; it simply returns as many as are available from a single
+    chunk up to the limit specified.
 
 .. versionadded:: 1.0
 
@@ -1055,8 +1057,8 @@ won't tell you anything interesting (i.e. they'll simply indicate that the
 buffer contains a full frame and nothing else). Currently, the only format
 where the buffer header flags contain useful information is H.264. Even then,
 most of the information (I-frame, P-frame, motion information, etc.) would be
-accessible from the :attr:`~picamera.PiCamera.frame` attribute which you could
-access from your custom output's ``write`` method.
+accessible from the :attr:`~picamera.camera.PiCamera.frame` attribute which you
+could access from your custom output's ``write`` method.
 
 The encoder classes defined by picamera form the following hierarchy (shaded
 classes are actually instantiated by the implementation in picamera, white
@@ -1068,19 +1070,19 @@ classes implement base functionality but aren't technically "abstract"):
 The following table details which :class:`PiCamera` methods use which encoder
 classes, and which method they call to construct these encoders:
 
-+-----------------------------------------------+------------------------------------------------+----------------------------------------------+
-| Method(s)                                     | Call                                           | Returns                                      |
-+===============================================+================================================+==============================================+
-| :meth:`~picamera.PiCamera.capture`            | :meth:`~picamera.PiCamera._get_image_encoder`  | :class:`~picamera.PiCookedOneImageEncoder`   |
-| :meth:`~picamera.PiCamera.capture_continuous` |                                                | :class:`~picamera.PiRawOneImageEncoder`      |
-| :meth:`~picamera.PiCamera.capture_sequence`   |                                                |                                              |
-+-----------------------------------------------+------------------------------------------------+----------------------------------------------+
-| :meth:`~picamera.PiCamera.capture_sequence`   | :meth:`~picamera.PiCamera._get_images_encoder` | :class:`~picamera.PiCookedMultiImageEncoder` |
-|                                               |                                                | :class:`~picamera.PiRawMultiImageEncoder`    |
-+-----------------------------------------------+------------------------------------------------+----------------------------------------------+
-| :meth:`~picamera.PiCamera.start_recording`    | :meth:`~picamera.PiCamera._get_video_encoder`  | :class:`~picamera.PiCookedVideoEncoder`      |
-| :meth:`~picamera.PiCamera.record_sequence`    |                                                | :class:`~picamera.PiRawVideoEncoder`         |
-+-----------------------------------------------+------------------------------------------------+----------------------------------------------+
++------------------------------------------------------+-------------------------------------------------------+----------------------------------------------+
+| Method(s)                                            | Call                                                  | Returns                                      |
++======================================================+=======================================================+==============================================+
+| :meth:`~picamera.camera.PiCamera.capture`            | :meth:`~picamera.camera.PiCamera._get_image_encoder`  | :class:`~picamera.PiCookedOneImageEncoder`   |
+| :meth:`~picamera.camera.PiCamera.capture_continuous` |                                                       | :class:`~picamera.PiRawOneImageEncoder`      |
+| :meth:`~picamera.camera.PiCamera.capture_sequence`   |                                                       |                                              |
++------------------------------------------------------+-------------------------------------------------------+----------------------------------------------+
+| :meth:`~picamera.camera.PiCamera.capture_sequence`   | :meth:`~picamera.camera.PiCamera._get_images_encoder` | :class:`~picamera.PiCookedMultiImageEncoder` |
+|                                                      |                                                       | :class:`~picamera.PiRawMultiImageEncoder`    |
++------------------------------------------------------+-------------------------------------------------------+----------------------------------------------+
+| :meth:`~picamera.camera.PiCamera.start_recording`    | :meth:`~picamera.camera.PiCamera._get_video_encoder`  | :class:`~picamera.PiCookedVideoEncoder`      |
+| :meth:`~picamera.camera.PiCamera.record_sequence`    |                                                       | :class:`~picamera.PiRawVideoEncoder`         |
++------------------------------------------------------+-------------------------------------------------------+----------------------------------------------+
 
 It is recommended, particularly in the case of the image encoder classes, that
 you familiarize yourself with the specific function of these classes so that
@@ -1089,8 +1091,9 @@ find that one of the intermediate classes is a better basis for your own
 modifications.
 
 In the following example recipe we will extend the
-:class:`~picamera.PiCookedVideoEncoder` class to store how many I-frames and
-P-frames are captured (the camera's encoder doesn't use B-frames)::
+:class:`~picamera.encoders.PiCookedVideoEncoder` class to store how many
+I-frames and P-frames are captured (the camera's encoder doesn't use
+B-frames)::
 
     import picamera
     import picamera.mmal as mmal
@@ -1152,7 +1155,7 @@ leading to incorrect results.
 Raw Bayer data captures
 =======================
 
-The ``bayer`` parameter of the :meth:`~picamera.PiCamera.capture` method
+The ``bayer`` parameter of the :meth:`~picamera.camera.PiCamera.capture` method
 causes the raw Bayer data recorded by the camera's sensor to be output as
 part of the image metadata.
 
@@ -1168,7 +1171,7 @@ auto white balance, vignette compensation, smoothing, down-scaling,
 etc. This also means:
 
 * Bayer data is *always* full resolution, regardless of the camera's output
-  :attr:`~picamera.PiCamera.resolution` and any ``resize`` parameter.
+  :attr:`~picamera.camera.PiCamera.resolution` and any ``resize`` parameter.
 
 * Bayer data occupies the last 6,404,096 bytes of the output file. The first
   32,768 bytes of this is header data which starts with the string ``'BRCM'``.

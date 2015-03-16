@@ -38,6 +38,7 @@ imported.
 
 The following classes are defined in the module:
 
+
 PiArrayOutput
 =============
 
@@ -183,6 +184,14 @@ class PiArrayOutput(io.BytesIO):
     This class extends :class:`io.BytesIO` with a `numpy`_ array which is
     intended to be filled when :meth:`~io.IOBase.flush` is called (i.e. at the
     end of capture).
+
+    .. attribute:: array
+
+        After :meth:`~io.IOBase.flush` is called, this attribute contains the
+        frame's data as a multi-dimensional `numpy`_ array. This is typically
+        organized with the dimensions ``(rows, columns, plane)``. Hence, an
+        RGB image with dimensions *x* and *y* would produce an array with shape
+        ``(y, x, 3)``.
     """
 
     def __init__(self, camera, size=None):
@@ -204,7 +213,7 @@ class PiArrayOutput(io.BytesIO):
         In prior versions of picamera, truncation also changed the position of
         the stream (because prior versions of these stream classes were
         non-seekable). This functionality is now deprecated; scripts should
-        use :meth:`~io.BytesIO.seek` and :meth:`truncate` as one would with
+        use :meth:`~io.IOBase.seek` and :meth:`truncate` as one would with
         regular :class:`~io.BytesIO` instances.
         """
         if size is not None:
@@ -225,7 +234,8 @@ class PiRGBArray(PiArrayOutput):
 
     This custom output class can be used to easily obtain a 3-dimensional numpy
     array, organized (rows, columns, colors), from an unencoded RGB capture.
-    The array is accessed via the :attr:`array` attribute. For example::
+    The array is accessed via the :attr:`~PiArrayOutput.array` attribute. For
+    example::
 
         import picamera
         import picamera.array
@@ -255,9 +265,9 @@ class PiRGBArray(PiArrayOutput):
                         output.array.shape[1], output.array.shape[0]))
 
     If you are using the GPU resizer when capturing (with the *resize*
-    parameter of the various :meth:`~picamera.PiCamera.capture` methods),
-    specify the resized resolution as the optional *size* parameter when
-    constructing the array output::
+    parameter of the various :meth:`~picamera.camera.PiCamera.capture`
+    methods), specify the resized resolution as the optional *size* parameter
+    when constructing the array output::
 
         import picamera
         import picamera.array
@@ -281,7 +291,8 @@ class PiYUVArray(PiArrayOutput):
 
     This custom output class can be used to easily obtain a 3-dimensional numpy
     array, organized (rows, columns, channel), from an unencoded YUV capture.
-    The array is accessed via the :attr:`array` attribute. For example::
+    The array is accessed via the :attr:`~PiArrayOutput.array` attribute. For
+    example::
 
         import picamera
         import picamera.array
@@ -306,9 +317,9 @@ class PiYUVArray(PiArrayOutput):
                 print(output.rgb_array.shape)
 
     If you are using the GPU resizer when capturing (with the *resize*
-    parameter of the various :meth:`~picamera.PiCamera.capture` methods),
-    specify the resized resolution as the optional *size* parameter when
-    constructing the array output::
+    parameter of the various :meth:`~picamera.camera.PiCamera.capture`
+    methods), specify the resized resolution as the optional *size* parameter
+    when constructing the array output::
 
         import picamera
         import picamera.array
@@ -354,11 +365,11 @@ class PiBayerArray(PiArrayOutput):
     Produces a 3-dimensional RGB array from raw Bayer data.
 
     This custom output class is intended to be used with the
-    :meth:`~picamera.PiCamera.capture` method, with the *bayer* parameter set
-    to ``True``, to include raw Bayer data in the JPEG output. The class strips
-    out the raw data, constructing a 3-dimensional numpy array organized as
-    (rows, columns, colors). The resulting data is accessed via the
-    :attr:`array` attribute::
+    :meth:`~picamera.camera.PiCamera.capture` method, with the *bayer*
+    parameter set to ``True``, to include raw Bayer data in the JPEG output.
+    The class strips out the raw data, constructing a 3-dimensional numpy array
+    organized as (rows, columns, colors). The resulting data is accessed via
+    the :attr:`~PiArrayOutput.array` attribute::
 
         import picamera
         import picamera.array
@@ -483,16 +494,17 @@ class PiMotionArray(PiArrayOutput):
     Produces a 3-dimensional array of motion vectors from the H.264 encoder.
 
     This custom output class is intended to be used with the *motion_output*
-    parameter of the :meth:`~picamera.PiCamera.start_recording` method. Once
-    recording has finished, the class generates a 3-dimensional numpy array
-    organized as (frames, rows, columns) where ``rows`` and ``columns`` are the
-    number of rows and columns of `macro-blocks`_ (16x16 pixel blocks) in the
-    original frames. There is always one extra column of macro-blocks present
-    in motion vector data.
+    parameter of the :meth:`~picamera.camera.PiCamera.start_recording` method.
+    Once recording has finished, the class generates a 3-dimensional numpy
+    array organized as (frames, rows, columns) where ``rows`` and ``columns``
+    are the number of rows and columns of `macro-blocks`_ (16x16 pixel blocks)
+    in the original frames. There is always one extra column of macro-blocks
+    present in motion vector data.
 
-    The data-type of the :attr:`array` is an (x, y, sad) structure where ``x``
-    and ``y`` are signed 1-byte values, and ``sad`` is an unsigned 2-byte value
-    representing the `sum of absolute differences`_ of the block. For example::
+    The data-type of the :attr:`~PiArrayOutput.array` is an (x, y, sad)
+    structure where ``x`` and ``y`` are signed 1-byte values, and ``sad`` is an
+    unsigned 2-byte value representing the `sum of absolute differences`_ of
+    the block. For example::
 
         import picamera
         import picamera.array
@@ -578,26 +590,27 @@ class PiRGBAnalysis(PiAnalysisOutput):
     Provides a basis for per-frame RGB analysis classes.
 
     This custom output class is intended to be used with the
-    :meth:`~picamera.PiCamera.start_recording` method when it is called with
-    *format* set to ``'rgb'`` or ``'bgr'``. While recording is in progress, the
-    :meth:`~PiBaseOutput.write` method converts incoming frame data into a
-    numpy array and calls the stub :meth:`analyse` method with the resulting
-    array (this deliberately raises :exc:`NotImplementedError` in this class;
-    you must override it in your descendent class).
+    :meth:`~picamera.camera.PiCamera.start_recording` method when it is called
+    with *format* set to ``'rgb'`` or ``'bgr'``. While recording is in
+    progress, the :meth:`~PiAnalysisOutput.write` method converts incoming
+    frame data into a numpy array and calls the stub
+    :meth:`~PiAnalysisOutput.analyse` method with the resulting array (this
+    deliberately raises :exc:`NotImplementedError` in this class; you must
+    override it in your descendent class).
 
     .. warning::
 
-        Because the :meth:`analyse` method will be running within the encoder's
-        callback, it must be **fast**. Specifically, it needs to return before
-        the next frame is produced. Therefore, if the camera is running at
-        30fps, analyse cannot take more than 1/30s or 33ms to execute (and
-        should take considerably less given that this doesn't take into account
-        encoding overhead). You may wish to adjust the framerate of the camera
-        accordingly.
+        Because the :meth:`~PiAnalysisOutput.analyse` method will be running
+        within the encoder's callback, it must be **fast**. Specifically, it
+        needs to return before the next frame is produced. Therefore, if the
+        camera is running at 30fps, analyse cannot take more than 1/30s or 33ms
+        to execute (and should take considerably less given that this doesn't
+        take into account encoding overhead). You may wish to adjust the
+        framerate of the camera accordingly.
 
-    The array passed to :meth:`analyse` is organized as (rows, columns,
-    channel) where the channels 0, 1, and 2 are R, G, and B respectively (or B,
-    G, R if *format* is ``'bgr'``).
+    The array passed to :meth:`~PiAnalysisOutput.analyse` is organized as
+    (rows, columns, channel) where the channels 0, 1, and 2 are R, G, and B
+    respectively (or B, G, R if *format* is ``'bgr'``).
     """
 
     def write(self, b):
@@ -611,28 +624,29 @@ class PiYUVAnalysis(PiAnalysisOutput):
     Provides a basis for per-frame YUV analysis classes.
 
     This custom output class is intended to be used with the
-    :meth:`~picamera.PiCamera.start_recording` method when it is called with
-    *format* set to ``'yuv'``. While recording is in progress, the
-    :meth:`~PiBaseOutput.write` method converts incoming frame data into a
-    numpy array and calls the stub :meth:`analyse` method with the resulting
-    array (this deliberately raises :exc:`NotImplementedError` in this class;
-    you must override it in your descendent class).
+    :meth:`~picamera.camera.PiCamera.start_recording` method when it is called
+    with *format* set to ``'yuv'``. While recording is in progress, the
+    :meth:`~PiAnalysisOutput.write` method converts incoming frame data into a
+    numpy array and calls the stub :meth:`~PiAnalysisOutput.analyse` method
+    with the resulting array (this deliberately raises
+    :exc:`NotImplementedError` in this class; you must override it in your
+    descendent class).
 
     .. warning::
 
-        Because the :meth:`analyse` method will be running within the encoder's
-        callback, it must be **fast**. Specifically, it needs to return before
-        the next frame is produced. Therefore, if the camera is running at
-        30fps, analyse cannot take more than 1/30s or 33ms to execute (and
-        should take considerably less given that this doesn't take into account
-        encoding overhead). You may wish to adjust the framerate of the camera
-        accordingly.
+        Because the :meth:`~PiAnalysisOutput.analyse` method will be running
+        within the encoder's callback, it must be **fast**. Specifically, it
+        needs to return before the next frame is produced. Therefore, if the
+        camera is running at 30fps, analyse cannot take more than 1/30s or 33ms
+        to execute (and should take considerably less given that this doesn't
+        take into account encoding overhead). You may wish to adjust the
+        framerate of the camera accordingly.
 
-    The array passed to :meth:`analyse` is organized as (rows, columns,
-    channel) where the channel 0 is Y (luminance), while 1 and 2 are U and V
-    (chrominance) respectively. The chrominance values normally have quarter
-    resolution of the luminance values but this class makes all channels equal
-    resolution for ease of use.
+    The array passed to :meth:`~PiAnalysisOutput.analyse` is organized as
+    (rows, columns, channel) where the channel 0 is Y (luminance), while 1 and
+    2 are U and V (chrominance) respectively. The chrominance values normally
+    have quarter resolution of the luminance values but this class makes all
+    channels equal resolution for ease of use.
     """
 
     def write(self, b):
@@ -646,26 +660,27 @@ class PiMotionAnalysis(PiAnalysisOutput):
     Provides a basis for real-time motion analysis classes.
 
     This custom output class is intended to be used with the *motion_output*
-    parameter of the :meth:`~picamera.PiCamera.start_recording` method. While
-    recording is in progress, the write method converts incoming motion data
-    into numpy arrays and calls the stub :meth:`analyse` method with the
-    resulting array (which deliberately raises :exc:`NotImplementedError`
-    in this class).
+    parameter of the :meth:`~picamera.camera.PiCamera.start_recording` method.
+    While recording is in progress, the write method converts incoming motion
+    data into numpy arrays and calls the stub :meth:`~PiAnalysisOutput.analyse`
+    method with the resulting array (which deliberately raises
+    :exc:`NotImplementedError` in this class).
 
     .. warning::
 
-        Because the :meth:`analyse` method will be running within the encoder's
-        callback, it must be **fast**. Specifically, it needs to return before
-        the next frame is produced. Therefore, if the camera is running at
-        30fps, analyse cannot take more than 1/30s or 33ms to execute (and
-        should take considerably less given that this doesn't take into account
-        encoding overhead). You may wish to adjust the framerate of the camera
-        accordingly.
+        Because the :meth:`~PiAnalysisOutput.analyse` method will be running
+        within the encoder's callback, it must be **fast**. Specifically, it
+        needs to return before the next frame is produced. Therefore, if the
+        camera is running at 30fps, analyse cannot take more than 1/30s or 33ms
+        to execute (and should take considerably less given that this doesn't
+        take into account encoding overhead). You may wish to adjust the
+        framerate of the camera accordingly.
 
-    The array passed to :meth:`analyse` is organized as (rows, columns) where
-    ``rows`` and ``columns`` are the number of rows and columns of
-    `macro-blocks`_ (16x16 pixel blocks) in the original frames. There is
-    always one extra column of macro-blocks present in motion vector data.
+    The array passed to :meth:`~PiAnalysisOutput.analyse` is organized as
+    (rows, columns) where ``rows`` and ``columns`` are the number of rows and
+    columns of `macro-blocks`_ (16x16 pixel blocks) in the original frames.
+    There is always one extra column of macro-blocks present in motion vector
+    data.
 
     The data-type of the array is an (x, y, sad) structure where ``x`` and
     ``y`` are signed 1-byte values, and ``sad`` is an unsigned 2-byte value
@@ -698,7 +713,7 @@ class PiMotionAnalysis(PiAnalysisOutput):
 
     You can use the optional *size* parameter to specify the output resolution
     of the GPU resizer, if you are using the *resize* parameter of
-    :meth:`~picamera.PiCamera.start_recording`.
+    :meth:`~picamera.camera.PiCamera.start_recording`.
     """
 
     def __init__(self, camera, size=None):

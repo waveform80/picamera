@@ -27,6 +27,41 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+"""
+The camera module defines the :class:`~picamera.PiCamera` class, which is the
+primary interface to the Raspberry Pi's camera module.
+
+.. note::
+
+    All classes in this module are available from the :mod:`picamera` namespace
+    without having to import :mod:`picamera.camera` directly.
+
+The following classes are defined in the module:
+
+PiCamera
+========
+
+.. note::
+
+    In the documentation below several apparently "private" methods are
+    documented (i.e. methods which have names beginning with an underscore).
+    Most users can ignore these methods; they are intended for those developers
+    that wish to override or extend the encoder implementations used by
+    picamera.
+
+    Some may question, given that these methods are intended to be overridden,
+    why they are declared with a leading underscore (which in the Python idiom
+    suggests that these methods are "private" to the class). In the cases where
+    such methods are documented, the author intends these methods to have
+    "protected" status (in the idiom of C++ and Object Pascal). That is to say,
+    they are not intended to be used outside of the declaring class, but are
+    intended to be accessible to, and overridden by, descendent classes.
+
+.. autoclass:: PiCamera
+    :members:
+    :private-members:
+"""
+
 from __future__ import (
     unicode_literals,
     print_function,
@@ -262,6 +297,9 @@ class PiCamera(object):
 
     .. versionchanged:: 1.9
         Added *resolution*, *framerate*, and *sensor_mode* parameters
+
+    .. versionchanged:: 1.10
+        Added *led_pin* parameter
 
     .. _Compute Module: http://www.raspberrypi.org/documentation/hardware/computemodule/cmio-camera.md
     """
@@ -732,7 +770,7 @@ class PiCamera(object):
         """
         Determine the camera and output ports for given capture options.
 
-        See :ref:`under_the_hood` for more information on picamera's usage of
+        See :ref:`camera_hardware` for more information on picamera's usage of
         camera, splitter, and encoder ports. The general idea here is that the
         capture (still) port operates on its own, while the video port is
         always connected to a splitter component, so requests for a video port
@@ -937,8 +975,9 @@ class PiCamera(object):
         Displays the preview overlay.
 
         This method starts a camera preview as an overlay on the Pi's primary
-        display (HDMI or composite). A :class:`PiRenderer` instance (more
-        specifically, a :class:`PiPreviewRenderer`) is constructed with the
+        display (HDMI or composite). A :class:`~picamera.renderers.PiRenderer`
+        instance (more specifically, a
+        :class:`~picamera.renderers.PiPreviewRenderer`) is constructed with the
         keyword arguments captured in *options*, and is returned from the
         method (this instance is also accessible from the :attr:`preview`
         attribute for as long as the renderer remains active).  By default, the
@@ -998,7 +1037,8 @@ class PiCamera(object):
         mechanism as the preview. Overlays will appear on the Pi's video
         output, but will not appear in captures or video recordings. Multiple
         overlays can exist; each call to :meth:`add_overlay` returns a new
-        :class:`PiOverlayRenderer` instance representing the overlay.
+        :class:`~picamera.renderers.PiOverlayRenderer` instance representing
+        the overlay.
 
         The optional *size* parameter specifies the size of the source image as
         a ``(width, height)`` tuple. If this is omitted or ``None`` then the
@@ -1022,18 +1062,20 @@ class PiCamera(object):
         2. Higher numbered layers obscure lower numbered layers, hence new
         overlays will be invisible (if the preview is running) by default. You
         can make the new overlay visible either by making any existing preview
-        transparent (with the :attr:`~PiRenderer.alpha` property) or by moving
-        the overlay into a layer higher than the preview (with the
-        :attr:`~PiRenderer.layer` property).
+        transparent (with the :attr:`~picamera.renderers.PiRenderer.alpha`
+        property) or by moving the overlay into a layer higher than the preview
+        (with the :attr:`~picamera.renderers.PiRenderer.layer` property).
 
         All keyword arguments captured in *options* are passed onto the
-        :class:`PiRenderer` constructor. All camera properties except
-        :attr:`resolution` and :attr:`framerate` can be modified while overlays
-        exist. The reason for these exceptions is that the overlay has a static
-        resolution and changing the camera's mode would require resizing of the
-        source.
+        :class:`~picamera.renderers.PiRenderer` constructor. All camera
+        properties except :attr:`resolution` and :attr:`framerate` can be
+        modified while overlays exist. The reason for these exceptions is that
+        the overlay has a static resolution and changing the camera's mode
+        would require resizing of the source.
 
         .. _RGB: http://en.wikipedia.org/wiki/RGB
+
+        .. versionadded:: 1.8
         """
         renderer = PiOverlayRenderer(self, source, size, **options)
         self._overlays.append(renderer)
@@ -1045,7 +1087,10 @@ class PiCamera(object):
 
         This method removes an overlay which was previously created by
         :meth:`add_overlay`. The *overlay* parameter specifies the
-        :class:`PiRenderer` instance that was returned by :meth:`add_overlay`.
+        :class:`~picamera.renderers.PiRenderer` instance that was returned by
+        :meth:`add_overlay`.
+
+        .. versionadded:: 1.8
         """
         if not overlay in self._overlays:
             raise PiCameraRuntimeError(
@@ -1069,7 +1114,7 @@ class PiCamera(object):
         the required video format from the extension of *output* (if it's a
         string), or from the *name* attribute of *output* (if it has one). In
         the case that the format cannot be determined, a
-        :exc:`PiCameraValueError` will be raised.
+        :exc:`~picamera.exc.PiCameraValueError` will be raised.
 
         If *format* is not ``None``, it must be a string specifying the format
         that you want the image written to. The format can be a MIME-type or
@@ -1404,7 +1449,7 @@ class PiCamera(object):
         the required image format from the extension of *output* (if it's a
         string), or from the *name* attribute of *output* (if it has one). In
         the case that the format cannot be determined, a
-        :exc:`PiCameraValueError` will be raised.
+        :exc:`~picamera.exc.PiCameraValueError` will be raised.
 
         If *format* is not ``None``, it must be a string specifying the format
         that you want the image written to. The format can be a MIME-type or
@@ -1997,8 +2042,8 @@ class PiCamera(object):
 
         When video recording is active (after a call to
         :meth:`start_recording`), this attribute will return a
-        :class:`PiVideoFrame` tuple containing information about the current
-        frame that the camera is recording.
+        :class:`~picamera.encoders.PiVideoFrame` tuple containing information
+        about the current frame that the camera is recording.
 
         If multiple video recordings are currently in progress (after multiple
         calls to :meth:`start_recording` with different values for the
@@ -2122,10 +2167,10 @@ class PiCamera(object):
 
         When set, the property reconfigures the camera so that the next call to
         recording and previewing methods will use the new framerate.  The
-        framerate can be specified as an :class:`int`, :class:`float`,
-        :class:`~fractions.Fraction`, or a ``(numerator, denominator)`` tuple.
-        The camera must not be closed, and no recording must be active when the
-        property is set.
+        framerate can be specified as an :ref:`int <typesnumeric>`, :ref:`float
+        <typesnumeric>`, :class:`~fractions.Fraction`, or a ``(numerator,
+        denominator)`` tuple.  The camera must not be closed, and no recording
+        must be active when the property is set.
 
         .. note::
 
@@ -3085,10 +3130,11 @@ class PiCamera(object):
         When set, this attribute adjusts the camera's auto-white-balance gains.
         The property can be specified as a single value in which case both red
         and blue gains will be adjusted equally, or as a `(red, blue)` tuple.
-        Values can be specified as an :class:`int`, :class:`float` or
-        :class:`~fractions.Fraction` and each gain must be between 0.0 and 8.0.
-        Typical values for the gains are between 0.9 and 1.9.  The property can
-        be set while recordings or previews are in progress.
+        Values can be specified as an :ref:`int <typesnumeric>`, :ref:`float
+        <typesnumeric>` or :class:`~fractions.Fraction` and each gain must be
+        between 0.0 and 8.0.  Typical values for the gains are between 0.9 and
+        1.9.  The property can be set while recordings or previews are in
+        progress.
 
         .. note::
 
@@ -3096,7 +3142,6 @@ class PiCamera(object):
             ``'off'``.
 
         .. versionchanged:: 1.6
-
             Prior to version 1.6, this attribute was write-only.
         """)
 
@@ -3229,7 +3274,8 @@ class PiCamera(object):
         :attr:`effect <image_effect>` as a sequence of numbers, or a single
         number. Attempting to set parameters on an effect which does not
         support parameters, or providing an incompatible set of parameters for
-        an effect will raise a :exc:`PiCameraValueError` exception.
+        an effect will raise a :exc:`~picamera.exc.PiCameraValueError`
+        exception.
 
         The effects which have parameters, and what combinations those
         parameters can take is as follows:
@@ -3535,9 +3581,12 @@ class PiCamera(object):
 
         If no overlays are current active, :attr:`overlays` will return an
         empty iterable. Otherwise, it will return an iterable of
-        :class:`PiRenderer` instances which are currently acting as overlays.
-        Note that the preview renderer is an exception to this: it is *not*
-        included as an overlay despite being derived from :class:`PiRenderer`.
+        :class:`~picamera.renderers.PiRenderer` instances which are currently
+        acting as overlays.  Note that the preview renderer is an exception to
+        this: it is *not* included as an overlay despite being derived from
+        :class:`~picamera.renderers.PiRenderer`.
+
+        .. versionadded:: 1.8
         """)
 
     def _get_preview(self):
@@ -3545,14 +3594,16 @@ class PiCamera(object):
         if isinstance(self._preview, PiPreviewRenderer):
             return self._preview
     preview = property(_get_preview, doc="""
-        Retrieves the :class:`PiRenderer` displaying the camera preview.
+        Retrieves the :class:`~picamera.renderers.PiRenderer` displaying the
+        camera preview.
 
         If no preview is currently active, :attr:`preview` will return
         ``None``.  Otherwise, it will return the instance of
-        :class:`PiRenderer` which is currently connected to the camera's
-        preview port for rendering what the camera sees. You can use the
-        attributes of the :class:`PiRenderer` class to configure the appearance
-        of the preview. For example, to make the preview semi-transparent::
+        :class:`~picamera.renderers.PiRenderer` which is currently connected to
+        the camera's preview port for rendering what the camera sees. You can
+        use the attributes of the :class:`~picamera.renderers.PiRenderer` class
+        to configure the appearance of the preview. For example, to make the
+        preview semi-transparent::
 
             import picamera
 
@@ -3587,8 +3638,8 @@ class PiCamera(object):
         Retrieves or sets the opacity of the preview window.
 
         .. deprecated:: 1.8
-            Please use the :attr:`~PiRenderer.alpha` attribute of the
-            :attr:`preview` object instead.
+            Please use the :attr:`~picamera.renderers.PiRenderer.alpha`
+            attribute of the :attr:`preview` object instead.
         """)
 
     def _get_preview_layer(self):
@@ -3616,8 +3667,8 @@ class PiCamera(object):
         Retrieves of sets the layer of the preview window.
 
         .. deprecated:: 1.8
-            Please use the :attr:`~PiRenderer.layer` attribute of the
-            :attr:`preview` object instead.
+            Please use the :attr:`~picamera.renderers.PiRenderer.layer`
+            attribute of the :attr:`preview` object instead.
         """)
 
     def _get_preview_fullscreen(self):
@@ -3645,8 +3696,8 @@ class PiCamera(object):
         Retrieves or sets full-screen for the preview window.
 
         .. deprecated:: 1.8
-            Please use the :attr:`~PiRenderer.fullscreen` attribute of the
-            :attr:`preview` object instead.
+            Please use the :attr:`~picamera.renderers.PiRenderer.fullscreen`
+            attribute of the :attr:`preview` object instead.
         """)
 
     def _get_preview_window(self):
@@ -3674,8 +3725,8 @@ class PiCamera(object):
         Retrieves or sets the size of the preview window.
 
         .. deprecated:: 1.8
-            Please use the :attr:`~PiRenderer.window` attribute of the
-            :attr:`preview` object instead.
+            Please use the :attr:`~picamera.renderers.PiRenderer.window`
+            attribute of the :attr:`preview` object instead.
         """)
 
     def _get_annotate_text(self):
@@ -3707,8 +3758,12 @@ class PiCamera(object):
         When set, the property immediately applies the annotation to the
         preview (if it is running) and to any future captures or video
         recording. Strings longer than 255 characters, or strings containing
-        non-ASCII characters will raise a :exc:`PiCameraValueError`. The
-        default value is ``''``.
+        non-ASCII characters will raise a
+        :exc:`~picamera.exc.PiCameraValueError`. The default value is ``''``.
+
+        .. versionchanged:: 1.8
+            Text annotations can now be 255 characters long. The prior limit
+            was 32 characters.
         """)
 
     def _get_annotate_frame_num(self):
@@ -3730,6 +3785,8 @@ class PiCamera(object):
         The :attr:`annotate_frame_num` attribute is a bool indicating whether
         or not the current frame number is rendered as an annotation, similar
         to :attr:`annotate_text`. The default is ``False``.
+
+        .. versionadded:: 1.8
         """)
 
     def _get_annotate_text_size(self):
@@ -3762,8 +3819,10 @@ class PiCamera(object):
 
         The :attr:`annotate_text_size` attribute is an int which determines how
         large the annotation text will appear on the display. Valid values are
-        in the range 6 to 160, inclusive. The default is %d.
-        """ % DEFAULT_ANNOTATE_SIZE)
+        in the range 6 to 160, inclusive. The default is {size}.
+
+        .. versionadded:: 1.10
+        """.format(size=DEFAULT_ANNOTATE_SIZE))
 
     def _get_annotate_foreground(self):
         self._check_camera_open()
@@ -3803,21 +3862,24 @@ class PiCamera(object):
 
         The :attr:`annotate_foreground` attribute specifies, partially, the
         color of the annotation text. The value is specified as a
-        :class:`Color`. The default is white.
+        :class:`~picamera.color.Color`. The default is white.
 
         .. note::
+
             The underlying firmware does not directly support setting all
             components of the text color, only the Y' component of a `Y'UV`_
             tuple. This is roughly (but not precisely) analogous to the
             "brightness" of a color, so you may choose to think of this as
             setting how bright the annotation text will be relative to its
             background. In order to specify just the Y' component when setting
-            this attribute, you may choose to construct the :class:`Color`
-            instance as follows::
+            this attribute, you may choose to construct the
+            :class:`~picamera.color.Color` instance as follows::
 
-                camera.annotate_foreground = Color(y=0.2, u=0, v=0)
+                camera.annotate_foreground = picamera.Color(y=0.2, u=0, v=0)
 
         .. _Y'UV: https://en.wikipedia.org/wiki/YUV
+
+        .. versionadded:: 1.10
         """)
 
     def _get_annotate_background(self):
@@ -3900,5 +3962,11 @@ class PiCamera(object):
             color black. The "truthiness" of the values returned by the
             attribute are backward compatible although the values themselves
             are not.
+
+        .. versionadded:: 1.8
+
+        .. versionchanged:: 1.10
+            In prior versions this was a bool value with ``True`` representing
+            a black background.
         """)
 

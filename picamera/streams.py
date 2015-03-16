@@ -27,6 +27,34 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+"""
+The streams module defines stream classes suited to generating certain types of
+camera output (beyond those provided by Python by default). Currently, this
+consists primarily of :class:`~PiCameraCircularIO`.
+
+.. note::
+
+    All classes in this module are available from the :mod:`picamera` namespace
+    without having to import :mod:`picamera.streams` directly.
+
+The following classes are defined in the module:
+
+
+PiCameraCircularIO
+==================
+
+.. autoclass:: PiCameraCircularIO
+    :members:
+
+
+CircularIO
+==========
+
+.. autoclass:: CircularIO
+    :members:
+
+"""
+
 from __future__ import (
     unicode_literals,
     print_function,
@@ -410,21 +438,22 @@ class PiCameraCircularIO(CircularIO):
         * the stream is never truncated (from the right; being ring buffer
           based, left truncation will occur automatically)
 
-    The *camera* parameter specifies the :class:`PiCamera` instance that will
-    be recording video to the stream. If specified, the *size* parameter
-    determines the maximum size of the stream in bytes. If *size* is not
-    specified (or ``None``), then *seconds* must be specified instead. This
-    provides the maximum length of the stream in seconds, assuming a data rate
-    in bits-per-second given by the *bitrate* parameter (which defaults to
-    ``17000000``, or 17Mbps, which is also the default bitrate used for video
-    recording by :class:`PiCamera`). You cannot specify both *size* and
-    *seconds*.
+    The *camera* parameter specifies the :class:`~picamera.camera.PiCamera`
+    instance that will be recording video to the stream. If specified, the
+    *size* parameter determines the maximum size of the stream in bytes. If
+    *size* is not specified (or ``None``), then *seconds* must be specified
+    instead. This provides the maximum length of the stream in seconds,
+    assuming a data rate in bits-per-second given by the *bitrate* parameter
+    (which defaults to ``17000000``, or 17Mbps, which is also the default
+    bitrate used for video recording by :class:`~picamera.camera.PiCamera`).
+    You cannot specify both *size* and *seconds*.
 
     The *splitter_port* parameter specifies the port of the built-in splitter
     that the video encoder will be attached to. This defaults to ``1`` and most
     users will have no need to specify anything different. If you do specify
     something else, ensure it is equal to the *splitter_port* parameter of the
-    corresponding call to :meth:`PiCamera.start_recording`. For example::
+    corresponding call to :meth:`~picamera.camera.PiCamera.start_recording`.
+    For example::
 
         import picamera
 
@@ -454,10 +483,11 @@ class PiCameraCircularIO(CircularIO):
 
         As the camera records video to the stream, the class captures the
         meta-data associated with each frame (in the form of a
-        :class:`PiVideoFrame` tuple), discarding meta-data for frames which are
-        no longer fully stored within the underlying ring buffer.  You can use
-        the frame meta-data to locate, for example, the first keyframe present
-        in the stream in order to determine an appropriate range to extract.
+        :class:`~picamera.encoders.PiVideoFrame` tuple), discarding meta-data
+        for frames which are no longer fully stored within the underlying ring
+        buffer.  You can use the frame meta-data to locate, for example, the
+        first keyframe present in the stream in order to determine an
+        appropriate range to extract.
         """
         with self.lock:
             for frame in self._data.frames:

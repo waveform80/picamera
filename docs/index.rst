@@ -19,7 +19,13 @@ Table of Contents
    fov
    deprecated
    api
-   array
+   api_camera
+   api_encoders
+   api_streams
+   api_renderers
+   api_color
+   api_array
+   api_exc
    changelog
    license
 

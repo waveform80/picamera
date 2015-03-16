@@ -27,6 +27,57 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+"""
+This module defines the exceptions used by picamera. All exception classes
+utilize multiple inheritance in order to make testing for exception types more
+intuitive. For example, :exc:`PiCameraValueError` derives from both
+:exc:`PiCameraError` and :exc:`ValueError`. Hence it will be caught by blocks
+intended to catch any error specific to the picamera library::
+
+    try:
+        camera.brightness = int(some_user_value)
+    except PiCameraError:
+        print('Something went wrong with the camera')
+
+Or by blocks intended to catch value errors::
+
+    try:
+        camera.contrast = int(some_user_value)
+    except ValueError:
+        print('Invalid value')
+
+.. note::
+
+    All classes in this module are available from the :mod:`picamera` namespace
+    without having to import :mod:`picamera.streams` directly.
+
+The following classes are defined in the module:
+
+
+.. autoexception:: PiCameraWarning
+
+.. autoexception:: PiCameraDeprecated
+
+.. autoexception:: PiCameraFallback
+
+.. autoexception:: PiCameraError
+
+.. autoexception:: PiCameraValueError
+
+.. autoexception:: PiCameraRuntimeError
+
+.. autoexception:: PiCameraClosed
+
+.. autoexception:: PiCameraNotRecording
+
+.. autoexception:: PiCameraAlreadyRecording
+
+.. autoexception:: PiCameraMMALError
+
+.. autofunction:: mmal_check
+
+"""
+
 from __future__ import (
     unicode_literals,
     print_function,
@@ -68,7 +119,7 @@ class PiCameraError(Exception):
 class PiCameraRuntimeError(PiCameraError, RuntimeError):
     """
     Raised when an invalid sequence of operations is attempted with a
-    :class:`PiCamera` object.
+    :class:`~picamera.camera.PiCamera` object.
     """
 
 
@@ -80,23 +131,24 @@ class PiCameraClosed(PiCameraRuntimeError):
 
 class PiCameraNotRecording(PiCameraRuntimeError):
     """
-    Raised when :meth:`~PiCamera.stop_recording` or
-    :meth:`~PiCamera.split_recording` are called against a port which has no
-    recording active.
+    Raised when :meth:`~picamera.camera.PiCamera.stop_recording` or
+    :meth:`~picamera.camera.PiCamera.split_recording` are called against a port
+    which has no recording active.
     """
 
 
 class PiCameraAlreadyRecording(PiCameraRuntimeError):
     """
-    Raised when :meth:`~PiCamera.start_recording` or
-    :meth:`~PiCamera.record_sequence` are called against a port which already
-    has an active recording.
+    Raised when :meth:`~picamera.camera.PiCamera.start_recording` or
+    :meth:`~picamera.camera.PiCamera.record_sequence` are called against a port
+    which already has an active recording.
     """
 
 
 class PiCameraValueError(PiCameraError, ValueError):
     """
-    Raised when an invalid value is fed to a :class:`PiCamera` object.
+    Raised when an invalid value is fed to a :class:`~picamera.camera.PiCamera`
+    object.
     """
 
 

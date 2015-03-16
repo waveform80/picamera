@@ -14,12 +14,12 @@ preview works quite happily from the command line, even without anyone logged
 in).
 
 That said, the preview area can be resized and repositioned via the
-:attr:`~picamera.PiRenderer.window` attribute of the
-:attr:`~picamera.PiCamera.preview` object. If your program can respond to
-window repositioning and sizing events you can "cheat" and position the preview
-within the borders of the target window. However, there's currently no way to
-allow anything to appear on top of the preview so this is an imperfect solution
-at best.
+:attr:`~picamera.renderers.PiRenderer.window` attribute of the
+:attr:`~picamera.camera.PiCamera.preview` object. If your program can respond
+to window repositioning and sizing events you can "cheat" and position the
+preview within the borders of the target window. However, there's currently no
+way to allow anything to appear on top of the preview so this is an imperfect
+solution at best.
 
 Help! I started a preview and can't see my console!
 ===================================================
@@ -28,15 +28,15 @@ As mentioned above, the preview is simply an overlay over the Pi's video
 output.  If you start a preview you may therefore discover you can't see your
 console anymore and there's no obvious way of getting it back. If you're
 confident in your typing skills you can try calling
-:meth:`~picamera.PiCamera.stop_preview` by typing "blindly" into your hidden
-console. However, the simplest way of getting your display back is usually
-to hit ``Ctrl+D`` to terminate the Python process (which should also shut down
-the camera).
+:meth:`~picamera.camera.PiCamera.stop_preview` by typing "blindly" into your
+hidden console. However, the simplest way of getting your display back is
+usually to hit ``Ctrl+D`` to terminate the Python process (which should also
+shut down the camera).
 
 When starting a preview, you may want to set the *alpha* parameter of the
-:meth:`~picamera.PiCamera.start_preview` method to something like 128. This
-should ensure that when the preview is displayed, it is partially transparent
-so you can still see your console.
+:meth:`~picamera.camera.PiCamera.start_preview` method to something like 128.
+This should ensure that when the preview is displayed, it is partially
+transparent so you can still see your console.
 
 The preview doesn't work on my PiTFT screen
 ===========================================
@@ -53,10 +53,10 @@ How much power does the camera require?
 =======================================
 
 The camera `requires 250mA`_ when running. Note that simply creating a
-:class:`~picamera.PiCamera` object means the camera is running (due to the
+:class:`~picamera.camera.PiCamera` object means the camera is running (due to the
 hidden preview that is started to allow the auto-exposure algorithm to run). If
 you are running your Pi from batteries, you should
-:meth:`~picamera.PiCamera.close` (or destroy) the instance when the camera is
+:meth:`~picamera.camera.PiCamera.close` (or destroy) the instance when the camera is
 not required in order to conserve power. For example, the following code
 captures 60 images over an hour, but leaves the camera running all the time::
 
@@ -74,7 +74,8 @@ captures 60 images over an hour, but leaves the camera running all the time::
                 break
 
 By contrast, this code closes the camera between shots (but can't use the
-convenient :meth:`~picamera.PiCamera.capture_continuous` method as a result)::
+convenient :meth:`~picamera.camera.PiCamera.capture_continuous` method as a
+result)::
 
     import picamera
     import time
@@ -156,3 +157,51 @@ Users desperate to try the latest version make choose to uninstall their
 based installation up to date is a more manual process (sticking with ``apt``
 ensures everything gets upgraded with a simple ``sudo apt-get upgrade``
 command).
+
+Why is there so much latency when streaming video?
+==================================================
+
+The first thing to understand is that streaming latency is nothing to do with
+the encoding or sending end of things (i.e. the Pi), but mostly to do with the
+playing or receiving end. If the Pi weren't capable of encoding a frame before
+the next frame arrived, it wouldn't be capable of recording video at all
+(because its internal buffers would rapidly become filled with unencoded
+frames).
+
+So, why do players typically introduce several seconds worth of latency? The
+primary reason is that most players (e.g. VLC) are optimized for playing
+streams over a network. Such players allocate a large (multi-second) buffer and
+only start playing once this is filled to guard against possible future packet
+loss.
+
+A secondary reason that all such players allocate at least a couple of frames
+worth of buffering is that the MPEG standard includes certain frame types that
+require it:
+
+* I-frames (intra-frames, also known as "key frames"). These frames contain a
+  complete picture and thus are the largest sort of frames. They occur at the
+  start of playback and at periodic points during the stream.
+* P-frames (predicted frames). These frames describe the changes from the prior
+  frame to the current frame, therefore one must have successfully decoded the
+  prior frame in order to decode a P-frame.
+* B-frames (bi-directional predicted frames). These frames describe the changes
+  from the next frame to the current frame, therefore one must have
+  successfully decoded the *next* frame in order to decode the current B-frame.
+
+B-frames aren't produced by the Pi's camera (or, as I understand it, by most
+real-time recording cameras) as it would require buffering yet-to-be-recorded
+frames before encoding the current one. However, most recorded media (DVDs,
+Blu-rays, and hence network video streams) do use them, so players must support
+them. It is simplest to write such a player by assuming that any source may
+contain B-frames, and buffering at least 2 frames worth of data at all times to
+make decoding them simpler.
+
+As for the network in between, a slow wifi network may introduce a frame's
+worth of latency, but not much more than that. Check the ping time across your
+network; it's likely to be less than 30ms in which case your network cannot
+account for more than a frame's worth of latency.
+
+TL;DR: the reason you've got lots of latency when streaming video is nothing to
+do with the Pi. You need to persuade your video player to reduce or forgo its
+buffering.
+

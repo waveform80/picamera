@@ -240,13 +240,14 @@ is technically written in pure Python, heavy use of :mod:`ctypes` is involved
 so the code really doesn't look much like Python - more a sort of horrid
 mish-mash of C and Python.
 
-The project consists primarily of a class (:class:`PiCamera`) which is a
-re-implementation of high-level bits of the ``raspistill`` and ``raspivid``
-commands using the :mod:`ctypes` based ``libmmal`` header conversion, plus a
-set of :ref:`encoder classes <custom_encoders>` which re-implement the encoder
-callback configuration in the aforementioned binaries. Various classes for
-specialized applications also exist (:class:`PiCameraCircularIO`,
-:class:`PiBayerArray`, etc.)
+The project consists primarily of a class (:class:`~picamera.camera.PiCamera`)
+which is a re-implementation of high-level bits of the ``raspistill`` and
+``raspivid`` commands using the :mod:`ctypes` based ``libmmal`` header
+conversion, plus a set of :ref:`encoder classes <custom_encoders>` which
+re-implement the encoder callback configuration in the aforementioned binaries.
+Various classes for specialized applications also exist
+(:class:`~picamera.streams.PiCameraCircularIO`,
+:class:`~picamera.array.PiBayerArray`, etc.)
 
 Even if you don't feel up to hacking on the code, I'd love to hear suggestions
 from people of what you'd like the API to look like (even if the code itself
