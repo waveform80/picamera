@@ -584,7 +584,7 @@ class Color(namedtuple('Color', ('red', 'green', 'blue'))):
         named colors (e.g. "green" or "wheat") from the `CSS standard`_. Any
         other string format will result in a :exc:`ValueError`.
 
-        .. _CSS standard: <http://www.w3.org/TR/css3-color/#svg-color>
+        .. _CSS standard: http://www.w3.org/TR/css3-color/#svg-color
         """
         if isinstance(s, bytes):
             s = s.decode('ascii')
