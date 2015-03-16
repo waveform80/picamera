@@ -289,9 +289,9 @@ preview. As a result, the preview system is no longer "part of" the
 :attr:`~picamera.camera.PiCamera.preview` attribute which is a separate
 :class:`~picamera.renderers.PiPreviewRenderer` instance when the preview is
 active. In turn this meant that :attr:`~picamera.camera.PiCamera.preview_alpha`
-was deprecated in favor of the :attr:`~picamera.PiRenderer.alpha` property of
-the new :attr:`~picamera.camera.PiCamera.preview` attribute. Similar changes
-were made to :attr:`~picamera.camera.PiCamera.preview_layer`,
+was deprecated in favor of the :attr:`~picamera.renderers.PiRenderer.alpha`
+property of the new :attr:`~picamera.camera.PiCamera.preview` attribute.
+Similar changes were made to :attr:`~picamera.camera.PiCamera.preview_layer`,
 :attr:`~picamera.camera.PiCamera.preview_fullscreen`, and
 :attr:`~picamera.camera.PiCamera.preview_window`. Hence, the following code::
 
@@ -489,9 +489,9 @@ for no background, ``True`` to draw a black background).
 In order to provide the new functionality while maintaining a certain amount of
 backward compatibility the new attribute accepts ``None`` for no background
 (note that the "truthiness" of ``None`` is the same as ``False`` so existing
-tests should continue to work), and a :class:`~picamera.Color` instance for a
-custom background color (:class:`~picamera.Color` instances are "truthy" so
-again, existing tests against the attribute continue to work).
+tests should continue to work), and a :class:`~picamera.color.Color` instance
+for a custom background color (:class:`~picamera.color.Color` instances are
+"truthy" so again, existing tests against the attribute continue to work).
 
 Setting the attribute as a bool is now deprecated. Hence, the following code::
 

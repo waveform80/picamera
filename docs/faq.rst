@@ -150,7 +150,7 @@ available on PyPI), the release process for Raspbian packages is semi-manual.
 There is typically a delay of a few days after a release before updated
 picamera packages become accessible in the Raspbian repository.
 
-Users desperate to try the latest version make choose to uninstall their
+Users desperate to try the latest version may choose to uninstall their
 ``apt`` based copy (uninstall instructions are provided in the
 :ref:`installation instructions <raspbian_install2>`, and install using
 :ref:`pip instead <system_install2>`. However, be aware that keeping a PyPI
