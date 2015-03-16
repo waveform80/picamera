@@ -201,6 +201,9 @@ def test_exposure_compensation(camera, previewing):
 def test_exposure_mode(camera, previewing):
     keyword_attr(camera, 'exposure_mode', camera.EXPOSURE_MODES)
 
+def test_flash_mode(camera, previewing):
+    keyword_attr(camera, 'flash_mode', camera.FLASH_MODES)
+
 def test_image_effects1(camera, previewing):
     valid_combinations = {
         'solarize': [

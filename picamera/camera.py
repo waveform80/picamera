@@ -344,6 +344,15 @@ class PiCamera(object):
         'fireworks':     mmal.MMAL_PARAM_EXPOSUREMODE_FIREWORKS,
         }
 
+    FLASH_MODES = {
+        'off':           mmal.MMAL_PARAM_FLASH_OFF,
+        'auto':          mmal.MMAL_PARAM_FLASH_AUTO,
+        'on':            mmal.MMAL_PARAM_FLASH_ON,
+        'redeye':        mmal.MMAL_PARAM_FLASH_REDEYE,
+        'fillin':        mmal.MMAL_PARAM_FLASH_FILLIN,
+        'torch':         mmal.MMAL_PARAM_FLASH_TORCH,
+        }
+
     AWB_MODES = {
         'off':           mmal.MMAL_PARAM_AWBMODE_OFF,
         'auto':          mmal.MMAL_PARAM_AWBMODE_AUTO,
@@ -410,6 +419,7 @@ class PiCamera(object):
 
     _METER_MODES_R    = {v: k for (k, v) in METER_MODES.items()}
     _EXPOSURE_MODES_R = {v: k for (k, v) in EXPOSURE_MODES.items()}
+    _FLASH_MODES_R    = {v: k for (k, v) in FLASH_MODES.items()}
     _AWB_MODES_R      = {v: k for (k, v) in AWB_MODES.items()}
     _IMAGE_EFFECTS_R  = {v: k for (k, v) in IMAGE_EFFECTS.items()}
     _RAW_FORMATS_R    = {v: k for (k, v) in RAW_FORMATS.items()}
@@ -3038,6 +3048,59 @@ class PiCamera(object):
             higher values before disabling automatic gain control otherwise
             all frames captured will appear black.
         """.format(values=docstring_values(EXPOSURE_MODES)))
+
+    def _get_flash_mode(self):
+        self._check_camera_open()
+        mp = mmal.MMAL_PARAMETER_FLASH_T(
+            mmal.MMAL_PARAMETER_HEADER_T(
+                mmal.MMAL_PARAMETER_FLASH,
+                ct.sizeof(mmal.MMAL_PARAMETER_FLASH_T)
+                ))
+        mmal_check(
+            mmal.mmal_port_parameter_get(self._camera[0].control, mp.hdr),
+            prefix="Failed to get flash mode")
+        return self._FLASH_MODES_R[mp.value]
+    def _set_flash_mode(self, value):
+        self._check_camera_open()
+        try:
+            mp = mmal.MMAL_PARAMETER_FLASH_T(
+                mmal.MMAL_PARAMETER_HEADER_T(
+                    mmal.MMAL_PARAMETER_FLASH,
+                    ct.sizeof(mmal.MMAL_PARAMETER_FLASH_T)
+                    ),
+                self.FLASH_MODES[value]
+                )
+            mmal_check(
+                mmal.mmal_port_parameter_set(self._camera[0].control, mp.hdr),
+                prefix="Failed to set flash mode")
+        except KeyError:
+            raise PiCameraValueError("Invalid flash mode: %s" % value)
+    flash_mode = property(_get_flash_mode, _set_flash_mode, doc="""
+        Retrieves or sets the flash mode of the camera.
+
+        When queried, the :attr:`flash_mode` property returns a string
+        representing the flash setting of the camera. The possible values can
+        be obtained from the ``PiCamera.FLASH_MODES`` attribute, and are as
+        follows:
+
+        {values}
+
+        When set, the property adjusts the camera's flash mode.  The property
+        can be set while recordings or previews are in progress.  The default
+        value is ``'off'``.
+
+        .. note::
+
+            You must define which GPIO pins the camera is to use for flash and
+            privacy indicators. This is done within the `Device Tree
+            configuration`_ which is considered an advanced topic.
+            Specifically, you need to define pins ``FLASH_0_ENABLE`` and
+            optionally ``FLASH_0_INDICATOR`` (for the privacy indicator). More
+            information can be found in this `forum thread`_.
+
+        .. _Device Tree configuration: http://www.raspberrypi.org/documentation/configuration/pin-configuration.md
+        .. _forum thread: http://www.raspberrypi.org/forums/viewtopic.php?p=590595#p590595
+        """.format(values=docstring_values(FLASH_MODES)))
 
     def _get_awb_mode(self):
         self._check_camera_open()
