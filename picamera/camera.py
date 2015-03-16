@@ -632,17 +632,12 @@ class PiCamera(object):
                 mmal.MMAL_PARAMETER_ANNOTATE,
                 ct.sizeof(mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V3_T)
             ))
-        try:
-            mmal_check(
-                mmal.mmal_port_parameter_get(self._camera[0].control, mp.hdr),
-                prefix="Failed to get annotation background")
-        except PiCameraMMALError as e:
-            if e.status == mmal.MMAL_EINVAL:
-                self._annotate_v3 = False
-            else:
-                raise
-        else:
-            self._annotate_v3 = True
+        mmal_check(
+            mmal.mmal_port_parameter_get(self._camera[0].control, mp.hdr),
+            prefix="Failed to get annotation test")
+        self._annotate_v3 = (
+            mp.hdr.size == ct.sizeof(mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V3_T)
+            )
 
     def _init_splitter(self):
         # Create a splitter component for the video port. This is to permit
