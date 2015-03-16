@@ -4,7 +4,7 @@
 License
 =======
 
-Copyright 2013,2014 `Dave Hughes`_
+Copyright 2013-2015 `Dave Jones`_
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -52,6 +52,6 @@ The :ref:`YUV420 planar diagram <yuv_capture>` in the documentation is
 the public domain.
 
 
-.. _Dave Hughes: mailto:dave@waveform.org.uk
+.. _Dave Jones: mailto:dave@waveform.org.uk
 .. _Bayer_pattern_on_sensor.svg: http://en.wikipedia.org/wiki/File:Bayer_pattern_on_sensor.svg
 .. _Yuv420.svg: http://en.wikipedia.org/wiki/File:Yuv420.svg

@@ -1,7 +1,7 @@
 # vim: set et sw=4 sts=4 fileencoding=utf-8:
 #
 # Python header conversion
-# Copyright (c) 2013,2014 Dave Hughes <dave@waveform.org.uk>
+# Copyright (c) 2013-2015 Dave Jones <dave@waveform.org.uk>
 #
 # Original headers
 # Copyright (c) 2012, Broadcom Europe Ltd

@@ -3,12 +3,12 @@ Upstream-Name: picamera
 Source: http://pypi.python.org/pypi/picamera
 
 Files: *
-Copyright: 2013,2014 Dave Hughes <dave@waveform.org.uk>
+Copyright: 2013-2015 Dave Jones <dave@waveform.org.uk>
 License: BSD-3-Clause
 
 Files: docs/bayer_pattern.*
 Copyright: 2006 Colin Burnett <en.wikipedia.org/wiki/User:Cburnett>
-           2014 Dave Hughes <dave@waveform.org.uk>
+           2014 Dave Jones <dave@waveform.org.uk>
 License: GPL-2+
 
 Files: docs/yuv420.*

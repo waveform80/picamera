@@ -2,7 +2,7 @@
 # vim: set et sw=4 sts=4 fileencoding=utf-8:
 #
 # Python camera library for the Rasperry-Pi camera module
-# Copyright (c) 2013,2014 Dave Hughes <dave@waveform.org.uk>
+# Copyright (c) 2013-2015 Dave Jones <dave@waveform.org.uk>
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -53,7 +53,7 @@ except ImportError:
 
 __project__      = 'picamera'
 __version__      = '1.9'
-__author__       = 'Dave Hughes'
+__author__       = 'Dave Jones'
 __author_email__ = 'dave@waveform.org.uk'
 __url__          = 'http://picamera.readthedocs.org/'
 __platforms__    = 'ALL'
