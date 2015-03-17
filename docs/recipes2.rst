@@ -264,12 +264,12 @@ using this technique:
 
 * When using video-port based capture only the video recording area is
   captured; in some cases this may be smaller than the normal image capture
-  area (see dicussion in :ref:`camera_modes`).
+  area (see discussion in :ref:`camera_modes`).
 
 * No Exif information is embedded in JPEG images captured through the
   video-port.
 
-* Captures typically appear "granier" with this technique. Captures from the
+* Captures typically appear "grainier" with this technique. Captures from the
   still port use a slower, more intensive denoise algorithm.
 
 All capture methods support the *use_video_port* option, but the methods differ
@@ -1157,7 +1157,7 @@ Raw Bayer data captures
 
 The ``bayer`` parameter of the :meth:`~picamera.camera.PiCamera.capture` method
 causes the raw Bayer data recorded by the camera's sensor to be output as
-part of the image metadata.
+part of the image meta-data.
 
 .. note::
 

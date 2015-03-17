@@ -214,7 +214,7 @@ If you wish to develop picamera itself, it is easiest to obtain the source by
 cloning the GitHub repository and then use the "develop" target of the Makefile
 which will install the package as a link to the cloned repository allowing
 in-place development (it also builds a tags file for use with vim/emacs with
-exuberant's ctags utility).  The following example demonstrates this method
+Exuberant's ctags utility).  The following example demonstrates this method
 within a virtual Python environment::
 
     $ sudo apt-get install build-essential git git-core exuberant-ctags \
@@ -240,7 +240,7 @@ To remove your installation blow away the sandbox and the clone::
 For anybody wishing to hack on the project please understand that although it
 is technically written in pure Python, heavy use of :mod:`ctypes` is involved
 so the code really doesn't look much like Python - more a sort of horrid
-mish-mash of C and Python.
+mishmash of C and Python.
 
 The project consists primarily of a class (:class:`~picamera.camera.PiCamera`)
 which is a re-implementation of high-level bits of the ``raspistill`` and

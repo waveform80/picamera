@@ -206,7 +206,7 @@ the *format* parameter of all the capture methods. Hence, code like this::
     camera.raw_format = 'rgb'
     camera.capture('output.data', format='raw')
 
-should be replaced with the following::
+Should be replaced with the following::
 
     camera.capture('output.data', format='rgb')
 

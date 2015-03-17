@@ -769,7 +769,7 @@ Overlaying images on the preview
 The camera preview system can operate multiple layered renderers
 simultaneously.  While the picamera library only permits a single renderer to
 be connected to the camera's preview port, it does permit additional renderers
-to be created which display a static image. These overlayed renderers can be
+to be created which display a static image. These overlaid renderers can be
 used to create simple user interfaces.
 
 .. note::
@@ -854,7 +854,7 @@ through the center and overlay it on the preview as a simple cross-hair::
         finally:
             camera.remove_overlay(o)
 
-Given that overlayed renderers can be hidden (by moving them below the
+Given that overlaid renderers can be hidden (by moving them below the
 preview's :attr:`~picamera.renderers.PiRenderer.layer` which defaults to 2),
 made semi-transparent (with the :attr:`~picamera.renderers.PiRenderer.alpha`
 property), and resized so that they don't :attr:`fill the screen
@@ -870,7 +870,7 @@ Overlaying text on the output
 =============================
 
 The camera includes a rudimentary annotation facility which permits up to 255
-characters of ASCII text to be overlayed on all output (including the preview,
+characters of ASCII text to be overlaid on all output (including the preview,
 image captures and video recordings). To achieve this, simply assign a string
 to the :attr:`~picamera.camera.PiCamera.annotate_text` attribute::
 

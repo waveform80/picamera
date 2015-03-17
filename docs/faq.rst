@@ -191,7 +191,7 @@ require it:
 B-frames aren't produced by the Pi's camera (or, as I understand it, by most
 real-time recording cameras) as it would require buffering yet-to-be-recorded
 frames before encoding the current one. However, most recorded media (DVDs,
-Blu-rays, and hence network video streams) do use them, so players must support
+BDs, and hence network video streams) do use them, so players must support
 them. It is simplest to write such a player by assuming that any source may
 contain B-frames, and buffering at least 2 frames worth of data at all times to
 make decoding them simpler.
