@@ -1393,6 +1393,8 @@ as follows::
     Added note about new :mod:`picamera.array` module.
 
 
+.. _flash_configuration:
+
 Using a flash with the camera
 =============================
 

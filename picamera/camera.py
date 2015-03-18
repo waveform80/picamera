@@ -3096,10 +3096,10 @@ class PiCamera(object):
             configuration`_ which is considered an advanced topic.
             Specifically, you need to define pins ``FLASH_0_ENABLE`` and
             optionally ``FLASH_0_INDICATOR`` (for the privacy indicator). More
-            information can be found in this `forum thread`_.
+            information can be found in this :ref:`recipe
+            <flash_configuration>`.
 
         .. _Device Tree configuration: http://www.raspberrypi.org/documentation/configuration/pin-configuration.md
-        .. _forum thread: http://www.raspberrypi.org/forums/viewtopic.php?p=590595#p590595
         """.format(values=docstring_values(FLASH_MODES)))
 
     def _get_awb_mode(self):
