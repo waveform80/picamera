@@ -395,27 +395,51 @@ class PiCameraDequeHack(deque):
         for item, frame in super(PiCameraDequeHack, self).__iter__():
             yield item
 
-    @property
-    def frames(self):
-        pos = 0
-        for item, frame in super(PiCameraDequeHack, self).__iter__():
-            pos += len(item)
-            if frame:
-                # Rewrite the video_size and split_size attributes according
-                # to the current position of the chunk
-                frame = PiVideoFrame(
-                    index=frame.index,
-                    frame_type=frame.frame_type,
-                    frame_size=frame.frame_size,
-                    video_size=pos,
-                    split_size=pos,
-                    timestamp=frame.timestamp,
-                    complete=frame.complete,
-                    )
-                # Only yield the frame meta-data if the start of the frame
-                # still exists in the stream
-                if pos - frame.frame_size >= 0:
-                    yield frame
+
+class PiCameraDequeFrames(object):
+    def __init__(self, stream):
+        super(PiCameraDequeFrames, self).__init__()
+        self.stream = stream
+
+    def __iter__(self):
+        with self.stream.lock:
+            pos = 0
+            for item, frame in super(PiCameraDequeHack, self.stream._data).__iter__():
+                pos += len(item)
+                if frame:
+                    # Rewrite the video_size and split_size attributes according
+                    # to the current position of the chunk
+                    frame = PiVideoFrame(
+                        index=frame.index,
+                        frame_type=frame.frame_type,
+                        frame_size=frame.frame_size,
+                        video_size=pos,
+                        split_size=pos,
+                        timestamp=frame.timestamp,
+                        complete=frame.complete,
+                        )
+                    # Only yield the frame meta-data if the start of the frame
+                    # still exists in the stream
+                    if pos - frame.frame_size >= 0:
+                        yield frame
+
+    def __reversed__(self):
+        with self.stream.lock:
+            pos = self.stream._length
+            for item, frame in super(PiCameraDequeHack, self.stream._data).__reversed__():
+                if frame:
+                    frame = PiVideoFrame(
+                        index=frame.index,
+                        frame_type=frame.frame_type,
+                        frame_size=frame.frame_size,
+                        video_size=pos,
+                        split_size=pos,
+                        timestamp=frame.timestamp,
+                        complete=frame.complete,
+                        )
+                    if pos - frame.frame_size >= 0:
+                        yield frame
+                pos -= len(item)
 
 
 class PiCameraCircularIO(CircularIO):
@@ -462,6 +486,18 @@ class PiCameraCircularIO(CircularIO):
                 camera.start_recording(stream, format='h264', splitter_port=2)
                 camera.wait_recording(10, splitter_port=2)
                 camera.stop_recording(splitter_port=2)
+
+    .. attribute:: frames
+
+        Returns an iterator over the frame meta-data.
+
+        As the camera records video to the stream, the class captures the
+        meta-data associated with each frame (in the form of a
+        :class:`~picamera.encoders.PiVideoFrame` tuple), discarding meta-data
+        for frames which are no longer fully stored within the underlying ring
+        buffer.  You can use the frame meta-data to locate, for example, the
+        first keyframe present in the stream in order to determine an
+        appropriate range to extract.
     """
     def __init__(
             self, camera, size=None, seconds=None, bitrate=17000000,
@@ -473,23 +509,6 @@ class PiCameraCircularIO(CircularIO):
         if seconds is not None:
             size = bitrate * seconds // 8
         super(PiCameraCircularIO, self).__init__(size)
-        self.camera = camera
         self._data = PiCameraDequeHack(camera, splitter_port)
-
-    @property
-    def frames(self):
-        """
-        Returns an iterator over the frame meta-data.
-
-        As the camera records video to the stream, the class captures the
-        meta-data associated with each frame (in the form of a
-        :class:`~picamera.encoders.PiVideoFrame` tuple), discarding meta-data
-        for frames which are no longer fully stored within the underlying ring
-        buffer.  You can use the frame meta-data to locate, for example, the
-        first keyframe present in the stream in order to determine an
-        appropriate range to extract.
-        """
-        with self.lock:
-            for frame in self._data.frames:
-                yield frame
+        self.frames = PiCameraDequeFrames(self)
 
