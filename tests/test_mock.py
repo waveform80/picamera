@@ -79,6 +79,7 @@ def test_camera_init():
 
 def test_camera_led():
     with mock.patch('picamera.camera.GPIO') as GPIO:
+        GPIO.RPI_REVISION = 1
         with picamera.PiCamera() as camera:
             camera.led = True
             GPIO.setmode.assert_called_once_with(GPIO.BCM)
