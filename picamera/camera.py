@@ -1122,7 +1122,7 @@ class PiCamera(object):
         :exc:`~picamera.exc.PiCameraValueError` will be raised.
 
         If *format* is not ``None``, it must be a string specifying the format
-        that you want the image written to. The format can be a MIME-type or
+        that you want the video output in. The format can be a MIME-type or
         one of the following strings:
 
         * ``'h264'`` - Write an H.264 video stream
@@ -1136,8 +1136,8 @@ class PiCamera(object):
         If *resize* is not ``None`` (the default), it must be a two-element
         tuple specifying the width and height that the video recording should
         be resized to. This is particularly useful for recording video using
-        the full area of the camera sensor (which is not possible without
-        down-sizing the output).
+        the full resolution of the camera sensor (which is not possible in
+        H.264 without down-sizing the output).
 
         The *splitter_port* parameter specifies the port of the built-in
         splitter that the video encoder will be attached to. This defaults to
@@ -1184,7 +1184,7 @@ class PiCamera(object):
           assumed to be a file-like object which motion vector is to be written
           to (the object must have a ``write`` method).
 
-        All formats accept the following additional options:
+        All encoded formats accept the following additional options:
 
         * *bitrate* - The bitrate at which video will be encoded. Defaults to
           17000000 (17Mbps) if not specified.  The maximum value is 25000000
@@ -1289,8 +1289,9 @@ class PiCamera(object):
 
         It is recommended that this method is called while recording to check
         for exceptions. If an error occurs during recording (for example out of
-        disk space), an exception will only be raised when the
-        :meth:`wait_recording` or :meth:`stop_recording` methods are called.
+        disk space) the recording will stop, but an exception will only be
+        raised when the :meth:`wait_recording` or :meth:`stop_recording`
+        methods are called.
 
         If ``timeout`` is 0 (the default) the function will immediately return
         (or raise an exception if an error has occurred).
@@ -1457,7 +1458,7 @@ class PiCamera(object):
         :exc:`~picamera.exc.PiCameraValueError` will be raised.
 
         If *format* is not ``None``, it must be a string specifying the format
-        that you want the image written to. The format can be a MIME-type or
+        that you want the image output in. The format can be a MIME-type or
         one of the following strings:
 
         * ``'jpeg'`` - Write a JPEG file
