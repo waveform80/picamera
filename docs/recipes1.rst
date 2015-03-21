@@ -233,9 +233,8 @@ The following script provides a brief example of configuring these settings::
     with picamera.PiCamera() as camera:
         camera.resolution = (1280, 720)
         camera.framerate = 30
-        # Wait for analog gain to settle on a higher value than 1
-        while camera.analog_gain <= 1:
-            time.sleep(0.1)
+        # Wait for the automatic gain control to settle
+        time.sleep(2)
         # Now fix the values
         camera.shutter_speed = camera.exposure_speed
         camera.exposure_mode = 'off'
