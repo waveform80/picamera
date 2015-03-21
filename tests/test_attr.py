@@ -308,10 +308,11 @@ def test_shutter_speed(camera, previewing):
     camera.framerate = 1
     try:
         # When setting shutter speed manually, ensure the actual shutter speed
-        # is within 50usec of the specified amount
-        for value in range(0, 200000, 50):
+        # is within 50usec of the specified amount (the value+1 accounts for
+        # a rounding error)
+        for value in range(0, 700000, 50):
             camera.shutter_speed = value
-            assert (value - 50) <= camera.shutter_speed <= value
+            assert (value - 50) <= camera.shutter_speed <= (value + 1)
         # Test the shutter speed clamping by framerate
         camera.framerate = 30
         assert 33000 <= camera.shutter_speed <= 33333
