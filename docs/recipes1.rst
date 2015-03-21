@@ -172,7 +172,8 @@ processing on images, you may wish to capture smaller images than the current
 resolution of the camera. Although such resizing can be performed using
 libraries like PIL or OpenCV, it is considerably more efficient to have the
 Pi's GPU perform the resizing when capturing the image. This can be done with
-the *resize* parameter of the :meth:`~picamera.camera.PiCamera.capture` methods::
+the *resize* parameter of the :meth:`~picamera.camera.PiCamera.capture`
+methods::
 
     import time
     import picamera
@@ -202,26 +203,27 @@ the camera's exposure time, white balance, and gains are all fixed:
 * To fix exposure time, set the :attr:`~picamera.camera.PiCamera.shutter_speed`
   attribute to a reasonable value.
 * To fix exposure gains, let :attr:`~picamera.camera.PiCamera.analog_gain` and
-  :attr:`~picamera.camera.PiCamera.digital_gain` settle on reasonable values, then set
-  :attr:`~picamera.camera.PiCamera.exposure_mode` to ``'off'``.
+  :attr:`~picamera.camera.PiCamera.digital_gain` settle on reasonable values,
+  then set :attr:`~picamera.camera.PiCamera.exposure_mode` to ``'off'``.
 * To fix white balance, set the :attr:`~picamera.camera.PiCamera.awb_mode` to
-  ``'off'``, then set :attr:`~picamera.camera.PiCamera.awb_gains` to a (red, blue)
-  tuple of gains.
+  ``'off'``, then set :attr:`~picamera.camera.PiCamera.awb_gains` to a (red,
+  blue) tuple of gains.
 * Optionally, set :attr:`~picamera.camera.PiCamera.iso` to a fixed value.
 
 It can be difficult to know what appropriate values might be for these
-attributes.  For :attr:`~picamera.camera.PiCamera.iso`, a simple rule of thumb is that
-100 and 200 are reasonable values for daytime, while 400 and 800 are better for
-low light. To determine a reasonable value for
+attributes.  For :attr:`~picamera.camera.PiCamera.iso`, a simple rule of thumb
+is that 100 and 200 are reasonable values for daytime, while 400 and 800 are
+better for low light. To determine a reasonable value for
 :attr:`~picamera.camera.PiCamera.shutter_speed` you can query the
-:attr:`~picamera.camera.PiCamera.exposure_speed` attribute.  For exposure gains, it's
-usually enough to wait until :attr:`~picamera.camera.PiCamera.analog_gain` is greater
-than 1 (the default, which will produce entirely black frames) before
-:attr:`~picamera.camera.PiCamera.exposure_mode` is set to ``'off'``.  Finally, to
-determine reasonable values for :attr:`~picamera.camera.PiCamera.awb_gains` simply
-query the property while :attr:`~picamera.camera.PiCamera.awb_mode` is set to
-something other than ``'off'``.  Again, this will tell you the camera's white
-balance gains as determined by the auto-white-balance algorithm.
+:attr:`~picamera.camera.PiCamera.exposure_speed` attribute.  For exposure
+gains, it's usually enough to wait until
+:attr:`~picamera.camera.PiCamera.analog_gain` is greater than 1 (the default,
+which will produce entirely black frames) before
+:attr:`~picamera.camera.PiCamera.exposure_mode` is set to ``'off'``.  Finally,
+to determine reasonable values for :attr:`~picamera.camera.PiCamera.awb_gains`
+simply query the property while :attr:`~picamera.camera.PiCamera.awb_mode` is
+set to something other than ``'off'``.  Again, this will tell you the camera's
+white balance gains as determined by the auto-white-balance algorithm.
 
 The following script provides a brief example of configuring these settings::
 
@@ -250,8 +252,8 @@ Capturing timelapse sequences
 =============================
 
 The simplest way to capture long time-lapse sequences is with the
-:meth:`~picamera.camera.PiCamera.capture_continuous` method. With this method, the
-camera captures images continually until you tell it to stop. Images are
+:meth:`~picamera.camera.PiCamera.capture_continuous` method. With this method,
+the camera captures images continually until you tell it to stop. Images are
 automatically given unique names and you can easily control the delay between
 captures. The following example shows how to capture images with a 5 minute
 delay between each shot::
@@ -299,11 +301,12 @@ Capturing in low light
 Using similar tricks to those in :ref:`consistent_capture`, the Pi's camera can
 capture images in low light conditions. The primary objective is to set a high
 gain, and a long exposure time to allow the camera to gather as much light as
-possible. However, the :attr:`~picamera.camera.PiCamera.shutter_speed` attribute is
-constrained by the camera's :attr:`~picamera.camera.PiCamera.framerate` so the first
-thing we need to do is set a very slow framerate. The following script captures
-an image with a 6 second exposure time (the maximum the Pi's camera module is
-currently capable of)::
+possible. However, the :attr:`~picamera.camera.PiCamera.shutter_speed`
+attribute is constrained by the camera's
+:attr:`~picamera.camera.PiCamera.framerate` so the first thing we need to do is
+set a very slow framerate. The following script captures an image with a 6
+second exposure time (the maximum the Pi's camera module is currently capable
+of)::
 
     import picamera
     from time import sleep
@@ -458,15 +461,15 @@ Recording a video to a file is simple::
         camera.wait_recording(60)
         camera.stop_recording()
 
-Note that we use :meth:`~picamera.camera.PiCamera.wait_recording` in the example above
-instead of :func:`time.sleep` which we've been using in the image capture
-recipes above. The :meth:`~picamera.camera.PiCamera.wait_recording` method is similar
-in that it will pause for the number of seconds specified, but unlike
-:func:`time.sleep` it will continually check for recording errors (e.g. an out
-of disk space condition) while it is waiting. If we had used :func:`time.sleep`
-instead, such errors would only be raised by the
-:meth:`~picamera.camera.PiCamera.stop_recording` call (which could be long after the
-error actually occurred).
+Note that we use :meth:`~picamera.camera.PiCamera.wait_recording` in the
+example above instead of :func:`time.sleep` which we've been using in the image
+capture recipes above. The :meth:`~picamera.camera.PiCamera.wait_recording`
+method is similar in that it will pause for the number of seconds specified,
+but unlike :func:`time.sleep` it will continually check for recording errors
+(e.g. an out of disk space condition) while it is waiting. If we had used
+:func:`time.sleep` instead, such errors would only be raised by the
+:meth:`~picamera.camera.PiCamera.stop_recording` call (which could be long
+after the error actually occurred).
 
 
 .. _stream_record:
@@ -527,11 +530,11 @@ If you wish split your recording over multiple files, you can use the
 
 This should produce 10 video files named ``1.h264``, ``2.h264``, etc. each of
 which is approximately 5 seconds long (approximately because the
-:meth:`~picamera.camera.PiCamera.split_recording` method will only split files at a
-key-frame).
+:meth:`~picamera.camera.PiCamera.split_recording` method will only split files
+at a key-frame).
 
-The :meth:`~picamera.camera.PiCamera.record_sequence` method can also be used to
-achieve this with slightly cleaner code::
+The :meth:`~picamera.camera.PiCamera.record_sequence` method can also be used
+to achieve this with slightly cleaner code::
 
     import picamera
 
@@ -542,8 +545,8 @@ achieve this with slightly cleaner code::
             camera.wait_recording(5)
 
 .. versionchanged:: 1.3
-    The :meth:`~picamera.camera.PiCamera.record_sequence` method was introduced in
-    version 1.3
+    The :meth:`~picamera.camera.PiCamera.record_sequence` method was introduced
+    in version 1.3
 
 
 .. _circular_record1:
@@ -553,8 +556,8 @@ Recording to a circular stream
 
 This is similar to :ref:`stream_record` but uses a special kind of in-memory
 stream provided by the picamera library. The
-:class:`~picamera.streams.PiCameraCircularIO` class implements a `ring buffer`_ based
-stream, specifically for video recording.  This enables you to keep an
+:class:`~picamera.streams.PiCameraCircularIO` class implements a `ring buffer`_
+based stream, specifically for video recording.  This enables you to keep an
 in-memory stream containing the last *n* seconds of video recorded (where *n*
 is determined by the bitrate of the video recording and the size of the ring
 buffer underlying the stream).
