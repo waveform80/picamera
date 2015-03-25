@@ -1078,6 +1078,23 @@ class PiCamera(object):
         the overlay has a static resolution and changing the camera's mode
         would require resizing of the source.
 
+        .. warning::
+
+            If too many overlays are added, the display output will be disabled
+            and a reboot will generally be required to restore the display.
+            Overlays are composited "on the fly". Hence, a real-time constraint
+            exists wherein for each horizontal line of HDMI output, the content
+            of all source layers must be fetched, resized, converted, and
+            blended to produce the output pixels.
+
+            If enough overlays exist (where "enough" is a number dependent on
+            overlay size, display resolution, bus frequency, and several other
+            factors making it unrealistic to calculate in advance), this
+            process breaks down and video output fails. One solution is to add
+            `dispmanx_offline=1` to `/boot/config.txt` to force the use of an
+            off-screen buffer. Be aware that this requires more GPU memory and
+            may reduce the update rate.
+
         .. _RGB: http://en.wikipedia.org/wiki/RGB
 
         .. versionadded:: 1.8
