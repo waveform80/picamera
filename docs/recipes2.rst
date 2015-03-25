@@ -113,9 +113,9 @@ manner::
     :func:`io.open` as in the other examples. This is because numpy's
     :func:`numpy.fromfile` method annoyingly only accepts "real" file objects.
 
-This recipe is now encapsulated in the :class:`~picamera.array.PiYUVArray` class
-in the :mod:`picamera.array` module, which means the same can be achieved as
-follows::
+This recipe is now encapsulated in the :class:`~picamera.array.PiYUVArray`
+class in the :mod:`picamera.array` module, which means the same can be achieved
+as follows::
 
     import time
     import picamera

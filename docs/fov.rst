@@ -62,8 +62,8 @@ mode is selected are as follows:
 * The mode must be acceptable. Video modes can be used for video recording,
   or for image captures from the video port (i.e. when *use_video_port* is
   ``True`` in calls to the various capture methods). Image captures when
-  *use_video_port* is ``False`` must use an image mode (of which only one
-  currently exists).
+  *use_video_port* is ``False`` must use an image mode (of which only two
+  currently exist, both with the maximum resolution).
 
 * The closer the requested :attr:`~picamera.camera.PiCamera.resolution` is to
   the mode's resolution the better, but downscaling from a higher input

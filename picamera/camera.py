@@ -1091,9 +1091,9 @@ class PiCamera(object):
             overlay size, display resolution, bus frequency, and several other
             factors making it unrealistic to calculate in advance), this
             process breaks down and video output fails. One solution is to add
-            `dispmanx_offline=1` to `/boot/config.txt` to force the use of an
-            off-screen buffer. Be aware that this requires more GPU memory and
-            may reduce the update rate.
+            ``dispmanx_offline=1`` to ``/boot/config.txt`` to force the use of
+            an off-screen buffer. Be aware that this requires more GPU memory
+            and may reduce the update rate.
 
         .. _RGB: http://en.wikipedia.org/wiki/RGB
 
