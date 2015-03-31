@@ -5,6 +5,37 @@ Change log
 ==========
 
 
+Release 1.10 (2014-03-31)
+=========================
+
+1.10 consists mostly of minor enhancements:
+
+* The major enhancement is the addition of support for the camera's flash
+  driver. This is relatively complex to configure, but a full recipe has been
+  included in the documentation (`#184`_)
+* A new `intra_refresh` attribute is added to the
+  :meth:`~picamera.camera.PiCamera.start_recording` method permitting control
+  of the intra-frame refresh method (`#193`_)
+* The GPIO pins controlling the camera's LED are now configurable. This is
+  mainly for any compute module users, but also for anyone who wishes to use
+  the device tree blob to reconfigure the pins used (`#198`_)
+* The new annotate V3 struct is now supported, providing custom background
+  colors for annotations, and configurable text size. As part of this work
+  a new :class:`~picamera.color.Color` class was introduced for representation
+  and manipulation of colors (`#203`_)
+* Reverse enumeration of frames in
+  :class:`~picamera.streams.PiCameraCircularIO` is now supported efficiently
+  (without having to convert frames to a list first) (`#204`_)
+* Finally, the API documentation has been re-worked as it was getting too
+  large to comfortably load on all platforms (no ticket)
+
+.. _#184: https://github.com/waveform80/picamera/issues/184
+.. _#193: https://github.com/waveform80/picamera/issues/193
+.. _#198: https://github.com/waveform80/picamera/issues/198
+.. _#203: https://github.com/waveform80/picamera/issues/203
+.. _#204: https://github.com/waveform80/picamera/issues/204
+
+
 Release 1.9 (2015-01-01)
 ========================
 
