@@ -2611,7 +2611,7 @@ class PiCamera(object):
         Returns the current annotation settings as an MMAL structure.
 
         This is a utility method for :meth:`_get_annotate_text`,
-        :math:`_get_annotate_background`, etc. all of which rely on the
+        :meth:`_get_annotate_background`, etc. all of which rely on the
         MMAL_PARAMETER_CAMERA_ANNOTATE_Vn structure to determine their values.
         """
         if self._annotate_v3:
