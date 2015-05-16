@@ -95,13 +95,19 @@ from __future__ import (
     division,
     absolute_import,
     )
+# Make Py2's zip equivalent to Py3's
+try:
+    from itertools import izip as zip
+except ImportError:
+    pass
 
 # Make Py2's str and range equivalent to Py3's
 str = type('')
 
 
 import colorsys
-from math import pi
+from math import pi, sqrt
+from fractions import Fraction
 from collections import namedtuple
 
 
@@ -415,6 +421,11 @@ class Saturation(float):
 
 clamp_float = lambda v: max(0.0, min(1.0, v))
 clamp_bytes = lambda v: max(0, min(255, v))
+make_linear = lambda c: c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+matrix_mult = lambda m, n: (
+        sum(mval * nval for mval, nval in zip(mrow, n))
+        for mrow in m
+        )
 
 class Color(namedtuple('Color', ('red', 'green', 'blue'))):
     """
@@ -824,6 +835,65 @@ class Color(namedtuple('Color', ('red', 'green', 'blue'))):
         return colorsys.rgb_to_yiq(self.red, self.green, self.blue)
 
     @property
+    def cie_xyz(self):
+        """
+        Returns a 3-tuple of (X, Y, Z) float values representing the color in
+        the `CIE 1931 color space`.
+
+        .. _CIE 1931 color space: https://en.wikipedia.org/wiki/CIE_1931_color_space
+        """
+        return tuple(matrix_mult(
+            ((0.4124564, 0.3575761, 0.1804375),
+             (0.2126729, 0.7151522, 0.0721750),
+             (0.0193339, 0.1191920, 0.9503041),
+             ),
+            (make_linear(self.red),
+             make_linear(self.green),
+             make_linear(self.blue)
+             )
+             ))
+
+    @property
+    def cie_lab(self):
+        """
+        Returns a 3-tuple of (L*, a*, b*) float values representing the color
+        in the `CIE Lab color space` with the `D65 standard illuminant`_.
+
+        .. _CIE Lab color space: https://en.wikipedia.org/wiki/Lab_color_space
+        .. _D65 standard illuminant: https://en.wikipedia.org/wiki/Illuminant_D65
+        """
+        K = Fraction(1, 3) * Fraction(29, 6) ** 2
+        e = Fraction(6, 29) ** 3
+        D65 = (0.95047, 1.0, 1.08883)
+        x, y, z = (n / m for n, m in zip(self.cie_xyz, D65))
+        fx, fy, fz = (
+            n ** Fraction(1, 3) if n > e else K * n + Fraction(4, 29)
+            for n in (x, y, z)
+            )
+        return (116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz))
+
+    @property
+    def cie_luv(self):
+        """
+        Returns a 3-tuple of (L*, u*, v*) float values representing the color
+        in the `CIE Luv color space` with the `D65 standard illuminant`_.
+
+        .. _CIE Luv color space: https://en.wikipedia.org/wiki/CIELUV
+        """
+        U = lambda x, y, z: 4 * x / (x + 15 * y + 3 * z)
+        V = lambda x, y, z: 9 * y / (x + 15 * y + 3 * z)
+
+        K = Fraction(29, 3) ** 3
+        e = Fraction(6, 29) ** 3
+        D65 = (0.95047, 1.0, 1.08883)
+        XYZ = self.cie_xyz
+        yr = XYZ[1] / D65[1]
+        L = 116 * yr ** Fraction(1, 3) - 16 if yr > e else K * yr
+        u = 13 * L * (U(*XYZ) - U(*D65))
+        v = 13 * L * (V(*XYZ) - V(*D65))
+        return (L, u, v)
+
+    @property
     def hls(self):
         """
         Returns a 3-tuple of (hue, lightness, saturation) float values (between
@@ -888,3 +958,43 @@ class Color(namedtuple('Color', ('red', 'green', 'blue'))):
         """
         return Saturation(self.hls[2])
 
+    def difference(self, other, method='cie1976'):
+        """
+        Determines the difference between this color and *other* using the
+        specified *method*. The *method* is specified as a string, and the
+        following methods are valid:
+
+        * 'euclid' - Calculate the `Euclidian distance`_. This is by far the
+          fastest method, but also the least accurate in terms of human
+          perception.
+        * 'cie1976' - This is the default method. Use the `CIE 1976`_ formula
+          for calculating the difference between two colors in CIE Lab space.
+        * 'cie1994' - Use the `CIE 1994`_ formula with the "graphic arts" bias
+          for calculating the difference.
+        * 'cie2000' - Use the `CIE 2000`_ formula for calculating the
+          difference.
+        * 'cmc1984a' - Use the `CMC l:c`_ formula for calculating the
+          difference with a 2:1 (accepability) ratio.
+        * 'cmc1984i' - Use the `CMC l:c`_ formula for calculating the
+          difference with a 1:1 (imperceptibility) ratio.
+
+        .. _Euclidian distance: https://en.wikipedia.org/wiki/Euclidean_distance
+        .. _CIE 1976: https://en.wikipedia.org/wiki/Color_difference#CIE76
+        .. _CIE 1994: https://en.wikipedia.org/wiki/Color_difference#CIE94
+        .. _CIE 2000: https://en.wikipedia.org/wiki/Color_difference#CIEDE2000
+        .. _CMC l:c: https://en.wikipedia.org/wiki/Color_difference#CMC_l:c_.281984.29
+        """
+        if method == 'euclid':
+            return sqrt(sum((Cs - Co) ** 2 for Cs, Co in zip(self, other)))
+        elif method == 'cie1976':
+            return sqrt(sum((Cs - Co) ** 2 for Cs, Co in zip(self.cie_lab, other.cie_lab)))
+        elif method == 'cie1994':
+            raise NotImplementedError
+        elif method == 'cie2000':
+            raise NotImplementedError
+        elif method == 'cmc1984a':
+            raise NotImplementedError
+        elif method == 'cmc1984i':
+            raise NotImplementedError
+        else:
+            raise ValueError('invalid method: %s' % method)
