@@ -195,7 +195,7 @@ the virtualenv before running Python::
     >>> import picamera
 
 To upgrade your installation, make sure the virtualenv is activated and just
-use easy_install::
+use pip::
 
     $ source sandbox/bin/activate
     (sandbox) $ pip-3.2 install -U picamera
@@ -266,7 +266,7 @@ If you wish to run the picamera test suite, follow the instructions in
 dependencies (note: avconv is installed system-wide)::
 
     (sandbox) $ sudo apt-get install libav-tools
-    (sandbox) $ pip install Pillow pytest mock numpy
+    (sandbox) $ pip-3.2 install Pillow pytest mock numpy
 
 Finally, to run the test suite, execute the following command::
 
