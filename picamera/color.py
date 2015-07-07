@@ -978,6 +978,15 @@ class Color(namedtuple('Color', ('red', 'green', 'blue'))):
         * 'cmc1984i' - Use the `CMC l:c`_ formula for calculating the
           difference with a 1:1 (imperceptibility) ratio.
 
+        Note that the Euclidian distance will be significantly different to
+        the other calculations; effectively this just measures the distance
+        between the two colors by treating them as coordinates in a three
+        dimensional Euclidian space. All other methods are means of calculating
+        a `Delta E`_ value in which 2.3 is considered a `just-noticeable
+        difference`_ (JND).
+
+        .. _Delta E: https://en.wikipedia.org/wiki/Color_difference
+        .. _Just Noticeable Difference: https://en.wikipedia.org/wiki/Just-noticeable_difference
         .. _Euclidian distance: https://en.wikipedia.org/wiki/Euclidean_distance
         .. _CIE 1976: https://en.wikipedia.org/wiki/Color_difference#CIE76
         .. _CIE 1994: https://en.wikipedia.org/wiki/Color_difference#CIE94
