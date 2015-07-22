@@ -531,15 +531,17 @@ class PiCamera(object):
         if not self._camera[0].output_num:
             raise PiCameraError("Camera doesn't have output ports")
 
-        mp = mmal.MMAL_PARAMETER_INT32_T(
-            mmal.MMAL_PARAMETER_HEADER_T(
-                mmal.MMAL_PARAMETER_CAMERA_NUM,
-                ct.sizeof(mmal.MMAL_PARAMETER_INT32_T)
-            ),
-            num)
-        mmal_check(
-            mmal.mmal_port_parameter_set(self._camera[0].control, mp.hdr),
-            prefix="Unable to select camera %d" % num)
+       # Don't set up camera number if asked for stereo-mode
+        if stereo_mode == mmal.MMAL_STEREOSCOPIC_MODE_NONE:
+            mp = mmal.MMAL_PARAMETER_INT32_T(
+                mmal.MMAL_PARAMETER_HEADER_T(
+                    mmal.MMAL_PARAMETER_CAMERA_NUM,
+                    ct.sizeof(mmal.MMAL_PARAMETER_INT32_T)
+                ),
+                num)
+            mmal_check(
+                mmal.mmal_port_parameter_set(self._camera[0].control, mp.hdr),
+                prefix="Unable to select camera %d" % num)
 
         if sensor_mode != 0:
             # Don't set sensor mode if 0 is selected, to support older
