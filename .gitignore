@@ -24,6 +24,9 @@ coverage
 .coverage
 .tox
 
+# Ignore virtualenvwrapper bits
+.venv
+
 #Translations
 *.mo
 
