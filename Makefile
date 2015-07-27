@@ -57,7 +57,7 @@ DIST_TAR=dist/$(NAME)-$(VER).tar.gz
 DIST_ZIP=dist/$(NAME)-$(VER).zip
 DIST_DEB=dist/python-$(NAME)_$(VER)-1$(DEB_SUFFIX)_armhf.deb \
 	dist/python3-$(NAME)_$(VER)-1$(DEB_SUFFIX)_armhf.deb \
-	dist/python-$(NAME)-docs_$(VER)-1$(DEB_SUFFIX)_all.deb
+	dist/python-$(NAME)-docs_$(VER)-1$(DEB_SUFFIX)_all.deb \
 	dist/$(NAME)_$(VER)-1$(DEB_SUFFIX)_$(DEB_ARCH).changes
 DIST_DSC=dist/$(NAME)_$(VER)-1$(DEB_SUFFIX).tar.gz \
 	dist/$(NAME)_$(VER)-1$(DEB_SUFFIX).dsc \
