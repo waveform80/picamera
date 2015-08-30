@@ -292,3 +292,13 @@ def test_motion_record(camera, mode):
     finally:
         camera.stop_recording()
 
+def test_record_bad_format(camera):
+    with pytest.raises(picamera.PiCameraValueError):
+        camera.start_recording('test.foo')
+    with pytest.raises(picamera.PiCameraValueError):
+        camera.start_recording('test.h264', format='foo')
+    with pytest.raises(picamera.PiCameraValueError):
+        camera.start_recording('test.mp4')
+    with pytest.raises(picamera.PiCameraValueError):
+        camera.start_recording('test.h264', format='mp4')
+

@@ -234,3 +234,13 @@ def test_exif_binary(camera, mode):
     assert exif[33432] == b'Photographer copyright (c) 2000 Foo\x00Editor copyright (c) 2002 Bar\x00'
     assert exif[37510] == b'UNICODE\x00\xff\xfeF\x00o\x00o\x00'
 
+def test_capture_bad_format(camera):
+    with pytest.raises(picamera.PiCameraValueError):
+        camera.capture('test.foo')
+    with pytest.raises(picamera.PiCameraValueError):
+        camera.capture('test.jpg', format='foo')
+    with pytest.raises(picamera.PiCameraValueError):
+        camera.capture('test.tiff')
+    with pytest.raises(picamera.PiCameraValueError):
+        camera.capture('test.jpg', format='tiff')
+
