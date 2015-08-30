@@ -279,11 +279,12 @@ class PiVideoFrame(namedtuple('PiVideoFrame', (
     .. attribute:: timestamp
 
         Returns the presentation timestamp (PTS) of the current frame as
-        reported by the encoder. This is represented by the number of
-        microseconds (millionths of a second) since video recording started. As
-        the frame attribute is only updated when the encoder outputs the end of
-        a frame, this value may lag behind the actual time since
-        :meth:`~picamera.camera.PiCamera.start_recording` was called.
+        reported by the encoder. When the camera's clock mode is ``'reset'``
+        (the default), this is the number of microseconds (millionths of a
+        second) since video recording started. When the camera's clock mode is
+        ``'raw'``, this is the number of microseconds since the last system
+        reboot. See :attr:`~picamera.camera.PiCamera.timestamp` for more
+        information.
 
         .. warning::
 
