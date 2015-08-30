@@ -5,7 +5,7 @@ Change log
 ==========
 
 
-Release 1.10 (2014-03-31)
+Release 1.10 (2015-03-31)
 =========================
 
 1.10 consists mostly of minor enhancements:
