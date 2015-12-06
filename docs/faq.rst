@@ -4,6 +4,15 @@
 Frequently Asked Questions (FAQ)
 ================================
 
+
+AttributeError: 'module' object has no attribute 'PiCamera'
+===========================================================
+
+You've named your script ``picamera.py`` (or you've named some other script
+``picamera.py``. If you name a script after a system or third-party package you
+will break imports for that system or third-party package. Delete or rename
+that script (and any associated ``.pyc`` files), and try again.
+
 Can I put the preview in a window?
 ==================================
 

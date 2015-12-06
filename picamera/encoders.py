@@ -279,11 +279,12 @@ class PiVideoFrame(namedtuple('PiVideoFrame', (
     .. attribute:: timestamp
 
         Returns the presentation timestamp (PTS) of the current frame as
-        reported by the encoder. This is represented by the number of
-        microseconds (millionths of a second) since video recording started. As
-        the frame attribute is only updated when the encoder outputs the end of
-        a frame, this value may lag behind the actual time since
-        :meth:`~picamera.camera.PiCamera.start_recording` was called.
+        reported by the encoder. When the camera's clock mode is ``'reset'``
+        (the default), this is the number of microseconds (millionths of a
+        second) since video recording started. When the camera's clock mode is
+        ``'raw'``, this is the number of microseconds since the last system
+        reboot. See :attr:`~picamera.camera.PiCamera.timestamp` for more
+        information.
 
         .. warning::
 
@@ -865,9 +866,12 @@ class PiEncoder(object):
         # The check below is not a race condition; we ignore the EINVAL error
         # in the case the port turns out to be disabled when we disable below.
         # The check exists purely to prevent stderr getting spammed by our
-        # continued attempts to disable an already disabled port
-        with self.parent._encoders_lock:
-            if self.active:
+        # continued attempts to disable an already disabled port. Lock
+        # acquisition must occur after the check to avoid re-acquiring a
+        # non-re-entrant lock in certain conditions (e.g. encoder destruction
+        # from __init__, when the lock is held by the same thread)
+        if self.active:
+            with self.parent._encoders_lock:
                 self.parent._stop_capture(self.camera_port)
                 try:
                     mmal_check(
@@ -1063,7 +1067,7 @@ class PiVideoEncoder(PiEncoder):
                 'mjpeg': mmal.MMAL_ENCODING_MJPEG,
                 }[self.format]
         except KeyError:
-            raise PiCameraValueError('Unrecognized format %s' % self.format)
+            raise PiCameraValueError('Unsupported format %s' % self.format)
 
         if not (0 <= bitrate <= 25000000):
             raise PiCameraValueError('bitrate must be between 0 and 25Mbps')
@@ -1387,7 +1391,7 @@ class PiImageEncoder(PiEncoder):
                 'bmp':  mmal.MMAL_ENCODING_BMP,
                 }[self.format]
         except KeyError:
-            raise PiCameraValueError("Unrecognized format %s" % self.format)
+            raise PiCameraValueError("Unsupported format %s" % self.format)
         mmal_check(
             mmal.mmal_port_format_commit(self.output_port),
             prefix="Unable to set format on encoder output port")

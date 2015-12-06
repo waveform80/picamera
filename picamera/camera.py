@@ -264,6 +264,10 @@ class PiCamera(object):
     You should only need to specify this parameter if you are using a custom
     DeviceTree blob (this is only typical on the `Compute Module`_ platform).
 
+    The *clock_mode* parameter can be used to change when the camera's frame
+    timestamps reset to zero (see
+    :attr:`~picamera.encoders.PiVideoFrame.timestamp` for more information).
+
     No preview or recording is started automatically upon construction.  Use
     the :meth:`capture` method to capture images, the :meth:`start_recording`
     method to begin recording video, or the :meth:`start_preview` method to
@@ -417,6 +421,11 @@ class PiCamera(object):
         'top-bottom':   mmal.MMAL_STEREOSCOPIC_MODE_BOTTOM,
         }
 
+    CLOCK_MODES = {
+        'reset':        mmal.MMAL_PARAM_TIMESTAMP_MODE_RESET_STC,
+        'raw':          mmal.MMAL_PARAM_TIMESTAMP_MODE_RAW_STC,
+        }
+
     _METER_MODES_R    = {v: k for (k, v) in METER_MODES.items()}
     _EXPOSURE_MODES_R = {v: k for (k, v) in EXPOSURE_MODES.items()}
     _FLASH_MODES_R    = {v: k for (k, v) in FLASH_MODES.items()}
@@ -428,7 +437,8 @@ class PiCamera(object):
 
     def __init__(
             self, camera_num=0, stereo_mode='none', stereo_decimate=False,
-            resolution=None, framerate=None, sensor_mode=0, led_pin=None):
+            resolution=None, framerate=None, sensor_mode=0, led_pin=None,
+            clock_mode='reset'):
         bcm_host.bcm_host_init()
         mimetypes.add_type('application/h264',  '.h264',  False)
         mimetypes.add_type('application/mjpeg', '.mjpg',  False)
@@ -483,9 +493,17 @@ class PiCamera(object):
             framerate = fractions.Fraction(
                 self.DEFAULT_FRAME_RATE_NUM, self.DEFAULT_FRAME_RATE_DEN)
         try:
+            stereo_mode = self.STEREO_MODES[stereo_mode]
+        except KeyError:
+            raise PiCameraValueError('Invalid stereo mode: %s' % stereo_mode)
+        try:
+            clock_mode = self.CLOCK_MODES[clock_mode]
+        except KeyError:
+            raise PiCameraValueError('Invalid clock mode: %s' % clock_mode)
+        try:
             self._init_camera(
                 camera_num, sensor_mode, resolution, framerate,
-                self.STEREO_MODES[stereo_mode], stereo_decimate)
+                stereo_mode, stereo_decimate, clock_mode)
             self._init_defaults()
             self._init_preview()
             self._init_splitter()
@@ -508,7 +526,7 @@ class PiCamera(object):
 
     def _init_camera(
             self, num, sensor_mode, resolution, framerate,
-            stereo_mode, stereo_decimate):
+            stereo_mode, stereo_decimate, clock_mode):
         self._camera = ct.POINTER(mmal.MMAL_COMPONENT_T)()
         self._camera_config = mmal.MMAL_PARAMETER_CAMERA_CONFIG_T(
             mmal.MMAL_PARAMETER_HEADER_T(
@@ -570,7 +588,7 @@ class PiCamera(object):
         cc.num_preview_video_frames = 3
         cc.stills_capture_circular_buffer_height = 0
         cc.fast_preview_resume = 0
-        cc.use_stc_timestamp = mmal.MMAL_PARAM_TIMESTAMP_MODE_RESET_STC
+        cc.use_stc_timestamp = clock_mode
         mmal_check(
             mmal.mmal_port_parameter_set(self._camera[0].control, cc.hdr),
             prefix="Camera control port couldn't be configured")
@@ -2050,6 +2068,24 @@ class PiCamera(object):
         .. deprecated:: 1.0
             Please use ``'yuv'`` or ``'rgb'`` directly as a format in the
             various capture methods instead.
+        """)
+
+    def _get_timestamp(self):
+        stc = ct.c_uint64()
+        mmal_check(
+            mmal.mmal_port_parameter_get_uint64(self._camera[0].control,
+                mmal.MMAL_PARAMETER_SYSTEM_TIME, stc),
+            prefix="Failed to retrieve camera time")
+        return stc.value
+    timestamp = property(_get_timestamp, doc="""
+        Retrieves the system time according to the camera firmware.
+
+        The camera's timestamp is a 64-bit integer representing the number of
+        microseconds since the last system boot. When the camera's clock mode
+        is ``'raw'`` (see ``clock_mode`` in the :class:`PiCamera` documentation)
+        the values returned by this attribute are comparable to those from the
+        :attr:`frame` :attr:`~picamera.encoders.PiVideoFrame.timestamp`
+        attribute.
         """)
 
     def _get_frame(self):
