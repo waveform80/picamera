@@ -574,7 +574,7 @@ class PiEncoder(object):
         constructed encoder component, and the :attr:`output_port` attribute to
         the encoder's output port (or the previously constructed resizer's
         output port if one has been requested). Descendent classes extend this
-        method to finalize encoder configuration. 
+        method to finalize encoder configuration.
 
         .. note::
 

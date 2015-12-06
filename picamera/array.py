@@ -598,15 +598,13 @@ class PiRGBAnalysis(PiAnalysisOutput):
     deliberately raises :exc:`NotImplementedError` in this class; you must
     override it in your descendent class).
 
-    .. warning::
+    .. note::
 
-        Because the :meth:`~PiAnalysisOutput.analyse` method will be running
-        within the encoder's callback, it must be **fast**. Specifically, it
-        needs to return before the next frame is produced. Therefore, if the
-        camera is running at 30fps, analyse cannot take more than 1/30s or 33ms
-        to execute (and should take considerably less given that this doesn't
-        take into account encoding overhead). You may wish to adjust the
-        framerate of the camera accordingly.
+        If your overridden :meth:`~PiAnalysisOutput.analyse` method runs slower
+        than the required framerate (e.g. 33.333ms when framerate is 30fps)
+        then the camera's effective framerate will be reduced. Furthermore,
+        this doesn't take into account the overhead of picamera itself so in
+        practice your method needs to be a bit faster still.
 
     The array passed to :meth:`~PiAnalysisOutput.analyse` is organized as
     (rows, columns, channel) where the channels 0, 1, and 2 are R, G, and B
@@ -632,15 +630,13 @@ class PiYUVAnalysis(PiAnalysisOutput):
     :exc:`NotImplementedError` in this class; you must override it in your
     descendent class).
 
-    .. warning::
+    .. note::
 
-        Because the :meth:`~PiAnalysisOutput.analyse` method will be running
-        within the encoder's callback, it must be **fast**. Specifically, it
-        needs to return before the next frame is produced. Therefore, if the
-        camera is running at 30fps, analyse cannot take more than 1/30s or 33ms
-        to execute (and should take considerably less given that this doesn't
-        take into account encoding overhead). You may wish to adjust the
-        framerate of the camera accordingly.
+        If your overridden :meth:`~PiAnalysisOutput.analyse` method runs slower
+        than the required framerate (e.g. 33.333ms when framerate is 30fps)
+        then the camera's effective framerate will be reduced. Furthermore,
+        this doesn't take into account the overhead of picamera itself so in
+        practice your method needs to be a bit faster still.
 
     The array passed to :meth:`~PiAnalysisOutput.analyse` is organized as
     (rows, columns, channel) where the channel 0 is Y (luminance), while 1 and
@@ -666,15 +662,13 @@ class PiMotionAnalysis(PiAnalysisOutput):
     method with the resulting array (which deliberately raises
     :exc:`NotImplementedError` in this class).
 
-    .. warning::
+    .. note::
 
-        Because the :meth:`~PiAnalysisOutput.analyse` method will be running
-        within the encoder's callback, it must be **fast**. Specifically, it
-        needs to return before the next frame is produced. Therefore, if the
-        camera is running at 30fps, analyse cannot take more than 1/30s or 33ms
-        to execute (and should take considerably less given that this doesn't
-        take into account encoding overhead). You may wish to adjust the
-        framerate of the camera accordingly.
+        If your overridden :meth:`~PiAnalysisOutput.analyse` method runs slower
+        than the required framerate (e.g. 33.333ms when framerate is 30fps)
+        then the camera's effective framerate will be reduced. Furthermore,
+        this doesn't take into account the overhead of picamera itself so in
+        practice your method needs to be a bit faster still.
 
     The array passed to :meth:`~PiAnalysisOutput.analyse` is organized as
     (rows, columns) where ``rows`` and ``columns`` are the number of rows and
