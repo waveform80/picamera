@@ -239,7 +239,7 @@ class PiRenderer(object):
             prefix="Failed to set layer")
     layer = property(
             _get_layer, _set_layer, doc="""
-        Retrieves of sets the layer of the renderer.
+        Retrieves or sets the layer of the renderer.
 
         The :attr:`layer` property is an integer which controls the layer that
         the renderer occupies. Higher valued layers obscure lower valued layers
@@ -388,7 +388,7 @@ class PiRenderer(object):
                 self._get_transform(value, self._vflip, self._hflip))
         self._rotation = value
     rotation = property(_get_rotation, _set_rotation, doc="""
-        Retrieves of sets the current rotation of the renderer.
+        Retrieves or sets the current rotation of the renderer.
 
         When queried, the :attr:`rotation` property returns the rotation
         applied to the renderer. Valid values are 0, 90, 180, and 270.
@@ -413,7 +413,7 @@ class PiRenderer(object):
                 self._get_transform(self._rotation, value, self._hflip))
         self._vflip = value
     vflip = property(_get_vflip, _set_vflip, doc="""
-        Retrieves of sets whether the renderer's output is vertically flipped.
+        Retrieves or sets whether the renderer's output is vertically flipped.
 
         When queried, the :attr:`vflip` property returns a boolean indicating
         whether or not the renderer's output is vertically flipped. The
@@ -436,7 +436,7 @@ class PiRenderer(object):
                 self._get_transform(self._rotation, self._vflip, value))
         self._hflip = value
     hflip = property(_get_hflip, _set_hflip, doc="""
-        Retrieves of sets whether the renderer's output is horizontally
+        Retrieves or sets whether the renderer's output is horizontally
         flipped.
 
         When queried, the :attr:`vflip` property returns a boolean indicating
