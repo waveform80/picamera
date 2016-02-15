@@ -3776,7 +3776,7 @@ class PiCamera(object):
             self._preview_layer = value
     preview_layer = property(
             _get_preview_layer, _set_preview_layer, doc="""
-        Retrieves of sets the layer of the preview window.
+        Retrieves or sets the layer of the preview window.
 
         .. deprecated:: 1.8
             Please use the :attr:`~picamera.renderers.PiRenderer.layer`
