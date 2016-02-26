@@ -346,7 +346,7 @@ class PiYUVArray(PiArrayOutput):
     def rgb_array(self):
         if self._rgb is None:
             # Apply the standard biases
-            YUV = self.array.copy()
+            YUV = self.array.astype(float)
             YUV[:, :, 0]  = YUV[:, :, 0]  - 16  # Offset Y by 16
             YUV[:, :, 1:] = YUV[:, :, 1:] - 128 # Offset UV by 128
             # YUV conversion matrix from ITU-R BT.601 version (SDTV)
