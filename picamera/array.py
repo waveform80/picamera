@@ -341,6 +341,7 @@ class PiYUVArray(PiArrayOutput):
     def flush(self):
         super(PiYUVArray, self).flush()
         self.array = bytes_to_yuv(self.getvalue(), self.size or self.camera.resolution)
+        self._rgb = None
 
     @property
     def rgb_array(self):
