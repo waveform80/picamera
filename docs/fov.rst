@@ -84,7 +84,7 @@ A few examples are given below to clarify the operation of this heuristic:
 
 * If you set the :attr:`~picamera.camera.PiCamera.resolution` to 1024x768 (a
   4:3 aspect ratio), and :attr:`~picamera.camera.PiCamera.framerate` to
-  anything less than 42fps, the 1296x976 mode will be selected, and the camera
+  anything less than 42fps, the 1296x972 mode will be selected, and the camera
   will downscale the result to 1024x768.
 
 * If you set the :attr:`~picamera.camera.PiCamera.resolution` to 1280x720 (a
@@ -94,7 +94,7 @@ A few examples are given below to clarify the operation of this heuristic:
 
 * Setting :attr:`~picamera.camera.PiCamera.resolution` to 1920x1080 and
   :attr:`~picamera.camera.PiCamera.framerate` to 30fps exceeds the resolution
-  of both the 1296x730 and 1296x976 modes (i.e. they would require upscaling),
+  of both the 1296x730 and 1296x972 modes (i.e. they would require upscaling),
   so the 1920x1080 mode is selected instead, although it has a reduced FoV.
 
 * A :attr:`~picamera.camera.PiCamera.resolution` of 800x600 and a
