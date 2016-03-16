@@ -175,7 +175,8 @@ class CircularIO(io.IOBase):
         """
         Return the current stream position.
         """
-        return self._pos
+        with self.lock:
+            return self._pos
 
     def seek(self, offset, whence=io.SEEK_SET):
         """
@@ -292,10 +293,13 @@ class CircularIO(io.IOBase):
                 self._set_pos(size)
                 while self._pos_index < len(self._data) - 1:
                     self._data.pop()
-                self._data[self._pos_index] = self._data[self._pos_index][:self._pos_offset]
+                if self._pos_offset > 0:
+                    self._data[self._pos_index] = self._data[self._pos_index][:self._pos_offset]
+                    self._pos_index += 1
+                    self._pos_offset = 0
+                else:
+                    self._data.pop()
                 self._length = size
-                self._pos_index += 1
-                self._pos_offset = 0
                 if self._pos != save_pos:
                     self._set_pos(save_pos)
 
@@ -366,6 +370,10 @@ class CircularIO(io.IOBase):
 class PiCameraDequeHack(deque):
     def __init__(self, camera, splitter_port=1):
         super(PiCameraDequeHack, self).__init__()
+        try:
+            camera._encoders
+        except AttributeError:
+            raise PiCameraValueError('camera must be a valid PiCamera object')
         self.camera = camera
         self.splitter_port = splitter_port
 
@@ -460,7 +468,8 @@ class PiCameraCircularIO(CircularIO):
           the middle of the stream
 
         * the stream is never truncated (from the right; being ring buffer
-          based, left truncation will occur automatically)
+          based, left truncation will occur automatically); the exception
+          to this is the :meth:`clear` method.
 
     The *camera* parameter specifies the :class:`~picamera.camera.PiCamera`
     instance that will be recording video to the stream. If specified, the
@@ -512,3 +521,34 @@ class PiCameraCircularIO(CircularIO):
         self._data = PiCameraDequeHack(camera, splitter_port)
         self.frames = PiCameraDequeFrames(self)
 
+    def clear(self):
+        """
+        Resets the stream to empty safely.
+
+        This method truncates the stream to empty, and clears the associated
+        frame meta-data too, ensuring that subsequent writes operate correctly
+        (see the warning in the :class:`PiCameraCircularIO` class
+        documentation).
+        """
+        with self.lock:
+            self.seek(0)
+            self.truncate()
+
+    def copy_to(self, output, size=None, seconds=None):
+        """
+        Copies content from the stream to *output*.
+
+        By default, this method copies all complete frames from the circular
+        stream to the filename or file-like object given by *output*. If
+        *size* is specified then the copy will be limited to the whole number
+        of frames that fit within the specified number of bytes. If *seconds*
+        if specified, then the copy will be limited to that number of seconds
+        worth of frames.
+
+        The stream's position is not affected by this method.
+        """
+        with self.lock:
+            pos = self.tell()
+            if size is not None:
+                for frame in reversed(self.frames):
+                    pass
