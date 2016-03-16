@@ -80,7 +80,7 @@ __requires__ = [
 
 __extra_requires__ = {
     'doc':   ['sphinx'],
-    'test':  ['pytest', 'mock', 'Pillow', 'numpy'],
+    'test':  ['coverage', 'pytest', 'mock', 'Pillow', 'numpy'],
     'array': ['numpy'],
     }
 
