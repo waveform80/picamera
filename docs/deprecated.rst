@@ -559,6 +559,29 @@ in the test (this is a general rule, not limited to this deprecation case)::
         pass
 
 
+Analysis classes use analyze
+----------------------------
+
+The various analysis classes in :mod:`picamera.array` were adjusted in 1.11 to
+use :meth:`~picamera.array.PiAnalysisOutput.analyze` (US English spelling)
+instead of ``analyse`` (UK English spelling). The following example illustrates
+the old usage::
+
+    import picamera.array
+
+    class MyAnalyzer(picamera.array.PiRGBAnalysis):
+        def analyse(self, array):
+            print('Array shape:', array.shape)
+
+This should simply be re-written as::
+
+    import picamera.array
+
+    class MyAnalyzer(picamera.array.PiRGBAnalysis):
+        def analyze(self, array):
+            print('Array shape:', array.shape)
+
+
 .. _semantic versioning: http://semver.org/
 .. _PEP-8: http://legacy.python.org/dev/peps/pep-0008/
 

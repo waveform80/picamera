@@ -562,7 +562,7 @@ class PiAnalysisOutput(io.IOBase):
     """
     Base class for analysis outputs.
 
-    This class extends :class:`io.IOBase` with a stub :meth:`analyse` method
+    This class extends :class:`io.IOBase` with a stub :meth:`analyze` method
     which will be called for each frame output. In this base implementation the
     method simply raises :exc:`NotImplementedError`.
     """
@@ -578,9 +578,22 @@ class PiAnalysisOutput(io.IOBase):
     def write(self, b):
         return len(b)
 
-    def analyse(self, array):
+    def analyze(self, array):
         """
         Stub method for users to override.
+        """
+        try:
+            self.analyse(array)
+            warnings.warn(
+                PiCameraDeprecated(
+                    'The analyse method is deprecated; use analyze (US '
+                    'English spelling) instead'))
+        except NotImplementedError:
+            raise
+
+    def analyse(self, array):
+        """
+        Deprecated alias of :meth:`analyze`.
         """
         raise NotImplementedError
 
@@ -594,26 +607,26 @@ class PiRGBAnalysis(PiAnalysisOutput):
     with *format* set to ``'rgb'`` or ``'bgr'``. While recording is in
     progress, the :meth:`~PiAnalysisOutput.write` method converts incoming
     frame data into a numpy array and calls the stub
-    :meth:`~PiAnalysisOutput.analyse` method with the resulting array (this
+    :meth:`~PiAnalysisOutput.analyze` method with the resulting array (this
     deliberately raises :exc:`NotImplementedError` in this class; you must
     override it in your descendent class).
 
     .. note::
 
-        If your overridden :meth:`~PiAnalysisOutput.analyse` method runs slower
+        If your overridden :meth:`~PiAnalysisOutput.analyze` method runs slower
         than the required framerate (e.g. 33.333ms when framerate is 30fps)
         then the camera's effective framerate will be reduced. Furthermore,
         this doesn't take into account the overhead of picamera itself so in
         practice your method needs to be a bit faster still.
 
-    The array passed to :meth:`~PiAnalysisOutput.analyse` is organized as
+    The array passed to :meth:`~PiAnalysisOutput.analyze` is organized as
     (rows, columns, channel) where the channels 0, 1, and 2 are R, G, and B
     respectively (or B, G, R if *format* is ``'bgr'``).
     """
 
     def write(self, b):
         result = super(PiRGBAnalysis, self).write(b)
-        self.analyse(bytes_to_rgb(b, self.size or self.camera.resolution))
+        self.analyze(bytes_to_rgb(b, self.size or self.camera.resolution))
         return result
 
 
@@ -625,20 +638,20 @@ class PiYUVAnalysis(PiAnalysisOutput):
     :meth:`~picamera.camera.PiCamera.start_recording` method when it is called
     with *format* set to ``'yuv'``. While recording is in progress, the
     :meth:`~PiAnalysisOutput.write` method converts incoming frame data into a
-    numpy array and calls the stub :meth:`~PiAnalysisOutput.analyse` method
+    numpy array and calls the stub :meth:`~PiAnalysisOutput.analyze` method
     with the resulting array (this deliberately raises
     :exc:`NotImplementedError` in this class; you must override it in your
     descendent class).
 
     .. note::
 
-        If your overridden :meth:`~PiAnalysisOutput.analyse` method runs slower
+        If your overridden :meth:`~PiAnalysisOutput.analyze` method runs slower
         than the required framerate (e.g. 33.333ms when framerate is 30fps)
         then the camera's effective framerate will be reduced. Furthermore,
         this doesn't take into account the overhead of picamera itself so in
         practice your method needs to be a bit faster still.
 
-    The array passed to :meth:`~PiAnalysisOutput.analyse` is organized as
+    The array passed to :meth:`~PiAnalysisOutput.analyze` is organized as
     (rows, columns, channel) where the channel 0 is Y (luminance), while 1 and
     2 are U and V (chrominance) respectively. The chrominance values normally
     have quarter resolution of the luminance values but this class makes all
@@ -647,7 +660,7 @@ class PiYUVAnalysis(PiAnalysisOutput):
 
     def write(self, b):
         result = super(PiYUVAnalysis, self).write(b)
-        self.analyse(bytes_to_yuv(b, self.size or self.camera.resolution))
+        self.analyze(bytes_to_yuv(b, self.size or self.camera.resolution))
         return result
 
 
@@ -658,19 +671,19 @@ class PiMotionAnalysis(PiAnalysisOutput):
     This custom output class is intended to be used with the *motion_output*
     parameter of the :meth:`~picamera.camera.PiCamera.start_recording` method.
     While recording is in progress, the write method converts incoming motion
-    data into numpy arrays and calls the stub :meth:`~PiAnalysisOutput.analyse`
+    data into numpy arrays and calls the stub :meth:`~PiAnalysisOutput.analyze`
     method with the resulting array (which deliberately raises
     :exc:`NotImplementedError` in this class).
 
     .. note::
 
-        If your overridden :meth:`~PiAnalysisOutput.analyse` method runs slower
+        If your overridden :meth:`~PiAnalysisOutput.analyze` method runs slower
         than the required framerate (e.g. 33.333ms when framerate is 30fps)
         then the camera's effective framerate will be reduced. Furthermore,
         this doesn't take into account the overhead of picamera itself so in
         practice your method needs to be a bit faster still.
 
-    The array passed to :meth:`~PiAnalysisOutput.analyse` is organized as
+    The array passed to :meth:`~PiAnalysisOutput.analyze` is organized as
     (rows, columns) where ``rows`` and ``columns`` are the number of rows and
     columns of `macro-blocks`_ (16x16 pixel blocks) in the original frames.
     There is always one extra column of macro-blocks present in motion vector
@@ -687,7 +700,7 @@ class PiMotionAnalysis(PiAnalysisOutput):
         import picamera.array
 
         class DetectMotion(picamera.array.PiMotionAnalysis):
-            def analyse(self, a):
+            def analyze(self, a):
                 a = np.sqrt(
                     np.square(a['x'].astype(np.float)) +
                     np.square(a['y'].astype(np.float))
@@ -721,7 +734,7 @@ class PiMotionAnalysis(PiAnalysisOutput):
             width, height = self.size or self.camera.resolution
             self.cols = ((width + 15) // 16) + 1
             self.rows = (height + 15) // 16
-        self.analyse(
+        self.analyze(
                 np.frombuffer(b, dtype=motion_dtype).\
                 reshape((self.rows, self.cols)))
         return result
