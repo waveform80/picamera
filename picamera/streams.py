@@ -71,7 +71,7 @@ from threading import RLock
 from collections import deque
 
 from picamera.exc import PiCameraValueError
-from picamera.encoders import PiVideoFrame
+from picamera.encoders import PiVideoFrame, PiVideoFrameType
 
 
 __all__ = [
@@ -534,21 +534,92 @@ class PiCameraCircularIO(CircularIO):
             self.seek(0)
             self.truncate()
 
-    def copy_to(self, output, size=None, seconds=None):
+    def _find_size(self, size, first_frame):
+        pos = None
+        for frame in reversed(self.frames):
+            if first_frame in (None, frame.frame_type):
+                pos = frame.position
+            if size < frame.frame_size:
+                break
+            size -= frame.frame_size
+        return pos
+
+    def _find_seconds(self, seconds, first_frame):
+        pos = None
+        last = None
+        seconds = int(seconds * 1000000)
+        for frame in reversed(self.frames):
+            if first_frame in (None, frame.frame_type):
+                pos = frame.position
+            if frame.timestamp is not None:
+                if last is None:
+                    last = frame.timestamp
+                elif last - frame.timestamp >= seconds:
+                    break
+        return pos
+
+    def _find_all(self, first_frame):
+        for frame in self.frames:
+            if first_frame in (None, frame.frame_type):
+                return frame.position
+
+    def copy_to(
+            self, output, size=None, seconds=None,
+            first_frame=PiVideoFrameType.sps_header):
         """
         Copies content from the stream to *output*.
 
         By default, this method copies all complete frames from the circular
-        stream to the filename or file-like object given by *output*. If
-        *size* is specified then the copy will be limited to the whole number
-        of frames that fit within the specified number of bytes. If *seconds*
-        if specified, then the copy will be limited to that number of seconds
-        worth of frames.
+        stream to the filename or file-like object given by *output*.
+
+        If *size* is specified then the copy will be limited to the whole
+        number of frames that fit within the specified number of bytes. If
+        *seconds* if specified, then the copy will be limited to that number of
+        seconds worth of frames. Only one of *size* or *seconds* can be
+        specified.  If neither is specified, all frames are copied.
+
+        If *first_frame* is specified, it defines the frame type of the first
+        frame to be copied. By default this is
+        :attr:`~PiVideoFrameType.sps_header` as this must usually be the first
+        frame in an H264 stream. If *first_frame* is ``None``, not such limit
+        will be applied.
+
+        .. warning::
+
+            Note that if a frame of the specified type (e.g. SPS header) cannot
+            be found within the specified number of seconds or bytes then this
+            method will simply copy nothing (but no error will be raised).
 
         The stream's position is not affected by this method.
         """
-        with self.lock:
-            pos = self.tell()
-            if size is not None:
-                for frame in reversed(self.frames):
-                    pass
+        if size is not None and seconds is not None:
+            raise PiCameraValueError('You cannot specify both size and seconds')
+        if isinstance(output, bytes):
+            output = output.decode('utf-8')
+        opened = isinstance(output, str)
+        if opened:
+            output = io.open(output, 'wb')
+        try:
+            with self.lock:
+                save_pos = self.tell()
+                try:
+                    if size is not None:
+                        pos = self._find_size(size, first_frame)
+                    elif seconds is not None:
+                        pos = self._find_seconds(seconds, first_frame)
+                    else:
+                        pos = self._find_all(first_frame)
+                    # Copy chunks efficiently from the position found
+                    if pos is not None:
+                        self.seek(pos)
+                        while True:
+                            buf = self.read1()
+                            if not buf:
+                                break
+                            output.write(buf)
+                finally:
+                    self.seek(save_pos)
+        finally:
+            if opened:
+                output.close()
+

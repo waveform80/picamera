@@ -39,7 +39,6 @@ str = type('')
 
 import io
 import mock
-from operator import attrgetter
 try:
     from itertools import accumulate
 except ImportError:
@@ -151,6 +150,7 @@ def generate_frames(s, index=0):
     # Generates a sequence of mock frame data and their corresponding
     # PiVideoFrame meta-data objects.
     pos = 0
+    timestamp = 0
     for data in s:
         if data == 'k':
             pos += 1
@@ -160,7 +160,7 @@ def generate_frames(s, index=0):
                 frame_size=1,
                 video_size=pos,
                 split_size=pos,
-                timestamp=0,
+                timestamp=timestamp,
                 complete=False)
         pos += 1
         yield data, PiVideoFrame(
@@ -179,9 +179,10 @@ def generate_frames(s, index=0):
                 }[data],
             video_size=pos,
             split_size=pos,
-            timestamp=0,
+            timestamp=timestamp,
             complete=True)
         index += 1
+        timestamp += 1000000
 
 def test_camera_stream_init():
     camera = mock.Mock()
@@ -275,4 +276,58 @@ def test_camera_stream_clear():
     assert stream.getvalue() == b''
     assert list(stream.frames) == []
     assert list(reversed(stream.frames)) == []
+
+def test_camera_stream_copy_bad():
+    camera = mock.Mock()
+    encoder = mock.Mock()
+    camera._encoders = {1: encoder}
+    with pytest.raises(ValueError):
+        PiCameraCircularIO(camera, size=10).copy_to('foo', size=1000, seconds=10)
+
+def test_camera_stream_copy_all():
+    camera = mock.Mock()
+    encoder = mock.Mock()
+    camera._encoders = {1: encoder}
+    stream = PiCameraCircularIO(camera, size=10)
+    for data, frame in generate_frames('hkffkff'):
+        encoder.frame = frame
+        stream.write(data)
+    output = io.BytesIO()
+    stream.copy_to(output)
+    assert output.getvalue() == b'hkkffkkff'
+    for data, frame in generate_frames('hkffkff'):
+        encoder.frame = frame
+        stream.write(data)
+    assert stream.getvalue() == b'fhkkffkkff'
+    output = io.BytesIO()
+    stream.copy_to(output)
+    assert output.getvalue() == b'hkkffkkff'
+
+def test_camera_stream_copy_size():
+    camera = mock.Mock()
+    encoder = mock.Mock()
+    camera._encoders = {1: encoder}
+    stream = PiCameraCircularIO(camera, size=10)
+    for data, frame in generate_frames('hkffkff'):
+        encoder.frame = frame
+        stream.write(data)
+    output = io.BytesIO()
+    stream.copy_to(output, size=5)
+    assert output.getvalue() == b''
+    stream.copy_to(output, size=10)
+    assert output.getvalue() == b'hkkffkkff'
+
+def test_camera_stream_copy_seconds():
+    camera = mock.Mock()
+    encoder = mock.Mock()
+    camera._encoders = {1: encoder}
+    stream = PiCameraCircularIO(camera, size=10)
+    for data, frame in generate_frames('hkffkff'):
+        encoder.frame = frame
+        stream.write(data)
+    output = io.BytesIO()
+    stream.copy_to(output, seconds=1)
+    assert output.getvalue() == b''
+    stream.copy_to(output, seconds=10)
+    assert output.getvalue() == b'hkkffkkff'
 
