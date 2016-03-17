@@ -435,6 +435,27 @@ class PiCamera(object):
     _DRC_STRENGTHS_R  = {v: k for (k, v) in DRC_STRENGTHS.items()}
     _STEREO_MODES_R   = {v: k for (k, v) in STEREO_MODES.items()}
 
+    __slots__ = (
+        '_used_led',
+        '_led_pin',
+        '_camera',
+        '_camera_config',
+        '_preview',
+        '_preview_alpha',
+        '_preview_layer',
+        '_preview_fullscreen',
+        '_preview_window',
+        '_splitter',
+        '_splitter_connection',
+        '_encoders_lock',
+        '_encoders',
+        '_overlays',
+        '_raw_format',
+        '_image_effect_params',
+        '_annotate_v3',
+        '_exif_tags',
+        )
+
     def __init__(
             self, camera_num=0, stereo_mode='none', stereo_decimate=False,
             resolution=None, framerate=None, sensor_mode=0, led_pin=None,
