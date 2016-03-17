@@ -2306,7 +2306,7 @@ class PiCamera(object):
         self._check_camera_open()
         self._check_recording_stopped()
         mode = self.sensor_mode
-        framerate = self.framerate
+        framerate = to_rational(self.framerate)
         try:
             w, h = value
         except (TypeError, ValueError) as e:
