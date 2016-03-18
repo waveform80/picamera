@@ -116,6 +116,22 @@ def test_yuv_array3(camera, mode):
         assert stream.rgb_array.dtype == np.uint8
         assert stream.rgb_array.shape == (resize[1], resize[0], 3)
 
+def test_yuv_buffer(camera, mode):
+    resolution, framerate = mode
+    width, height = resolution
+    fwidth = (width + 31) // 32 * 32
+    fheight = (height + 15) // 16 * 16
+    buf = np.empty((int(fwidth * fheight * 1.5),), dtype=np.uint8)
+    camera.capture(buf, 'yuv')
+
+def test_rgb_buffer(camera, mode):
+    resolution, framerate = mode
+    width, height = resolution
+    fwidth = (width + 31) // 32 * 32
+    fheight = (height + 15) // 16 * 16
+    buf = np.empty((fwidth * fheight * 3,), dtype=np.uint8)
+    camera.capture(buf, 'rgb')
+
 def test_bayer_array(camera, mode):
     with picamera.array.PiBayerArray(camera) as stream:
         camera.capture(stream, 'jpeg', bayer=True)

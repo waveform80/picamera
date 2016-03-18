@@ -80,9 +80,8 @@ from picamera.exc import (
     mmal_check,
     )
 from picamera.camera import PiCamera
+from picamera.frames import PiVideoFrame, PiVideoFrameType
 from picamera.encoders import (
-    PiVideoFrame,
-    PiVideoFrameType,
     PiEncoder,
     PiVideoEncoder,
     PiImageEncoder,

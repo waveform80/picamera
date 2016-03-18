@@ -71,13 +71,174 @@ from threading import RLock
 from collections import deque
 
 from picamera.exc import PiCameraValueError
-from picamera.encoders import PiVideoFrame, PiVideoFrameType
+from picamera.frames import PiVideoFrame, PiVideoFrameType
 
 
-__all__ = [
-    'CircularIO',
-    'PiCameraCircularIO',
-    ]
+class BufferIO(io.IOBase):
+    """
+    A stream which uses a writeable memoryview for storage.
+
+    This is used internally by picamera for capturing directly to an existing
+    object which supports the buffer protocol (like a numpy array). Because
+    the underlying storage is fixed in size, the stream also has a fixed size
+    and will raise an IOError exception if an attempt is made to write beyond
+    the end of the buffer (though seek beyond the end is supported).
+    """
+
+    def __init__(self, obj):
+        self._buf = memoryview(obj)
+        if self._buf.readonly:
+            raise ValueError('buffer object is read-only')
+        if self._buf.ndim > 1 or self._buf.format != 'B':
+            try:
+                # Py2.7 doesn't have memoryview.cast
+                self._buf = self._buf.cast('B')
+            except AttributeError:
+                raise ValueError(
+                    'buffer object must be one-dimensional and have unsigned '
+                    'byte format ("B")')
+        self._pos = 0
+        self._size = self._buf.shape[0]
+
+    def close(self):
+        super(BufferIO, self).close()
+        try:
+            self._buf.release()
+        except AttributeError:
+            # Py2.7 doesn't have memoryview.release
+            pass
+
+    def _check_open(self):
+        if self.closed:
+            raise ValueError('I/O operation on a closed stream')
+
+    @property
+    def size(self):
+        """
+        Return the maximum size of the buffer in bytes.
+        """
+        return self._size
+
+    def readable(self):
+        """
+        Returns ``True``, indicating that the stream supports :meth:`read`.
+        """
+        self._check_open()
+        return True
+
+    def writable(self):
+        """
+        Returns ``True``, indicating that the stream supports :meth:`write`.
+        """
+        self._check_open()
+        return True
+
+    def seekable(self):
+        """
+        Returns ``True``, indicating the stream supports :meth:`seek` and
+        :meth:`tell`.
+        """
+        self._check_open()
+        return True
+
+    def getvalue(self):
+        """
+        Return ``bytes`` containing the entire contents of the buffer.
+        """
+        with self.lock:
+            return self._buf.tobytes()
+
+    def tell(self):
+        """
+        Return the current stream position.
+        """
+        self._check_open()
+        return self._pos
+
+    def seek(self, offset, whence=io.SEEK_SET):
+        """
+        Change the stream position to the given byte *offset*. *offset* is
+        interpreted relative to the position indicated by *whence*. Values for
+        *whence* are:
+
+        * ``SEEK_SET`` or ``0`` – start of the stream (the default); *offset*
+          should be zero or positive
+
+        * ``SEEK_CUR`` or ``1`` – current stream position; *offset* may be
+          negative
+
+        * ``SEEK_END`` or ``2`` – end of the stream; *offset* is usually
+          negative
+
+        Return the new absolute position.
+        """
+        self._check_open()
+        if whence == io.SEEK_CUR:
+            offset = self._pos + offset
+        elif whence == io.SEEK_END:
+            offset = self.size + offset
+        if offset < 0:
+            raise ValueError(
+                'New position is before the start of the stream')
+        self._pos = offset
+        return self._pos
+
+    def read(self, n=-1):
+        """
+        Read up to *n* bytes from the stream and return them. As a convenience,
+        if *n* is unspecified or -1, :meth:`readall` is called. Fewer than *n*
+        bytes may be returned if there are fewer than *n* bytes from the
+        current stream position to the end of the stream.
+
+        If 0 bytes are returned, and *n* was not 0, this indicates end of the
+        stream.
+        """
+        self._check_open()
+        if n < 0:
+            return self.readall()
+        elif n == 0:
+            return b''
+        else:
+            result = self._buf[self._pos:self._pos + n].tobytes()
+            self._pos += len(result)
+            return result
+
+    def readall(self):
+        """
+        Read and return all bytes from the stream until EOF, using multiple
+        calls to the stream if necessary.
+        """
+        return self.read(max(0, self.size - self._pos))
+
+    def truncate(self, size=None):
+        """
+        Resize the stream to the given *size* in bytes (or the current position
+        if *size* is not specified). This resizing can extend or reduce the
+        current stream size. In case of extension, the contents of the new file
+        area will be NUL (``\\x00``) bytes. The new stream size is returned.
+
+        The current stream position isn’t changed unless the resizing is
+        expanding the stream, in which case it may be set to the maximum stream
+        size if the expansion causes the ring buffer to loop around.
+        """
+        raise NotImplementedError('cannot resize a BufferIO stream')
+
+    def write(self, b):
+        """
+        Write the given bytes or bytearray object, *b*, to the underlying
+        stream and return the number of bytes written.
+        """
+        self._check_open()
+        excess = max(0, len(b) - (self.size - self._pos))
+        if excess:
+            b = b[:-excess]
+        self._buf[self._pos:self._pos + len(b)] = b
+        self._pos += len(b)
+        if excess:
+            raise IOError(
+                'buffer object not large enough for write; %d excess bytes '
+                'not written' % excess)
+        return len(b)
 
 
 class CircularIO(io.IOBase):
@@ -118,6 +279,10 @@ class CircularIO(io.IOBase):
         self._pos_index = 0
         self._pos_offset = 0
 
+    def _check_open(self):
+        if self.closed:
+            raise ValueError('I/O operation on a closed stream')
+
     @property
     def lock(self):
         """
@@ -136,12 +301,14 @@ class CircularIO(io.IOBase):
         """
         Returns ``True``, indicating that the stream supports :meth:`read`.
         """
+        self._check_open()
         return True
 
     def writable(self):
         """
         Returns ``True``, indicating that the stream supports :meth:`write`.
         """
+        self._check_open()
         return True
 
     def seekable(self):
@@ -149,6 +316,7 @@ class CircularIO(io.IOBase):
         Returns ``True``, indicating the stream supports :meth:`seek` and
         :meth:`tell`.
         """
+        self._check_open()
         return True
 
     def getvalue(self):
@@ -175,6 +343,7 @@ class CircularIO(io.IOBase):
         """
         Return the current stream position.
         """
+        self._check_open()
         with self.lock:
             return self._pos
 
@@ -195,6 +364,7 @@ class CircularIO(io.IOBase):
 
         Return the new absolute position.
         """
+        self._check_open()
         with self.lock:
             if whence == io.SEEK_CUR:
                 offset = self._pos + offset
@@ -216,11 +386,14 @@ class CircularIO(io.IOBase):
         If 0 bytes are returned, and *n* was not 0, this indicates end of the
         stream.
         """
-        if n == -1:
+        self._check_open()
+        if n < 0:
             return self.readall()
+        elif n == 0:
+            return b''
         else:
             with self.lock:
-                if self._pos == self._length:
+                if self._pos >= self._length:
                     return b''
                 from_index, from_offset = self._pos_index, self._pos_offset
                 self._set_pos(self._pos + n)
@@ -237,7 +410,7 @@ class CircularIO(io.IOBase):
         Read and return all bytes from the stream until EOF, using multiple
         calls to the stream if necessary.
         """
-        return self.read(self._length - self._pos)
+        return self.read(max(0, self._length - self._pos))
 
     def read1(self, n=-1):
         """
@@ -250,6 +423,7 @@ class CircularIO(io.IOBase):
         writes overwrote the content). :meth:`read1` is particularly useful
         for efficient copying of the stream's content.
         """
+        self._check_open()
         with self.lock:
             if self._pos == self._length:
                 return b''
@@ -275,6 +449,7 @@ class CircularIO(io.IOBase):
         expanding the stream, in which case it may be set to the maximum stream
         size if the expansion causes the ring buffer to loop around.
         """
+        self._check_open()
         with self.lock:
             if size is None:
                 size = self._pos
@@ -308,6 +483,7 @@ class CircularIO(io.IOBase):
         Write the given bytes or bytearray object, *b*, to the underlying
         stream and return the number of bytes written.
         """
+        self._check_open()
         b = bytes(b)
         with self.lock:
             # Special case: stream position is beyond the end of the stream.

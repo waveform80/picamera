@@ -40,20 +40,6 @@ find them useful as base classes for :ref:`custom_encoders`.
 The following classes are defined in the module:
 
 
-PiVideoFrameType
-================
-
-.. autoclass:: PiVideoFrameType
-    :members:
-
-
-PiVideoFrame
-============
-
-.. autoclass:: PiVideoFrame(index, frame_type, frame_size, video_size, split_size, timestamp)
-    :members:
-
-
 PiEncoder
 =========
 
@@ -178,177 +164,17 @@ import datetime
 import threading
 import warnings
 import ctypes as ct
-from collections import namedtuple
 
 import picamera.mmal as mmal
+from picamera.frames import PiVideoFrame, PiVideoFrameType
+from picamera.streams import BufferIO
 from picamera.exc import (
     mmal_check,
     PiCameraError,
     PiCameraMMALError,
     PiCameraValueError,
     PiCameraRuntimeError,
-    PiCameraDeprecated,
     )
-
-
-class PiVideoFrameType(object):
-    """
-    This class simply defines constants used to represent the type of a frame
-    in :attr:`PiVideoFrame.frame_type`. Effectively it is a namespace for an
-    enum.
-
-    .. attribute:: frame
-
-        Indicates a predicted frame (P-frame). This is the most common frame
-        type.
-
-    .. attribute:: key_frame
-
-        Indicates an intra-frame (I-frame) also known as a key frame.
-
-    .. attribute:: sps_header
-
-        Indicates an inline SPS/PPS header (rather than picture data) which is
-        typically used as a split point.
-
-    .. attribute:: motion_data
-
-        Indicates the frame is inline motion vector data, rather than picture
-        data.
-
-    .. versionadded:: 1.5
-    """
-    frame = 0
-    key_frame = 1
-    sps_header = 2
-    motion_data = 3
-
-
-class PiVideoFrame(namedtuple('PiVideoFrame', (
-    'index',         # the frame number, where the first frame is 0
-    'frame_type',    # a constant indicating the frame type (see PiVideoFrameType)
-    'frame_size',    # the size (in bytes) of the frame's data
-    'video_size',    # the size (in bytes) of the video so far
-    'split_size',    # the size (in bytes) of the video since the last split
-    'timestamp',     # the presentation timestamp (PTS) of the frame
-    'complete',      # whether the frame is complete or not
-    ))):
-    """
-    This class is a namedtuple derivative used to store information about a
-    video frame. It is recommended that you access the information stored by
-    this class by attribute name rather than position (for example:
-    ``frame.index`` rather than ``frame[0]``).
-
-    .. attribute:: index
-
-        Returns the zero-based number of the frame. This is a monotonic counter
-        that is simply incremented every time the camera starts outputting a
-        new frame. As a consequence, this attribute cannot be used to detect
-        dropped frames. Nor does it necessarily represent actual frames; it
-        will be incremented for SPS headers and motion data buffers too.
-
-    .. attribute:: frame_type
-
-        Returns a constant indicating the kind of data that the frame contains
-        (see :class:`PiVideoFrameType`). Please note that certain frame types
-        contain no image data at all.
-
-    .. attribute:: frame_size
-
-        Returns the size in bytes of the current frame. If a frame is written
-        in multiple chunks, this value will increment while :attr:`index`
-        remains static. Query :attr:`complete` to determine whether the frame
-        has been completely output yet.
-
-    .. attribute:: video_size
-
-        Returns the size in bytes of the entire video up to the current frame.
-        Note that this is unlikely to match the size of the actual file/stream
-        written so far. This is because a stream may utilize buffering which
-        will cause the actual amount written (e.g. to disk) to lag behind the
-        value reported by this attribute.
-
-    .. attribute:: split_size
-
-        Returns the size in bytes of the video recorded since the last call to
-        either :meth:`~picamera.camera.PiCamera.start_recording` or
-        :meth:`~picamera.camera.PiCamera.split_recording`. For the reasons
-        explained above, this may differ from the size of the actual
-        file/stream written so far.
-
-    .. attribute:: timestamp
-
-        Returns the presentation timestamp (PTS) of the current frame as
-        reported by the encoder. When the camera's clock mode is ``'reset'``
-        (the default), this is the number of microseconds (millionths of a
-        second) since video recording started. When the camera's clock mode is
-        ``'raw'``, this is the number of microseconds since the last system
-        reboot. See :attr:`~picamera.camera.PiCamera.timestamp` for more
-        information.
-
-        .. warning::
-
-            Currently, the video encoder occasionally returns "time unknown"
-            values in this field which picamera represents as ``None``. If you
-            are querying this property you will need to check the value is not
-            ``None`` before using it.
-
-    .. attribute:: complete
-
-        Returns a bool indicating whether the current frame is complete or not.
-        If the frame is complete then :attr:`frame_size` will not increment
-        any further, and will reset for the next frame.
-
-    .. versionchanged:: 1.5
-        Deprecated :attr:`header` and :attr:`keyframe` attributes and added the
-        new :attr:`frame_type` attribute instead.
-
-    .. versionchanged:: 1.9
-        Added the :attr:`complete` attribute.
-    """
-
-    @property
-    def position(self):
-        """
-        Returns the zero-based position of the frame in the stream containing
-        it.
-        """
-        return self.split_size - self.frame_size
-
-    @property
-    def keyframe(self):
-        """
-        Returns a bool indicating whether the current frame is a keyframe (an
-        intra-frame, or I-frame in MPEG parlance).
-
-        .. deprecated:: 1.5
-            Please compare :attr:`frame_type` to
-            :attr:`PiVideoFrameType.key_frame` instead.
-        """
-        warnings.warn(
-            PiCameraDeprecated(
-                'PiVideoFrame.keyframe is deprecated; please check '
-                'PiVideoFrame.frame_type for equality with '
-                'PiVideoFrameType.key_frame instead'))
-        return self.frame_type == PiVideoFrameType.key_frame
-
-    @property
-    def header(self):
-        """
-        Contains a bool indicating whether the current frame is actually an
-        SPS/PPS header. Typically it is best to split an H.264 stream so that
-        it starts with an SPS/PPS header.
-
-        .. deprecated:: 1.5
-            Please compare :attr:`frame_type` to
-            :attr:`PiVideoFrameType.sps_header` instead.
-        """
-        warnings.warn(
-            PiCameraDeprecated(
-                'PiVideoFrame.header is deprecated; please check '
-                'PiVideoFrame.frame_type for equality with '
-                'PiVideoFrameType.sps_header instead'))
-        return self.frame_type == PiVideoFrameType.sps_header
 
 
 def _debug_buffer(buf):
@@ -764,15 +590,28 @@ class PiEncoder(object):
         If *output* is a string, this method opens it as a filename and keeps
         track of the fact that the encoder was the one to open it (which
         implies that :meth:`_close_output` should eventually close it).
-        Otherwise, *output* is assumed to be a file-like object and is used
-        verbatim. The opened output is added to the :attr:`outputs` dictionary
-        with the specified *key*.
+        Otherwise, if *output* has a ``write`` method it is assumed to be a
+        file-like object and it is used verbatim. If *output* is neither a
+        string, nor an object with a ``write`` method it is assumed to be a
+        writeable object supporting the buffer protocol (this is wrapped in
+        a :class:`~picamera.streams.BufferIO` stream to simplify writing).
+
+        The opened output is added to the :attr:`outputs` dictionary with the
+        specified *key*.
         """
         with self.outputs_lock:
             opened = isinstance(output, (bytes, str))
             if opened:
                 # Open files in binary mode with a decent buffer size
                 output = io.open(output, 'wb', buffering=65536)
+            else:
+                try:
+                    output.write
+                except AttributeError:
+                    # If there's no write method, try and treat the output as
+                    # a writeable buffer
+                    opened = True
+                    output = BufferIO(output)
             self.outputs[key] = (output, opened)
 
     def _close_output(self, key=PiVideoFrameType.frame):
