@@ -225,8 +225,8 @@ components, this isn't directly useful (if you need all three components,
 you're better off using :class:`~array.PiYUVArray` as this rescales the UV
 components for convenience). However, if you only require the Y plane you can
 provide a buffer just large enough for this plane and ignore the error that
-occurs when writing to the buffer (picamera will write as much as it can to the
-buffer before raising an exception)::
+occurs when writing to the buffer (picamera will deliberately write as much as
+it can to the buffer before raising an exception to support this use-case)::
 
     import time
     import picamera
