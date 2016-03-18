@@ -1128,10 +1128,16 @@ class PiCamera(object):
         Start recording video from the camera, storing it in *output*.
 
         If *output* is a string, it will be treated as a filename for a new
-        file which the video will be written to. Otherwise, *output* is assumed
-        to be a file-like object and the video data is appended to it (the
+        file which the video will be written to. If *output* is not a string,
+        but is an object with a ``write`` method, it is assumed to be a
+        file-like object and the video data is appended to it (the
         implementation only assumes the object has a ``write()`` method - no
-        other methods will be called).
+        other methods are required but ``flush`` will be called at the end of
+        recording if it is present). If *output* is not a string, and has no
+        ``write`` method it is assumed to be a writeable object implementing
+        the buffer protocol. In this case, the video frames will be written
+        sequentially to the underlying buffer (which must be large enough to
+        accept all frame data).
 
         If *format* is ``None`` (the default), the method will attempt to guess
         the required video format from the extension of *output* (if it's a
@@ -1197,10 +1203,8 @@ class PiCamera(object):
 
         * *motion_output* - Indicates the output destination for motion vector
           estimation data. When ``None`` (the default), motion data is not
-          output. If set to a string, it is assumed to be a filename which
-          should be opened for motion data to be written to. Any other value is
-          assumed to be a file-like object which motion vector is to be written
-          to (the object must have a ``write`` method).
+          output. Otherwise, this can be a filename string, a file-like object,
+          or a writeable buffer object (as with the *output* parameter).
 
         All encoded formats accept the following additional options:
 
@@ -1229,6 +1233,9 @@ class PiCamera(object):
         .. versionchanged:: 1.5
             The *quantization* parameter was deprecated in favor of *quality*,
             and the *motion_output* parameter was added.
+
+        .. versionchanged:: 1.11
+            Support for buffer outputs was added.
         """
         if 'quantization' in options:
             warnings.warn(
@@ -1259,11 +1266,9 @@ class PiCamera(object):
         current output (and close it, if it was specified as a filename), and
         continue writing to the newly specified *output*.
 
-        If *output* is a string, it will be treated as a filename for a new
-        file which the video will be written to. Otherwise, *output* is assumed
-        to be a file-like object and the video data is appended to it (the
-        implementation only assumes the object has a ``write()`` method - no
-        other methods will be called).
+        The *output* parameter is treated as in the :meth:`start_recording`
+        method (it can be a string, a file-like object, or a writeable
+        buffer object).
 
         The *motion_output* parameter can be used to redirect the output of the
         motion vector data in the same fashion as *output*. If *motion_output*
@@ -1290,6 +1295,9 @@ class PiCamera(object):
 
         .. versionchanged:: 1.5
             The *motion_output* parameter was added
+
+        .. versionchanged:: 1.11
+            Support for buffer outputs was added.
         """
         try:
             with self._encoders_lock:
@@ -1464,10 +1472,16 @@ class PiCamera(object):
         Capture an image from the camera, storing it in *output*.
 
         If *output* is a string, it will be treated as a filename for a new
-        file which the image will be written to. Otherwise, *output* is assumed
-        to a be a file-like object and the image data is appended to it (the
-        implementation only assumes the object has a ``write()`` method - no
-        other methods will be called).
+        file which the image will be written to. If *output* is not a string,
+        but is an object with a ``write`` method, it is assumed to be a
+        file-like object and the image data is appended to it (the
+        implementation only assumes the object has a ``write`` method - no
+        other methods are required but ``flush`` will be called at the end of
+        capture if it is present). If *output* is not a string, and has no
+        ``write`` method it is assumed to be a writeable object implementing
+        the buffer protocol. In this case, the image data will be written
+        directly to the underlying buffer (which must be large enough to accept
+        the image data).
 
         If *format* is ``None`` (the default), the method will attempt to guess
         the required image format from the extension of *output* (if it's a
@@ -1547,6 +1561,9 @@ class PiCamera(object):
             The *splitter_port* parameter was added, and *bayer* was added as
             an option for the ``'jpeg'`` format
 
+        .. versionchanged:: 1.11
+            Support for buffer outputs was added.
+
         .. _definitions of quality: http://photo.net/learn/jpeg/#qual
         """
         if format == 'raw':
@@ -1588,9 +1605,9 @@ class PiCamera(object):
 
         This method accepts a sequence or iterator of *outputs* each of which
         must either be a string specifying a filename for output, or a
-        file-like object with a ``write`` method. For each item in the sequence
-        or iterator of outputs, the camera captures a single image as fast as
-        it can.
+        file-like object with a ``write`` method, or a writeable buffer object.
+        For each item in the sequence or iterator of outputs, the camera
+        captures a single image as fast as it can.
 
         The *format*, *use_video_port*, *splitter_port*, *resize*, and
         *options* parameters are the same as in :meth:`capture`, but *format*
@@ -1645,6 +1662,9 @@ class PiCamera(object):
 
         .. versionchanged:: 1.3
             The *splitter_port* parameter was added
+
+        .. versionchanged:: 1.11
+            Support for buffer outputs was added.
         """
         if use_video_port and burst:
             raise PiCameraRuntimeError(
@@ -1741,11 +1761,14 @@ class PiCamera(object):
            format string (multiple times too!) although this tends to be
            redundant.
 
-        If *output* is not a string, it is assumed to be a file-like object
-        and each image is simply written to this object sequentially. In this
-        case you will likely either want to write something to the object
-        between the images to distinguish them, or clear the object between
-        iterations.
+        If *output* is not a string, but has a ``write`` method, it is assumed
+        to be a file-like object and each image is simply written to this
+        object sequentially. In this case you will likely either want to write
+        something to the object between the images to distinguish them, or
+        clear the object between iterations. If *output* is not a string, and
+        has no ``write`` method, it is assumed to be a writeable object
+        supporting the buffer protocol; each image is simply written to the
+        buffer sequentially.
 
         The *format*, *use_video_port*, *splitter_port*, *resize*, and
         *options* parameters are the same as in :meth:`capture`.
@@ -1800,6 +1823,9 @@ class PiCamera(object):
 
         .. versionchanged:: 1.3
             The *splitter_port* parameter was added
+
+        .. versionchanged:: 1.11
+            Support for buffer outputs was added.
         """
         if use_video_port and burst:
             raise PiCameraRuntimeError(

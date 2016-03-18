@@ -56,20 +56,20 @@ class PiRenderer(object):
     """
     Base implementation of an MMAL video renderer for use by PiCamera.
 
-    The *parent* parameter specifies the :class:`~picamera.camera.PiCamera`
-    instance that has constructed this renderer. The *layer* parameter
-    specifies the layer that the renderer will inhabit. Higher numbered layers
-    obscure lower numbered layers (unless they are partially transparent). The
-    initial opacity of the renderer is specified by the *alpha* parameter
-    (which defaults to 255, meaning completely opaque). The *fullscreen*
-    parameter which defaults to ``True`` indicates whether the renderer should
-    occupy the entire display.  Finally, the *window* parameter (which only has
-    meaning when *fullscreen* is ``False``) is a four-tuple of ``(x, y, width,
-    height)`` which gives the screen coordinates that the renderer should
-    occupy when it isn't full-screen.
+    The *parent* parameter specifies the :class:`PiCamera` instance that has
+    constructed this renderer. The *layer* parameter specifies the layer that
+    the renderer will inhabit. Higher numbered layers obscure lower numbered
+    layers (unless they are partially transparent). The initial opacity of the
+    renderer is specified by the *alpha* parameter (which defaults to 255,
+    meaning completely opaque). The *fullscreen* parameter which defaults to
+    ``True`` indicates whether the renderer should occupy the entire display.
+    Finally, the *window* parameter (which only has meaning when *fullscreen*
+    is ``False``) is a four-tuple of ``(x, y, width, height)`` which gives the
+    screen coordinates that the renderer should occupy when it isn't
+    full-screen.
 
-    This base class isn't directly used by :class:`~picamera.camera.PiCamera`,
-    but the two derivatives defined below, :class:`PiOverlayRenderer` and
+    This base class isn't directly used by :class:`PiCamera`, but the two
+    derivatives defined below, :class:`PiOverlayRenderer` and
     :class:`PiPreviewRenderer`, are used to produce overlays and the camera
     preview respectively.
     """
@@ -327,9 +327,8 @@ class PiRenderer(object):
         .. note::
 
             This property only affects the renderer; it has no bearing on image
-            captures or recordings (unlike the
-            :attr:`~picamera.camera.PiCamera.zoom` property of the
-            :class:`~picamera.camera.PiCamera` class).
+            captures or recordings (unlike the :attr:`~PiCamera.zoom` property
+            of the :class:`PiCamera` class).
         """)
 
     def _get_rotation(self):
@@ -355,9 +354,8 @@ class PiRenderer(object):
         .. note::
 
             This property only affects the renderer; it has no bearing on image
-            captures or recordings (unlike the
-            :attr:`~picamera.camera.PiCamera.rotation` property of the
-            :class:`~picamera.camera.PiCamera` class).
+            captures or recordings (unlike the :attr:`~PiCamera.rotation`
+            property of the :class:`PiCamera` class).
         """)
 
     def _get_vflip(self):
@@ -378,9 +376,8 @@ class PiRenderer(object):
         .. note::
 
             This property only affects the renderer; it has no bearing on image
-            captures or recordings (unlike the
-            :attr:`~picamera.camera.PiCamera.vflip` property of the
-            :class:`~picamera.camera.PiCamera` class).
+            captures or recordings (unlike the :attr:`~PiCamera.vflip` property
+            of the :class:`PiCamera` class).
         """)
 
     def _get_hflip(self):
@@ -402,9 +399,8 @@ class PiRenderer(object):
         .. note::
 
             This property only affects the renderer; it has no bearing on image
-            captures or recordings (unlike the
-            :attr:`~picamera.camera.PiCamera.hflip` property of the
-            :class:`~picamera.camera.PiCamera` class).
+            captures or recordings (unlike the :attr:`~PiCamera.hflip` property
+            of the :class:`PiCamera` class).
         """)
 
     def _get_transform(self, rotate, vflip, hflip):
@@ -447,7 +443,7 @@ class PiOverlayRenderer(PiRenderer):
     the MMAL renderer. The optional *size* parameter specifies the size of the
     source image as a ``(width, height)`` tuple. If this is omitted or ``None``
     then the size is assumed to be the same as the parent camera's current
-    :attr:`~picamera.camera.PiCamera.resolution`.
+    :attr:`~PiCamera.resolution`.
 
     The *source* must be an object that supports the :ref:`buffer protocol
     <bufferobjects>` which has the same length as an image in `RGB`_ format
@@ -576,9 +572,9 @@ class PiNullSink(object):
     """
     Implements an MMAL null-sink which can be used in place of a renderer.
 
-    The *parent* parameter specifies the :class:`~picamera.camera.PiCamera`
-    instance which constructed this null-sink. The *source* parameter specifies
-    the MMAL port which the null-sink should connect to its input.
+    The *parent* parameter specifies the :class:`PiCamera` instance which
+    constructed this null-sink. The *source* parameter specifies the MMAL port
+    which the null-sink should connect to its input.
 
     The null-sink can act as a drop-in replacement for :class:`PiRenderer` in
     most cases, but obviously doesn't implement attributes like ``alpha``,

@@ -68,7 +68,7 @@ class PiCameraError(Exception):
 class PiCameraRuntimeError(PiCameraError, RuntimeError):
     """
     Raised when an invalid sequence of operations is attempted with a
-    :class:`~picamera.camera.PiCamera` object.
+    :class:`PiCamera` object.
     """
 
 
@@ -80,24 +80,23 @@ class PiCameraClosed(PiCameraRuntimeError):
 
 class PiCameraNotRecording(PiCameraRuntimeError):
     """
-    Raised when :meth:`~picamera.camera.PiCamera.stop_recording` or
-    :meth:`~picamera.camera.PiCamera.split_recording` are called against a port
-    which has no recording active.
+    Raised when :meth:`~PiCamera.stop_recording` or
+    :meth:`~PiCamera.split_recording` are called against a port which has no
+    recording active.
     """
 
 
 class PiCameraAlreadyRecording(PiCameraRuntimeError):
     """
-    Raised when :meth:`~picamera.camera.PiCamera.start_recording` or
-    :meth:`~picamera.camera.PiCamera.record_sequence` are called against a port
-    which already has an active recording.
+    Raised when :meth:`~PiCamera.start_recording` or
+    :meth:`~PiCamera.record_sequence` are called against a port which already
+    has an active recording.
     """
 
 
 class PiCameraValueError(PiCameraError, ValueError):
     """
-    Raised when an invalid value is fed to a :class:`~picamera.camera.PiCamera`
-    object.
+    Raised when an invalid value is fed to a :class:`~PiCamera` object.
     """
 
 

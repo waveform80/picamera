@@ -129,10 +129,9 @@ class PiVideoFrame(namedtuple('PiVideoFrame', (
     .. attribute:: split_size
 
         Returns the size in bytes of the video recorded since the last call to
-        either :meth:`~picamera.camera.PiCamera.start_recording` or
-        :meth:`~picamera.camera.PiCamera.split_recording`. For the reasons
-        explained above, this may differ from the size of the actual
-        file/stream written so far.
+        either :meth:`~PiCamera.start_recording` or
+        :meth:`~PiCamera.split_recording`. For the reasons explained above,
+        this may differ from the size of the actual file/stream written so far.
 
     .. attribute:: timestamp
 
@@ -141,8 +140,7 @@ class PiVideoFrame(namedtuple('PiVideoFrame', (
         (the default), this is the number of microseconds (millionths of a
         second) since video recording started. When the camera's clock mode is
         ``'raw'``, this is the number of microseconds since the last system
-        reboot. See :attr:`~picamera.camera.PiCamera.timestamp` for more
-        information.
+        reboot. See :attr:`~PiCamera.timestamp` for more information.
 
         .. warning::
 

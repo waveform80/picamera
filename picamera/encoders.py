@@ -84,14 +84,13 @@ class PiEncoder(object):
     """
     Base implementation of an MMAL encoder for use by PiCamera.
 
-    The *parent* parameter specifies the :class:`~picamera.camera.PiCamera`
-    instance that has constructed the encoder. The *camera_port* parameter
-    provides the MMAL camera port that the encoder should enable for capture
-    (this will be the still or video port of the camera component). The
-    *input_port* parameter specifies the MMAL port that the encoder should
-    connect to its input.  Sometimes this will be the same as the camera port,
-    but if other components are present in the pipeline (e.g. a splitter), it
-    may be different.
+    The *parent* parameter specifies the :class:`PiCamera` instance that has
+    constructed the encoder. The *camera_port* parameter provides the MMAL
+    camera port that the encoder should enable for capture (this will be the
+    still or video port of the camera component). The *input_port* parameter
+    specifies the MMAL port that the encoder should connect to its input.
+    Sometimes this will be the same as the camera port, but if other components
+    are present in the pipeline (e.g. a splitter), it may be different.
 
     The *format* parameter specifies the format that the encoder should
     produce in its output. This is specified as a string and will be one of
@@ -185,8 +184,7 @@ class PiEncoder(object):
 
     .. attribute:: parent
 
-        The :class:`~picamera.camera.PiCamera` instance that created this
-        PiEncoder instance.
+        The :class:`PiCamera` instance that created this PiEncoder instance.
 
     .. attribute:: pool
 
@@ -476,7 +474,7 @@ class PiEncoder(object):
         file-like object and it is used verbatim. If *output* is neither a
         string, nor an object with a ``write`` method it is assumed to be a
         writeable object supporting the buffer protocol (this is wrapped in
-        a :class:`~picamera.streams.BufferIO` stream to simplify writing).
+        a :class:`BufferIO` stream to simplify writing).
 
         The opened output is added to the :attr:`outputs` dictionary with the
         specified *key*.
@@ -752,12 +750,11 @@ class PiVideoEncoder(PiEncoder):
 
     This derivative of :class:`PiEncoder` configures itself for H.264 or MJPEG
     encoding.  It also introduces a :meth:`split` method which is used by
-    :meth:`~picamera.camera.PiCamera.split_recording` and
-    :meth:`~picamera.camera.PiCamera.record_sequence` to redirect future output
-    to a new filename or object. Finally, it also extends
-    :meth:`PiEncoder.start` and :meth:`PiEncoder._callback_write` to track
-    video frame meta-data, and to permit recording motion data to a separate
-    output object.
+    :meth:`~PiCamera.split_recording` and :meth:`~PiCamera.record_sequence` to
+    redirect future output to a new filename or object. Finally, it also
+    extends :meth:`PiEncoder.start` and :meth:`PiEncoder._callback_write` to
+    track video frame meta-data, and to permit recording motion data to a
+    separate output object.
     """
 
     encoder_type = mmal.MMAL_COMPONENT_DEFAULT_VIDEO_ENCODER
@@ -967,11 +964,10 @@ class PiVideoEncoder(PiEncoder):
         """
         Called to switch the encoder's output.
 
-        This method is called by
-        :meth:`~picamera.camera.PiCamera.split_recording` and
-        :meth:`~picamera.camera.PiCamera.record_sequence` to switch the
-        encoder's :attr:`output` object to the *output* parameter (which can be
-        a filename or a file-like object, as with :meth:`start`).
+        This method is called by :meth:`~PiCamera.split_recording` and
+        :meth:`~PiCamera.record_sequence` to switch the encoder's
+        :attr:`output` object to the *output* parameter (which can be a
+        filename or a file-like object, as with :meth:`start`).
         """
         with self.outputs_lock:
             outputs = {}
@@ -1070,8 +1066,8 @@ class PiRawVideoEncoder(PiRawMixin, PiVideoEncoder):
 
     This class is a derivative of :class:`PiVideoEncoder` and the
     :class:`PiRawMixin` class intended for use with
-    :meth:`~picamera.camera.PiCamera.start_recording` when it is called with an
-    unencoded format.
+    :meth:`~PiCamera.start_recording` when it is called with an unencoded
+    format.
 
     .. warning::
 
@@ -1314,8 +1310,8 @@ class PiRawOneImageEncoder(PiOneImageEncoder, PiRawImageMixin):
 
     This class is a derivative of :class:`PiOneImageEncoder` and the
     :class:`PiRawImageMixin` class intended for use with
-    :meth:`~picamera.camera.PiCamera.capture` (et al) when it is called with an
-    unencoded image format.
+    :meth:`~PiCamera.capture` (et al) when it is called with an unencoded image
+    format.
 
     .. warning::
 
@@ -1331,8 +1327,8 @@ class PiRawMultiImageEncoder(PiMultiImageEncoder, PiRawImageMixin):
 
     This class is a derivative of :class:`PiMultiImageEncoder` and the
     :class:`PiRawImageMixin` class intended for use with
-    :meth:`~picamera.camera.PiCamera.capture_sequence` when it is called with
-    an unencoded image format.
+    :meth:`~PiCamera.capture_sequence` when it is called with an unencoded
+    image format.
 
     .. warning::
 
