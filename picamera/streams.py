@@ -27,34 +27,6 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-"""
-The streams module defines stream classes suited to generating certain types of
-camera output (beyond those provided by Python by default). Currently, this
-consists primarily of :class:`~PiCameraCircularIO`.
-
-.. note::
-
-    All classes in this module are available from the :mod:`picamera` namespace
-    without having to import :mod:`picamera.streams` directly.
-
-The following classes are defined in the module:
-
-
-PiCameraCircularIO
-==================
-
-.. autoclass:: PiCameraCircularIO
-    :members:
-
-
-CircularIO
-==========
-
-.. autoclass:: CircularIO
-    :members:
-
-"""
-
 from __future__ import (
     unicode_literals,
     print_function,
@@ -76,13 +48,15 @@ from picamera.frames import PiVideoFrame, PiVideoFrameType
 
 class BufferIO(io.IOBase):
     """
-    A stream which uses a writeable memoryview for storage.
+    A stream which uses a writeable :class:`memoryview` for storage.
 
     This is used internally by picamera for capturing directly to an existing
     object which supports the buffer protocol (like a numpy array). Because
     the underlying storage is fixed in size, the stream also has a fixed size
     and will raise an IOError exception if an attempt is made to write beyond
     the end of the buffer (though seek beyond the end is supported).
+
+    Users should never need this class directly.
     """
 
     def __init__(self, obj):
@@ -150,24 +124,24 @@ class BufferIO(io.IOBase):
 
     def tell(self):
         """
-        Return the current stream position.
+        Return the current buffer position.
         """
         self._check_open()
         return self._pos
 
     def seek(self, offset, whence=io.SEEK_SET):
         """
-        Change the stream position to the given byte *offset*. *offset* is
+        Change the buffer position to the given byte *offset*. *offset* is
         interpreted relative to the position indicated by *whence*. Values for
         *whence* are:
 
-        * ``SEEK_SET`` or ``0`` – start of the stream (the default); *offset*
+        * ``SEEK_SET`` or ``0`` – start of the buffer (the default); *offset*
           should be zero or positive
 
-        * ``SEEK_CUR`` or ``1`` – current stream position; *offset* may be
+        * ``SEEK_CUR`` or ``1`` – current buffer position; *offset* may be
           negative
 
-        * ``SEEK_END`` or ``2`` – end of the stream; *offset* is usually
+        * ``SEEK_END`` or ``2`` – end of the buffer; *offset* is usually
           negative
 
         Return the new absolute position.
@@ -185,13 +159,13 @@ class BufferIO(io.IOBase):
 
     def read(self, n=-1):
         """
-        Read up to *n* bytes from the stream and return them. As a convenience,
+        Read up to *n* bytes from the buffer and return them. As a convenience,
         if *n* is unspecified or -1, :meth:`readall` is called. Fewer than *n*
         bytes may be returned if there are fewer than *n* bytes from the
-        current stream position to the end of the stream.
+        current buffer position to the end of the buffer.
 
         If 0 bytes are returned, and *n* was not 0, this indicates end of the
-        stream.
+        buffer.
         """
         self._check_open()
         if n < 0:
@@ -205,28 +179,23 @@ class BufferIO(io.IOBase):
 
     def readall(self):
         """
-        Read and return all bytes from the stream until EOF, using multiple
-        calls to the stream if necessary.
+        Read and return all bytes from the buffer until EOF.
         """
         return self.read(max(0, self.size - self._pos))
 
     def truncate(self, size=None):
         """
-        Resize the stream to the given *size* in bytes (or the current position
-        if *size* is not specified). This resizing can extend or reduce the
-        current stream size. In case of extension, the contents of the new file
-        area will be NUL (``\\x00``) bytes. The new stream size is returned.
-
-        The current stream position isn’t changed unless the resizing is
-        expanding the stream, in which case it may be set to the maximum stream
-        size if the expansion causes the ring buffer to loop around.
+        Raises :exc:`NotImplementedError` as the underlying buffer cannot be
+        resized.
         """
         raise NotImplementedError('cannot resize a BufferIO stream')
 
     def write(self, b):
         """
         Write the given bytes or bytearray object, *b*, to the underlying
-        stream and return the number of bytes written.
+        buffer and return the number of bytes written. If the underlying
+        buffer isn't large enough to contain all the bytes of *b*, as many
+        bytes as possible will be written before raising :exc:`IOError`.
         """
         self._check_open()
         excess = max(0, len(b) - (self.size - self._pos))

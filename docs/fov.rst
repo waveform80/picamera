@@ -4,6 +4,8 @@
 Camera Hardware
 ===============
 
+.. currentmodule:: picamera
+
 This chapter attempts to provide an overview of the operation of the camera
 under various conditions, as well as to provide an introduction to the low
 level software interface that picamera utilizes.
@@ -52,12 +54,11 @@ the illustration below:
     :align: center
 
 The input mode can be manually specified with the *sensor_mode* parameter in
-the :class:`~picamera.camera.PiCamera` constructor (using one of the values
-from the # column in the table above). This defaults to 0 indicating that the
-mode should be selected automatically based on the requested
-:attr:`~picamera.camera.PiCamera.resolution` and
-:attr:`~picamera.camera.PiCamera.framerate`. The rules governing which input
-mode is selected are as follows:
+the :class:`PiCamera` constructor (using one of the values from the # column in
+the table above). This defaults to 0 indicating that the mode should be
+selected automatically based on the requested :attr:`~PiCamera.resolution` and
+:attr:`~PiCamera.framerate`. The rules governing which input mode is selected
+are as follows:
 
 * The mode must be acceptable. Video modes can be used for video recording,
   or for image captures from the video port (i.e. when *use_video_port* is
@@ -65,42 +66,40 @@ mode is selected are as follows:
   *use_video_port* is ``False`` must use an image mode (of which only two
   currently exist, both with the maximum resolution).
 
-* The closer the requested :attr:`~picamera.camera.PiCamera.resolution` is to
-  the mode's resolution the better, but downscaling from a higher input
-  resolution is preferable to upscaling from a lower input resolution.
+* The closer the requested :attr:`~PiCamera.resolution` is to the mode's
+  resolution the better, but downscaling from a higher input resolution is
+  preferable to upscaling from a lower input resolution.
 
-* The requested :attr:`~picamera.camera.PiCamera.framerate` should be within
-  the range of the input mode. Note that this is not a hard restriction (it is
-  possible, but unlikely, for the camera to select a mode that does not support
-  the requested framerate).
+* The requested :attr:`~PiCamera.framerate` should be within the range of the
+  input mode. Note that this is not a hard restriction (it is possible, but
+  unlikely, for the camera to select a mode that does not support the requested
+  framerate).
 
-* The closer the aspect ratio of the requested
-  :attr:`~picamera.camera.PiCamera.resolution` is to the mode's resolution, the
-  better. Attempts to set resolutions with aspect ratios other than 4:3 or 16:9
-  (which are the only ratios directly supported by the modes in the table
-  above) will choose the mode which maximizes the resulting FoV.
+* The closer the aspect ratio of the requested :attr:`~PiCamera.resolution` is
+  to the mode's resolution, the better. Attempts to set resolutions with aspect
+  ratios other than 4:3 or 16:9 (which are the only ratios directly supported
+  by the modes in the table above) will choose the mode which maximizes the
+  resulting FoV.
 
 A few examples are given below to clarify the operation of this heuristic:
 
-* If you set the :attr:`~picamera.camera.PiCamera.resolution` to 1024x768 (a
-  4:3 aspect ratio), and :attr:`~picamera.camera.PiCamera.framerate` to
-  anything less than 42fps, the 1296x972 mode will be selected, and the camera
-  will downscale the result to 1024x768.
+* If you set the :attr:`~PiCamera.resolution` to 1024x768 (a 4:3 aspect ratio),
+  and :attr:`~PiCamera.framerate` to anything less than 42fps, the 1296x972
+  mode will be selected, and the camera will downscale the result to 1024x768.
 
-* If you set the :attr:`~picamera.camera.PiCamera.resolution` to 1280x720 (a
-  16:9 wide-screen aspect ratio), and
-  :attr:`~picamera.camera.PiCamera.framerate` to anything less than 49fps, the
-  1296x730 mode will be selected and downscaled appropriately.
+* If you set the :attr:`~PiCamera.resolution` to 1280x720 (a 16:9 wide-screen
+  aspect ratio), and :attr:`~PiCamera.framerate` to anything less than 49fps,
+  the 1296x730 mode will be selected and downscaled appropriately.
 
-* Setting :attr:`~picamera.camera.PiCamera.resolution` to 1920x1080 and
-  :attr:`~picamera.camera.PiCamera.framerate` to 30fps exceeds the resolution
-  of both the 1296x730 and 1296x972 modes (i.e. they would require upscaling),
-  so the 1920x1080 mode is selected instead, although it has a reduced FoV.
+* Setting :attr:`~PiCamera.resolution` to 1920x1080 and
+  :attr:`~PiCamera.framerate` to 30fps exceeds the resolution of both the
+  1296x730 and 1296x972 modes (i.e. they would require upscaling), so the
+  1920x1080 mode is selected instead, although it has a reduced FoV.
 
-* A :attr:`~picamera.camera.PiCamera.resolution` of 800x600 and a
-  :attr:`~picamera.camera.PiCamera.framerate` of 60fps will select the 640x480
-  60fps mode, even though it requires upscaling because the algorithm considers
-  the framerate to take precedence in this case.
+* A :attr:`~PiCamera.resolution` of 800x600 and a :attr:`~PiCamera.framerate`
+  of 60fps will select the 640x480 60fps mode, even though it requires
+  upscaling because the algorithm considers the framerate to take precedence in
+  this case.
 
 * Any attempt to capture an image without using the video port will
   (temporarily) select the 2592x1944 mode while the capture is performed (this
@@ -131,34 +130,31 @@ forces the camera's mode to one of the two supported still modes (see
 sensor. It also uses a strong de-noise algorithm on captured images so that
 they appear higher quality.
 
-The still port is used by the various :meth:`~picamera.camera.PiCamera.capture`
-methods when their *use_video_port* parameter is ``False`` (which it is by
-default).
+The still port is used by the various :meth:`~PiCamera.capture` methods when
+their *use_video_port* parameter is ``False`` (which it is by default).
 
 The Video Port
 --------------
 
 The video port is somewhat simpler in that it never changes the camera's mode.
-The video port is used by the :meth:`~picamera.camera.PiCamera.start_recording`
-method (for recording video), and is also used by the various
-:meth:`~picamera.camera.PiCamera.capture` methods when their *use_video_port*
-parameter is ``True``. Images captured from the video port tend to have a
-"grainy" appearance, much more akin to a video frame than the images captured
-by the still port (this is due to the still port using a slower, more
-aggressive denoise algorithm).
+The video port is used by the :meth:`~PiCamera.start_recording` method (for
+recording video), and is also used by the various :meth:`~PiCamera.capture`
+methods when their *use_video_port* parameter is ``True``. Images captured from
+the video port tend to have a "grainy" appearance, much more akin to a video
+frame than the images captured by the still port (this is due to the still port
+using a slower, more aggressive denoise algorithm).
 
 The Preview Port
 ----------------
 
 The preview port operates more or less identically to the video port. The
 preview port is always connected to some form of output to ensure that the
-auto-gain algorithm can run. When an instance of
-:class:`~picamera.camera.PiCamera` is constructed, the preview port is
-initially connected to an instance of :class:`~picamera.renderers.PiNullSink`.
-When :meth:`~picamera.camera.PiCamera.start_preview` is called, this null sink
-is destroyed and the preview port is connected to an instance of
-:class:`~picamera.renderers.PiPreviewRenderer`. The reverse occurs when
-:meth:`~picamera.camera.PiCamera.stop_preview` is called.
+auto-gain algorithm can run. When an instance of :class:`PiCamera` is
+constructed, the preview port is initially connected to an instance of
+:class:`PiNullSink`.  When :meth:`~PiCamera.start_preview` is called, this null
+sink is destroyed and the preview port is connected to an instance of
+:class:`~PiPreviewRenderer`. The reverse occurs when
+:meth:`~PiCamera.stop_preview` is called.
 
 Encoders
 --------
@@ -221,7 +217,7 @@ Please note that even the description above is almost certainly far removed
 from what actually happens at the camera's ISP level. Rather, what has been
 described in this section is how the MMAL library exposes the camera to
 applications which utilize it (these include the picamera library, along with
-the official `raspistill` and `raspivid` applications).
+the official ``raspistill`` and ``raspivid`` applications).
 
 In other words, by using picamera you are passing through (at least) two
 abstraction layers which necessarily obscure (but hopefully simplify) the

@@ -27,33 +27,6 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-"""
-The frames module defines a namedtuple class representing video frames produced
-by the camera's H.264 encoder, and an enumeration representing the frame types.
-
-.. note::
-
-    All classes in this module are available from the :mod:`picamera` namespace
-    without having to import :mod:`picamera.frames` directly.
-
-The following classes are defined in the module:
-
-
-PiVideoFrameType
-================
-
-.. autoclass:: PiVideoFrameType
-    :members:
-
-
-PiVideoFrame
-============
-
-.. autoclass:: PiVideoFrame(index, frame_type, frame_size, video_size, split_size, timestamp)
-    :members:
-
-"""
-
 from __future__ import (
     unicode_literals,
     print_function,

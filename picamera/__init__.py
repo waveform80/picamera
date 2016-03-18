@@ -51,6 +51,7 @@ package:
 
 * :mod:`picamera.camera`
 * :mod:`picamera.encoders`
+* :mod:`picamera.frames`
 * :mod:`picamera.streams`
 * :mod:`picamera.renderers`
 * :mod:`picamera.color`
@@ -70,6 +71,8 @@ str = type('')
 
 from picamera.exc import (
     PiCameraWarning,
+    PiCameraDeprecated,
+    PiCameraFallback,
     PiCameraError,
     PiCameraRuntimeError,
     PiCameraClosed,
@@ -102,6 +105,6 @@ from picamera.renderers import (
     PiPreviewRenderer,
     PiNullSink,
     )
-from picamera.streams import PiCameraCircularIO, CircularIO
+from picamera.streams import PiCameraCircularIO, CircularIO, BufferIO
 from picamera.color import Color, Red, Green, Blue, Hue, Lightness, Saturation
 

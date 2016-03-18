@@ -27,51 +27,6 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-"""
-The renderers module defines the renderer classes used by the camera to provide
-preview and overlay output on the Pi's display. Users will rarely need to
-construct instances of these classes directly
-(:meth:`~picamera.camera.PiCamera.start_preview` and
-:meth:`~picamera.camera.PiCamera.add_overlay` are generally used instead) but
-may find the attribute references for them useful.
-
-.. note::
-
-    All classes in this module are available from the :mod:`picamera` namespace
-    without having to import :mod:`picamera.renderers` directly.
-
-The following classes are defined in the module:
-
-
-PiRenderer
-==========
-
-.. autoclass:: PiRenderer
-    :members:
-
-
-PiOverlayRenderer
-=================
-
-.. autoclass:: PiOverlayRenderer
-    :members:
-
-
-PiPreviewRenderer
-=================
-
-.. autoclass:: PiPreviewRenderer
-    :members:
-
-
-PiNullSink
-==========
-
-.. autoclass:: PiNullSink
-    :members:
-
-"""
-
 from __future__ import (
     unicode_literals,
     print_function,

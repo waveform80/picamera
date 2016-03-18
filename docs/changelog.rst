@@ -4,6 +4,8 @@
 Change log
 ==========
 
+.. currentmodule:: picamera
+
 
 Release 1.10 (2015-03-31)
 =========================
@@ -14,18 +16,17 @@ Release 1.10 (2015-03-31)
   driver. This is relatively complex to configure, but a full recipe has been
   included in the documentation (`#184`_)
 * A new `intra_refresh` attribute is added to the
-  :meth:`~picamera.camera.PiCamera.start_recording` method permitting control
-  of the intra-frame refresh method (`#193`_)
+  :meth:`~PiCamera.start_recording` method permitting control of the
+  intra-frame refresh method (`#193`_)
 * The GPIO pins controlling the camera's LED are now configurable. This is
   mainly for any compute module users, but also for anyone who wishes to use
   the device tree blob to reconfigure the pins used (`#198`_)
 * The new annotate V3 struct is now supported, providing custom background
-  colors for annotations, and configurable text size. As part of this work
-  a new :class:`~picamera.color.Color` class was introduced for representation
-  and manipulation of colors (`#203`_)
-* Reverse enumeration of frames in
-  :class:`~picamera.streams.PiCameraCircularIO` is now supported efficiently
-  (without having to convert frames to a list first) (`#204`_)
+  colors for annotations, and configurable text size. As part of this work a
+  new :class:`Color` class was introduced for representation and manipulation
+  of colors (`#203`_)
+* Reverse enumeration of frames in :class:`PiCameraCircularIO` is now supported
+  efficiently (without having to convert frames to a list first) (`#204`_)
 * Finally, the API documentation has been re-worked as it was getting too
   large to comfortably load on all platforms (no ticket)
 
@@ -43,26 +44,25 @@ Release 1.9 (2015-01-01)
 
 * The camera's sensor mode can now be forced to a particular setting upon
   camera initialization with the new ``sensor_mode`` parameter to
-  :class:`~picamera.camera.PiCamera` (`#165`_)
+  :class:`PiCamera` (`#165`_)
 * The camera's initial framerate and resolution can also be specified as
-  keyword arguments to the :class:`~picamera.camera.PiCamera` initializer. This
-  is primarily intended to reduce initialization time (`#180`_)
-* Added the :attr:`~picamera.camera.PiCamera.still_stats` attribute which
-  controls whether an extra statistics pass is made when capturing images from
-  the still port (`#166`_)
-* Fixed the :attr:`~picamera.camera.PiCamera.led` attribute so it should now
-  work on the Raspberry Pi model B+ (`#170`_)
+  keyword arguments to the :class:`PiCamera` initializer. This is primarily
+  intended to reduce initialization time (`#180`_)
+* Added the :attr:`~PiCamera.still_stats` attribute which controls
+  whether an extra statistics pass is made when capturing images from the still
+  port (`#166`_)
+* Fixed the :attr:`~PiCamera.led` attribute so it should now work on
+  the Raspberry Pi model B+ (`#170`_)
 * Fixed a nasty memory leak in overlay renderers which caused the camera to run
   out of memory when overlays were repeatedly created and destroyed (`#174`_) *
   Fixed a long standing issue with MJPEG recording which caused camera lockups
   when resolutions greater than VGA were used (`#47`_ and `#179`_)
-* Fixed a bug with incorrect frame metadata in
-  :class:`~picamera.streams.PiCameraCircularIO`. Unfortunately this required
-  breaking backwards compatibility to some extent. If you use this class and
-  rely on the frame metadata, please familiarize yourself with the new
-  :attr:`~picamera.encoders.PiVideoFrame.complete` attribute (`#177`_)
-* Fixed a bug which caused :class:`~picamera.streams.PiCameraCircularIO` to
-  ignore the splitter port it was recording against (`#176`_)
+* Fixed a bug with incorrect frame metadata in :class:`PiCameraCircularIO`.
+  Unfortunately this required breaking backwards compatibility to some extent.
+  If you use this class and rely on the frame metadata, please familiarize
+  yourself with the new :attr:`~PiVideoFrame.complete` attribute (`#177`_)
+* Fixed a bug which caused :class:`PiCameraCircularIO` to ignore the splitter
+  port it was recording against (`#176`_)
 * Several documentation issues got fixed too (`#167`_, `#168`_, `#171`_,
   `#172`_, `#182`_)
 
@@ -96,19 +96,19 @@ Release 1.8 (2014-09-05)
   Please note I have no hardware for testing this, so the implementation is
   possibly (probably!) wrong; bug reports welcome! (`#153`_)
 * Text annotation functionality has been extended; up to 255 characters are now
-  possible, and the new :attr:`~picamera.camera.PiCamera.annotate_frame_num`
-  attribute adds rendering of the current frame number. In addition, the new
-  :attr:`~picamera.camera.PiCamera.annotate_background` flag permits a dark
-  background to be rendered behind all annotations for contrast (`#160`_)
+  possible, and the new :attr:`~PiCamera.annotate_frame_num` attribute adds
+  rendering of the current frame number. In addition, the new
+  :attr:`~PiCamera.annotate_background` flag permits a dark background to be
+  rendered behind all annotations for contrast (`#160`_)
 * Arbitrary image overlays can now be drawn on the preview using the new
-  :meth:`~picamera.camera.PiCamera.add_overlay` method. A new recipe has been
-  included demonstrating overlays from PIL images and numpy arrays. As part of
-  this work the preview system was substantially changed; all older scripts
-  should continue to work but please be aware that most preview attributes are
-  now deprecated; the new :attr:`~picamera.camera.PiCamera.preview` attribute
-  replaces them (`#144`_)
+  :meth:`~PiCamera.add_overlay` method. A new recipe has been included
+  demonstrating overlays from PIL images and numpy arrays. As part of this work
+  the preview system was substantially changed; all older scripts should
+  continue to work but please be aware that most preview attributes are now
+  deprecated; the new :attr:`~PiCamera.preview` attribute replaces them
+  (`#144`_)
 * Image effect parameters can now be controlled via the new
-  :attr:`~picamera.camera.PiCamera.image_effect_params` attribute (`#143`_)
+  :attr:`~PiCamera.image_effect_params` attribute (`#143`_)
 * A bug in the handling of framerates meant that long exposures (>1s) weren't
   operating correctly. This *should* be fixed, but I'd be grateful if users
   could test this and let me know for certain (Exif metadata reports the
@@ -117,9 +117,8 @@ Release 1.8 (2014-09-05)
 * A bug in 1.7 broke compatibility with older firmwares (resulting in an error
   message mentioning "mmal_queue_timedwait"). The library should now on older
   firmwares (`#154`_)
-* Finally, the confusingly named :attr:`~picamera.camera.PiCamera.crop`
-  attribute was changed to a deprecated alias for the new
-  :attr:`~picamera.camera.PiCamera.zoom` attribute (`#146`_)
+* Finally, the confusingly named :attr:`~PiCamera.crop` attribute was changed
+  to a deprecated alias for the new :attr:`~PiCamera.zoom` attribute (`#146`_)
 
 .. _#135: https://github.com/waveform80/picamera/issues/135
 .. _#143: https://github.com/waveform80/picamera/issues/143
@@ -139,22 +138,19 @@ Release 1.7 (2014-08-08)
 * Text overlay on preview, image, and video output is now possible (`#16`_)
 * Support for more than one camera on the compute module has been added, but
   hasn't been tested yet (`#84`_)
-* The :attr:`~picamera.camera.PiCamera.exposure_mode` ``'off'`` has been added
-  to allow locking down the exposure time, along with some new recipes
-  demonstrating this capability (`#116`_)
-* The valid values for various attributes including
-  :attr:`~picamera.camera.PiCamera.awb_mode`,
-  :attr:`~picamera.camera.PiCamera.meter_mode`, and
-  :attr:`~picamera.camera.PiCamera.exposure_mode` are now automatically
-  included in the documentation (`#130`_)
+* The :attr:`~PiCamera.exposure_mode` ``'off'`` has been added to allow locking
+  down the exposure time, along with some new recipes demonstrating this
+  capability (`#116`_)
+* The valid values for various attributes including :attr:`~PiCamera.awb_mode`,
+  :attr:`~PiCamera.meter_mode`, and :attr:`~PiCamera.exposure_mode` are now
+  automatically included in the documentation (`#130`_)
 * Support for unencoded formats (YUV, RGB, etc.) has been added to the
-  :meth:`~picamera.camera.PiCamera.start_recording` method (`#132`_)
+  :meth:`~PiCamera.start_recording` method (`#132`_)
 * A couple of analysis classes have been added to :mod:`picamera.array` to
   support the new unencoded recording formats (`#139`_)
-* Several issues in the :class:`~picamera.array.PiBayerArray` class were fixed;
-  this should now work correctly with Python 3, and the
-  :meth:`~picamera.array.PiBayerArray.demosaic` method should operate correctly
-  (`#133`_, `#134`_)
+* Several issues in the :class:`~PiBayerArray` class were fixed; this should
+  now work correctly with Python 3, and the :meth:`~PiBayerArray.demosaic`
+  method should operate correctly (`#133`_, `#134`_)
 * A major issue with multi-resolution recordings which caused all recordings
   to stop prematurely was fixed (`#136`_)
 * Finally, an issue with the example in the documentation for custom encoders
@@ -181,31 +177,31 @@ Release 1.6 (2014-07-21)
 
 1.6 is half bug fixes, half new features:
 
-* The :attr:`~picamera.camera.PiCamera.awb_gains` attribute is no longer write-only;
-  you can now read it to determine the red/blue balance that the camera is
-  using (`#98`_)
-* The new read-only :attr:`~picamera.camera.PiCamera.exposure_speed` attribute
-  will tell you the shutter speed the camera's auto-exposure has determined, or
-  the shutter speed you've forced with a non-zero value of
-  :attr:`~picamera.camera.PiCamera.shutter_speed` (`#98`_)
-* The new read-only :attr:`~picamera.camera.PiCamera.analog_gain` and
-  :attr:`~picamera.camera.PiCamera.digital_gain` attributes can be used to
-  determine the amount of gain the camera is applying at a couple of crucial
-  points of the image processing pipeline (`#98`_)
-* The new :attr:`~picamera.camera.PiCamera.drc_strength` attribute can be used
-  to query and set the amount of dynamic range compression the camera will
-  apply to its output (`#110`_)
-* The `intra_period` parameter for
-  :meth:`~picamera.camera.PiCamera.start_recording` can now be set to `0`
-  (which means "produce one initial I-frame, then just P-frames") (`#117`_)
-* The `burst` parameter was added to the various
-  :meth:`~picamera.camera.PiCamera.capture` methods; users are strongly advised
-  to read the cautions in the docs before relying on this parameter (`#115`_)
+* The :attr:`~PiCamera.awb_gains` attribute is no longer write-only; you can
+  now read it to determine the red/blue balance that the camera is using
+  (`#98`_)
+* The new read-only :attr:`~PiCamera.exposure_speed` attribute will tell you
+  the shutter speed the camera's auto-exposure has determined, or the shutter
+  speed you've forced with a non-zero value of :attr:`~PiCamera.shutter_speed`
+  (`#98`_)
+* The new read-only :attr:`~PiCamera.analog_gain` and
+  :attr:`~PiCamera.digital_gain` attributes can be used to determine the amount
+  of gain the camera is applying at a couple of crucial points of the image
+  processing pipeline (`#98`_)
+* The new :attr:`~PiCamera.drc_strength` attribute can be used to query and set
+  the amount of dynamic range compression the camera will apply to its output
+  (`#110`_)
+* The *intra_period* parameter for :meth:`~PiCamera.start_recording` can now be
+  set to `0` (which means "produce one initial I-frame, then just P-frames")
+  (`#117`_)
+* The *burst* parameter was added to the various :meth:`~PiCamera.capture`
+  methods; users are strongly advised to read the cautions in the docs before
+  relying on this parameter (`#115`_)
 * One of the advanced recipes in the manual ("splitting to/from a circular
   stream") failed under 1.5 due to a lack of splitter-port support in the
   circular I/O stream class. This has now been rectified by adding a
-  `splitter_port` parameter to the constructor of
-  :class:`~picamera.streams.PiCameraCircularIO` (`#109`_)
+  *splitter_port* parameter to the constructor of :class:`~PiCameraCircularIO`
+  (`#109`_)
 * Similarly, the :mod:`array extensions <picamera.array>` introduced in 1.5
   failed to work when resizers were present in the pipeline. This has been
   fixed by adding a `size` parameter to the constructor of all the custom
@@ -233,10 +229,10 @@ functionality:
 * The new :mod:`picamera.array` module provides a series of custom output
   classes which can be used to easily obtain numpy arrays from a variety of
   sources (`#107`_)
-* The *motion_output* parameter was added to
-  :meth:`~picamera.camera.PiCamera.start_recording` to enable output of motion
-  vector data generated by the H.264 encoder. A couple of new recipes were
-  added to the documentation to demonstrate this (`#94`_)
+* The *motion_output* parameter was added to :meth:`~PiCamera.start_recording`
+  to enable output of motion vector data generated by the H.264 encoder. A
+  couple of new recipes were added to the documentation to demonstrate this
+  (`#94`_)
 * The ability to construct custom encoders was added, including some examples
   in the documentation. Many thanks to user Oleksandr Sviridenko (d2rk) for
   helping with the design of this feature! (`#97`_)
@@ -245,9 +241,8 @@ functionality:
 * Speed of unencoded RGB and BGR captures was substantially improved in both
   Python 2 and 3 with a little optimization work. The warning about using
   alpha-inclusive modes like RGBA has been removed as a result (`#103`_)
-* An issue with out-of-order calls to
-  :meth:`~picamera.camera.PiCamera.stop_recording` when multiple recordings
-  were active was resolved (`#105`_)
+* An issue with out-of-order calls to :meth:`~PiCamera.stop_recording` when
+  multiple recordings were active was resolved (`#105`_)
 * Finally, picamera caught up with raspistill and raspivid by offering a
   friendly error message when used with a disabled camera - thanks to Andrew
   Scheller (lurch) for the suggestion! (`#89`_)
@@ -266,18 +261,18 @@ Release 1.4 (2014-05-06)
 
 1.4 mostly involved bug fixes with a couple of new bits of functionality:
 
-* The *sei* parameter was added to
-  :meth:`~picamera.camera.PiCamera.start_recording` to permit inclusion of
-  "Supplemental Enhancement Information" in the output stream (`#77`_)
-* The :attr:`~picamera.camera.PiCamera.awb_gains` attribute was added to permit
-  manual control of the auto-white-balance red/blue gains (`#74`_)
-* A bug which cause :meth:`~picamera.camera.PiCamera.split_recording` to fail
-  when low framerates were configured was fixed (`#87`_)
+* The *sei* parameter was added to :meth:`~PiCamera.start_recording` to permit
+  inclusion of "Supplemental Enhancement Information" in the output stream
+  (`#77`_)
+* The :attr:`~PiCamera.awb_gains` attribute was added to permit manual control
+  of the auto-white-balance red/blue gains (`#74`_)
+* A bug which cause :meth:`~PiCamera.split_recording` to fail when low
+  framerates were configured was fixed (`#87`_)
 * A bug which caused picamera to fail when used in UNIX-style daemons, unless
   the module was imported *after* the double-fork to background was fixed
   (`#85`_)
-* A bug which caused the :attr:`~picamera.camera.PiCamera.frame` attribute to
-  fail when queried in Python 3 was fixed (`#80`_)
+* A bug which caused the :attr:`~PiCamera.frame` attribute to fail when queried
+  in Python 3 was fixed (`#80`_)
 * A bug which caused raw captures with "odd" resolutions (like 100x100) to
   fail was fixed (`#83`_)
 
@@ -306,23 +301,22 @@ Release 1.3 (2014-03-22)
 
 * The *bayer* parameter was added to the ``'jpeg'`` format in the capture
   methods to permit output of the camera's raw sensor data (`#52`_)
-* The :meth:`~picamera.camera.PiCamera.record_sequence` method was added to
-  provide a cleaner interface for recording multiple consecutive video clips
-  (`#53`_)
+* The :meth:`~PiCamera.record_sequence` method was added to provide a cleaner
+  interface for recording multiple consecutive video clips (`#53`_)
 * The *splitter_port* parameter was added to all capture methods and
-  :meth:`~picamera.camera.PiCamera.start_recording` to permit recording
-  multiple simultaneous video streams (presumably with different options,
-  primarily *resize*) (`#56`_)
-* The limits on the :attr:`~picamera.camera.PiCamera.framerate` attribute were
-  increased after firmware #656 introduced numerous new camera modes including
-  90fps recording (at lower resolutions) (`#65`_)
+  :meth:`~PiCamera.start_recording` to permit recording multiple simultaneous
+  video streams (presumably with different options, primarily *resize*)
+  (`#56`_)
+* The limits on the :attr:`~PiCamera.framerate` attribute were increased after
+  firmware #656 introduced numerous new camera modes including 90fps recording
+  (at lower resolutions) (`#65`_)
 
 And partly bug fixes:
 
 * It was reported that Exif metadata (including thumbnails) wasn't fully
   recorded in JPEG output (`#59`_)
-* Raw captures with :meth:`~picamera.camera.PiCamera.capture_continuous` and
-  :meth:`~picamera.camera.PiCamera.capture_sequence` were broken (`#55`_)
+* Raw captures with :meth:`~PiCamera.capture_continuous` and
+  :meth:`~PiCamera.capture_sequence` were broken (`#55`_)
 
 .. _#52: https://github.com/waveform80/picamera/issues/52
 .. _#53: https://github.com/waveform80/picamera/issues/53
@@ -337,9 +331,8 @@ Release 1.2 (2014-02-02)
 
 1.2 was mostly a bug fix release:
 
-* A bug introduced in 1.1 caused
-  :meth:`~picamera.camera.PiCamera.split_recording` to fail if it was preceded
-  by a video-port-based image capture (`#49`_)
+* A bug introduced in 1.1 caused :meth:`~PiCamera.split_recording` to fail if
+  it was preceded by a video-port-based image capture (`#49`_)
 * The documentation was enhanced to try and full explain the discrepancy
   between preview and capture resolution, and to provide some insight into
   the underlying workings of the camera (`#23`_)
@@ -375,33 +368,31 @@ Release 1.0 (2014-01-11)
 In 1.0 the major features added were:
 
 * Debian packaging! (`#12`_)
-* The new :attr:`~picamera.camera.PiCamera.frame` attribute permits querying
-  information about the frame last written to the output stream (number,
-  timestamp, size, keyframe, etc.) (`#34`_, `#36`_)
-* All capture methods (:meth:`~picamera.camera.PiCamera.capture` et al), and
-  the :meth:`~picamera.camera.PiCamera.start_recording` method now accept a
-  ``resize`` parameter which invokes a resizer prior to the encoding step
-  (`#21`_)
-* A new :class:`~picamera.streams.PiCameraCircularIO` stream class is provided
-  to permit holding the last *n* seconds of video in memory, ready for writing
-  out to disk (or whatever you like) (`#39`_)
+* The new :attr:`~PiCamera.frame` attribute permits querying information about
+  the frame last written to the output stream (number, timestamp, size,
+  keyframe, etc.) (`#34`_, `#36`_)
+* All capture methods (:meth:`~PiCamera.capture` et al), and the
+  :meth:`~PiCamera.start_recording` method now accept a ``resize`` parameter
+  which invokes a resizer prior to the encoding step (`#21`_)
+* A new :class:`~PiCameraCircularIO` stream class is provided to permit holding
+  the last *n* seconds of video in memory, ready for writing out to disk (or
+  whatever you like) (`#39`_)
 * There's a new way to specify raw captures - simply use the format you require
   with the capture method of your choice. As a result of this, the
-  :attr:`~picamera.camera.PiCamera.raw_format` attribute is now deprecated
-  (`#32`_)
+  :attr:`~PiCamera.raw_format` attribute is now deprecated (`#32`_)
 
 Some bugs were also fixed:
 
-* GPIO.cleanup is no longer called on :meth:`~picamera.camera.PiCamera.close`
-  (`#35`_), and GPIO set up is only done on first use of the
-  :attr:`~picamera.camera.PiCamera.led` attribute which should resolve issues
-  that users have been having with using picamera in conjunction with GPIO
+* GPIO.cleanup is no longer called on :meth:`~PiCamera.close` (`#35`_), and
+  GPIO set up is only done on first use of the :attr:`~PiCamera.led` attribute
+  which should resolve issues that users have been having with using picamera
+  in conjunction with GPIO
 * Raw RGB video-port based image captures are now working again too (`#32`_)
 
 As this is a new major-version, all deprecated elements were removed:
 
 * The continuous method was removed; this was replaced by
-  :meth:`~picamera.camera.PiCamera.capture_continuous` in 0.5 (`#7`_)
+  :meth:`~PiCamera.capture_continuous` in 0.5 (`#7`_)
 
 .. _#7: https://github.com/waveform80/picamera/issues/7
 .. _#12: https://github.com/waveform80/picamera/issues/12
@@ -424,12 +415,11 @@ In 0.8 the major features added were:
   0.8, ``use_video_port=True`` can be specified on capture methods whilst
   recording video to avoid this.
 * Splitting of video recordings into multiple files. This is done via the new
-  :meth:`~picamera.camera.PiCamera.split_recording` method, and requires that the
-  :meth:`~picamera.camera.PiCamera.start_recording` method was called with
-  *inline_headers* set to True. The latter has now been made the default
-  (technically this is a backwards incompatible change, but it's relatively
-  trivial and I don't anticipate anyone's code breaking because of this
-  change).
+  :meth:`~PiCamera.split_recording` method, and requires that the
+  :meth:`~PiCamera.start_recording` method was called with *inline_headers* set
+  to True. The latter has now been made the default (technically this is a
+  backwards incompatible change, but it's relatively trivial and I don't
+  anticipate anyone's code breaking because of this change).
 
 In addition a few bugs were fixed:
 
@@ -446,8 +436,8 @@ Release 0.7 (2013-11-14)
 0.7 is mostly a bug fix release, with a few new video recording features:
 
 * Added ``quantisation`` and ``inline_headers`` options to
-  :meth:`~picamera.camera.PiCamera.start_recording` method
-* Fixed bugs in the :attr:`~picamera.camera.PiCamera.crop` property
+  :meth:`~PiCamera.start_recording` method
+* Fixed bugs in the :attr:`~PiCamera.crop` property
 * The issue of captures fading to black over time when the preview is not
   running has been resolved. This solution was to permanently activate the
   preview, but pipe it to a null-sink when not required. Note that this means
@@ -461,17 +451,14 @@ Release 0.6 (2013-10-30)
 
 In 0.6, the major features added were:
 
-* New ``'raw'`` format added to all capture methods
-  (:meth:`~picamera.camera.PiCamera.capture`,
-  :meth:`~picamera.camera.PiCamera.capture_continuous`, and
-  :meth:`~picamera.camera.PiCamera.capture_sequence`) to permit capturing of
-  raw sensor data
-* New :attr:`~picamera.camera.PiCamera.raw_format` attribute to permit control
-  of raw format (defaults to ``'yuv'``, only other setting currently is
-  ``'rgb'``)
-* New :attr:`~picamera.camera.PiCamera.shutter_speed` attribute to permit
-  manual control of shutter speed (defaults to 0 for automatic shutter speed,
-  and requires latest firmware to operate - use ``sudo rpi-update`` to upgrade)
+* New ``'raw'`` format added to all capture methods (:meth:`~PiCamera.capture`,
+  :meth:`~PiCamera.capture_continuous`, and :meth:`~PiCamera.capture_sequence`)
+  to permit capturing of raw sensor data
+* New :attr:`~PiCamera.raw_format` attribute to permit control of raw format
+  (defaults to ``'yuv'``, only other setting currently is ``'rgb'``)
+* New :attr:`~PiCamera.shutter_speed` attribute to permit manual control of
+  shutter speed (defaults to 0 for automatic shutter speed, and requires latest
+  firmware to operate - use ``sudo rpi-update`` to upgrade)
 * New "Recipes" chapter in the documentation which demonstrates a wide variety
   of capture techniques ranging from trivial to complex
 
@@ -481,27 +468,23 @@ Release 0.5 (2013-10-21)
 
 In 0.5, the major features added were:
 
-* New :meth:`~picamera.camera.PiCamera.capture_sequence` method
-* :meth:`~picamera.camera.PiCamera.continuous` method renamed to
-  :meth:`~picamera.camera.PiCamera.capture_continuous`. Old method name
-  retained for compatiblity until 1.0.
-* *use_video_port* option for
-  :meth:`~picamera.camera.PiCamera.capture_sequence` and
-  :meth:`~picamera.camera.PiCamera.capture_continuous` to allow rapid capture
-  of JPEGs via video port
-* New :attr:`~picamera.camera.PiCamera.framerate` attribute to control video
+* New :meth:`~PiCamera.capture_sequence` method
+* :meth:`~PiCamera.continuous` method renamed to
+  :meth:`~PiCamera.capture_continuous`. Old method name retained for
+  compatiblity until 1.0.
+* *use_video_port* option for :meth:`~PiCamera.capture_sequence` and
+  :meth:`~PiCamera.capture_continuous` to allow rapid capture of JPEGs via
+  video port
+* New :attr:`~PiCamera.framerate` attribute to control video
   and rapid-image capture frame rates
-* Default value for :attr:`~picamera.camera.PiCamera.ISO` changed from 400 to 0
-  (auto) which fixes :attr:`~picamera.camera.PiCamera.exposure_mode` not
-  working by default
-* *intraperiod* and *profile* options for
-  :meth:`~picamera.camera.PiCamera.start_recording`
+* Default value for :attr:`~PiCamera.ISO` changed from 400 to 0 (auto) which
+  fixes :attr:`~PiCamera.exposure_mode` not working by default
+* *intraperiod* and *profile* options for :meth:`~PiCamera.start_recording`
 
 In addition a few bugs were fixed:
 
-* Byte strings not being accepted by
-  :meth:`~picamera.camera.PiCamera.continuous`
-* Erroneous docs for :attr:`~picamera.PiCamera.ISO`
+* Byte strings not being accepted by :meth:`~PiCamera.continuous`
+* Erroneous docs for :attr:`~PiCamera.ISO`
 
 Many thanks to the community for the bug reports!
 
@@ -511,12 +494,12 @@ Release 0.4 (2013-10-11)
 In 0.4, several new attributes were introduced for configuration of the preview
 window:
 
-* :attr:`~picamera.camera.PiCamera.preview_alpha`
-* :attr:`~picamera.camera.PiCamera.preview_fullscreen`
-* :attr:`~picamera.camera.PiCamera.preview_window`
+* :attr:`~PiCamera.preview_alpha`
+* :attr:`~PiCamera.preview_fullscreen`
+* :attr:`~PiCamera.preview_window`
 
 Also, a new method for rapid continual capture of still images was introduced:
-:meth:`~picamera.camera.PiCamera.continuous`.
+:meth:`~PiCamera.continuous`.
 
 Release 0.3 (2013-10-04)
 ========================
@@ -529,7 +512,7 @@ Release 0.2
 ===========
 
 The major change in 0.2 was support for video recording, along with the new
-:attr:`~picamera.camera.PiCamera.resolution` property which replaced the separate
+:attr:`~PiCamera.resolution` property which replaced the separate
 ``preview_resolution`` and ``stills_resolution`` properties.
 
 

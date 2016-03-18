@@ -27,68 +27,6 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-"""
-The color module defines a class for representing a color, along with various
-ancillary classes which can be used to manipulate aspects of a color.
-
-.. note::
-
-    All classes in this module are available from the :mod:`picamera` namespace
-    without having to import :mod:`picamera.color` directly.
-
-The following classes are defined in the module:
-
-
-Color
-=====
-
-.. autoclass:: Color
-    :members:
-
-
-Red
-===
-
-.. autoclass:: Red
-    :members:
-
-
-Green
-=====
-
-.. autoclass:: Green
-    :members:
-
-
-Blue
-====
-
-.. autoclass:: Blue
-    :members:
-
-
-Hue
-===
-
-.. autoclass:: Hue
-    :members:
-
-
-Saturation
-==========
-
-.. autoclass:: Saturation
-    :members:
-
-
-Lightness
-=========
-
-.. autoclass:: Lightness
-    :members:
-
-"""
-
 from __future__ import (
     unicode_literals,
     print_function,

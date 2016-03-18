@@ -4,6 +4,8 @@
 Frequently Asked Questions (FAQ)
 ================================
 
+.. currentmodule:: picamera
+
 
 AttributeError: 'module' object has no attribute 'PiCamera'
 ===========================================================
@@ -23,12 +25,11 @@ preview works quite happily from the command line, even without anyone logged
 in).
 
 That said, the preview area can be resized and repositioned via the
-:attr:`~picamera.renderers.PiRenderer.window` attribute of the
-:attr:`~picamera.camera.PiCamera.preview` object. If your program can respond
-to window repositioning and sizing events you can "cheat" and position the
-preview within the borders of the target window. However, there's currently no
-way to allow anything to appear on top of the preview so this is an imperfect
-solution at best.
+:attr:`~PiRenderer.window` attribute of the :attr:`~PiCamera.preview` object.
+If your program can respond to window repositioning and sizing events you can
+"cheat" and position the preview within the borders of the target window.
+However, there's currently no way to allow anything to appear on top of the
+preview so this is an imperfect solution at best.
 
 Help! I started a preview and can't see my console!
 ===================================================
@@ -37,15 +38,15 @@ As mentioned above, the preview is simply an overlay over the Pi's video
 output.  If you start a preview you may therefore discover you can't see your
 console anymore and there's no obvious way of getting it back. If you're
 confident in your typing skills you can try calling
-:meth:`~picamera.camera.PiCamera.stop_preview` by typing "blindly" into your
-hidden console. However, the simplest way of getting your display back is
-usually to hit ``Ctrl+D`` to terminate the Python process (which should also
-shut down the camera).
+:meth:`~PiCamera.stop_preview` by typing "blindly" into your hidden console.
+However, the simplest way of getting your display back is usually to hit
+``Ctrl+D`` to terminate the Python process (which should also shut down the
+camera).
 
 When starting a preview, you may want to set the *alpha* parameter of the
-:meth:`~picamera.camera.PiCamera.start_preview` method to something like 128.
-This should ensure that when the preview is displayed, it is partially
-transparent so you can still see your console.
+:meth:`~PiCamera.start_preview` method to something like 128.  This should
+ensure that when the preview is displayed, it is partially transparent so you
+can still see your console.
 
 The preview doesn't work on my PiTFT screen
 ===========================================
@@ -62,12 +63,12 @@ How much power does the camera require?
 =======================================
 
 The camera `requires 250mA`_ when running. Note that simply creating a
-:class:`~picamera.camera.PiCamera` object means the camera is running (due to the
-hidden preview that is started to allow the auto-exposure algorithm to run). If
-you are running your Pi from batteries, you should
-:meth:`~picamera.camera.PiCamera.close` (or destroy) the instance when the camera is
-not required in order to conserve power. For example, the following code
-captures 60 images over an hour, but leaves the camera running all the time::
+:class:`PiCamera` object means the camera is running (due to the hidden preview
+that is started to allow the auto-exposure algorithm to run). If you are
+running your Pi from batteries, you should :meth:`~PiCamera.close` (or destroy)
+the instance when the camera is not required in order to conserve power. For
+example, the following code captures 60 images over an hour, but leaves the
+camera running all the time::
 
     import picamera
     import time
@@ -83,8 +84,7 @@ captures 60 images over an hour, but leaves the camera running all the time::
                 break
 
 By contrast, this code closes the camera between shots (but can't use the
-convenient :meth:`~picamera.camera.PiCamera.capture_continuous` method as a
-result)::
+convenient :meth:`~PiCamera.capture_continuous` method as a result)::
 
     import picamera
     import time
@@ -159,21 +159,20 @@ available on PyPI), the release process for Raspbian packages is semi-manual.
 There is typically a delay of a few days after a release before updated
 picamera packages become accessible in the Raspbian repository.
 
-Users desperate to try the latest version may choose to uninstall their
-``apt`` based copy (uninstall instructions are provided in the
-:ref:`installation instructions <raspbian_install2>`, and install using
-:ref:`pip instead <system_install2>`. However, be aware that keeping a PyPI
-based installation up to date is a more manual process (sticking with ``apt``
-ensures everything gets upgraded with a simple ``sudo apt-get upgrade``
-command).
+Users desperate to try the latest version may choose to uninstall their ``apt``
+based copy (uninstall instructions are provided in the :ref:`installation
+instructions <raspbian_install>`, and install using :ref:`pip instead
+<non_raspbian_install>`. However, be aware that keeping a PyPI based
+installation up to date is a more manual process (sticking with ``apt`` ensures
+everything gets upgraded with a simple ``sudo apt-get upgrade`` command).
 
 Why is there so much latency when streaming video?
 ==================================================
 
-The first thing to understand is that streaming latency is nothing to do with
-the encoding or sending end of things (i.e. the Pi), but mostly to do with the
-playing or receiving end. If the Pi weren't capable of encoding a frame before
-the next frame arrived, it wouldn't be capable of recording video at all
+The first thing to understand is that streaming latency has little to do with
+the encoding or sending end of things (i.e. the Pi), and much more to do with
+the playing or receiving end. If the Pi weren't capable of encoding a frame
+before the next frame arrived, it wouldn't be capable of recording video at all
 (because its internal buffers would rapidly become filled with unencoded
 frames).
 

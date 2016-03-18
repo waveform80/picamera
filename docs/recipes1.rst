@@ -4,6 +4,8 @@
 Basic Recipes
 =============
 
+.. currentmodule:: picamera
+
 The following recipes should be reasonably accessible to Python programmers of
 all skill levels. Please feel free to suggest enhancements or additional
 recipes.
@@ -15,18 +17,17 @@ Capturing to a file
 ===================
 
 Capturing an image to a file is as simple as specifying the name of the file as
-the output of whatever :meth:`~picamera.camera.PiCamera.capture` method you
-require::
+the output of whatever :meth:`~PiCamera.capture` method you require::
 
-    import time
-    import picamera
+    from time import sleep
+    from picamera import PiCamera
 
-    with picamera.PiCamera() as camera:
-        camera.resolution = (1024, 768)
-        camera.start_preview()
-        # Camera warm-up time
-        time.sleep(2)
-        camera.capture('foo.jpg')
+    camera = PiCamera()
+    camera.resolution = (1024, 768)
+    camera.start_preview()
+    # Camera warm-up time
+    sleep(2)
+    camera.capture('foo.jpg')
 
 Note that files opened by picamera (as in the case above) will be flushed and
 closed so that when the capture method returns, the data should be accessible
@@ -40,20 +41,20 @@ Capturing to a stream
 
 Capturing an image to a file-like object (a :func:`~socket.socket`, a
 :class:`io.BytesIO` stream, an existing open file object, etc.) is as simple as
-specifying that object as the output of whatever
-:meth:`~picamera.camera.PiCamera.capture` method you're using::
+specifying that object as the output of whatever :meth:`~PiCamera.capture`
+method you're using::
 
-    import io
-    import time
-    import picamera
+    from io import BytesIO
+    from time import sleep
+    from picamera import PiCamera
 
     # Create an in-memory stream
-    my_stream = io.BytesIO()
-    with picamera.PiCamera() as camera:
-        camera.start_preview()
-        # Camera warm-up time
-        time.sleep(2)
-        camera.capture(my_stream, 'jpeg')
+    my_stream = BytesIO()
+    camera = PiCamera()
+    camera.start_preview()
+    # Camera warm-up time
+    sleep(2)
+    camera.capture(my_stream, 'jpeg')
 
 Note that the format is explicitly specified in the case above. The
 :class:`~io.BytesIO` object has no filename, so the camera can't automatically
@@ -66,15 +67,15 @@ a ``flush`` method, this will be called prior to capture returning. This should
 ensure that once capture returns the data is accessible to other processes
 although the object still needs to be closed::
 
-    import time
-    import picamera
+    from time import sleep
+    from picamera import PiCamera
 
     # Explicitly open a new file called my_image.jpg
     my_file = open('my_image.jpg', 'wb')
-    with picamera.PiCamera() as camera:
-        camera.start_preview()
-        time.sleep(2)
-        camera.capture(my_file)
+    camera = PiCamera()
+    camera.start_preview()
+    sleep(2)
+    camera.capture(my_file)
     # At this point my_file.flush() has been called, but the file has
     # not yet been closed
     my_file.close()
@@ -96,70 +97,20 @@ This is a variation on :ref:`stream_capture`. First we'll capture an image to a
 rewind the position of the stream to the start, and read the stream into a
 `PIL`_ Image object::
 
-    import io
-    import time
-    import picamera
+    from io import BytesIO
+    from time import sleep
+    from picamera import PiCamera
     from PIL import Image
 
     # Create the in-memory stream
-    stream = io.BytesIO()
-    with picamera.PiCamera() as camera:
-        camera.start_preview()
-        time.sleep(2)
-        camera.capture(stream, format='jpeg')
+    stream = BytesIO()
+    camera = PiCamera()
+    camera.start_preview()
+    sleep(2)
+    camera.capture(stream, format='jpeg')
     # "Rewind" the stream to the beginning so we can read its content
     stream.seek(0)
     image = Image.open(stream)
-
-
-.. _opencv_capture:
-
-Capturing to an OpenCV object
-=============================
-
-This is another variation on :ref:`stream_capture`. First we'll capture an
-image to a :class:`~io.BytesIO` stream (Python's in-memory stream class), then
-convert the stream to a numpy array and read the array with `OpenCV`_::
-
-    import io
-    import time
-    import picamera
-    import cv2
-    import numpy as np
-
-    # Create the in-memory stream
-    stream = io.BytesIO()
-    with picamera.PiCamera() as camera:
-        camera.start_preview()
-        time.sleep(2)
-        camera.capture(stream, format='jpeg')
-    # Construct a numpy array from the stream
-    data = np.fromstring(stream.getvalue(), dtype=np.uint8)
-    # "Decode" the image from the array, preserving colour
-    image = cv2.imdecode(data, 1)
-    # OpenCV returns an array with data in BGR order. If you want RGB instead
-    # use the following...
-    image = image[:, :, ::-1]
-
-If you want to avoid the JPEG encoding and decoding (which is lossy) and
-potentially speed up the process, you can now use the classes in the
-:mod:`picamera.array` module. As OpenCV images are simply numpy arrays arranged
-in BGR order, one can use the :class:`~picamera.array.PiRGBArray` class and
-simply capture with the ``'bgr'`` format (given that RGB and BGR data is the
-same size and configuration, just with reversed color planes)::
-
-    import time
-    import picamera
-    import picamera.array
-    import cv2
-
-    with picamera.PiCamera() as camera:
-        camera.start_preview()
-        time.sleep(2)
-        with picamera.array.PiRGBArray(camera) as stream:
-            camera.capture(stream, format='bgr')
-            # At this point the image is available as stream.array
-            image = stream.array
 
 
 .. _resize_capture:
@@ -172,21 +123,20 @@ processing on images, you may wish to capture smaller images than the current
 resolution of the camera. Although such resizing can be performed using
 libraries like PIL or OpenCV, it is considerably more efficient to have the
 Pi's GPU perform the resizing when capturing the image. This can be done with
-the *resize* parameter of the :meth:`~picamera.camera.PiCamera.capture`
-methods::
+the *resize* parameter of the :meth:`~PiCamera.capture` methods::
 
-    import time
-    import picamera
+    from time import sleep
+    from picamera import PiCamera
 
-    with picamera.PiCamera() as camera:
-        camera.resolution = (1024, 768)
-        camera.start_preview()
-        # Camera warm-up time
-        time.sleep(2)
-        camera.capture('foo.jpg', resize=(320, 240))
+    camera = PiCamera()
+    camera.resolution = (1024, 768)
+    camera.start_preview()
+    # Camera warm-up time
+    sleep(2)
+    camera.capture('foo.jpg', resize=(320, 240))
 
 The *resize* parameter can also be specified when recording video with the
-:meth:`~picamera.camera.PiCamera.start_recording` method.
+:meth:`~PiCamera.start_recording` method.
 
 
 .. _consistent_capture:
@@ -200,49 +150,44 @@ photography, for example). Various attributes need to be used in order to
 ensure consistency across multiple shots. Specifically, you need to ensure that
 the camera's exposure time, white balance, and gains are all fixed:
 
-* To fix exposure time, set the :attr:`~picamera.camera.PiCamera.shutter_speed`
-  attribute to a reasonable value.
-* To fix exposure gains, let :attr:`~picamera.camera.PiCamera.analog_gain` and
-  :attr:`~picamera.camera.PiCamera.digital_gain` settle on reasonable values,
-  then set :attr:`~picamera.camera.PiCamera.exposure_mode` to ``'off'``.
-* To fix white balance, set the :attr:`~picamera.camera.PiCamera.awb_mode` to
-  ``'off'``, then set :attr:`~picamera.camera.PiCamera.awb_gains` to a (red,
-  blue) tuple of gains.
-* Optionally, set :attr:`~picamera.camera.PiCamera.iso` to a fixed value.
+* To fix exposure time, set the :attr:`~PiCamera.shutter_speed` attribute to a
+  reasonable value.
+* To fix exposure gains, let :attr:`~PiCamera.analog_gain` and
+  :attr:`~PiCamera.digital_gain` settle on reasonable values, then set
+  :attr:`~PiCamera.exposure_mode` to ``'off'``.
+* To fix white balance, set the :attr:`~PiCamera.awb_mode` to ``'off'``, then
+  set :attr:`~PiCamera.awb_gains` to a (red, blue) tuple of gains.
+* Optionally, set :attr:`~PiCamera.iso` to a fixed value.
 
 It can be difficult to know what appropriate values might be for these
-attributes.  For :attr:`~picamera.camera.PiCamera.iso`, a simple rule of thumb
-is that 100 and 200 are reasonable values for daytime, while 400 and 800 are
-better for low light. To determine a reasonable value for
-:attr:`~picamera.camera.PiCamera.shutter_speed` you can query the
-:attr:`~picamera.camera.PiCamera.exposure_speed` attribute.  For exposure
-gains, it's usually enough to wait until
-:attr:`~picamera.camera.PiCamera.analog_gain` is greater than 1 (the default,
-which will produce entirely black frames) before
-:attr:`~picamera.camera.PiCamera.exposure_mode` is set to ``'off'``.  Finally,
-to determine reasonable values for :attr:`~picamera.camera.PiCamera.awb_gains`
-simply query the property while :attr:`~picamera.camera.PiCamera.awb_mode` is
-set to something other than ``'off'``.  Again, this will tell you the camera's
-white balance gains as determined by the auto-white-balance algorithm.
+attributes.  For :attr:`~PiCamera.iso`, a simple rule of thumb is that 100 and
+200 are reasonable values for daytime, while 400 and 800 are better for low
+light. To determine a reasonable value for :attr:`~PiCamera.shutter_speed` you
+can query the :attr:`~PiCamera.exposure_speed` attribute.  For exposure gains,
+it's usually enough to wait until :attr:`~PiCamera.analog_gain` is greater than
+1 (the default, which will produce entirely black frames) before
+:attr:`~PiCamera.exposure_mode` is set to ``'off'``.  Finally, to determine
+reasonable values for :attr:`~PiCamera.awb_gains` simply query the property
+while :attr:`~PiCamera.awb_mode` is set to something other than ``'off'``.
+Again, this will tell you the camera's white balance gains as determined by the
+auto-white-balance algorithm.
 
 The following script provides a brief example of configuring these settings::
 
-    import time
-    import picamera
+    from time import sleep
+    from picamera import PiCamera
 
-    with picamera.PiCamera() as camera:
-        camera.resolution = (1280, 720)
-        camera.framerate = 30
-        # Wait for the automatic gain control to settle
-        time.sleep(2)
-        # Now fix the values
-        camera.shutter_speed = camera.exposure_speed
-        camera.exposure_mode = 'off'
-        g = camera.awb_gains
-        camera.awb_mode = 'off'
-        camera.awb_gains = g
-        # Finally, take several photos with the fixed settings
-        camera.capture_sequence(['image%02d.jpg' % i for i in range(10)])
+    camera = PiCamera(resolution=(1280, 720), framerate=30)
+    # Wait for the automatic gain control to settle
+    sleep(2)
+    # Now fix the values
+    camera.shutter_speed = camera.exposure_speed
+    camera.exposure_mode = 'off'
+    g = camera.awb_gains
+    camera.awb_mode = 'off'
+    camera.awb_gains = g
+    # Finally, take several photos with the fixed settings
+    camera.capture_sequence(['image%02d.jpg' % i for i in range(10)])
 
 
 .. _timelapse_capture:
@@ -251,21 +196,21 @@ Capturing timelapse sequences
 =============================
 
 The simplest way to capture long time-lapse sequences is with the
-:meth:`~picamera.camera.PiCamera.capture_continuous` method. With this method,
-the camera captures images continually until you tell it to stop. Images are
-automatically given unique names and you can easily control the delay between
-captures. The following example shows how to capture images with a 5 minute
-delay between each shot::
+:meth:`~PiCamera.capture_continuous` method. With this method, the camera
+captures images continually until you tell it to stop. Images are automatically
+given unique names and you can easily control the delay between captures. The
+following example shows how to capture images with a 5 minute delay between
+each shot::
 
-    import time
-    import picamera
+    from time import sleep
+    from picamera import PiCamera
 
-    with picamera.PiCamera() as camera:
-        camera.start_preview()
-        time.sleep(2)
-        for filename in camera.capture_continuous('img{counter:03d}.jpg'):
-            print('Captured %s' % filename)
-            time.sleep(300) # wait 5 minutes
+    camera = PiCamera()
+    camera.start_preview()
+    sleep(2)
+    for filename in camera.capture_continuous('img{counter:03d}.jpg'):
+        print('Captured %s' % filename)
+        sleep(300) # wait 5 minutes
 
 However, you may wish to capture images at a particular time, say at the start
 of every hour. This simply requires a refinement of the delay in the loop (the
@@ -273,8 +218,8 @@ of every hour. This simply requires a refinement of the delay in the loop (the
 times; this example also demonstrates the ``timestamp`` template in the
 captured filenames)::
 
-    import time
-    import picamera
+    from time import sleep
+    from picamera import PiCamera
     from datetime import datetime, timedelta
 
     def wait():
@@ -282,14 +227,14 @@ captured filenames)::
         next_hour = (datetime.now() + timedelta(hour=1)).replace(
             minute=0, second=0, microsecond=0)
         delay = (next_hour - datetime.now()).seconds
-        time.sleep(delay)
+        sleep(delay)
 
-    with picamera.PiCamera() as camera:
-        camera.start_preview()
+    camera = PiCamera()
+    camera.start_preview()
+    wait()
+    for filename in camera.capture_continuous('img{timestamp:%Y-%m-%d-%H-%M}.jpg'):
+        print('Captured %s' % filename)
         wait()
-        for filename in camera.capture_continuous('img{timestamp:%Y-%m-%d-%H-%M}.jpg'):
-            print('Captured %s' % filename)
-            wait()
 
 
 .. _dark_capture:
@@ -300,32 +245,29 @@ Capturing in low light
 Using similar tricks to those in :ref:`consistent_capture`, the Pi's camera can
 capture images in low light conditions. The primary objective is to set a high
 gain, and a long exposure time to allow the camera to gather as much light as
-possible. However, the :attr:`~picamera.camera.PiCamera.shutter_speed`
-attribute is constrained by the camera's
-:attr:`~picamera.camera.PiCamera.framerate` so the first thing we need to do is
+possible. However, the :attr:`~PiCamera.shutter_speed` attribute is constrained
+by the camera's :attr:`~PiCamera.framerate` so the first thing we need to do is
 set a very slow framerate. The following script captures an image with a 6
 second exposure time (the maximum the Pi's camera module is currently capable
 of)::
 
-    import picamera
+    from picamera import PiCamera
     from time import sleep
     from fractions import Fraction
 
-    with picamera.PiCamera() as camera:
-        camera.resolution = (1280, 720)
-        # Set a framerate of 1/6fps, then set shutter
-        # speed to 6s and ISO to 800
-        camera.framerate = Fraction(1, 6)
-        camera.shutter_speed = 6000000
-        camera.exposure_mode = 'off'
-        camera.iso = 800
-        # Give the camera a good long time to measure AWB
-        # (you may wish to use fixed AWB instead)
-        sleep(10)
-        # Finally, capture an image with a 6s exposure. Due
-        # to mode switching on the still port, this will take
-        # longer than 6 seconds
-        camera.capture('dark.jpg')
+    # Set a framerate of 1/6fps, then set shutter
+    # speed to 6s and ISO to 800
+    camera = PiCamera(resolution=(1280, 720), framerate=Fraction(1, 6))
+    camera.shutter_speed = 6000000
+    camera.iso = 800
+    # Give the camera a good long time to set gains and
+    # measure AWB (you may wish to use fixed AWB instead)
+    sleep(30)
+    camera.exposure_mode = 'off'
+    # Finally, capture an image with a 6s exposure. Due
+    # to mode switching on the still port, this will take
+    # longer than 6 seconds
+    camera.capture('dark.jpg')
 
 In anything other than dark conditions, the image produced by this script will
 most likely be completely white or at least heavily over-exposed.
@@ -409,32 +351,32 @@ Now for the client side of things, on the Raspberry Pi::
     # Make a file-like object out of the connection
     connection = client_socket.makefile('wb')
     try:
-        with picamera.PiCamera() as camera:
-            camera.resolution = (640, 480)
-            # Start a preview and let the camera warm up for 2 seconds
-            camera.start_preview()
-            time.sleep(2)
+        camera = picamera.PiCamera()
+        camera.resolution = (640, 480)
+        # Start a preview and let the camera warm up for 2 seconds
+        camera.start_preview()
+        time.sleep(2)
 
-            # Note the start time and construct a stream to hold image data
-            # temporarily (we could write it directly to connection but in this
-            # case we want to find out the size of each capture first to keep
-            # our protocol simple)
-            start = time.time()
-            stream = io.BytesIO()
-            for foo in camera.capture_continuous(stream, 'jpeg'):
-                # Write the length of the capture to the stream and flush to
-                # ensure it actually gets sent
-                connection.write(struct.pack('<L', stream.tell()))
-                connection.flush()
-                # Rewind the stream and send the image data over the wire
-                stream.seek(0)
-                connection.write(stream.read())
-                # If we've been capturing for more than 30 seconds, quit
-                if time.time() - start > 30:
-                    break
-                # Reset the stream for the next capture
-                stream.seek(0)
-                stream.truncate()
+        # Note the start time and construct a stream to hold image data
+        # temporarily (we could write it directly to connection but in this
+        # case we want to find out the size of each capture first to keep
+        # our protocol simple)
+        start = time.time()
+        stream = io.BytesIO()
+        for foo in camera.capture_continuous(stream, 'jpeg'):
+            # Write the length of the capture to the stream and flush to
+            # ensure it actually gets sent
+            connection.write(struct.pack('<L', stream.tell()))
+            connection.flush()
+            # Rewind the stream and send the image data over the wire
+            stream.seek(0)
+            connection.write(stream.read())
+            # If we've been capturing for more than 30 seconds, quit
+            if time.time() - start > 30:
+                break
+            # Reset the stream for the next capture
+            stream.seek(0)
+            stream.truncate()
         # Write a length of zero to the stream to signal we're done
         connection.write(struct.pack('<L', 0))
     finally:
@@ -454,21 +396,20 @@ Recording a video to a file is simple::
 
     import picamera
 
-    with picamera.PiCamera() as camera:
-        camera.resolution = (640, 480)
-        camera.start_recording('my_video.h264')
-        camera.wait_recording(60)
-        camera.stop_recording()
+    camera = picamera.PiCamera()
+    camera.resolution = (640, 480)
+    camera.start_recording('my_video.h264')
+    camera.wait_recording(60)
+    camera.stop_recording()
 
-Note that we use :meth:`~picamera.camera.PiCamera.wait_recording` in the
-example above instead of :func:`time.sleep` which we've been using in the image
-capture recipes above. The :meth:`~picamera.camera.PiCamera.wait_recording`
-method is similar in that it will pause for the number of seconds specified,
-but unlike :func:`time.sleep` it will continually check for recording errors
-(e.g. an out of disk space condition) while it is waiting. If we had used
-:func:`time.sleep` instead, such errors would only be raised by the
-:meth:`~picamera.camera.PiCamera.stop_recording` call (which could be long
-after the error actually occurred).
+Note that we use :meth:`~PiCamera.wait_recording` in the example above instead
+of :func:`time.sleep` which we've been using in the image capture recipes
+above. The :meth:`~PiCamera.wait_recording` method is similar in that it will
+pause for the number of seconds specified, but unlike :func:`time.sleep` it
+will continually check for recording errors (e.g. an out of disk space
+condition) while it is waiting. If we had used :func:`time.sleep` instead, such
+errors would only be raised by the :meth:`~PiCamera.stop_recording` call (which
+could be long after the error actually occurred).
 
 
 .. _stream_record:
@@ -478,15 +419,15 @@ Recording video to a stream
 
 This is very similar to :ref:`file_record`::
 
-    import io
-    import picamera
+    from io import BytesIO
+    from picamera import PiCamera
 
-    stream = io.BytesIO()
-    with picamera.PiCamera() as camera:
-        camera.resolution = (640, 480)
-        camera.start_recording(stream, format='h264', quality=23)
-        camera.wait_recording(15)
-        camera.stop_recording()
+    stream = BytesIO()
+    camera = PiCamera()
+    camera.resolution = (640, 480)
+    camera.start_recording(stream, format='h264', quality=23)
+    camera.wait_recording(15)
+    camera.stop_recording()
 
 Here, we've set the *quality* parameter to indicate to the encoder the level
 of image quality that we'd like it to try and maintain. The camera's H.264
@@ -514,38 +455,34 @@ Recording over multiple files
 =============================
 
 If you wish split your recording over multiple files, you can use the
-:meth:`~picamera.camera.PiCamera.split_recording` method to accomplish this::
+:meth:`~PiCamera.split_recording` method to accomplish this::
 
     import picamera
 
-    with picamera.PiCamera() as camera:
-        camera.resolution = (640, 480)
-        camera.start_recording('1.h264')
+    camera = picamera.PiCamera(resolution=(640, 480))
+    camera.start_recording('1.h264')
+    camera.wait_recording(5)
+    for i in range(2, 11):
+        camera.split_recording('%d.h264' % i)
         camera.wait_recording(5)
-        for i in range(2, 11):
-            camera.split_recording('%d.h264' % i)
-            camera.wait_recording(5)
-        camera.stop_recording()
+    camera.stop_recording()
 
 This should produce 10 video files named ``1.h264``, ``2.h264``, etc. each of
 which is approximately 5 seconds long (approximately because the
-:meth:`~picamera.camera.PiCamera.split_recording` method will only split files
-at a key-frame).
+:meth:`~PiCamera.split_recording` method will only split files at a key-frame).
 
-The :meth:`~picamera.camera.PiCamera.record_sequence` method can also be used
-to achieve this with slightly cleaner code::
+The :meth:`~PiCamera.record_sequence` method can also be used to achieve this
+with slightly cleaner code::
 
     import picamera
 
-    with picamera.PiCamera() as camera:
-        camera.resolution = (640, 480)
-        for filename in camera.record_sequence(
-                '%d.h264' % i for i in range(1, 11)):
-            camera.wait_recording(5)
+    camera = picamera.PiCamera(resolution=(640, 480))
+    for filename in camera.record_sequence(
+            '%d.h264' % i for i in range(1, 11)):
+        camera.wait_recording(5)
 
 .. versionchanged:: 1.3
-    The :meth:`~picamera.camera.PiCamera.record_sequence` method was introduced
-    in version 1.3
+    The :meth:`~PiCamera.record_sequence` method was introduced in version 1.3
 
 
 .. _circular_record1:
@@ -554,12 +491,11 @@ Recording to a circular stream
 ==============================
 
 This is similar to :ref:`stream_record` but uses a special kind of in-memory
-stream provided by the picamera library. The
-:class:`~picamera.streams.PiCameraCircularIO` class implements a `ring buffer`_
-based stream, specifically for video recording.  This enables you to keep an
-in-memory stream containing the last *n* seconds of video recorded (where *n*
-is determined by the bitrate of the video recording and the size of the ring
-buffer underlying the stream).
+stream provided by the picamera library. The :class:`~PiCameraCircularIO` class
+implements a `ring buffer`_ based stream, specifically for video recording.
+This enables you to keep an in-memory stream containing the last *n* seconds of
+video recorded (where *n* is determined by the bitrate of the video recording
+and the size of the ring buffer underlying the stream).
 
 A typical use-case for this sort of storage is security applications where one
 wishes to detect motion and only record to disk the video where motion was
@@ -575,42 +511,28 @@ to waiting::
     import random
     import picamera
 
-    def write_now():
+    def motion_detected():
         # Randomly return True (like a fake motion detection routine)
         return random.randint(0, 10) == 0
 
-    def write_video(stream):
-        print('Writing video!')
-        with stream.lock:
-            # Find the first header frame in the video
-            for frame in stream.frames:
-                if frame.frame_type == picamera.PiVideoFrameType.sps_header:
-                    stream.seek(frame.position)
-                    break
-            # Write the rest of the stream to disk
-            with io.open('motion.h264', 'wb') as output:
-                output.write(stream.read())
+    camera = picamera.PiCamera()
+    stream = picamera.PiCameraCircularIO(camera, seconds=20)
+    camera.start_recording(stream, format='h264')
+    try:
+        while True:
+            camera.wait_recording(1)
+            if motion_detected():
+                # Keep recording for 10 seconds and only then write the
+                # stream to disk
+                camera.wait_recording(10)
+                stream.copy_to('motion.h264')
+    finally:
+        camera.stop_recording()
 
-    with picamera.PiCamera() as camera:
-        stream = picamera.PiCameraCircularIO(camera, seconds=20)
-        camera.start_recording(stream, format='h264')
-        try:
-            while True:
-                camera.wait_recording(1)
-                if write_now():
-                    # Keep recording for 10 seconds and only then write the
-                    # stream to disk
-                    camera.wait_recording(10)
-                    write_video(stream)
-        finally:
-            camera.stop_recording()
-
-In the above script we use the threading lock in the
-:attr:`~picamera.CircularIO.lock` attribute to prevent the camera's background
-writing thread from changing the stream while our own thread reads from it (as
-the stream is a circular buffer, a write can remove information that is about
-to be read). If we had stopped recording to the stream while writing we could
-eliminate the ``with stream.lock`` line in the ``write_video`` function.
+In the above script we use the special :meth:`~PiCameraCircularIO.copy_to`
+method to copy the stream to a disk file. This automatically handles details
+like finding the start of the first key-frame in the circular buffer, and
+also provides facilities like writing a specific number of bytes or seconds.
 
 .. note::
 
@@ -620,6 +542,9 @@ eliminate the ``with stream.lock`` line in the ``write_video`` function.
     seconds of video will be available in the stream.
 
 .. versionadded:: 1.0
+
+.. versionchanged:: 1.11
+    Added use of the :meth:`~PiCameraCircularIO.copy_to`
 
 
 .. _streaming_record:
@@ -696,17 +621,17 @@ object created from the network socket::
     # Make a file-like object out of the connection
     connection = client_socket.makefile('wb')
     try:
-        with picamera.PiCamera() as camera:
-            camera.resolution = (640, 480)
-            camera.framerate = 24
-            # Start a preview and let the camera warm up for 2 seconds
-            camera.start_preview()
-            time.sleep(2)
-            # Start recording, sending the output to the connection for 60
-            # seconds, then stop
-            camera.start_recording(connection, format='h264')
-            camera.wait_recording(60)
-            camera.stop_recording()
+        camera = picamera.PiCamera()
+        camera.resolution = (640, 480)
+        camera.framerate = 24
+        # Start a preview and let the camera warm up for 2 seconds
+        camera.start_preview()
+        time.sleep(2)
+        # Start recording, sending the output to the connection for 60
+        # seconds, then stop
+        camera.start_recording(connection, format='h264')
+        camera.wait_recording(60)
+        camera.stop_recording()
     finally:
         connection.close()
         client_socket.close()
@@ -730,23 +655,23 @@ waiting for a connection to allow the streaming to start faster on connection::
     import time
     import picamera
 
-    with picamera.PiCamera() as camera:
-        camera.resolution = (640, 480)
-        camera.framerate = 24
+    camera = picamera.PiCamera()
+    camera.resolution = (640, 480)
+    camera.framerate = 24
 
-        server_socket = socket.socket()
-        server_socket.bind(('0.0.0.0', 8000))
-        server_socket.listen(0)
+    server_socket = socket.socket()
+    server_socket.bind(('0.0.0.0', 8000))
+    server_socket.listen(0)
 
-        # Accept a single connection and make a file-like object out of it
-        connection = server_socket.accept()[0].makefile('wb')
-        try:
-            camera.start_recording(connection, format='h264')
-            camera.wait_recording(60)
-            camera.stop_recording()
-        finally:
-            connection.close()
-            server_socket.close()
+    # Accept a single connection and make a file-like object out of it
+    connection = server_socket.accept()[0].makefile('wb')
+    try:
+        camera.start_recording(connection, format='h264')
+        camera.wait_recording(60)
+        camera.stop_recording()
+    finally:
+        connection.close()
+        server_socket.close()
 
 One advantage of this setup is that no script is needed on the client side - we
 can simply use VLC with a network URL::
@@ -789,41 +714,41 @@ don't worry; it's quite simple to produce in practice.
 
 The following example demonstrates loading an arbitrary size image with PIL,
 padding it to the required size, and producing the unencoded RGB data for the
-call to :meth:`~picamera.camera.PiCamera.add_overlay`::
+call to :meth:`~PiCamera.add_overlay`::
 
     import picamera
     from PIL import Image
     from time import sleep
 
-    with picamera.PiCamera() as camera:
-        camera.resolution = (1280, 720)
-        camera.framerate = 24
-        camera.start_preview()
+    camera = picamera.PiCamera()
+    camera.resolution = (1280, 720)
+    camera.framerate = 24
+    camera.start_preview()
 
-        # Load the arbitrarily sized image
-        img = Image.open('overlay.png')
-        # Create an image padded to the required size with
-        # mode 'RGB'
-        pad = Image.new('RGB', (
-            ((img.size[0] + 31) // 32) * 32,
-            ((img.size[1] + 15) // 16) * 16,
-            ))
-        # Paste the original image into the padded one
-        pad.paste(img, (0, 0))
+    # Load the arbitrarily sized image
+    img = Image.open('overlay.png')
+    # Create an image padded to the required size with
+    # mode 'RGB'
+    pad = Image.new('RGB', (
+        ((img.size[0] + 31) // 32) * 32,
+        ((img.size[1] + 15) // 16) * 16,
+        ))
+    # Paste the original image into the padded one
+    pad.paste(img, (0, 0))
 
-        # Add the overlay with the padded image as the source,
-        # but the original image's dimensions
-        o = camera.add_overlay(pad.tostring(), size=img.size)
-        # By default, the overlay is in layer 0, beneath the
-        # preview (which defaults to layer 2). Here we make
-        # the new overlay semi-transparent, then move it above
-        # the preview
-        o.alpha = 128
-        o.layer = 3
+    # Add the overlay with the padded image as the source,
+    # but the original image's dimensions
+    o = camera.add_overlay(pad.tostring(), size=img.size)
+    # By default, the overlay is in layer 0, beneath the
+    # preview (which defaults to layer 2). Here we make
+    # the new overlay semi-transparent, then move it above
+    # the preview
+    o.alpha = 128
+    o.layer = 3
 
-        # Wait indefinitely until the user terminates the script
-        while True:
-            sleep(1)
+    # Wait indefinitely until the user terminates the script
+    while True:
+        sleep(1)
 
 Alternatively, instead of using an image file as the source, you can produce an
 overlay directly from a numpy array. In the following example, we construct
@@ -841,27 +766,26 @@ through the center and overlay it on the preview as a simple cross-hair::
     a[360, :, :] = 0xff
     a[:, 640, :] = 0xff
 
-    with picamera.PiCamera() as camera:
-        camera.resolution = (1280, 720)
-        camera.framerate = 24
-        camera.start_preview()
-        # Add the overlay directly into layer 3 with transparency;
-        # we can omit the size parameter of add_overlay as the
-        # size is the same as the camera's resolution
-        o = camera.add_overlay(np.getbuffer(a), layer=3, alpha=64)
-        try:
-            # Wait indefinitely until the user terminates the script
-            while True:
-                time.sleep(1)
-        finally:
-            camera.remove_overlay(o)
+    camera = picamera.PiCamera()
+    camera.resolution = (1280, 720)
+    camera.framerate = 24
+    camera.start_preview()
+    # Add the overlay directly into layer 3 with transparency;
+    # we can omit the size parameter of add_overlay as the
+    # size is the same as the camera's resolution
+    o = camera.add_overlay(np.getbuffer(a), layer=3, alpha=64)
+    try:
+        # Wait indefinitely until the user terminates the script
+        while True:
+            time.sleep(1)
+    finally:
+        camera.remove_overlay(o)
 
-Given that overlaid renderers can be hidden (by moving them below the
-preview's :attr:`~picamera.renderers.PiRenderer.layer` which defaults to 2),
-made semi-transparent (with the :attr:`~picamera.renderers.PiRenderer.alpha`
-property), and resized so that they don't :attr:`fill the screen
-<picamera.renderers.PiRenderer.fullscreen>`, they can be used to construct
-simple user interfaces.
+Given that overlaid renderers can be hidden (by moving them below the preview's
+:attr:`~PiRenderer.layer` which defaults to 2), made semi-transparent (with the
+:attr:`~PiRenderer.alpha` property), and resized so that they don't :attr:`fill
+the screen <PiRenderer.fullscreen>`, they can be used to construct simple user
+interfaces.
 
 .. versionadded:: 1.8
 
@@ -874,19 +798,19 @@ Overlaying text on the output
 The camera includes a rudimentary annotation facility which permits up to 255
 characters of ASCII text to be overlaid on all output (including the preview,
 image captures and video recordings). To achieve this, simply assign a string
-to the :attr:`~picamera.camera.PiCamera.annotate_text` attribute::
+to the :attr:`~PiCamera.annotate_text` attribute::
 
     import picamera
     import time
 
-    with picamera.PiCamera() as camera:
-        camera.resolution = (640, 480)
-        camera.framerate = 24
-        camera.start_preview()
-        camera.annotate_text = 'Hello world!'
-        time.sleep(2)
-        # Take a picture including the annotation
-        camera.capture('foo.jpg')
+    camera = picamera.PiCamera()
+    camera.resolution = (640, 480)
+    camera.framerate = 24
+    camera.start_preview()
+    camera.annotate_text = 'Hello world!'
+    time.sleep(2)
+    # Take a picture including the annotation
+    camera.capture('foo.jpg')
 
 With a little ingenuity, it's possible to display longer strings::
 
@@ -896,35 +820,32 @@ With a little ingenuity, it's possible to display longer strings::
 
     s = "This message would be far too long to display normally..."
 
-    with picamera.PiCamera() as camera:
-        camera.resolution = (640, 480)
-        camera.framerate = 24
-        camera.start_preview()
-        camera.annotate_text = ' ' * 31
-        for c in itertools.cycle(s):
-            camera.annotate_text = camera.annotate_text[1:31] + c
-            time.sleep(0.1)
+    camera = picamera.PiCamera()
+    camera.resolution = (640, 480)
+    camera.framerate = 24
+    camera.start_preview()
+    camera.annotate_text = ' ' * 31
+    for c in itertools.cycle(s):
+        camera.annotate_text = camera.annotate_text[1:31] + c
+        time.sleep(0.1)
 
 And of course, it can be used to display (and embed) a timestamp in recordings
 (this recipe also demonstrates drawing a background behind the timestamp for
-contrast with the :attr:`~picamera.camera.PiCamera.annotate_background`
-attribute)::
+contrast with the :attr:`~PiCamera.annotate_background` attribute)::
 
     import picamera
     import datetime as dt
 
-    with picamera.PiCamera() as camera:
-        camera.resolution = (1280, 720)
-        camera.framerate = 24
-        camera.start_preview()
-        camera.annotate_background = picamera.Color('black')
+    camera = picamera.PiCamera(resolution=(1280, 720), framerate=24)
+    camera.start_preview()
+    camera.annotate_background = picamera.Color('black')
+    camera.annotate_text = dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    camera.start_recording('timestamped.h264')
+    start = dt.datetime.now()
+    while (dt.datetime.now() - start).seconds < 30:
         camera.annotate_text = dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        camera.start_recording('timestamped.h264')
-        start = dt.datetime.now()
-        while (dt.datetime.now() - start).seconds < 30:
-            camera.annotate_text = dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            camera.wait_recording(0.2)
-        camera.stop_recording()
+        camera.wait_recording(0.2)
+    camera.stop_recording()
 
 .. versionadded:: 1.7
 
@@ -946,15 +867,15 @@ the LED (e.g. blue-tack or electricians tape). Another method is to use the
 However, provided you have the `RPi.GPIO`_ package installed, and provided your
 Python process is running with sufficient privileges (typically this means
 running as root with ``sudo python``), you can also control the LED via the
-:attr:`~picamera.camera.PiCamera.led` attribute::
+:attr:`~PiCamera.led` attribute::
 
     import picamera
 
-    with picamera.PiCamera() as camera:
-        # Turn the camera's LED off
-        camera.led = False
-        # Take a picture while the LED remains off
-        camera.capture('foo.jpg')
+    camera = picamera.PiCamera()
+    # Turn the camera's LED off
+    camera.led = False
+    # Take a picture while the LED remains off
+    camera.capture('foo.jpg')
 
 .. warning::
 
@@ -965,7 +886,6 @@ running as root with ``sudo python``), you can also control the LED via the
 
 
 .. _PIL: http://effbot.org/imagingbook/pil-index.htm
-.. _OpenCV: http://opencv.org/
 .. _RPi.GPIO: https://pypi.python.org/pypi/RPi.GPIO
 .. _ring buffer: http://en.wikipedia.org/wiki/Circular_buffer
 .. _boot configuration: http://www.raspberrypi.org/documentation/configuration/config-txt.md

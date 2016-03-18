@@ -96,7 +96,7 @@ autodoc_member_order = 'groupwise'
 # -- Intersphinx configuration --------------------------------------------
 
 intersphinx_mapping = {
-    'python': ('http://docs.python.org/3.2', None),
+    'python': ('http://docs.python.org/3.4', None),
     'numpy':  ('http://docs.scipy.org/doc/numpy/', None),
     }
 
