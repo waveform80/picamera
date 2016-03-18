@@ -44,7 +44,7 @@ str = type('')
 
 
 import colorsys
-from math import pi, sqrt
+from math import pi, sqrt, atan2, degrees, radians, sin, cos, exp
 from fractions import Fraction
 from collections import namedtuple
 
@@ -565,6 +565,17 @@ class Color(namedtuple('Color', ('red', 'green', 'blue'))):
         return super(Color, cls).__new__(cls, r, g, b)
 
     @classmethod
+    def from_rgb_565(cls, n):
+        """
+        Construct a :class:`Color` from an unsigned 16-bit integer number
+        in RGB565 format.
+        """
+        r = (n & 0xF800) / 0xF800
+        g = (n & 0x07E0) / 0x07E0
+        b = (n & 0x001F) / 0x001F
+        return super(Color, cls).__new__(cls, r, g, b)
+
+    @classmethod
     def from_rgb_bytes(cls, r, g, b):
         """
         Construct a :class:`Color` from three `RGB`_ byte values between 0 and
@@ -723,6 +734,17 @@ class Color(namedtuple('Color', ('red', 'green', 'blue'))):
         1.0).
         """
         return (self.red, self.green, self.blue)
+
+    @property
+    def rgb_565(self):
+        """
+        Returns an unsigned 16-bit integer number representing the color in
+        the RGB565 encoding.
+        """
+        return (
+                (int(self.red   * 0xF800) & 0xF800) |
+                (int(self.green * 0x07E0) & 0x07E0) |
+                (int(self.blue  * 0x001F) & 0x001F))
 
     @property
     def rgb_bytes(self):
@@ -902,46 +924,111 @@ class Color(namedtuple('Color', ('red', 'green', 'blue'))):
         specified *method*. The *method* is specified as a string, and the
         following methods are valid:
 
-        * 'euclid' - Calculate the `Euclidian distance`_. This is by far the
-          fastest method, but also the least accurate in terms of human
-          perception.
-        * 'cie1976' - This is the default method. Use the `CIE 1976`_ formula
-          for calculating the difference between two colors in CIE Lab space.
-        * 'cie1994' - Use the `CIE 1994`_ formula with the "graphic arts" bias
+        * 'euclid' - This is the default method. Calculate the `Euclidian
+          distance`_. This is by far the fastest method, but also the least
+          accurate in terms of human perception.
+        * 'cie1976' - Use the `CIE 1976`_ formula for calculating the
+          difference between two colors in CIE Lab space.
+        * 'cie1994g' - Use the `CIE 1994`_ formula with the "graphic arts" bias
           for calculating the difference.
-        * 'cie2000' - Use the `CIE 2000`_ formula for calculating the
+        * 'cie1994t' - Use the `CIE 1994`_ forumula with the "textiles" bias
+          for calculating the difference.
+        * 'cie2000' - Use the `CIEDE 2000`_ formula for calculating the
           difference.
-        * 'cmc1984a' - Use the `CMC l:c`_ formula for calculating the
-          difference with a 2:1 (accepability) ratio.
-        * 'cmc1984i' - Use the `CMC l:c`_ formula for calculating the
-          difference with a 1:1 (imperceptibility) ratio.
 
-        Note that the Euclidian distance will be significantly different to
-        the other calculations; effectively this just measures the distance
-        between the two colors by treating them as coordinates in a three
-        dimensional Euclidian space. All other methods are means of calculating
-        a `Delta E`_ value in which 2.3 is considered a `just-noticeable
-        difference`_ (JND).
+        Note that the Euclidian distance will be significantly different to the
+        other calculations; effectively this just measures the distance between
+        the two colors by treating them as coordinates in a three dimensional
+        Euclidian space. All other methods are means of calculating a `Delta
+        E`_ value in which 2.3 is considered a `just-noticeable difference`_
+        (JND).
+
+        .. warning::
+
+            This implementation has yet to receive any significant testing
+            (constructor methods for CIELab need to be added before this can be
+            done).
 
         .. _Delta E: https://en.wikipedia.org/wiki/Color_difference
-        .. _Just Noticeable Difference: https://en.wikipedia.org/wiki/Just-noticeable_difference
+        .. _just-noticeable difference: https://en.wikipedia.org/wiki/Just-noticeable_difference
         .. _Euclidian distance: https://en.wikipedia.org/wiki/Euclidean_distance
         .. _CIE 1976: https://en.wikipedia.org/wiki/Color_difference#CIE76
         .. _CIE 1994: https://en.wikipedia.org/wiki/Color_difference#CIE94
-        .. _CIE 2000: https://en.wikipedia.org/wiki/Color_difference#CIEDE2000
-        .. _CMC l:c: https://en.wikipedia.org/wiki/Color_difference#CMC_l:c_.281984.29
+        .. _CIEDE 2000: https://en.wikipedia.org/wiki/Color_difference#CIEDE2000
         """
         if method == 'euclid':
             return sqrt(sum((Cs - Co) ** 2 for Cs, Co in zip(self, other)))
         elif method == 'cie1976':
-            return sqrt(sum((Cs - Co) ** 2 for Cs, Co in zip(self.cie_lab, other.cie_lab)))
-        elif method == 'cie1994':
-            raise NotImplementedError
-        elif method == 'cie2000':
-            raise NotImplementedError
-        elif method == 'cmc1984a':
-            raise NotImplementedError
-        elif method == 'cmc1984i':
-            raise NotImplementedError
+            return self._cie1976(other)
+        elif method.startswith('cie1994'):
+            return self._cie1994(other, method)
+        elif method == 'ciede2000':
+            return self._ciede2000(other)
         else:
             raise ValueError('invalid method: %s' % method)
+
+    def _cie1976(self, other):
+        return sqrt(sum((Cs - Co) ** 2 for Cs, Co in zip(self.cie_lab, other.cie_lab)))
+
+    def _cie1994(self, other, method):
+        L1, a1, b1 = self.cie_lab
+        L2, a2, b2 = other.cie_lab
+        dL = L1 - L2
+        C1 = sqrt(a1 ** 2 + b1 ** 2)
+        C2 = sqrt(a2 ** 2 + b2 ** 2)
+        dC = C1 - C2
+        # Don't bother with the sqrt here as due to limited float precision
+        # we can wind up with a domain error (because the value is ever so
+        # slightly negative - try it with black'n'white for an example)
+        dH2 = (a1 - a2) ** 2 + (b1 - b2) ** 2 - dC ** 2
+        kL, K1, K2 = {
+            'cie1994g': (1, 0.045, 0.015),
+            'cie1994t': (2, 0.048, 0.014),
+            }[method]
+        SC = 1 + K1 * C1
+        SH = 1 + K2 * C1
+        return sqrt((dL ** 2 / kL) + (dC ** 2 / SC) + (dH2 / SH))
+
+    def _ciede2000(self, other):
+        L1, a1, b1 = self.cie_lab
+        L2, a2, b2 = other.cie_lab
+        L_ = (L1 + L2) / 2
+        dL = L2 - L1
+        C1 = sqrt(a1 ** 2 + b1 ** 2)
+        C2 = sqrt(a1 ** 2 + b1 ** 2)
+        C_ = (C1 + C2) / 2
+        dC = C2 - C1
+        G = (1 - sqrt(C_ ** 7 / (C_ ** 7 + 25 ** 7))) / 2
+        a1 = (1 + G) * a1
+        a2 = (1 + G) * a2
+        h1 = 0.0 if b1 == a1 == 0 else degrees(atan2(b1, a1)) % 360
+        h2 = 0.0 if b2 == a2 == 0 else degrees(atan2(b2, a2)) % 360
+        if C1 * C2 == 0.0:
+            dh = 0.0
+            h_ = h1 + h2
+        elif abs(h1 - h2) <= 180:
+            dh = h2 - h1
+            h_ = (h1 + h2) / 2
+        else:
+            if h2 <= h1:
+                dh = h2 - h1 + 360
+            else:
+                dh = h2 - h1 - 360
+            if h1 + h2 >= 360:
+                h_ = (h1 + h2 + 360) / 2
+            else:
+                h_ = (h1 + h2 - 360) / 2
+        dH = 2 * sqrt(C1 * C2) * sin(radians(dh / 2))
+        T = (
+                1 -
+                0.17 * cos(radians(h_ - 30)) +
+                0.24 * cos(radians(2 * h_)) +
+                0.32 * cos(radians(3 * h_ + 6)) -
+                0.20 * cos(radians(4 * h_ - 63))
+                )
+        SL = 1 + (0.015 * (L_ - 50) ** 2) / sqrt(20 + (L_ - 50) ** 2)
+        SC = 1 + 0.045 * C_
+        SH = 1 + 0.015 * C_ * T
+        RT = -2 * sqrt(C_ ** 7 / (C_ ** 7 + 25 ** 7)) * sin(radians(60 * exp(-(((h_ - 275) / 25) ** 2))))
+        return sqrt((dL / SL) ** 2 + (dC / SC) ** 2 + (dH / SH) ** 2 + RT * (dC / SC) * (dH / SH))
+
