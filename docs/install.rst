@@ -119,3 +119,74 @@ up to date::
 
 .. _PiTFT: http://www.adafruit.com/product/1601
 
+
+.. _dev_install:
+
+Development installation
+========================
+
+If you wish to develop picamera itself, it is easiest to obtain the source by
+cloning the GitHub repository and then use the “develop” target of the Makefile
+which will install the package as a link to the cloned repository allowing
+in-place development (it also builds a tags file for use with vim/emacs with
+Exuberant’s ctags utility). The following example demonstrates this method
+within a virtual Python environment::
+
+    $ sudo apt-get install lsb-release build-essential git git-core \
+        exuberant-ctags python-virtualenv python3-virtualenv python-dev \
+        python3-dev libjpeg8-dev zlib1g-dev libav-tools
+    $ virtualenv -p /usr/bin/python3 sandbox
+    $ source sandbox/bin/activate
+    (sandbox) $ git clone https://github.com/waveform80/picamera.git
+    (sandbox) $ cd picamera
+    (sandbox) $ make develop
+
+To pull the latest changes from git into your clone and update your
+installation::
+
+    $ source sandbox/bin/activate
+    (sandbox) $ cd picamera
+    (sandbox) $ git pull
+    (sandbox) $ make develop
+
+To remove your installation blow away the sandbox and the clone::
+
+    $ rm -fr ~/sandbox/ ~/picamera/
+
+For anybody wishing to hack on the project please understand that although it
+is technically written in pure Python, heavy use of :mod:`ctypes` is involved
+so the code really doesn’t look much like Python - more a sort of horrid
+mishmash of C and Python.
+
+The project consists primarily of a class (:class:`PiCamera`) which is a
+re-implementation of high-level bits of the ``raspistill`` and ``raspivid``
+commands using the :mod:`ctypes` based ``libmmal`` header conversion, plus a
+set of :ref:`encoder classes <custom_encoders>` which re-implement the encoder
+callback configuration in the aforementioned binaries. Various classes for
+specialized applications also exist (:class:`PiCameraCircularIO`,
+:class:`~array.PiBayerArray`, etc.)
+
+Even if you don’t feel up to hacking on the code, I’d love to hear suggestions
+from people of what you’d like the API to look like (even if the code itself
+isn’t particularly pythonic, the interface should be)!
+
+
+.. _test_suite:
+
+Test suite
+==========
+
+If you wish to run the picamera test suite, follow the instructions in
+:ref:`dev_install` above and then make the "test" target within the sandbox::
+
+    $ source sandbox/bin/activate
+    (sandbox) $ cd picamera
+    (sandbox) $ make test
+
+.. warning::
+
+    The test suite takes a *very* long time to execute (at least 4 hours on an
+    overclocked Pi). Depending on configuration, it can also lockup the camera
+    requiring a reboot to reset, so ensure you are familiar with SSH or using
+    alternate TTYs to access a command line in the event you need to reboot.
+
