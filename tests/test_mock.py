@@ -59,10 +59,11 @@ def test_camera_init():
             picamera.PiCamera()
         assert e.value.args[0] == "Camera doesn't have output ports"
         ct.POINTER.return_value.return_value[0].output_num = 3
-        mmal.mmal_port_parameter_set.return_value = 1
+        mmal.mmal_port_parameter_set.side_effect = [0, 0, 0, 1]
         with pytest.raises(picamera.PiCameraError) as e:
             picamera.PiCamera()
         assert e.value.args[0].startswith("Unable to select camera 0")
+        mmal.mmal_port_parameter_set.side_effect = None
         mmal.mmal_port_parameter_set.return_value = 0
         mmal.mmal_port_enable.return_value = 1
         with pytest.raises(picamera.PiCameraError) as e:

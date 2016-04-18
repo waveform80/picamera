@@ -82,17 +82,23 @@ from picamera.renderers import (
 from picamera.color import Color
 
 try:
-    import RPi.GPIO as GPIO
+    from RPi import GPIO
 except ImportError:
     # Can't find RPi.GPIO so just null-out the reference
     GPIO = None
 
 
 def _control_callback(port, buf):
-    if buf[0].cmd != mmal.MMAL_EVENT_PARAMETER_CHANGED:
-        raise PiCameraRuntimeError(
-            "Received unexpected camera control callback event, 0x%08x" % buf[0].cmd)
-    mmal.mmal_buffer_header_release(buf)
+    try:
+        if buf[0].cmd == mmal.MMAL_EVENT_ERROR:
+            raise PiCameraRuntimeError(
+                "No data recevied from sensor. Check all connections, "
+                "including the SUNNY chip on the camera board")
+        elif buf[0].cmd != mmal.MMAL_EVENT_PARAMETER_CHANGED:
+            raise PiCameraRuntimeError(
+                "Received unexpected camera control callback event, 0x%08x" % buf[0].cmd)
+    finally:
+        mmal.mmal_buffer_header_release(buf)
 _control_callback = mmal.MMAL_PORT_BH_CB_T(_control_callback)
 
 
@@ -216,12 +222,6 @@ class PiCamera(object):
     the *stereo_decimate* parameter is ``True``, the resolution of the two
     cameras will be halved so that the resulting image has the same dimensions
     as if stereoscopic mode were not being used.
-
-    .. warning::
-
-        Stereoscopic mode is untested in picamera at this time. If you have the
-        necessary hardware, the author would be most interested to hear of your
-        experiences!
 
     The *led_pin* parameter can be used to specify the GPIO pin which should be
     used to control the camera's LED via the :attr:`led` attribute. If this is
@@ -535,6 +535,24 @@ class PiCamera(object):
         if not self._camera[0].output_num:
             raise PiCameraError("Camera doesn't have output ports")
 
+        # Don't attempt to set this if stereo mode isn't requested as it'll
+        # break compatibility on older firmwares
+        if stereo_mode != mmal.MMAL_STEREOSCOPIC_MODE_NONE:
+            for p in self.CAMERA_PORTS:
+                port = self._camera[0].output[p]
+                mp = mmal.MMAL_PARAMETER_STEREOSCOPIC_MODE_T(
+                    mmal.MMAL_PARAMETER_HEADER_T(
+                        mmal.MMAL_PARAMETER_STEREOSCOPIC_MODE,
+                        ct.sizeof(mmal.MMAL_PARAMETER_STEREOSCOPIC_MODE_T),
+                    ),
+                    mode=stereo_mode,
+                    decimate=stereo_decimate,
+                    swap_eyes=False,
+                    )
+                mmal_check(
+                    mmal.mmal_port_parameter_set(port, mp.hdr),
+                    prefix="Unable to set stereoscopic mode on output %d" % p)
+
         mp = mmal.MMAL_PARAMETER_INT32_T(
             mmal.MMAL_PARAMETER_HEADER_T(
                 mmal.MMAL_PARAMETER_CAMERA_NUM,
@@ -581,21 +599,6 @@ class PiCamera(object):
 
         for p in self.CAMERA_PORTS:
             port = self._camera[0].output[p]
-            # Don't attempt to set this if stereo mode isn't requested as it'll
-            # break compatibility on older firmwares
-            if stereo_mode != mmal.MMAL_STEREOSCOPIC_MODE_NONE:
-                mp = mmal.MMAL_PARAMETER_STEREOSCOPIC_MODE_T(
-                    mmal.MMAL_PARAMETER_HEADER_T(
-                        mmal.MMAL_PARAMETER_STEREOSCOPIC_MODE,
-                        ct.sizeof(mmal.MMAL_PARAMETER_STEREOSCOPIC_MODE_T),
-                    ),
-                    mode=stereo_mode,
-                    decimate=stereo_decimate,
-                    swap_eyes=False,
-                    )
-                mmal_check(
-                    mmal.mmal_port_parameter_set(port, mp.hdr),
-                    prefix="Unable to set stereoscopic mode on output %d" % p)
             fmt = port[0].format
             fmt[0].encoding = mmal.MMAL_ENCODING_I420 if p != self.CAMERA_PREVIEW_PORT else mmal.MMAL_ENCODING_OPAQUE
             fmt[0].encoding_variant = mmal.MMAL_ENCODING_I420
