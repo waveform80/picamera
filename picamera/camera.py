@@ -2635,6 +2635,41 @@ class PiCamera(object):
             30fps, the shutter speed cannot be slower than 33,333µs (1/fps).
         """)
 
+    def _get_video_frame_rate(self):
+        self._check_camera_open()
+        mp = mmal.MMAL_RATIONAL_T()
+        mmal_check(
+            mmal.mmal_port_parameter_get_rational(
+                self._camera[0].output[0],
+                mmal.MMAL_PARAMETER_VIDEO_FRAME_RATE,
+                mp
+                ),
+            prefix="Failed to get live framerate")
+        return float(mp.num)/mp.den
+
+    def _set_video_frame_rate(self, value):
+        self._check_camera_open()
+        for p in (self.CAMERA_PREVIEW_PORT,
+                  self.CAMERA_VIDEO_PORT):
+            mmal_check(
+                mmal.mmal_port_parameter_set_rational(
+                    self._camera[0].output[p],
+                    mmal.MMAL_PARAMETER_VIDEO_FRAME_RATE,
+                    mmal.MMAL_RATIONAL_T(int(value*256), 256)
+                ),
+                prefix="Failed to set live framerate")
+
+    video_frame_rate = property(_get_video_frame_rate, _set_video_frame_rate, doc="""
+        Retrieves or sets the video frame frate, in floating point frames per second.
+
+        This can be set and read during capture, and is useful for
+        frame synchronization across multiple pi cameras, as hinted at in
+        this forum thread:
+
+          https://www.raspberrypi.org/forums/viewtopic.php?f=43&t=48238&start=75
+
+    """)
+
     def _get_camera_settings(self):
         """
         Returns the current camera settings as an MMAL structure.
@@ -4088,4 +4123,3 @@ class PiCamera(object):
             In prior versions this was a bool value with ``True`` representing
             a black background.
         """)
-
