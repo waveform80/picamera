@@ -142,7 +142,7 @@ def test_awb_gains(camera, previewing):
 
     def check_gains(red, blue):
         # The camera needs some time to let the AWB gains adjust
-        time.sleep(0.1)
+        time.sleep(0.2)
         # The gains we get back aren't absolutely precise, but they're
         # close (+/- 0.05)
         r, b = camera.awb_gains
@@ -235,7 +235,7 @@ def test_image_effects1(camera, previewing):
                     camera.image_effect_params = params
                     assert camera.image_effect_params == params
     finally:
-        camera.effect = 'none'
+        camera.image_effect = 'none'
 
 def test_image_effects2(camera, previewing):
     invalid_combinations = {

@@ -979,9 +979,9 @@ class PiVideoEncoder(PiEncoder):
         # intra_period / framerate gives the time between I-frames (which
         # should also coincide with SPS headers). We multiply by three to
         # ensure the timeout is deliberately excessive, and clamp the minimum
-        # timeout to 1 second (otherwise unencoded formats tend to fail
+        # timeout to 10 seconds (otherwise unencoded formats tend to fail
         # presumably due to I/O capacity)
-        timeout = max(1.0, float(self._intra_period / self.parent.framerate) * 3.0)
+        timeout = max(10.0, float(self._intra_period / self.parent.framerate) * 3.0)
         if not self.event.wait(timeout):
             raise PiCameraRuntimeError(
                 'Timed out waiting for a split point')

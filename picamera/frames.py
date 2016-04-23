@@ -37,6 +37,7 @@ from __future__ import (
 # Make Py2's str and range equivalent to Py3's
 str = type('')
 
+import warnings
 from collections import namedtuple
 
 from picamera.exc import (
