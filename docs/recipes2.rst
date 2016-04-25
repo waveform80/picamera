@@ -1619,6 +1619,26 @@ After compiling and installing the device tree blob according to the
 instructions above, and rebooting the Pi, you should find the camera LED now
 acts as a flash LED with the Python script above.
 
+Multiple Raspberry Pi Video Frame Synchronization
+=================================================
+
+Frame synchronization, phase locking, gen locking... can only be
+approximated with the raspberry pi camera module.  However, by making
+small adjustments to the video frame rate, it is possible to phase
+lock the presentation time of each video frame to some reference, such
+as the system clock.  Raspberry pi system clocks can then be
+synchronized with eachother through NTP or chrony.
+
+This is an implementation of the suggestion in the raspberrypi forum
+on the topic of frame synchronization:
+https://www.raspberrypi.org/forums/viewtopic.php?f=43&t=48238&start=75
+
+In practice this seems to work well enough to synchronize camera video
+frames to well under 1 millisecond on the same LAN.
+
+.. literalinclude:: phase_locked_tcp_streamer.py
+   :language: python
+
 
 .. _YUV: http://en.wikipedia.org/wiki/YUV
 .. _YUV420: http://en.wikipedia.org/wiki/YUV#Y.27UV420p_.28and_Y.27V12_or_YV12.29_to_RGB888_conversion
