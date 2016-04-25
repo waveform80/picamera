@@ -134,6 +134,7 @@ class PhaseLockedOutput(object):
 
         self.freq_detector = FrequencyDetector(self.framerate)
         self.phase_detector = PhaseDetector(self.framerate)
+        # These values seem to work well for 20-30 HZ.
         self.freq_pid = PIDLoop(set_point=self.framerate, kp=20.0/256.0, ki=1.0/256.0, kd=1.0/256.0)
         self.phase_pid = PIDLoop(set_point=0.0, kp=10.0/256.0, ki=5.0/256.0, kd=1.0/256.0)
         self.last_index = 0
@@ -219,7 +220,6 @@ class PhaseLockedOutput(object):
 
 def Main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--fps', type=float, default=10)
     parser.add_argument('--codec', type=str, default='h264', choices=('h264','mjpeg'))
     args = parser.parse_args()
     server_socket = socket.socket()
@@ -229,7 +229,9 @@ def Main():
     output = server_socket.accept()[0].makefile('wb')
     with picamera.PiCamera(clock_mode='raw') as camera:
         camera.resolution = (2592/2,1944/2)
-        camera.framerate = args.fps
+        # You may need to tune the PID values to
+        # get other values of framerate to work.
+        camera.framerate = 30
         camera.exposure_mode = 'fixedfps'
         out = PhaseLockedOutput(camera, output=output)
         camera.start_recording(out, format=args.codec)
