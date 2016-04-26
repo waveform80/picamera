@@ -1,14 +1,14 @@
 #!/usr/bin/env python
-'''This example recipe demonstrates how to capture frames which are
+'''This recipe demonstrates how to capture frames which are
 phase locked to the system time modulo the desired frame period.  For
-example, frames requested at 20 HZ will be aqcuired at integer
-multiples of 50 milliseconds since the unix epoch.
+example, frames requested at 20 HZ will be acquired at integer
+multiples of 50 milliseconds since the UNIX epoch.
 
-This is accomplished by making small adjustements to the frame rate
+This is accomplished by making small adjustments to the frame rate
 until the frequency and phase of the frames converge to integer
 multiples of the desired framer period since the epoch.
 
-This in conjunction with ntp, or chrony, should enable many raspberry
+This in conjunction with NTP, or chrony, should enable many raspberry
 pis to capture video frames which are reasonably (sub-millisecond)
 synchronized.
 
@@ -16,37 +16,12 @@ This is mostly an example, and is not production ready.
 
 Author: Ethan Rublee <ethan.rublee@gmail.com>
 Date: April, 2016
+
 '''
 
-import Queue
 import argparse
-import ctypes
-import os
-import math
 import picamera
-import socket
-import threading
 import time
-
-# monotonic_time from http://stackoverflow.com/a/1205762
-CLOCK_MONOTONIC_RAW = 4 # see <linux/time.h>
-
-class timespec(ctypes.Structure):
-    _fields_ = [
-        ('tv_sec', ctypes.c_long),
-        ('tv_nsec', ctypes.c_long)
-    ]
-
-librt = ctypes.CDLL('librt.so.1', use_errno=True)
-clock_gettime = librt.clock_gettime
-clock_gettime.argtypes = [ctypes.c_int, ctypes.POINTER(timespec)]
-
-def monotonic_time():
-    t = timespec()
-    if clock_gettime(CLOCK_MONOTONIC_RAW , ctypes.pointer(t)) != 0:
-        errno_ = ctypes.get_errno()
-        raise OSError(errno_, os.strerror(errno_))
-    return t.tv_sec + t.tv_nsec * 1e-9
 
 class PhaseDetector(object):
     def __init__(self, frequency):
@@ -57,7 +32,7 @@ class PhaseDetector(object):
         self.alpha = 0.1
 
     def Update(self, stamp):
-        ref_stamp = self.duration*math.floor(stamp/self.duration + 0.5)
+        ref_stamp = self.duration*int(stamp/self.duration + 0.5)
         phase = (stamp - ref_stamp)/self.duration
         if self.count == 0:
             self.phase = phase
@@ -127,49 +102,40 @@ class PIDLoop(object):
 
 
 class PhaseLockedOutput(object):
-    def __init__(self, camera, output=None):
+    def __init__(self, camera):
         self.framerate = camera.framerate
         self.camera = camera
-        self.output = output
-
+        self.time_offset = time.time() - 1e-6*self.camera.timestamp
         self.freq_detector = FrequencyDetector(self.framerate)
         self.phase_detector = PhaseDetector(self.framerate)
-        # These values seem to work well for 20-30 HZ.
-        self.freq_pid = PIDLoop(set_point=self.framerate, kp=20.0/256.0, ki=1.0/256.0, kd=1.0/256.0)
-        self.phase_pid = PIDLoop(set_point=0.0, kp=10.0/256.0, ki=5.0/256.0, kd=1.0/256.0)
+        # These values seem to work well for 10-30 HZ.
+        self.freq_pid = PIDLoop(set_point=self.framerate, kp=0.1, ki=0.05, kd=0.1)
+        self.phase_pid = PIDLoop(set_point=0.0, kp=0.1, ki=0.05, kd=0.1)
         self.last_index = 0
         self.last_rate = self.framerate
         self.count = 0
 
-        # Write in queue because the phase locking code is sensitive to
-        # latency caused by writing.
-        self.write_q = Queue.Queue()
-        self.write_thread = threading.Thread(target=self._twrite)
-        self.write_thread.daemon = True
-        self.write_thread.start()
+    def _frame_timestamp(self):
+        # Returns the frame time stamp in the system clock frame, in
+        # seconds.
+        #
+        # Compute the time offset between system time, and the
+        # camera clock. This offset will drift slightly
+        # overtime if the system clock is adjusted by NTP, for
+        # example, so update it with a low pass filter.
+        time_offset = time.time() - 1e-6*self.camera.timestamp
+        self.time_offset = self.time_offset*0.9 + time_offset*0.1
+        return 1e-6*self.camera.frame.timestamp + self.time_offset
 
-    def _twrite(self):
-        # Writing thread
-        while True:
-            data = self.write_q.get()
-            if self.output is not None:
-                self.output.write(data)
-            self.write_q.task_done()
-
-    def write(self, s):
+    def write(self, data):
+        stamp = 0
         if self.camera.frame.timestamp and self.camera.frame.timestamp > 0 and self.camera.frame.index != self.last_index:
             self.last_index = self.camera.frame.index
-            # Compute the time offset between system time, and the
-            # monotonic clock, which is what it appears the frame's
-            # timestamp is based in. This offset will drift slightly
-            # overtime if the system clock is adjusted by NTP, for
-            # example.
-            time_offset = time.time() - monotonic_time()
             # The presentation timestamp, in the system time frame.
-            stamp = 1e-6*self.camera.frame.timestamp + time_offset
+            stamp = self._frame_timestamp()
             # NOTE it's important to measure the frame rate, because
-            # the camera doesn't seem to really quite acheive the
-            # commanded frame rate.
+            # the camera doesn't seem to achieve the commanded frame
+            # rate.
             freq = self.freq_detector.Update(stamp)
             phase = self.phase_detector.Update(stamp)
             self.freq_pid.Update(freq, stamp)
@@ -177,7 +143,7 @@ class PhaseLockedOutput(object):
             phase_err = self.phase_pid.Err()
             freq_err = self.freq_pid.Err()
             command_rate = self.last_rate + self.freq_pid.Offset()
-            if abs(freq - self.framerate) < 0.2:
+            if abs(freq - self.framerate) < 0.5:
                 # Only adjust phase if we're close to the desired
                 # frequency.  The negative is because if the phase
                 # offset is positive, we need to slow the framerate
@@ -212,28 +178,19 @@ class PhaseLockedOutput(object):
                 phase,
                 freq))
 
-        self.write_q.put(s)
-
     def flush(self):
         self.write_q.join()
-        self.output.flush()
 
 def Main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--codec', type=str, default='h264', choices=('h264','mjpeg'))
+    parser.add_argument('--framerate', type=int, default=30)
     args = parser.parse_args()
-    server_socket = socket.socket()
-    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    server_socket.bind(('0.0.0.0', 8000))
-    server_socket.listen(0)
-    output = server_socket.accept()[0].makefile('wb')
     with picamera.PiCamera(clock_mode='raw') as camera:
         camera.resolution = (2592/2,1944/2)
-        # You may need to tune the PID values to
-        # get other values of framerate to work.
-        camera.framerate = 30
+        camera.framerate = args.framerate
         camera.exposure_mode = 'fixedfps'
-        out = PhaseLockedOutput(camera, output=output)
+        out = PhaseLockedOutput(camera)
         camera.start_recording(out, format=args.codec)
         while True:
             camera.wait_recording(1)
