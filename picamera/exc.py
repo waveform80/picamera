@@ -59,6 +59,24 @@ class PiCameraFallback(PiCameraWarning, RuntimeWarning):
     """
 
 
+class PiCameraResizerEncoding(PiCameraWarning, RuntimeWarning):
+    """
+    Raised when picamera uses a resizer purely for encoding purposes.
+    """
+
+
+class PiCameraAlphaStripping(PiCameraWarning, RuntimeWarning):
+    """
+    Raised when picamera does alpha-byte stripping.
+    """
+
+
+class PiCameraResolutionRounded(PiCameraWarning, RuntimeWarning):
+    """
+    Raised when picamera has to round a requested frame size upward.
+    """
+
+
 class PiCameraError(Exception):
     """
     Base class for PiCamera errors.

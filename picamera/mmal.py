@@ -882,7 +882,7 @@ class MMAL_PARAMETER_FACE_TRACK_T(ct.Structure):
         ('quality',    ct.c_uint32),
         ]
 
-class MMAL_PARAMETER_FACE_TRACK_FACE_T (ct.Structure):
+class MMAL_PARAMETER_FACE_TRACK_FACE_T(ct.Structure):
     _fields_ = [
         ('face_id',    ct.c_int32),
         ('score',      ct.c_int32),
@@ -891,7 +891,7 @@ class MMAL_PARAMETER_FACE_TRACK_FACE_T (ct.Structure):
         ('mouth_rect', MMAL_RECT_T),
         ]
 
-class MMAL_PARAMETER_FACE_TRACK_RESULTS_T (ct.Structure):
+class MMAL_PARAMETER_FACE_TRACK_RESULTS_T(ct.Structure):
     _fields_ = [
         ('hdr',          MMAL_PARAMETER_HEADER_T),
         ('num_faces',    ct.c_uint32),
@@ -2121,7 +2121,7 @@ MMAL_COMPONENT_DEFAULT_VIDEO_SPLITTER  = b"vc.ril.video_splitter"
 MMAL_COMPONENT_DEFAULT_AUDIO_DECODER   = b"none"
 MMAL_COMPONENT_DEFAULT_AUDIO_RENDERER  = b"vc.ril.audio_render"
 MMAL_COMPONENT_DEFAULT_MIRACAST        = b"vc.miracast"
-MMAL_COMPONENT_DEFAULT_CLOCk           = b"vc.clock"
+MMAL_COMPONENT_DEFAULT_CLOCK           = b"vc.clock"
 # The following two components aren't in the MMAL headers, but do exist
 MMAL_COMPONENT_DEFAULT_NULL_SINK       = b"vc.null_sink"
 MMAL_COMPONENT_DEFAULT_RESIZER         = b"vc.ril.resize"

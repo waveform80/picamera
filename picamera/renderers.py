@@ -39,17 +39,12 @@ str = type('')
 
 import ctypes as ct
 
-import picamera.mmal as mmal
-from picamera.exc import (
+from . import mmal, mmalobj as mo
+from .exc import (
     PiCameraRuntimeError,
     PiCameraValueError,
     mmal_check,
     )
-
-
-def _overlay_callback(port, buf):
-    mmal.mmal_buffer_header_release(buf)
-_overlay_callback = mmal.MMAL_PORT_BH_CB_T(_overlay_callback)
 
 
 class PiRenderer(object):
@@ -81,16 +76,8 @@ class PiRenderer(object):
         self._rotation = 0
         self._vflip = False
         self._hflip = False
-        self.parent = parent
-        self.renderer = ct.POINTER(mmal.MMAL_COMPONENT_T)()
-        mmal_check(
-            mmal.mmal_component_create(
-                mmal.MMAL_COMPONENT_DEFAULT_VIDEO_RENDERER, self.renderer),
-            prefix="Failed to create renderer component")
+        self.renderer = mo.MMALRenderer()
         try:
-            if not self.renderer[0].input_num:
-                raise PiCameraError("No input ports on renderer component")
-
             self.layer = layer
             self.alpha = alpha
             self.fullscreen = fullscreen
@@ -101,12 +88,9 @@ class PiRenderer(object):
             self.rotation = rotation
             self.vflip = vflip
             self.hflip = hflip
-
-            mmal_check(
-                mmal.mmal_component_enable(self.renderer),
-                prefix="Renderer component couldn't be enabled")
+            self.renderer.enabled = True
         except:
-            mmal.mmal_component_destroy(self.renderer)
+            self.renderer.close()
             raise
 
     def close(self):
@@ -118,7 +102,7 @@ class PiRenderer(object):
         collector to destroy it at some future time).
         """
         if self.renderer:
-            mmal.mmal_component_destroy(self.renderer)
+            self.renderer.close()
             self.renderer = None
 
     def __enter__(self):
@@ -128,15 +112,7 @@ class PiRenderer(object):
         self.close()
 
     def _get_alpha(self):
-        mp = mmal.MMAL_DISPLAYREGION_T(
-            mmal.MMAL_PARAMETER_HEADER_T(
-                mmal.MMAL_PARAMETER_DISPLAYREGION,
-                ct.sizeof(mmal.MMAL_DISPLAYREGION_T)
-            ))
-        mmal_check(
-            mmal.mmal_port_parameter_get(self.renderer[0].input[0], mp.hdr),
-            prefix="Failed to get alpha")
-        return mp.alpha
+        return self.renderer.inputs[0].params[mmal.MMAL_PARAMETER_DISPLAYREGION].alpha
     def _set_alpha(self, value):
         try:
             if not (0 <= value <= 255):
@@ -144,18 +120,11 @@ class PiRenderer(object):
                     "Invalid alpha value: %d (valid range 0..255)" % value)
         except TypeError:
             raise PiCameraValueError("Invalid alpha value: %s" % value)
-        mp = mmal.MMAL_DISPLAYREGION_T(
-            mmal.MMAL_PARAMETER_HEADER_T(
-                mmal.MMAL_PARAMETER_DISPLAYREGION,
-                ct.sizeof(mmal.MMAL_DISPLAYREGION_T)
-                ),
-            set=mmal.MMAL_DISPLAY_SET_ALPHA,
-            alpha=value
-            )
-        mmal_check(
-            mmal.mmal_port_parameter_set(self.renderer[0].input[0], mp.hdr),
-            prefix="Failed to set alpha")
-    alpha = property(_get_alpha, _set_alpha, doc="""
+        mp = self.renderer.inputs[0].params[mmal.MMAL_PARAMETER_DISPLAYREGION]
+        mp.set = mmal.MMAL_DISPLAY_SET_ALPHA
+        mp.alpha = value
+        self.renderer.inputs[0].params[mmal.MMAL_PARAMETER_DISPLAYREGION] = mp
+    alpha = property(_get_alpha, _set_alpha, doc="""\
         Retrieves or sets the opacity of the renderer.
 
         When queried, the :attr:`alpha` property returns a value between 0 and
@@ -165,15 +134,7 @@ class PiRenderer(object):
         """)
 
     def _get_layer(self):
-        mp = mmal.MMAL_DISPLAYREGION_T(
-            mmal.MMAL_PARAMETER_HEADER_T(
-                mmal.MMAL_PARAMETER_DISPLAYREGION,
-                ct.sizeof(mmal.MMAL_DISPLAYREGION_T)
-            ))
-        mmal_check(
-            mmal.mmal_port_parameter_get(self.renderer[0].input[0], mp.hdr),
-            prefix="Failed to get layer")
-        return mp.layer
+        return self.renderer.inputs[0].params[mmal.MMAL_PARAMETER_DISPLAYREGION].layer
     def _set_layer(self, value):
         try:
             if not (0 <= value <= 255):
@@ -181,19 +142,11 @@ class PiRenderer(object):
                     "Invalid layer value: %d (valid range 0..255)" % value)
         except TypeError:
             raise PiCameraValueError("Invalid layer value: %s" % value)
-        mp = mmal.MMAL_DISPLAYREGION_T(
-            mmal.MMAL_PARAMETER_HEADER_T(
-                mmal.MMAL_PARAMETER_DISPLAYREGION,
-                ct.sizeof(mmal.MMAL_DISPLAYREGION_T)
-                ),
-            set=mmal.MMAL_DISPLAY_SET_LAYER,
-            layer=value
-            )
-        mmal_check(
-            mmal.mmal_port_parameter_set(self.renderer[0].input[0], mp.hdr),
-            prefix="Failed to set layer")
-    layer = property(
-            _get_layer, _set_layer, doc="""
+        mp = self.renderer.inputs[0].params[mmal.MMAL_PARAMETER_DISPLAYREGION]
+        mp.set = mmal.MMAL_DISPLAY_SET_LAYER
+        mp.layer = value
+        self.renderer.inputs[0].params[mmal.MMAL_PARAMETER_DISPLAYREGION] = mp
+    layer = property(_get_layer, _set_layer, doc="""\
         Retrieves or sets the layer of the renderer.
 
         The :attr:`layer` property is an integer which controls the layer that
@@ -203,29 +156,13 @@ class PiRenderer(object):
         """)
 
     def _get_fullscreen(self):
-        mp = mmal.MMAL_DISPLAYREGION_T(
-            mmal.MMAL_PARAMETER_HEADER_T(
-                mmal.MMAL_PARAMETER_DISPLAYREGION,
-                ct.sizeof(mmal.MMAL_DISPLAYREGION_T)
-            ))
-        mmal_check(
-            mmal.mmal_port_parameter_get(self.renderer[0].input[0], mp.hdr),
-            prefix="Failed to get fullscreen")
-        return mp.fullscreen != mmal.MMAL_FALSE
+        return self.renderer.inputs[0].params[mmal.MMAL_PARAMETER_DISPLAYREGION].fullscreen != mmal.MMAL_FALSE
     def _set_fullscreen(self, value):
-        mp = mmal.MMAL_DISPLAYREGION_T(
-            mmal.MMAL_PARAMETER_HEADER_T(
-                mmal.MMAL_PARAMETER_DISPLAYREGION,
-                ct.sizeof(mmal.MMAL_DISPLAYREGION_T)
-                ),
-            set=mmal.MMAL_DISPLAY_SET_FULLSCREEN,
-            fullscreen=bool(value)
-            )
-        mmal_check(
-            mmal.mmal_port_parameter_set(self.renderer[0].input[0], mp.hdr),
-            prefix="Failed to set fullscreen")
-    fullscreen = property(
-            _get_fullscreen, _set_fullscreen, doc="""
+        mp = self.renderer.inputs[0].params[mmal.MMAL_PARAMETER_DISPLAYREGION]
+        mp.set = mmal.MMAL_DISPLAY_SET_FULLSCREEN
+        mp.fullscreen = bool(value)
+        self.renderer.inputs[0].params[mmal.MMAL_PARAMETER_DISPLAYREGION] = mp
+    fullscreen = property(_get_fullscreen, _set_fullscreen, doc="""\
         Retrieves or sets whether the renderer appears full-screen.
 
         The :attr:`fullscreen` property is a bool which controls whether the
@@ -236,14 +173,7 @@ class PiRenderer(object):
         """)
 
     def _get_window(self):
-        mp = mmal.MMAL_DISPLAYREGION_T(
-            mmal.MMAL_PARAMETER_HEADER_T(
-                mmal.MMAL_PARAMETER_DISPLAYREGION,
-                ct.sizeof(mmal.MMAL_DISPLAYREGION_T)
-            ))
-        mmal_check(
-            mmal.mmal_port_parameter_get(self.renderer[0].input[0], mp.hdr),
-            prefix="Failed to get window")
+        mp = self.renderer.inputs[0].params[mmal.MMAL_PARAMETER_DISPLAYREGION]
         return (
             mp.dest_rect.x,
             mp.dest_rect.y,
@@ -256,18 +186,11 @@ class PiRenderer(object):
         except (TypeError, ValueError) as e:
             raise PiCameraValueError(
                 "Invalid window rectangle (x, y, w, h) tuple: %s" % value)
-        mp = mmal.MMAL_DISPLAYREGION_T(
-            mmal.MMAL_PARAMETER_HEADER_T(
-                mmal.MMAL_PARAMETER_DISPLAYREGION,
-                ct.sizeof(mmal.MMAL_DISPLAYREGION_T)
-                ),
-            set=mmal.MMAL_DISPLAY_SET_DEST_RECT,
-            dest_rect=mmal.MMAL_RECT_T(x, y, w, h),
-            )
-        mmal_check(
-            mmal.mmal_port_parameter_set(self.renderer[0].input[0], mp.hdr),
-            prefix="Failed to set window")
-    window = property(_get_window, _set_window, doc="""
+        mp = self.renderer.inputs[0].params[mmal.MMAL_PARAMETER_DISPLAYREGION]
+        mp.set = mmal.MMAL_DISPLAY_SET_DEST_RECT
+        mp.dest_rect = mmal.MMAL_RECT(x, y, w, h)
+        self.renderer.inputs[0].params[mmal.MMAL_PARAMETER_DISPLAYREGION] = mp
+    window = property(_get_window, _set_window, doc="""\
         Retrieves or sets the size of the renderer.
 
         When the :attr:`fullscreen` property is set to ``False``, the
@@ -278,14 +201,7 @@ class PiRenderer(object):
         """)
 
     def _get_crop(self):
-        mp = mmal.MMAL_DISPLAYREGION_T(
-            mmal.MMAL_PARAMETER_HEADER_T(
-                mmal.MMAL_PARAMETER_DISPLAYREGION,
-                ct.sizeof(mmal.MMAL_DISPLAYREGION_T)
-            ))
-        mmal_check(
-            mmal.mmal_port_parameter_get(self.renderer[0].input[0], mp.hdr),
-            prefix="Failed to get crop")
+        mp = self.renderer.inputs[0].params[mmal.MMAL_PARAMETER_DISPLAYREGION]
         return (
             mp.src_rect.x,
             mp.src_rect.y,
@@ -298,18 +214,11 @@ class PiRenderer(object):
         except (TypeError, ValueError) as e:
             raise PiCameraValueError(
                 "Invalid crop rectangle (x, y, w, h) tuple: %s" % value)
-        mp = mmal.MMAL_DISPLAYREGION_T(
-            mmal.MMAL_PARAMETER_HEADER_T(
-                mmal.MMAL_PARAMETER_DISPLAYREGION,
-                ct.sizeof(mmal.MMAL_DISPLAYREGION_T)
-                ),
-            set=mmal.MMAL_DISPLAY_SET_SRC_RECT,
-            src_rect=mmal.MMAL_RECT_T(x, y, w, h),
-            )
-        mmal_check(
-            mmal.mmal_port_parameter_set(self.renderer[0].input[0], mp.hdr),
-            prefix="Failed to set crop")
-    crop = property(_get_crop, _set_crop, doc="""
+        mp = self.renderer.inputs[0].params[mmal.MMAL_PARAMETER_DISPLAYREGION]
+        mp.set = mmal.MMAL_DISPLAY_SET_SRC_RECT
+        mp.src_rect = mmal.MMAL_RECT(x, y, w, h)
+        self.renderer.inputs[0].params[mmal.MMAL_PARAMETER_DISPLAYREGION] = mp
+    crop = property(_get_crop, _set_crop, doc="""\
         Retrieves or sets the area to read from the source.
 
         The :attr:`crop` property specifies the rectangular area that the
@@ -341,7 +250,7 @@ class PiRenderer(object):
         self._set_transform(
                 self._get_transform(value, self._vflip, self._hflip))
         self._rotation = value
-    rotation = property(_get_rotation, _set_rotation, doc="""
+    rotation = property(_get_rotation, _set_rotation, doc="""\
         Retrieves or sets the current rotation of the renderer.
 
         When queried, the :attr:`rotation` property returns the rotation
@@ -365,7 +274,7 @@ class PiRenderer(object):
         self._set_transform(
                 self._get_transform(self._rotation, value, self._hflip))
         self._vflip = value
-    vflip = property(_get_vflip, _set_vflip, doc="""
+    vflip = property(_get_vflip, _set_vflip, doc="""\
         Retrieves or sets whether the renderer's output is vertically flipped.
 
         When queried, the :attr:`vflip` property returns a boolean indicating
@@ -387,7 +296,7 @@ class PiRenderer(object):
         self._set_transform(
                 self._get_transform(self._rotation, self._vflip, value))
         self._hflip = value
-    hflip = property(_get_hflip, _set_hflip, doc="""
+    hflip = property(_get_hflip, _set_hflip, doc="""\
         Retrieves or sets whether the renderer's output is horizontally
         flipped.
 
@@ -422,17 +331,10 @@ class PiRenderer(object):
             }[(rotate, mirror)]
 
     def _set_transform(self, value):
-        mp = mmal.MMAL_DISPLAYREGION_T(
-            mmal.MMAL_PARAMETER_HEADER_T(
-                mmal.MMAL_PARAMETER_DISPLAYREGION,
-                ct.sizeof(mmal.MMAL_DISPLAYREGION_T)
-                ),
-            set=mmal.MMAL_DISPLAY_SET_TRANSFORM,
-            transform=value,
-            )
-        mmal_check(
-            mmal.mmal_port_parameter_set(self.renderer[0].input[0], mp.hdr),
-            prefix="Failed to set transform")
+        mp = self.renderer.inputs[0].params[mmal.MMAL_PARAMETER_DISPLAYREGION]
+        mp.set = mmal.MMAL_DISPLAY_SET_TRANSFORM
+        mp.transform = value
+        self.renderer.inputs[0].params[mmal.MMAL_PARAMETER_DISPLAYREGION] = mp
 
 
 class PiOverlayRenderer(PiRenderer):
@@ -474,44 +376,16 @@ class PiOverlayRenderer(PiRenderer):
 
         # Copy format from camera's preview port, then adjust the encoding to
         # RGB888 and optionally adjust the resolution and size
-        port = self.renderer[0].input[0]
-        fmt = port[0].format
-        mmal.mmal_format_copy(
-            fmt, parent._camera[0].output[parent.CAMERA_PREVIEW_PORT][0].format)
-        fmt[0].encoding = mmal.MMAL_ENCODING_RGB24
-        fmt[0].encoding_variant = mmal.MMAL_ENCODING_RGB24
+        self.renderer.inputs[0].copy_from(parent._camera.outputs[parent.CAMERA_PREVIEW_PORT])
+        self.renderer.inputs[0].format = 'RGB3'
         if size is not None:
             w, h = size
-            fmt[0].es[0].video.width = mmal.VCOS_ALIGN_UP(w, 32)
-            fmt[0].es[0].video.height = mmal.VCOS_ALIGN_UP(h, 16)
-            fmt[0].es[0].video.crop.width = w
-            fmt[0].es[0].video.crop.height = h
-        mmal_check(
-            mmal.mmal_port_format_commit(port),
-            prefix="Overlay format couldn't be set")
-        port[0].buffer_num = port[0].buffer_num_min
-        port[0].buffer_size = port[0].buffer_size_recommended
-
-        mmal_check(
-            mmal.mmal_component_enable(self.renderer),
-            prefix="Overlay couldn't be enabled")
-
-        mmal_check(
-            mmal.mmal_port_enable(port, _overlay_callback),
-            prefix="Overlay input port couldn't be enabled")
-
-        self.pool = mmal.mmal_port_pool_create(
-            port, port[0].buffer_num, port[0].buffer_size)
-        if not self.pool:
-            raise PiCameraRuntimeError("Couldn't create pool for overlay")
-
+            self.renderer.inputs[0].width = w
+            self.renderer.inputs[0].height = h
+        self.renderer.inputs[0].commit()
+        self.renderer.enabled = True
+        self.renderer.inputs[0].enable(callback=lambda port, buf: None)
         self.update(source)
-
-    def close(self):
-        super(PiOverlayRenderer, self).close()
-        if self.pool:
-            mmal.mmal_pool_destroy(self.pool)
-            self.pool = None
 
     def update(self, source):
         """
@@ -522,22 +396,9 @@ class PiOverlayRenderer(PiRenderer):
         the size of an existing overlay (remove and recreate the overlay if you
         require this).
         """
-        port = self.renderer[0].input[0]
-        fmt = port[0].format
-        bp = ct.c_uint8 * (fmt[0].es[0].video.width * fmt[0].es[0].video.height * 3)
-        try:
-            sp = bp.from_buffer(source)
-        except TypeError:
-            sp = bp.from_buffer_copy(source)
-        buf = mmal.mmal_queue_get(self.pool[0].queue)
-        if not buf:
-            raise PiCameraRuntimeError(
-                "Couldn't get a buffer from the overlay's pool")
-        ct.memmove(buf[0].data, sp, buf[0].alloc_size)
-        buf[0].length = buf[0].alloc_size
-        mmal_check(
-            mmal.mmal_port_send_buffer(port, buf),
-            prefix="Unable to send a buffer to the overlay's port")
+        buf = self.renderer.inputs[0].pool.get_buffer()
+        buf.update(source, buf.size)
+        self.renderer.inputs[0].send_buffer(buf)
 
 
 class PiPreviewRenderer(PiRenderer):
@@ -558,14 +419,7 @@ class PiPreviewRenderer(PiRenderer):
         super(PiPreviewRenderer, self).__init__(
             parent, layer, alpha, fullscreen, window, crop,
             rotation, vflip, hflip)
-        self.connection = self.parent._connect_ports(
-            source, self.renderer[0].input[0])
-
-    def close(self):
-        if self.connection:
-            mmal.mmal_connection_destroy(self.connection)
-            self.connection = None
-        super(PiPreviewRenderer, self).close()
+        self.renderer.connect(source)
 
 
 class PiNullSink(object):
@@ -584,23 +438,9 @@ class PiNullSink(object):
     """
 
     def __init__(self, parent, source):
-        self.parent = parent
-        self.renderer = ct.POINTER(mmal.MMAL_COMPONENT_T)()
-        mmal_check(
-            mmal.mmal_component_create(
-                mmal.MMAL_COMPONENT_DEFAULT_NULL_SINK, self.renderer),
-            prefix="Failed to create null sink component")
-        try:
-            if not self.renderer[0].input_num:
-                raise PiCameraError("No input ports on null sink component")
-            mmal_check(
-                mmal.mmal_component_enable(self.renderer),
-                prefix="Null sink component couldn't be enabled")
-        except:
-            mmal.mmal_component_destroy(self.renderer)
-            raise
-        self.connection = self.parent._connect_ports(
-            source, self.renderer[0].input[0])
+        self.renderer = mo.MMALNullSink()
+        self.renderer.enabled = True
+        self.renderer.connect(source)
 
     def close(self):
         """
@@ -610,11 +450,8 @@ class PiNullSink(object):
         (or more precisely, letting it go out of scope to permit the garbage
         collector to destroy it at some future time).
         """
-        if self.connection:
-            mmal.mmal_connection_destroy(self.connection)
-            self.connection = None
         if self.renderer:
-            mmal.mmal_component_destroy(self.renderer)
+            self.renderer.close()
             self.renderer = None
 
     def __enter__(self):

@@ -34,6 +34,10 @@ Warnings
 
 .. autoexception:: PiCameraFallback
 
+.. autoexception:: PiCameraResizerEncoding
+
+.. autoexception:: PiCameraAlphaStripping
+
 
 Exceptions
 ==========
