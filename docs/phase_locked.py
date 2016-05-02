@@ -156,7 +156,7 @@ class PhaseLockedOutput(object):
             # Capture the current video_frame_rate for debug/display
             # purposes, this will have some truncation due to the
             # rational nature of the the MMAL parameter.
-            video_frame_rate = self.camera.video_frame_rate
+            video_frame_rate = float(self.camera.video_frame_rate)
             if abs(command_rate - self.framerate) < 5:
                 self.camera.video_frame_rate = command_rate
                 # Note that we store the floating point command_rate,

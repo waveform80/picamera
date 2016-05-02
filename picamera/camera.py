@@ -2645,9 +2645,12 @@ class PiCamera(object):
                 mp
                 ),
             prefix="Failed to get live framerate")
-        return float(mp.num)/mp.den
+        return fractions.Fraction(mp.num, mp.den)
 
     def _set_video_frame_rate(self, value):
+        assert type(value) in (int, float, fractions.Fraction)
+        if type(value) != fractions.Fraction:
+            value = fractions.Fraction(float(value))
         self._check_camera_open()
         for p in (self.CAMERA_PREVIEW_PORT,
                   self.CAMERA_VIDEO_PORT):
@@ -2655,16 +2658,21 @@ class PiCamera(object):
                 mmal.mmal_port_parameter_set_rational(
                     self._camera[0].output[p],
                     mmal.MMAL_PARAMETER_VIDEO_FRAME_RATE,
-                    mmal.MMAL_RATIONAL_T(int(value*256), 256)
+                    mmal.MMAL_RATIONAL_T(value.numerator(), value.denominator())
                 ),
                 prefix="Failed to set live framerate")
 
     video_frame_rate = property(_get_video_frame_rate, _set_video_frame_rate, doc="""
-        Retrieves or sets the video frame frate, in floating point frames per second.
+        Retrieves or sets the video frame frate, in frames per second.
 
-        This can be set and read during capture, and is useful for
-        frame synchronization across multiple pi cameras, as hinted at in
-        this forum thread:
+        The video frame rate can be specified as an :ref:`int
+        <typesnumeric>`, :ref:`float <typesnumeric>`,
+        :class:`~fractions.Fraction`. When queried, the value is
+        returned as an instance of :class:`~fractions.Fraction`.
+
+        The video frame rate can be set and queried, during capture,
+        and is useful for frame synchronization across multiple pi
+        cameras, as hinted at in this forum thread:
 
           https://www.raspberrypi.org/forums/viewtopic.php?f=43&t=48238&start=75
 
