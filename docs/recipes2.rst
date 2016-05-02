@@ -1619,26 +1619,32 @@ After compiling and installing the device tree blob according to the
 instructions above, and rebooting the Pi, you should find the camera LED now
 acts as a flash LED with the Python script above.
 
-Multiple Raspberry Pi Video Frame Synchronization
-=================================================
+On the fly video frame rate adjustment
+======================================
 
 Frame synchronization, phase locking, gen locking... can only be
 approximated with the raspberry pi camera module.  However, by making
 small adjustments to the video frame rate, it is possible to phase
 lock the presentation time of each video frame to some reference, such
 as the system clock.  Raspberry pi system clocks can then be
-synchronized with eachother through NTP or chrony.
+synchronized with eachother through NTP or chrony.  This recipe shows
+how to make the micro adjustments to the frame rate while the camera
+is capturing, which is a precursor to being able to gen lock multiple
+cameras.
 
-This is an implementation of the suggestion in the raspberrypi forum
-on the topic of frame synchronization:
-https://www.raspberrypi.org/forums/viewtopic.php?f=43&t=48238&start=75
-
-In practice this seems to work well enough to synchronize camera video
-frames to well under 1 millisecond on the same LAN.
-
-.. literalinclude:: phase_locked_tcp_streamer.py
+.. literalinclude:: video_frame_rate.py
    :language: python
 
+Some output::
+
+   index: 587 current rate: 22.945 commanded rate: 22.9923569380.3f measured rate: 22.862
+   index: 588 current rate: 22.992 commanded rate: 23.038248880.3f measured rate: 22.898
+   index: 589 current rate: 23.035 commanded rate: 23.08433699560.3f measured rate: 22.948
+   index: 590 current rate: 23.082 commanded rate: 23.13061667580.3f measured rate: 22.996
+   index: 591 current rate: 23.129 commanded rate: 23.17708329290.3f measured rate: 23.046
+   index: 592 current rate: 23.176 commanded rate: 23.22373220010.3f measured rate: 23.083
+   index: 593 current rate: 23.223 commanded rate: 23.27055873250.3f measured rate: 23.133
+   index: 594 current rate: 23.270 commanded rate: 23.31755820770.3f measured rate: 23.181
 
 .. _YUV: http://en.wikipedia.org/wiki/YUV
 .. _YUV420: http://en.wikipedia.org/wiki/YUV#Y.27UV420p_.28and_Y.27V12_or_YV12.29_to_RGB888_conversion
@@ -1658,4 +1664,3 @@ frames to well under 1 millisecond on the same LAN.
 .. _flash metering: http://en.wikipedia.org/wiki/Through-the-lens_metering#Through_the_lens_flash_metering
 .. _Broadcom pin numbers: http://raspberrypi.stackexchange.com/questions/12966/what-is-the-difference-between-board-and-bcm-for-gpio-pin-numbering
 .. _OpenCV: http://opencv.org/
-
