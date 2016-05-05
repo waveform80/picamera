@@ -2651,6 +2651,10 @@ class PiCamera(object):
         assert type(value) in (int, float, fractions.Fraction)
         if type(value) != fractions.Fraction:
             value = fractions.Fraction(float(value))
+        # Need to limit the denominator, to something reasonable, I
+        # assume due to overflow.  Can't find documentation on this,
+        # but 512 seems to work OK.
+        value = value.limit_denominator(512)
         self._check_camera_open()
         for p in (self.CAMERA_PREVIEW_PORT,
                   self.CAMERA_VIDEO_PORT):
@@ -2658,7 +2662,7 @@ class PiCamera(object):
                 mmal.mmal_port_parameter_set_rational(
                     self._camera[0].output[p],
                     mmal.MMAL_PARAMETER_VIDEO_FRAME_RATE,
-                    mmal.MMAL_RATIONAL_T(value.numerator(), value.denominator())
+                    mmal.MMAL_RATIONAL_T(value.numerator, value.denominator)
                 ),
                 prefix="Failed to set live framerate")
 
