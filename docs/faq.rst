@@ -199,7 +199,7 @@ require it:
 B-frames aren't produced by the Pi's camera (or, as I understand it, by most
 real-time recording cameras) as it would require buffering yet-to-be-recorded
 frames before encoding the current one. However, most recorded media (DVDs,
-BDs, and hence network video streams) do use them, so players must support
+Blu-rays, and hence network video streams) do use them, so players must support
 them. It is simplest to write such a player by assuming that any source may
 contain B-frames, and buffering at least 2 frames worth of data at all times to
 make decoding them simpler.
@@ -212,4 +212,20 @@ account for more than a frame's worth of latency.
 TL;DR: the reason you've got lots of latency when streaming video is nothing to
 do with the Pi. You need to persuade your video player to reduce or forgo its
 buffering.
+
+Why are there more than 20 seconds of video in the circular buffer?
+===================================================================
+
+Read the note at the bottom of the :ref:`circular_record1` recipe. When you set
+the number of seconds for the circular stream you are setting a *lower bound*
+for a given bitrate (which defaults to 17Mbps - the same as the video recording
+default). If the recorded scene has low motion or complexity the stream can
+store considerably more than the number of seconds specified.
+
+If you need to copy a specific number of seconds from the stream, see the
+*seconds* parameter of the :meth:`~PiCameraCircularIO.copy_to` method (which
+was introduced in release 1.11).
+
+Finally, if you specify a different bitrate limit for the stream and the
+recording, the seconds limit will be inaccurate.
 
