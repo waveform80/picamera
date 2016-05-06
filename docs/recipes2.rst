@@ -1619,6 +1619,8 @@ After compiling and installing the device tree blob according to the
 instructions above, and rebooting the Pi, you should find the camera LED now
 acts as a flash LED with the Python script above.
 
+.. versionadded:: 1.10
+
 
 .. _YUV: http://en.wikipedia.org/wiki/YUV
 .. _YUV420: http://en.wikipedia.org/wiki/YUV#Y.27UV420p_.28and_Y.27V12_or_YV12.29_to_RGB888_conversion

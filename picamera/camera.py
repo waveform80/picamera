@@ -2615,6 +2615,8 @@ class PiCamera(object):
             <flash_configuration>`.
 
         .. _Device Tree configuration: http://www.raspberrypi.org/documentation/configuration/pin-configuration.md
+
+        .. versionadded:: 1.10
         """.format(values=docstring_values(FLASH_MODES)))
 
     def _get_awb_mode(self):
