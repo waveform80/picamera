@@ -560,7 +560,7 @@ class MMALPort(MMALControlPort):
         The callback function must accept two parameters which will be this
         :class:`MMALControlPort` (or descendent) and an :class:`MMALBuffer`
         instance. The callback should return ``True`` when its processing is
-        complete.
+        complete, and ``False`` otherwise.
         """
         if not self.enabled:
             if callback:

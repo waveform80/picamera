@@ -652,7 +652,7 @@ class PiVideoEncoder(PiEncoder):
                 self.output_port.params[mmal.MMAL_PARAMETER_VIDEO_ENCODE_INLINE_HEADER] = True
             if sei:
                 self.output_port.params[mmal.MMAL_PARAMETER_VIDEO_ENCODE_SEI_ENABLE] = True
-            if motion_output:
+            if motion_output is not None:
                 self.output_port.params[mmal.MMAL_PARAMETER_VIDEO_ENCODE_INLINE_VECTORS] = True
 
             # We need the intra-period to calculate the SPS header timeout in
