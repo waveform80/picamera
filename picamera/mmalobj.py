@@ -404,7 +404,7 @@ def _data_callback(port, buf):
     finally:
         buf.release()
         if port._callback:
-            port._pool.send_buffer(port)
+            port._pool.send_buffer()
 
 
 class MMALControlPort(object):
@@ -460,7 +460,7 @@ class MMALControlPort(object):
 
     def send_buffer(self, buf):
         """
-        Send the *buf* :class:`MMALBuffer` to the port.
+        Send :class:`MMALBuffer` *buf* to the port.
         """
         mmal_check(
             mmal.mmal_port_send_buffer(self._port, buf._buf),
@@ -639,7 +639,7 @@ class MMALPort(MMALControlPort):
                 assert self._pool is None
                 try:
                     self._callback = callback
-                    self._pool = MMALPool.for_port(self)
+                    self._pool = MMALPortPool(self)
                     self._port[0].userdata = ct.cast(
                         ct.pointer(ct.py_object(self)),
                         ct.c_void_p)
@@ -651,6 +651,7 @@ class MMALPort(MMALControlPort):
                 except:
                     self._pool.close()
                     self._pool = None
+                    raise
             else:
                 super(MMALPort, self).enable()
 
@@ -984,46 +985,15 @@ class MMALBuffer(object):
 
 class MMALPool(object):
     """
-    Represents an MMAL pool of buffer headers. This can be constructed from an
-    existing MMAL pool pointer, or via a couple of class methods
-    :meth:`for_port` and :meth:`for_buffers`.
+    Construct an MMAL pool containing *num* buffer headers of *size* bytes.
     """
-    def __init__(self, pool, port=None):
+    def __init__(self, port):
         self._pool = pool
-        self._port = port
 
     def close(self):
         if self._pool is not None:
-            if self._port is None:
-                mmal.mmal_pool_destroy(self._pool)
-            else:
-                mmal.mmal_port_pool_destroy(self._port._port, self._pool)
-                self._port = None
+            mmal.mmal_pool_destroy(self._pool)
             self._pool = None
-
-    @classmethod
-    def for_port(cls, port):
-        """
-        Construct an MMAL pool for the number and size of buffers required by
-        the :class:`MMALPort` *port*.
-        """
-        pool = mmal.mmal_port_pool_create(
-            port._port, port._port[0].buffer_num, port._port[0].buffer_size)
-        if not pool:
-            raise PiCameraRuntimeError(
-                'failed to create buffer header pool for port %s' % port.name)
-        return MMALPool(pool, port)
-
-    @classmethod
-    def for_buffers(cls, num, size):
-        """
-        Construct an MMAL pool containing *num* buffer headers of *size* bytes.
-        """
-        pool = mmal.mmal_pool_create(num, size)
-        if not pool:
-            raise PiCameraRuntimeError(
-                'failed to create buffer header pool of size %dx%d' % (num, size))
-        return MMALPool(pool)
 
     def get_buffer(self):
         """
@@ -1034,24 +1004,59 @@ class MMALPool(object):
             raise PiCameraRuntimeError('failed to get a buffer from the pool')
         return MMALBuffer(buf)
 
-    def send_buffer(self, port=None):
+    def send_buffer(self, port):
         """
-        Get a buffer from the pool and send it to *port*. If *port* is
-        ``None``, send it to the port the pool was created for.
+        Get a buffer from the pool and send it to *port*.
         """
-        if port is None:
-            port = self._port
         port.send_buffer(self.get_buffer())
 
-    def send_all_buffers(self, port=None):
+    def send_all_buffers(self, port):
         """
-        Send all buffers from the pool to *port*. If *port* is ``None``, send
-        them to the port the pool was created for.
+        Send all buffers from the pool to *port*.
         """
-        if port is None:
-            port = self._port
         for i in range(mmal.mmal_queue_length(self._pool[0].queue)):
             port.send_buffer(self.get_buffer())
+
+
+class MMALPortPool(MMALPool):
+    """
+    Construct an MMAL pool for the number and size of buffers required by
+    the :class:`MMALPort` *port*.
+    """
+
+    def __init__(self, port):
+        pool = mmal.mmal_port_pool_create(
+            port._port, port._port[0].buffer_num, port._port[0].buffer_size)
+        if not pool:
+            raise PiCameraRuntimeError(
+                'failed to create buffer header pool for port %s' % port.name)
+        self._pool = pool
+        self._port = port
+
+    def close(self):
+        if self._pool:
+            mmal.mmal_port_pool_destroy(self._port._port, self._pool)
+            self._port = None
+            self._pool = None
+
+    @property
+    def port(self):
+        return self._port
+
+    def send_buffer(self):
+        """
+        Get a buffer from the pool and send it to the port the pool is
+        associated with.
+        """
+        self._port.send_buffer(self.get_buffer())
+
+    def send_all_buffers(self, port):
+        """
+        Send all buffers from the pool to the port the pool is associated
+        with.
+        """
+        for i in range(mmal.mmal_queue_length(self._pool[0].queue)):
+            self._port.send_buffer(self.get_buffer())
 
 
 class MMALConnection(object):
