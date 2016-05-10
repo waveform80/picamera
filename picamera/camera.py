@@ -1914,7 +1914,6 @@ class PiCamera(object):
             )
         for port in self._camera.outputs:
             port.params[mmal.MMAL_PARAMETER_FPS_RANGE] = mp
-            port.format = mmal.MMAL_ENCODING_OPAQUE
             port.width = w
             port.height = h
             port.framerate = Fraction(fn, fd)

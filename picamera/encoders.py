@@ -188,13 +188,11 @@ class PiEncoder(object):
     def __init__(
             self, parent, camera_port, input_port, format, resize, **options):
         self.parent = parent
-        self.format = format
         self.encoder = None
         self.resizer = None
         self.camera_port = camera_port
         self.input_port = input_port
         self.output_port = None
-        self.started_capture = False
         self.outputs_lock = threading.Lock() # protects access to self.outputs
         self.outputs = {}
         self.exception = None
@@ -204,7 +202,7 @@ class PiEncoder(object):
                 raise PiCameraRuntimeError("Camera is closed")
             if resize:
                 self._create_resizer(*resize)
-            self._create_encoder(**options)
+            self._create_encoder(format, **options)
             if self.encoder:
                 if self.resizer:
                     self.encoder.connect(self.resizer.outputs[0])
@@ -232,7 +230,7 @@ class PiEncoder(object):
         self.resizer.outputs[0].height = height
         self.resizer.outputs[0].commit()
 
-    def _create_encoder(self):
+    def _create_encoder(self, format):
         """
         Creates and configures the MMAL encoder component.
 
@@ -554,7 +552,7 @@ class PiRawMixin(PiEncoder):
         super(PiRawMixin, self).__init__(
                 parent, camera_port, input_port, format, resize, **options)
 
-    def _create_encoder(self):
+    def _create_encoder(self, format):
         """
         Overridden to skip creating an encoder. Instead, this class simply uses
         the resizer's port as the output port (if a resizer has been
@@ -564,7 +562,7 @@ class PiRawMixin(PiEncoder):
             self.output_port = self.resizer.outputs[0]
         else:
             self.output_port = self.input_port
-        self.output_port.format = self.RAW_ENCODINGS[self.format][0]
+        self.output_port.format = self.RAW_ENCODINGS[format][0]
         self.output_port.commit()
 
     def _callback_write(self, buf, key=PiVideoFrameType.frame):
@@ -603,14 +601,14 @@ class PiVideoEncoder(PiEncoder):
         self.frame = None
 
     def _create_encoder(
-            self, bitrate=17000000, intra_period=None, profile='high',
+            self, format, bitrate=17000000, intra_period=None, profile='high',
             quantization=0, quality=0, inline_headers=True, sei=False,
             motion_output=None, intra_refresh=None):
         """
         Extends the base :meth:`~PiEncoder._create_encoder` implementation to
         configure the video encoder for H.264 or MJPEG output.
         """
-        super(PiVideoEncoder, self)._create_encoder()
+        super(PiVideoEncoder, self)._create_encoder(format)
 
         # XXX Remove quantization in 2.0
         quality = quality or quantization
@@ -619,9 +617,9 @@ class PiVideoEncoder(PiEncoder):
             self.output_port.format = {
                 'h264':  mmal.MMAL_ENCODING_H264,
                 'mjpeg': mmal.MMAL_ENCODING_MJPEG,
-                }[self.format]
+                }[format]
         except KeyError:
-            raise PiCameraValueError('Unsupported format %s' % self.format)
+            raise PiCameraValueError('Unsupported format %s' % format)
 
         if not (0 <= bitrate <= 25000000):
             raise PiCameraValueError('bitrate must be between 0 and 25Mbps')
@@ -629,7 +627,7 @@ class PiVideoEncoder(PiEncoder):
         self.output_port.framerate = 0
         self.output_port.commit()
 
-        if self.format == 'h264':
+        if format == 'h264':
             mp = mmal.MMAL_PARAMETER_VIDEO_PROFILE_T(
                     mmal.MMAL_PARAMETER_HEADER_T(
                         mmal.MMAL_PARAMETER_PROFILE,
@@ -680,7 +678,7 @@ class PiVideoEncoder(PiEncoder):
                         "Invalid intra_refresh %s" % intra_refresh)
                 self.output_port.params[mmal.MMAL_PARAMETER_VIDEO_INTRA_REFRESH] = mp
 
-        elif self.format == 'mjpeg':
+        elif format == 'mjpeg':
             # MJPEG doesn't have an intra_period setting as such, but as every
             # frame is a full-frame, the intra_period is effectively 1
             self._intra_period = 1
@@ -778,7 +776,7 @@ class PiVideoEncoder(PiEncoder):
             complete=
                 bool(buf.flags & mmal.MMAL_BUFFER_HEADER_FLAG_FRAME_END),
             )
-        if self.format != 'h264' or (buf.flags & mmal.MMAL_BUFFER_HEADER_FLAG_CONFIG):
+        if self._intra_period == 1 or (buf.flags & mmal.MMAL_BUFFER_HEADER_FLAG_CONFIG):
             with self.outputs_lock:
                 try:
                     new_outputs = self._next_output.pop(0)
@@ -828,8 +826,8 @@ class PiRawVideoEncoder(PiRawMixin, PiVideoEncoder):
         MRO of super-class calls.
     """
 
-    def _create_encoder(self):
-        super(PiRawVideoEncoder, self)._create_encoder()
+    def _create_encoder(self, format):
+        super(PiRawVideoEncoder, self)._create_encoder(format)
         # Raw formats don't have an intra_period setting as such, but as every
         # frame is a full-frame, the intra_period is effectively 1
         self._intra_period = 1
@@ -846,12 +844,13 @@ class PiImageEncoder(PiEncoder):
 
     encoder_type = mo.MMALImageEncoder
 
-    def _create_encoder(self, quality=85, thumbnail=(64, 48, 35), bayer=False):
+    def _create_encoder(
+            self, format, quality=85, thumbnail=(64, 48, 35), bayer=False):
         """
         Extends the base :meth:`~PiEncoder._create_encoder` implementation to
         configure the image encoder for JPEG, PNG, etc.
         """
-        super(PiImageEncoder, self)._create_encoder()
+        super(PiImageEncoder, self)._create_encoder(format)
 
         try:
             self.output_port.format = {
@@ -859,12 +858,12 @@ class PiImageEncoder(PiEncoder):
                 'png':  mmal.MMAL_ENCODING_PNG,
                 'gif':  mmal.MMAL_ENCODING_GIF,
                 'bmp':  mmal.MMAL_ENCODING_BMP,
-                }[self.format]
+                }[format]
         except KeyError:
-            raise PiCameraValueError("Unsupported format %s" % self.format)
+            raise PiCameraValueError("Unsupported format %s" % format)
         self.output_port.commit()
 
-        if self.format == 'jpeg':
+        if format == 'jpeg':
             self.output_port.params[mmal.MMAL_PARAMETER_JPEG_Q_FACTOR] = quality
             self.camera_port.params[mmal.MMAL_PARAMETER_ENABLE_RAW_CAPTURE] = bool(bayer)
             if thumbnail is None:
