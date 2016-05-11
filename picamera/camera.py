@@ -88,16 +88,13 @@ except ImportError:
 
 
 def _control_callback(port, buf):
-    try:
-        if buf[0].cmd == mmal.MMAL_EVENT_ERROR:
-            raise PiCameraRuntimeError(
-                "No data recevied from sensor. Check all connections, "
-                "including the SUNNY chip on the camera board")
-        elif buf[0].cmd != mmal.MMAL_EVENT_PARAMETER_CHANGED:
-            raise PiCameraRuntimeError(
-                "Received unexpected camera control callback event, 0x%08x" % buf[0].cmd)
-    finally:
-        mmal.mmal_buffer_header_release(buf)
+    if buf.command == mmal.MMAL_EVENT_ERROR:
+        raise PiCameraRuntimeError(
+            "No data recevied from sensor. Check all connections, "
+            "including the SUNNY chip on the camera board")
+    elif buf.command != mmal.MMAL_EVENT_PARAMETER_CHANGED:
+        raise PiCameraRuntimeError(
+            "Received unexpected camera control callback event, 0x%08x" % buf[0].cmd)
 
 
 def docstring_values(values, indent=8):

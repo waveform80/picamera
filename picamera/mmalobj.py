@@ -384,29 +384,6 @@ class MMALComponent(object):
             return '<MMALComponent closed>'
 
 
-def _control_callback(port, buf):
-    port = ct.cast(port[0].userdata, ct.POINTER(ct.py_object))[0]
-    buf = MMALBuffer(buf)
-    try:
-        if port._callback:
-            port._callback(port, buf)
-    finally:
-        buf.release()
-
-
-def _data_callback(port, buf):
-    port = ct.cast(port[0].userdata, ct.POINTER(ct.py_object))[0]
-    buf = MMALBuffer(buf)
-    try:
-        if port._callback:
-            if port._callback(port, buf):
-                port._callback = None
-    finally:
-        buf.release()
-        if port._callback:
-            port._pool.send_buffer()
-
-
 class MMALControlPort(object):
     """
     Represents an MMAL port with properties to configure the port's parameters.
@@ -415,7 +392,7 @@ class MMALControlPort(object):
         super(MMALControlPort, self).__init__()
         self._port = port
         self._params = MMALPortParams(port)
-        self._callback = None
+        self._wrapper = None
 
     @property
     def enabled(self):
@@ -435,28 +412,31 @@ class MMALControlPort(object):
         :class:`MMALControlPort` (or descendent) and an :class:`MMALBuffer`
         instance. Any return value will be ignored.
         """
+        def wrapper(port, buf):
+            buf = MMALBuffer(buf)
+            try:
+                callback(self, buf)
+            finally:
+                buf.release()
+
         if not self.enabled:
             if callback:
-                self._callback = callback
-                self._port[0].userdata = ct.cast(
-                    ct.pointer(ct.py_object(self)),
-                    ct.c_void_p)
-                wrapper = mmal.MMAL_PORT_BH_CB_T(_control_callback)
+                self._wrapper = mmal.MMAL_PORT_BH_CB_T(wrapper)
             else:
-                wrapper = None
+                self._wrapper = None
             mmal_check(
-                mmal.mmal_port_enable(self._port, wrapper),
+                mmal.mmal_port_enable(self._port, self._wrapper),
                 prefix="Unable to enable port %s" % self.name)
 
     def disable(self):
         """
         Disable the port.
         """
-        self._callback = None
         if self.enabled:
             mmal_check(
                 mmal.mmal_port_disable(self._port),
                 prefix="Unable to disable port %s" % self.name)
+            self._wrapper = None
 
     def send_buffer(self, buf):
         """
@@ -504,7 +484,7 @@ class MMALPort(MMALControlPort):
         super(MMALPort, self).__init__(port)
         self.opaque_subformat = opaque_subformat
         self._pool = None
-        self._callback = None
+        self._stopped = True
 
     def _get_opaque_subformat(self):
         return self._opaque_subformat
@@ -634,18 +614,26 @@ class MMALPort(MMALControlPort):
         instance. The callback should return ``True`` when its processing is
         complete, and ``False`` otherwise.
         """
+        def wrapper(port, buf):
+            buf = MMALBuffer(buf)
+            try:
+                if not self._stopped and callback(self, buf):
+                    self._stopped = True
+            finally:
+                buf.release()
+                if not self._stopped:
+                    self._pool.send_buffer()
+
         if not self.enabled:
             if callback:
                 assert self._pool is None
+                assert self._stopped
                 try:
-                    self._callback = callback
                     self._pool = MMALPortPool(self)
-                    self._port[0].userdata = ct.cast(
-                        ct.pointer(ct.py_object(self)),
-                        ct.c_void_p)
-                    wrapper = mmal.MMAL_PORT_BH_CB_T(_data_callback)
+                    self._stopped = False
+                    self._wrapper = mmal.MMAL_PORT_BH_CB_T(wrapper)
                     mmal_check(
-                        mmal.mmal_port_enable(self._port, wrapper),
+                        mmal.mmal_port_enable(self._port, self._wrapper),
                         prefix="Unable to enable port %s" % self.name)
                     self._pool.send_all_buffers(self)
                 except:
@@ -659,6 +647,7 @@ class MMALPort(MMALControlPort):
         """
         Disable the port.
         """
+        self._stopped = True
         super(MMALPort, self).disable()
         if self._pool:
             self._pool.close()
@@ -885,6 +874,10 @@ class MMALBuffer(object):
     """
     def __init__(self, buf):
         self._buf = buf
+
+    @property
+    def command(self):
+        return self._buf[0].cmd
 
     @property
     def flags(self):
