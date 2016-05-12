@@ -971,13 +971,13 @@ class MMALBuffer(object):
     def __repr__(self):
         if self._buf:
             return '<MMALBuffer object: flags=%s length=%d>' % (
-                ''.join(
+                ''.join((
                 'E' if self.flags & mmal.MMAL_BUFFER_HEADER_FLAG_FRAME_END     else '_',
                 'K' if self.flags & mmal.MMAL_BUFFER_HEADER_FLAG_KEYFRAME      else '_',
                 'C' if self.flags & mmal.MMAL_BUFFER_HEADER_FLAG_CONFIG        else '_',
                 'M' if self.flags & mmal.MMAL_BUFFER_HEADER_FLAG_CODECSIDEINFO else '_',
                 'X' if self.flags & mmal.MMAL_BUFFER_HEADER_FLAG_EOS           else '_',
-                ), self.length)
+                )), self.length)
         else:
             return '<MMALBuffer object: ???>'
 
