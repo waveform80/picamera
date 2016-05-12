@@ -460,8 +460,8 @@ def test_resolution(camera, previewing):
         assert camera._camera.outputs[2]._port[0].format[0].es[0].video.height == 1088
         camera.resolution = (2592, 1944)
         assert camera.resolution == (2592, 1944)
-        assert camera._camera.outputs[2].width == 2592
-        assert camera._camera.outputs[2].height == 1952
+        assert camera._camera.outputs[2]._port[0].format[0].es[0].video.width == 2592
+        assert camera._camera.outputs[2]._port[0].format[0].es[0].video.height == 1952
         # Test some irregular resolutions
         camera.resolution = (100, 100)
         assert camera.resolution == (100, 100)

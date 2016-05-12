@@ -1960,7 +1960,7 @@ class PiCamera(object):
     def _set_framerate(self, value):
         self._check_camera_open()
         self._check_recording_stopped()
-        n, d = to_rational(value)
+        n, d = mo.to_rational(value)
         if not (0 <= n / d <= 90):
             raise PiCameraValueError("Invalid framerate: %.2ffps" % value)
         sensor_mode = self.sensor_mode
