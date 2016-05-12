@@ -188,7 +188,7 @@ class PiRenderer(object):
                 "Invalid window rectangle (x, y, w, h) tuple: %s" % value)
         mp = self.renderer.inputs[0].params[mmal.MMAL_PARAMETER_DISPLAYREGION]
         mp.set = mmal.MMAL_DISPLAY_SET_DEST_RECT
-        mp.dest_rect = mmal.MMAL_RECT(x, y, w, h)
+        mp.dest_rect = mmal.MMAL_RECT_T(x, y, w, h)
         self.renderer.inputs[0].params[mmal.MMAL_PARAMETER_DISPLAYREGION] = mp
     window = property(_get_window, _set_window, doc="""\
         Retrieves or sets the size of the renderer.
@@ -216,7 +216,7 @@ class PiRenderer(object):
                 "Invalid crop rectangle (x, y, w, h) tuple: %s" % value)
         mp = self.renderer.inputs[0].params[mmal.MMAL_PARAMETER_DISPLAYREGION]
         mp.set = mmal.MMAL_DISPLAY_SET_SRC_RECT
-        mp.src_rect = mmal.MMAL_RECT(x, y, w, h)
+        mp.src_rect = mmal.MMAL_RECT_T(x, y, w, h)
         self.renderer.inputs[0].params[mmal.MMAL_PARAMETER_DISPLAYREGION] = mp
     crop = property(_get_crop, _set_crop, doc="""\
         Retrieves or sets the area to read from the source.
@@ -377,7 +377,7 @@ class PiOverlayRenderer(PiRenderer):
         # Copy format from camera's preview port, then adjust the encoding to
         # RGB888 and optionally adjust the resolution and size
         self.renderer.inputs[0].copy_from(parent._camera.outputs[parent.CAMERA_PREVIEW_PORT])
-        self.renderer.inputs[0].format = 'RGB3'
+        self.renderer.inputs[0].format = mmal.MMAL_ENCODING_RGB24
         if size is not None:
             w, h = size
             self.renderer.inputs[0].width = w

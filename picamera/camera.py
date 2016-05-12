@@ -3310,6 +3310,7 @@ class PiCamera(object):
     def _get_annotate_text_size(self):
         self._check_camera_open()
         if self._camera.annotate_rev == 3:
+            mp = self._camera.control.params[mmal.MMAL_PARAMETER_ANNOTATE]
             return mp.text_size or self.DEFAULT_ANNOTATE_SIZE
         else:
             return self.DEFAULT_ANNOTATE_SIZE
