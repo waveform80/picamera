@@ -235,3 +235,21 @@ Can I move the annotation text?
 No: the firmware provides no means of moving the annotation text. The only
 configurable attributes of the annotation are currently color and font size.
 
+Why is playback too fast/too slow in VLC/omxplayer/etc.?
+========================================================
+
+The camera's H264 encoder doesn't output a full MP4 file (which would contain
+frames-per-second meta-data). Instead it outputs an H264 NAL stream which just
+has frame-size and a few other details (but not FPS).
+
+Most players (like VLC) default to 24, 25, or 30 fps. Hence, recordings at
+12fps will appear "fast", while recordings as 60fps will appear "slow". Your
+playback client needs to be told what fps to use when playing back (assuming it
+supports such an option).
+
+For those wondering why the camera doesn't output a full MP4 file, consider
+that the Pi camera's heritage is mobile phone cameras. In these devices you
+only want the camera to output the H264 stream so you can mux it with, say, an
+AAC stream recorded from the microphone input and wrap the result into a full
+MP4 file.
+
