@@ -229,3 +229,9 @@ was introduced in release 1.11).
 Finally, if you specify a different bitrate limit for the stream and the
 recording, the seconds limit will be inaccurate.
 
+Can I move the annotation text?
+===============================
+
+No: the firmware provides no means of moving the annotation text. The only
+configurable attributes of the annotation are currently color and font size.
+
