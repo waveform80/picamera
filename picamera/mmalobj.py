@@ -1088,7 +1088,6 @@ class MMALConnection(object):
             'I420')
         } | {
         ('OPQV-dual', 'OPQV-single'),
-        ('OPQV-single', 'OPQV-dual'),
         }
 
     def __init__(self, source, target):
@@ -1215,9 +1214,9 @@ class MMALSplitter(MMALDownstreamComponent):
     """
     def __init__(self):
         super(MMALSplitter, self).__init__(mmal.MMAL_COMPONENT_DEFAULT_VIDEO_SPLITTER, 4)
-        self.inputs[0].opaque_subformat = 'OPQV-single'
+        self.inputs[0].opaque_subformat = None
         for output in self.outputs:
-            output.opaque_subformat = 'OPQV-single'
+            output.opaque_subformat = None
 
 
 class MMALResizer(MMALDownstreamComponent):
