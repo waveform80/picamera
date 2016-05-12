@@ -1044,6 +1044,35 @@ class PiCamera(object):
         else:
             encoder.split(output, options.get('motion_output'))
 
+    def request_key_frame(self, splitter_port=1):
+        """
+        Request the encoder generate a key-frame as soon as possible.
+
+        When called, the video encoder running on the specified *splitter_port*
+        will attempt to produce a key-frame (full-image frame) as soon as
+        possible. The *splitter_port* defaults to ``1``. Valid values are
+        between ``0`` and ``3`` inclusive.
+
+        .. note::
+
+            This method is only meaningful for recordings encoded in the H264
+            format as MJPEG produces full frames for every frame recorded.
+            Furthermore, there's no guarantee that the *next* frame will be
+            a key-frame; this is simply a request to produce one as soon as
+            possible after the call.
+
+        .. versionadded:: 1.11
+        """
+        try:
+            with self._encoders_lock:
+                encoder = self._encoders[splitter_port]
+        except KeyError:
+            raise PiCameraNotRecording(
+                    'There is no recording in progress on '
+                    'port %d' % splitter_port)
+        else:
+            encoder.request_key_frame()
+
     def wait_recording(self, timeout=0, splitter_port=1):
         """
         Wait on the video encoder for timeout seconds.

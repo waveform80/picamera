@@ -712,6 +712,16 @@ class PiVideoEncoder(PiEncoder):
         super(PiVideoEncoder, self).stop()
         self._close_output(PiVideoFrameType.motion_data)
 
+    def request_key_frame(self):
+        """
+        Called to request an I-frame from the encoder.
+
+        This method is called by :meth:`~PiCamera.request_key_frame` and
+        :meth:`split` to force the encoder to output an I-frame as soon as
+        possible.
+        """
+        self.encoder.control.params[mmal.MMAL_PARAMETER_VIDEO_REQUEST_I_FRAME] = True
+
     def split(self, output, motion_output=None):
         """
         Called to switch the encoder's output.
@@ -734,6 +744,8 @@ class PiVideoEncoder(PiEncoder):
         # timeout to 10 seconds (otherwise unencoded formats tend to fail
         # presumably due to I/O capacity)
         timeout = max(10.0, float(self._intra_period / self.parent.framerate) * 3.0)
+        if self._intra_period > 1:
+            self.request_key_frame()
         if not self.event.wait(timeout):
             raise PiCameraRuntimeError('Timed out waiting for a split point')
         self.event.clear()
