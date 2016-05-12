@@ -1088,6 +1088,7 @@ class MMALConnection(object):
             'I420')
         } | {
         ('OPQV-dual', 'OPQV-single'),
+        ('OPQV-single', 'OPQV-dual'),
         }
 
     def __init__(self, source, target):
