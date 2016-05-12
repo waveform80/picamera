@@ -73,6 +73,8 @@ from picamera.exc import (
     PiCameraWarning,
     PiCameraDeprecated,
     PiCameraFallback,
+    PiCameraAlphaStripping,
+    PiCameraResizerEncoding,
     PiCameraError,
     PiCameraRuntimeError,
     PiCameraClosed,

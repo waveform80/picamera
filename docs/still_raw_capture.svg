@@ -24,9 +24,9 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="1.979899"
-     inkscape:cx="324.68605"
-     inkscape:cy="-6.5975091"
+     inkscape:zoom="1.4"
+     inkscape:cx="258.4525"
+     inkscape:cy="81.291182"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="false"
@@ -347,15 +347,19 @@
        inkscape:connection-end-point="d4" />
     <text
        xml:space="preserve"
-       style="font-size:10px;font-style:normal;font-weight:bold;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans;-inkscape-font-specification:Sans Bold"
-       x="68.571426"
-       y="26.647896"
+       style="font-size:10px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans;-inkscape-font-specification:Sans Bold"
+       x="138.92857"
+       y="27.362181"
        id="text3229"
        sodipodi:linespacing="125%"><tspan
          sodipodi:role="line"
          id="tspan3231"
-         x="68.571426"
-         y="26.647896">During RGB still-port capture</tspan></text>
+         x="138.92857"
+         y="27.362181">During RGB still-port capture</tspan><tspan
+         sodipodi:role="line"
+         x="138.92857"
+         y="39.862183"
+         id="tspan3093">(new firmware)</tspan></text>
     <g
        transform="translate(322.42857,-15.497462)"
        id="g3233">
@@ -573,15 +577,19 @@
     </g>
     <text
        xml:space="preserve"
-       style="font-size:10px;font-style:normal;font-weight:bold;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans;-inkscape-font-specification:Sans Bold"
-       x="384"
-       y="30.933607"
+       style="font-size:10px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans;-inkscape-font-specification:Sans Bold"
+       x="480.07144"
+       y="27.362181"
        id="text3319"
        sodipodi:linespacing="125%"><tspan
          sodipodi:role="line"
          id="tspan3321"
-         x="384"
-         y="30.933607">During RGB video-port capture</tspan></text>
+         x="480.07144"
+         y="27.362181">During RGB video-port capture</tspan><tspan
+         sodipodi:role="line"
+         x="480.07144"
+         y="39.862183"
+         id="tspan3097">(old firmware)</tspan></text>
     <path
        style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
        d="M 470.99999,83.450936 503.78572,72.9077"
@@ -604,16 +612,6 @@
        inkscape:connection-end-point="d4" />
     <path
        style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       d="m 543.59678,113.93615 33.16541,23.85207"
-       id="path3329"
-       inkscape:connector-type="polyline"
-       inkscape:connector-curvature="0"
-       inkscape:connection-start="#g3243"
-       inkscape:connection-start-point="d4"
-       inkscape:connection-end="#g3263"
-       inkscape:connection-end-point="d4" />
-    <path
-       style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
        d="m 470.99999,121.24023 30.07745,11.40382"
        id="path3331"
        inkscape:connector-type="polyline"
@@ -630,7 +628,7 @@
        sodipodi:cy="72.766754"
        sodipodi:rx="35.607876"
        sodipodi:ry="17.425131"
-       d="m 676.80221,72.766754 a 35.607876,17.425131 0 1 1 -71.21575,0 35.607876,17.425131 0 1 1 71.21575,0 z"
+       d="m 676.80221,72.766754 c 0,9.623634 -15.94219,17.425131 -35.60787,17.425131 -19.66569,0 -35.60788,-7.801497 -35.60788,-17.425131 0,-9.623634 15.94219,-17.425131 35.60788,-17.425131 19.66568,0 35.60787,7.801497 35.60787,17.425131 z"
        transform="translate(-48.5,5.714286)" />
     <path
        style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
@@ -702,34 +700,34 @@
        xml:space="preserve"
        style="font-size:10px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
        x="621.85718"
-       y="88.790756"
+       y="90.21933"
        id="text3353"
        sodipodi:linespacing="125%"><tspan
          sodipodi:role="line"
          id="tspan3355"
          x="621.85718"
-         y="88.790756">RGBA</tspan></text>
+         y="90.21933">RGBA</tspan></text>
     <text
        xml:space="preserve"
        style="font-size:10px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans"
-       x="570.42865"
-       y="129.14789"
+       x="551.50012"
+       y="67.005035"
        id="text3349"
        sodipodi:linespacing="125%"><tspan
          sodipodi:role="line"
          id="tspan3351"
-         x="570.42865"
-         y="129.14789">YUV</tspan></text>
+         x="551.50012"
+         y="67.005035">YUV</tspan></text>
     <path
-       style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;display:inline"
-       d="m 559.32325,122.88908 10e-6,-47.071426"
-       id="path3093"
+       style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="m 514.57143,55.014043 22.07326,4.183726"
+       id="path3095"
        inkscape:connector-type="polyline"
        inkscape:connector-curvature="0"
+       inkscape:connection-start="#g3233"
+       inkscape:connection-start-point="d4"
        inkscape:connection-end="#g3914"
        inkscape:connection-end-point="d4"
-       transform="translate(34.571426,14.899136)"
-       inkscape:connection-start="#g3263"
-       inkscape:connection-start-point="d4" />
+       transform="translate(34.571426,14.899136)" />
   </g>
 </svg>
