@@ -62,20 +62,6 @@ from .exc import (
     )
 
 
-def _debug_buffer(buf):
-    f = buf.flags
-    print(''.join((
-        'flags=',
-        'E' if f & mmal.MMAL_BUFFER_HEADER_FLAG_FRAME_END     else '_',
-        'K' if f & mmal.MMAL_BUFFER_HEADER_FLAG_KEYFRAME      else '_',
-        'C' if f & mmal.MMAL_BUFFER_HEADER_FLAG_CONFIG        else '_',
-        'M' if f & mmal.MMAL_BUFFER_HEADER_FLAG_CODECSIDEINFO else '_',
-        'X' if f & mmal.MMAL_BUFFER_HEADER_FLAG_EOS           else '_',
-        ' ',
-        'len=%d' % buf._buf[0].length
-        )))
-
-
 class PiEncoder(object):
     """
     Base implementation of an MMAL encoder for use by PiCamera.
