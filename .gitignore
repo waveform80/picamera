@@ -26,6 +26,7 @@ pip-log.txt
 coverage
 .coverage
 .tox
+.cache
 
 # Ignore virtualenvwrapper bits
 .venv
