@@ -852,7 +852,7 @@ class PiCamera(object):
         .. versionadded:: 1.8
         """
         if not overlay in self._overlays:
-            raise PiCameraRuntimeError(
+            raise PiCameraValueError(
                 "The specified overlay is not owned by this instance of "
                 "PiCamera")
         overlay.close()
@@ -1230,7 +1230,7 @@ class PiCamera(object):
 
     def capture(
             self, output, format=None, use_video_port=False, resize=None,
-            splitter_port=0, **options):
+            splitter_port=0, bayer=False, **options):
         """
         Capture an image from the camera, storing it in *output*.
 
@@ -1334,6 +1334,9 @@ class PiCamera(object):
                 PiCameraDeprecated(
                     'The "raw" format option is deprecated; specify the '
                     'required format directly instead ("yuv", "rgb", etc.)'))
+        if use_video_port and bayer:
+            raise PiCameraValueError(
+                'bayer is only valid with still port captures')
         with self._encoders_lock:
             camera_port, output_port = self._get_ports(use_video_port, splitter_port)
             format = self._get_image_format(output, format)
@@ -1342,6 +1345,8 @@ class PiCamera(object):
             if use_video_port:
                 self._encoders[splitter_port] = encoder
         try:
+            if bayer:
+                camera_port.params[mmal.MMAL_PARAMETER_ENABLE_RAW_CAPTURE] = True
             encoder.start(output)
             # Wait for the callback to set the event indicating the end of
             # image capture
@@ -1356,7 +1361,7 @@ class PiCamera(object):
 
     def capture_sequence(
             self, outputs, format='jpeg', use_video_port=False, resize=None,
-            splitter_port=0, burst=False, **options):
+            splitter_port=0, burst=False, bayer=False, **options):
         """
         Capture a sequence of consecutive images from the camera.
 
@@ -1423,9 +1428,13 @@ class PiCamera(object):
         .. versionchanged:: 1.11
             Support for buffer outputs was added.
         """
-        if use_video_port and burst:
-            raise PiCameraRuntimeError(
-                'Burst is only valid with still port captures')
+        if use_video_port:
+            if burst:
+                raise PiCameraValueError(
+                    'burst is only valid with still port captures')
+            if bayer:
+                raise PiCameraValueError(
+                    'bayer is only valid with still port captures')
         with self._encoders_lock:
             camera_port, output_port = self._get_ports(use_video_port, splitter_port)
             format = self._get_image_format('', format)
@@ -1445,6 +1454,8 @@ class PiCamera(object):
                     camera_port.params[mmal.MMAL_PARAMETER_CAMERA_BURST_CAPTURE] = True
                 try:
                     for output in outputs:
+                        if bayer:
+                            camera_port.params[mmal.MMAL_PARAMETER_ENABLE_RAW_CAPTURE] = True
                         encoder.start(output)
                         if not encoder.wait(self.CAPTURE_TIMEOUT):
                             raise PiCameraRuntimeError(
@@ -1570,9 +1581,13 @@ class PiCamera(object):
         .. versionchanged:: 1.11
             Support for buffer outputs was added.
         """
-        if use_video_port and burst:
-            raise PiCameraRuntimeError(
-                'Burst is only valid with still port captures')
+        if use_video_port:
+            if burst:
+                raise PiCameraValueError(
+                    'burst is only valid with still port captures')
+            if bayer:
+                raise PiCameraValueError(
+                    'bayer is only valid with still port captures')
         with self._encoders_lock:
             camera_port, output_port = self._get_ports(use_video_port, splitter_port)
             format = self._get_image_format(output, format)
@@ -1600,6 +1615,8 @@ class PiCamera(object):
                             counter=counter,
                             timestamp=datetime.datetime.now(),
                             )
+                        if bayer:
+                            camera_port.params[mmal.MMAL_PARAMETER_ENABLE_RAW_CAPTURE] = True
                         encoder.start(filename)
                         if not encoder.wait(self.CAPTURE_TIMEOUT):
                             raise PiCameraRuntimeError(
@@ -1608,6 +1625,8 @@ class PiCamera(object):
                         counter += 1
                 else:
                     while True:
+                        if bayer:
+                            camera_port.params[mmal.MMAL_PARAMETER_ENABLE_RAW_CAPTURE] = True
                         encoder.start(output)
                         if not encoder.wait(self.CAPTURE_TIMEOUT):
                             raise PiCameraRuntimeError(

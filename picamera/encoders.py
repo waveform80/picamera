@@ -856,14 +856,7 @@ class PiImageEncoder(PiEncoder):
 
     encoder_type = mo.MMALImageEncoder
 
-    def __init__(
-            self, parent, camera_port, input_port, format, resize, **options):
-        self._bayer = options.pop('bayer', False)
-        super(PiImageEncoder, self).__init__(
-            parent, camera_port, input_port, format, resize, **options)
-
-    def _create_encoder(
-            self, format, quality=85, thumbnail=(64, 48, 35)):
+    def _create_encoder(self, format, quality=85, thumbnail=(64, 48, 35)):
         """
         Extends the base :meth:`~PiEncoder._create_encoder` implementation to
         configure the image encoder for JPEG, PNG, etc.
@@ -900,10 +893,6 @@ class PiImageEncoder(PiEncoder):
             self.encoder.control.params[mmal.MMAL_PARAMETER_THUMBNAIL_CONFIGURATION] = mp
 
         self.encoder.enabled = True
-
-    def start(self, output):
-        self.camera_port.params[mmal.MMAL_PARAMETER_ENABLE_RAW_CAPTURE] = bool(self._bayer)
-        super(PiImageEncoder, self).start(output)
 
 
 class PiOneImageEncoder(PiImageEncoder):
