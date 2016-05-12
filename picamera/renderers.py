@@ -384,7 +384,9 @@ class PiOverlayRenderer(PiRenderer):
             self.renderer.inputs[0].height = h
         self.renderer.inputs[0].commit()
         self.renderer.enabled = True
-        self.renderer.inputs[0].enable(callback=lambda port, buf: None)
+        # The following callback is required to prevent the mmalobj layer
+        # automatically passing buffers back to the port
+        self.renderer.inputs[0].enable(callback=lambda port, buf: True)
         self.update(source)
 
     def update(self, source):
@@ -397,7 +399,7 @@ class PiOverlayRenderer(PiRenderer):
         require this).
         """
         buf = self.renderer.inputs[0].pool.get_buffer()
-        buf.update(source, buf.size)
+        buf.update(source)
         self.renderer.inputs[0].send_buffer(buf)
 
 

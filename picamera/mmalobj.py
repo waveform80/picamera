@@ -626,15 +626,15 @@ class MMALPort(MMALControlPort):
 
         if not self.enabled:
             if callback:
-                assert self._pool is None
                 assert self._stopped
+                self._stopped = False
+                self._wrapper = mmal.MMAL_PORT_BH_CB_T(wrapper)
+                mmal_check(
+                    mmal.mmal_port_enable(self._port, self._wrapper),
+                    prefix="Unable to enable port %s" % self.name)
+                assert self._pool is None
+                self._pool = MMALPortPool(self)
                 try:
-                    self._pool = MMALPortPool(self)
-                    self._stopped = False
-                    self._wrapper = mmal.MMAL_PORT_BH_CB_T(wrapper)
-                    mmal_check(
-                        mmal.mmal_port_enable(self._port, self._wrapper),
-                        prefix="Unable to enable port %s" % self.name)
                     self._pool.send_all_buffers(self)
                 except:
                     self._pool.close()
