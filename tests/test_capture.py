@@ -205,6 +205,13 @@ def test_capture_bayer(camera, mode):
     stream.seek(-6404096, io.SEEK_END)
     assert stream.read(4) == 'BRCM'
 
+def test_capture_sequence_bayer(camera, mode):
+    streams = [io.BytesIO() for i in range(3)]
+    camera.capture_sequence(streams, format='jpeg', bayer=True)
+    for stream in streams:
+        stream.seek(-6404096, io.SEEK_END)
+        assert stream.read(4) == 'BRCM'
+
 def test_exif_ascii(camera, mode):
     camera.exif_tags['IFD0.Artist'] = 'Me!'
     camera.exif_tags['IFD0.Copyright'] = 'Copyright (c) 2000 Foo'
