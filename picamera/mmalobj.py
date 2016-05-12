@@ -1164,6 +1164,12 @@ class MMALCamera(MMALComponent):
             )
         for port, opaque_subformat in zip(self.outputs, formats):
             port.opaque_subformat = opaque_subformat
+        mp = self.control.params[mmal.MMAL_PARAMETER_ANNOTATE]
+        PARAM_TYPES[mmal.MMAL_PARAMETER_ANNOTATE] = {
+            ct.sizeof(mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_T):    mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_T,
+            ct.sizeof(mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V2_T): mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V2_T,
+            ct.sizeof(mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V3_T): mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V3_T,
+            }.get(mp.hdr.size, mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V3_T)
 
 
 class MMALCameraInfo(MMALComponent):

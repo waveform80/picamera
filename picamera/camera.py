@@ -460,14 +460,6 @@ class PiCamera(object):
         self.rotation = 0
         self.hflip = self.vflip = False
         self.zoom = (0.0, 0.0, 1.0, 1.0)
-        # Determine whether the camera's firmware supports the ANNOTATE_V3
-        # structure
-        mp = self._camera.control.params[mmal.MMAL_PARAMETER_ANNOTATE]
-        self._annotate_v3 = (
-            mp.hdr.size == ct.sizeof(mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V3_T)
-            )
-        if not self._annotate_v3:
-            self._camera.control.param_types[mmal.MMAL_PARAMETER_ANNOTATE] = mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V2_T
 
     def _init_splitter(self):
         # Create a splitter component for the video port. This is to permit
