@@ -324,7 +324,6 @@ class PiCamera(object):
         '_overlays',
         '_raw_format',
         '_image_effect_params',
-        '_annotate_v3',
         '_exif_tags',
         )
 
@@ -366,7 +365,6 @@ class PiCamera(object):
         self._overlays = []
         self._raw_format = 'yuv'
         self._image_effect_params = None
-        self._annotate_v3 = None
         self._exif_tags = {
             'IFD0.Model': 'RP_OV5647',
             'IFD0.Make': 'RaspberryPi',
@@ -3311,8 +3309,7 @@ class PiCamera(object):
 
     def _get_annotate_text_size(self):
         self._check_camera_open()
-        mp = self._camera.control.params[mmal.MMAL_PARAMETER_ANNOTATE]
-        if self._annotate_v3:
+        if self._camera.annotate_rev == 3:
             return mp.text_size or self.DEFAULT_ANNOTATE_SIZE
         else:
             return self.DEFAULT_ANNOTATE_SIZE
@@ -3321,16 +3318,15 @@ class PiCamera(object):
         if not (6 <= value <= 160):
             raise PiCameraValueError(
                 "Invalid annotation text size: %d (valid range 6-160)" % value)
-        if not self._annotate_v3:
-            if value != self.DEFAULT_ANNOTATE_SIZE:
-                warnings.warn(
-                    PiCameraFallback(
-                        "Firmware does not support setting annotation text "
-                        "size; using default (%d) instead" % self.DEFAULT_ANNOTATE_SIZE))
-            return
-        mp = self._camera.control.params[mmal.MMAL_PARAMETER_ANNOTATE]
-        mp.text_size = value
-        self._camera.control.params[mmal.MMAL_PARAMETER_ANNOTATE] = mp
+        if self._camera.annotate_rev == 3:
+            mp = self._camera.control.params[mmal.MMAL_PARAMETER_ANNOTATE]
+            mp.text_size = value
+            self._camera.control.params[mmal.MMAL_PARAMETER_ANNOTATE] = mp
+        elif value != self.DEFAULT_ANNOTATE_SIZE:
+            warnings.warn(
+                PiCameraFallback(
+                    "Firmware does not support setting annotation text "
+                    "size; using default (%d) instead" % self.DEFAULT_ANNOTATE_SIZE))
     annotate_text_size = property(
         _get_annotate_text_size, _set_annotate_text_size, doc="""\
         Controls the size of the annotation text.
@@ -3345,7 +3341,7 @@ class PiCamera(object):
     def _get_annotate_foreground(self):
         self._check_camera_open()
         mp = self._camera.control.params[mmal.MMAL_PARAMETER_ANNOTATE]
-        if self._annotate_v3 and mp.custom_text_color:
+        if self._camera.annotate_rev == 3 and mp.custom_text_color:
             return Color.from_yuv_bytes(
                     mp.custom_text_Y,
                     mp.custom_text_U,
@@ -3357,7 +3353,7 @@ class PiCamera(object):
         if not isinstance(value, Color):
             raise PiCameraValueError(
                 'annotate_foreground must be a Color')
-        elif not self._annotate_v3:
+        elif self._camera.annotate_rev < 3:
             if value.rgb_bytes != (255, 255, 255):
                 warnings.warn(
                     PiCameraFallback(
@@ -3401,7 +3397,7 @@ class PiCamera(object):
     def _get_annotate_background(self):
         self._check_camera_open()
         mp = self._camera.control.params[mmal.MMAL_PARAMETER_ANNOTATE]
-        if self._annotate_v3:
+        if self._camera.annotate_rev == 3:
             if mp.enable_text_background:
                 if mp.custom_background_color:
                     return Color.from_yuv_bytes(
@@ -3436,13 +3432,13 @@ class PiCamera(object):
         elif not isinstance(value, Color):
             raise PiCameraValueError(
                 'annotate_background must be a Color or None')
-        elif not self._annotate_v3 and value.rgb_bytes != (0, 0, 0):
+        elif self._camera.annotate_rev < 3 and value.rgb_bytes != (0, 0, 0):
             warnings.warn(
                 PiCameraFallback(
                     "Firmware does not support setting a custom background "
                     "annotation color; using black instead"))
         mp = self._camera.control.params[mmal.MMAL_PARAMETER_ANNOTATE]
-        if self._annotate_v3:
+        if self._camera.annotate_rev == 3:
             if value is None:
                 mp.enable_text_background = False
             else:

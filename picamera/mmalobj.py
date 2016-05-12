@@ -1165,11 +1165,36 @@ class MMALCamera(MMALComponent):
         for port, opaque_subformat in zip(self.outputs, formats):
             port.opaque_subformat = opaque_subformat
         mp = self.control.params[mmal.MMAL_PARAMETER_ANNOTATE]
-        PARAM_TYPES[mmal.MMAL_PARAMETER_ANNOTATE] = {
-            ct.sizeof(mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_T):    mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_T,
-            ct.sizeof(mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V2_T): mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V2_T,
-            ct.sizeof(mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V3_T): mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V3_T,
-            }.get(mp.hdr.size, mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V3_T)
+        self.annotate_rev = {
+            ct.sizeof(mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_T):    1,
+            ct.sizeof(mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V2_T): 2,
+            ct.sizeof(mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V3_T): 3,
+            }.get(mp.hdr.size, 3)
+
+    def _get_annotate_rev(self):
+        return {
+            mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_T:    1,
+            mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V2_T: 2,
+            mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V3_T: 3,
+            }[PARAM_TYPES[mmal.MMAL_PARAMETER_ANNOTATE]]
+    def _set_annotate_rev(self, value):
+        try:
+            PARAM_TYPES[mmal.MMAL_PARAMETER_ANNOTATE] = {
+                1: mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_T,
+                2: mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V2_T,
+                3: mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V3_T,
+                }[value]
+        except KeyError:
+            raise PiCameraMMALError(
+                mmal.MMAL_EINVAL, "cannot set annotation revision")
+    annotate_rev = property(_get_annotate_rev, _set_annotate_rev, doc="""\
+        The annotation capabilities of the firmware have evolved over time and
+        several structures are available for querying and setting video
+        annotations. By default the :class:`MMALCamera` class will pick the
+        latest annotation structure supported by the current firmware but you
+        can select older revisions with :attr:`annotate_rev` for other purposes
+        (e.g. testing).
+        """)
 
 
 class MMALCameraInfo(MMALComponent):
