@@ -156,7 +156,7 @@ class PiRenderer(object):
         """)
 
     def _get_fullscreen(self):
-        return self.renderer.inputs[0].params[mmal.MMAL_PARAMETER_DISPLAYREGION].fullscreen != mmal.MMAL_FALSE
+        return self.renderer.inputs[0].params[mmal.MMAL_PARAMETER_DISPLAYREGION].fullscreen.value != mmal.MMAL_FALSE
     def _set_fullscreen(self, value):
         mp = self.renderer.inputs[0].params[mmal.MMAL_PARAMETER_DISPLAYREGION]
         mp.set = mmal.MMAL_DISPLAY_SET_FULLSCREEN

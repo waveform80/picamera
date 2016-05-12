@@ -77,9 +77,12 @@ MMAL_MAGIC = MMAL_FOURCC('mmal')
 
 MMAL_FALSE = 0
 MMAL_TRUE = 1
+
 class MMAL_BOOL_T(ct.c_int32):
-    def __repr__(self):
-        return 'MMAL_BOOL_T(%s)' % (self.value != MMAL_FALSE)
+    # This only exists to ensure we've got a distinct type to ct.c_int32
+    # for mmalobj to perform dict-lookups against
+    pass
+
 
 class MMAL_CORE_STATISTICS_T(ct.Structure):
     _fields_ = [

@@ -456,8 +456,8 @@ def test_resolution(camera, previewing):
         # Camera's vertical resolution is always a multiple of 16, and
         # horizontal is a multiple of 32, hence the difference in the video
         # formats here and below
-        assert camera._camera.outputs[2].width == 1920
-        assert camera._camera.outputs[2].height == 1088
+        assert camera._camera.outputs[2]._port[0].format[0].es[0].video.width == 1920
+        assert camera._camera.outputs[2]._port[0].format[0].es[0].video.height == 1088
         camera.resolution = (2592, 1944)
         assert camera.resolution == (2592, 1944)
         assert camera._camera.outputs[2].width == 2592
@@ -465,8 +465,8 @@ def test_resolution(camera, previewing):
         # Test some irregular resolutions
         camera.resolution = (100, 100)
         assert camera.resolution == (100, 100)
-        assert camera._camera.outputs[2].width == 128
-        assert camera._camera.outputs[2].height == 112
+        assert camera._camera.outputs[2]._port[0].format[0].es[0].video.width == 128
+        assert camera._camera.outputs[2]._port[0].format[0].es[0].video.height == 112
         # Anything below 16,16 will fail (because the camera's vertical
         # resolution works in increments of 16)
         with pytest.raises(picamera.PiCameraError):

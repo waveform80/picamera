@@ -1960,14 +1960,15 @@ class PiCamera(object):
     def _set_framerate(self, value):
         self._check_camera_open()
         self._check_recording_stopped()
-        if not (0 <= value <= 90):
+        n, d = to_rational(value)
+        if not (0 <= n / d <= 90):
             raise PiCameraValueError("Invalid framerate: %.2ffps" % value)
         sensor_mode = self.sensor_mode
         clock_mode = self.CLOCK_MODES[self.clock_mode]
         resolution = self.resolution
         self._disable_camera()
         self._configure_camera(
-            sensor_mode=sensor_mode, framerate=value, resolution=resolution,
+            sensor_mode=sensor_mode, framerate=(n, d), resolution=resolution,
             clock_mode=clock_mode)
         self._configure_splitter()
         self._enable_camera()
@@ -2922,7 +2923,7 @@ class PiCamera(object):
     def _get_color_effects(self):
         self._check_camera_open()
         mp = self._camera.control.params[mmal.MMAL_PARAMETER_COLOUR_EFFECT]
-        if mp.enable != mmal.MMAL_FALSE:
+        if mp.enable.value != mmal.MMAL_FALSE:
             return (mp.u, mp.v)
         else:
             return None
@@ -3289,7 +3290,7 @@ class PiCamera(object):
     def _get_annotate_frame_num(self):
         self._check_camera_open()
         mp = self._camera.control.params[mmal.MMAL_PARAMETER_ANNOTATE]
-        return mp.show_frame_num != mmal.MMAL_FALSE
+        return mp.show_frame_num.value != mmal.MMAL_FALSE
     def _set_annotate_frame_num(self, value):
         self._check_camera_open()
         mp = self._camera.control.params[mmal.MMAL_PARAMETER_ANNOTATE]
