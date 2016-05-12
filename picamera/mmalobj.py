@@ -42,6 +42,7 @@ from __future__ import (
 str = type('')
 
 import ctypes as ct
+import warnings
 from fractions import Fraction
 
 from . import mmal
@@ -75,7 +76,7 @@ PARAM_TYPES = {
     mmal.MMAL_PARAMETER_CAMERA_RX_TIMING:               mmal.MMAL_PARAMETER_CAMERA_RX_TIMING_T,
     mmal.MMAL_PARAMETER_CAMERA_SETTINGS:                mmal.MMAL_PARAMETER_CAMERA_SETTINGS_T,
     mmal.MMAL_PARAMETER_CAMERA_USE_CASE:                mmal.MMAL_PARAMETER_CAMERA_USE_CASE_T,
-    mmal.MMAL_PARAMETER_CAPTURE_EXPOSURE_COMP:          mmal.MMAL_PARAMETER_INT32_T,
+    mmal.MMAL_PARAMETER_CAPTURE_EXPOSURE_COMP:          ct.c_int32,
     mmal.MMAL_PARAMETER_CAPTURE:                        mmal.MMAL_BOOL_T,
     mmal.MMAL_PARAMETER_CAPTURE_MODE:                   mmal.MMAL_PARAMETER_CAPTUREMODE_T,
     mmal.MMAL_PARAMETER_CAPTURE_STATS_PASS:             mmal.MMAL_BOOL_T,
