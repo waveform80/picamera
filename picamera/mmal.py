@@ -147,8 +147,17 @@ class MMAL_RATIONAL_T(ct.Structure):
 MMAL_TIME_UNKNOWN = ct.c_int64(1<<63)
 
 class MMAL_FOURCC_T(ct.c_uint32):
+    def __eq__(self, other):
+        if isinstance(other, int):
+            return self.value == other
+        else:
+            return super(MMAL_FOURCC_T, self).__eq__(other)
+
+    def __str__(self):
+        return ''.join(chr(self.value >> i & 0xFF) for i in range(0, 32, 8))
+
     def __repr__(self):
-        return "MMAL_FOURCC('%s')" % ''.join(chr(self.value >> i & 0xFF) for i in range(0, 32, 8))
+        return "MMAL_FOURCC('%s')" % str(self)
 
 # mmal_format.h ##############################################################
 

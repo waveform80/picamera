@@ -43,6 +43,7 @@ str = type('')
 
 import ctypes as ct
 import warnings
+import weakref
 from fractions import Fraction
 
 from . import mmal
@@ -262,7 +263,110 @@ def to_fraction(rational):
     return Fraction(rational.num, rational.den)
 
 
-class MMALComponent(object):
+def debug_pipeline(obj):
+    """
+    Given an :class:`MMALEncoder` *obj*, this traces all objects in the
+    pipeline feeding it (including ports and connections) and yields each
+    object in turn. Hence the generator expression typically yields something
+    like:
+
+    * MMALEncoder
+    * MMALVideoPort
+    * MMALConnection
+    * MMALVideoPort
+    * MMALSplitter
+    * MMALVideoPort
+    * MMALConnection
+    * MMALVideoPort
+    * MMALCamera
+    """
+
+    def find_port(addr):
+        for obj in MMALObject.REGISTRY:
+            if isinstance(obj, MMALControlPort):
+                if ct.addressof(obj._port[0]) == addr:
+                    return obj
+        raise IndexError('unable to locate port with address %x' % addr)
+
+    def find_component(addr):
+        for obj in MMALObject.REGISTRY:
+            if isinstance(obj, MMALComponent):
+                if ct.addressof(obj._component[0]) == addr:
+                    return obj
+        raise IndexError('unable to locate component with address %x' % addr)
+
+    assert isinstance(obj, MMALDownstreamComponent)
+    while obj:
+        yield obj
+        if not isinstance(obj, MMALDownstreamComponent):
+            break
+        yield find_port(ct.addressof(obj.connection._connection[0].in_[0]))
+        yield obj.connection
+        yield find_port(ct.addressof(obj.connection._connection[0].out[0]))
+        obj = find_component(ct.addressof(obj.connection._connection[0].out[0].component[0]))
+
+
+def print_pipeline(encoder):
+    """
+    Prints a human readable representation of the pipeline feeding the
+    specified :class:`MMALEncoder` *encoder*.
+    """
+    rows = [[], [], [], []]
+    under_comp = False
+    for obj in reversed(list(debug_pipeline(encoder))):
+        if isinstance(obj, MMALComponent):
+            rows[0].append(obj.name)
+            under_comp = True
+        elif isinstance(obj, MMALVideoPort):
+            rows[0].append('[%d]' % obj._port[0].index)
+            if under_comp:
+                rows[1].append('encoding')
+            if obj.format == mmal.MMAL_ENCODING_OPAQUE:
+                rows[1].append(obj.opaque_subformat)
+            else:
+                rows[1].append(str(obj.format))
+            if under_comp:
+                rows[2].append('buf')
+            rows[2].append('%dx%d' % (obj.buffer_count, obj.buffer_size))
+            if under_comp:
+                rows[3].append('frame')
+                under_comp = False
+            rows[3].append('%dx%d@%sfps' % (obj.width, obj.height, obj.framerate))
+        elif isinstance(obj, MMALConnection):
+            rows[0].append('')
+            rows[1].append('-->')
+            rows[2].append('')
+            rows[3].append('')
+    if under_comp:
+        rows[1].append('encoding')
+        rows[2].append('buf')
+        rows[3].append('frame')
+    cols = list(zip(*rows))
+    max_lens = [max(len(s) for s in col) + 2 for col in cols]
+    rows = [
+        ''.join('{0:^{width}s}'.format(s, width=max_len) for s, max_len in zip(row, max_lens))
+        for row in rows
+        ]
+    for row in rows:
+        print(row)
+
+
+class MMALObject(object):
+    """
+    Represents an object wrapper around an MMAL object (component, port,
+    connection, etc). This base class maintains a registry of all MMAL objects
+    currently alive (via weakrefs) which permits object lookup by name and
+    listing all used MMAL objects.
+    """
+
+    REGISTRY = weakref.WeakSet()
+
+    def __init__(self):
+        super(MMALObject, self).__init__()
+        self.REGISTRY.add(self)
+
+
+class MMALComponent(MMALObject):
     """
     Represents a generic MMAL component. The component type is specified as a
     string to the constructor along with the opaque sub-formats to apply to the
@@ -385,7 +489,7 @@ class MMALComponent(object):
             return '<MMALComponent closed>'
 
 
-class MMALControlPort(object):
+class MMALControlPort(MMALObject):
     """
     Represents an MMAL port with properties to configure the port's parameters.
     """
@@ -769,6 +873,7 @@ class MMALPortParams(object):
     those structures verbatim.
     """
     def __init__(self, port):
+        super(MMALPortParams, self).__init__()
         self._port = port
 
     def __getitem__(self, key):
@@ -874,6 +979,7 @@ class MMALBuffer(object):
     string.
     """
     def __init__(self, buf):
+        super(MMALBuffer, self).__init__()
         self._buf = buf
 
     @property
@@ -988,6 +1094,7 @@ class MMALPool(object):
     Construct an MMAL pool containing *num* buffer headers of *size* bytes.
     """
     def __init__(self, port):
+        super(MMALPool, self).__init__()
         self._pool = pool
 
     def close(self):
@@ -1030,7 +1137,7 @@ class MMALPortPool(MMALPool):
         if not pool:
             raise PiCameraRuntimeError(
                 'failed to create buffer header pool for port %s' % port.name)
-        self._pool = pool
+        super(MMALPortPool, self).__init__(pool)
         self._port = port
 
     def close(self):
@@ -1059,7 +1166,7 @@ class MMALPortPool(MMALPool):
             self._port.send_buffer(self.get_buffer())
 
 
-class MMALConnection(object):
+class MMALConnection(MMALObject):
     """
     Represents an MMAL internal connection between two components. The
     constructor accepts arguments providing the source and target components,
@@ -1099,6 +1206,7 @@ class MMALConnection(object):
         }
 
     def __init__(self, source, target):
+        super(MMALConnection, self).__init__()
         self._connection = ct.POINTER(mmal.MMAL_CONNECTION_T)()
         if (source.opaque_subformat, target.opaque_subformat) in self.compatible_formats:
             source.format = mmal.MMAL_ENCODING_OPAQUE
@@ -1268,7 +1376,13 @@ class MMALResizer(MMALDownstreamComponent):
         self.outputs[0].opaque_subformat = None
 
 
-class MMALVideoEncoder(MMALDownstreamComponent):
+class MMALEncoder(MMALDownstreamComponent):
+    """
+    Represents a generic MMAL encoder. This is an abstract base class.
+    """
+
+
+class MMALVideoEncoder(MMALEncoder):
     """
     Represents the MMAL video encoder component.
     """
@@ -1278,7 +1392,7 @@ class MMALVideoEncoder(MMALDownstreamComponent):
         self.outputs[0].opaque_subformat = None
 
 
-class MMALImageEncoder(MMALDownstreamComponent):
+class MMALImageEncoder(MMALEncoder):
     """
     Represents the MMAL image encoder component.
     """
