@@ -169,6 +169,7 @@ class PiEncoder(object):
         has been created.
     """
 
+    DEBUG = 0
     encoder_type = None
 
     def __init__(
@@ -263,6 +264,8 @@ class PiEncoder(object):
         to override the :meth:`_callback_write` method, rather than deal with
         these complexities.
         """
+        if self.DEBUG > 1:
+            print(repr(buf))
         try:
             stop = self._callback_write(buf)
         except Exception as e:
@@ -377,6 +380,8 @@ class PiEncoder(object):
         encoders), or an iterable of filenames or file-like objects (for
         multi-image encoders).
         """
+        if self.DEBUG > 0:
+            mo.print_pipeline(self)
         self.event.clear()
         self.exception = None
         self._open_output(output)
