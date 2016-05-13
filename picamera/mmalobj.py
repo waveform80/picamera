@@ -328,14 +328,17 @@ def print_pipeline(encoder):
             if obj.format == mmal.MMAL_ENCODING_OPAQUE:
                 rows[1].append(obj.opaque_subformat)
             else:
-                rows[1].append(str(obj.format))
+                rows[1].append(str(obj._port[0].format[0].encoding))
             if under_comp:
                 rows[2].append('buf')
-            rows[2].append('%dx%d' % (obj.buffer_count, obj.buffer_size))
+            rows[2].append('%dx%d' % (obj._port[0].buffer_num, obj._port[0].buffer_size))
             if under_comp:
                 rows[3].append('frame')
                 under_comp = False
-            rows[3].append('%dx%d@%sfps' % (obj.width, obj.height, obj.framerate))
+            rows[3].append('%dx%d@%sfps' % (
+                obj._port[0].format[0].es[0].video.width,
+                obj._port[0].format[0].es[0].video.height,
+                obj.framerate))
         elif isinstance(obj, MMALConnection):
             rows[0].append('')
             rows[1].append('-->')
