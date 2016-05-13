@@ -1093,7 +1093,7 @@ class MMALPool(object):
     """
     Construct an MMAL pool containing *num* buffer headers of *size* bytes.
     """
-    def __init__(self, port):
+    def __init__(self, pool):
         super(MMALPool, self).__init__()
         self._pool = pool
 
