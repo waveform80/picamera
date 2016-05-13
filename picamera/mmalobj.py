@@ -297,6 +297,8 @@ def debug_pipeline(obj):
 
     assert isinstance(obj, MMALDownstreamComponent)
     while obj:
+        if isinstance(obj, MMALEncoder):
+            yield obj.outputs[0]
         yield obj
         if not isinstance(obj, MMALDownstreamComponent):
             break
