@@ -45,6 +45,7 @@ import ctypes as ct
 import warnings
 import weakref
 from fractions import Fraction
+from itertools import cycle
 
 from . import mmal
 from .exc import (
@@ -346,7 +347,8 @@ def print_pipeline(encoder):
     cols = list(zip(*rows))
     max_lens = [max(len(s) for s in col) + 2 for col in cols]
     rows = [
-        ''.join('{0:^{width}s}'.format(s, width=max_len) for s, max_len in zip(row, max_lens))
+        ''.join('{0:{align}{width}s}'.format(s, align=align, width=max_len)
+            for s, max_len, align in zip(row, max_lens, cycle('^<^>')))
         for row in rows
         ]
     for row in rows:
