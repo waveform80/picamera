@@ -264,13 +264,14 @@ def to_fraction(rational):
     return Fraction(rational.num, rational.den)
 
 
-def debug_pipeline(obj):
+def debug_pipeline(port):
     """
-    Given an :class:`MMALEncoder` *obj*, this traces all objects in the
-    pipeline feeding it (including ports and connections) and yields each
+    Given an :class:`MMALVideoPort` *obj*, this traces all objects in the
+    pipeline feeding it (including components and connections) and yields each
     object in turn. Hence the generator expression typically yields something
     like:
 
+    * MMALVideoPort
     * MMALEncoder
     * MMALVideoPort
     * MMALConnection
@@ -296,17 +297,17 @@ def debug_pipeline(obj):
                     return obj
         raise IndexError('unable to locate component with address %x' % addr)
 
-    assert isinstance(obj, MMALDownstreamComponent)
-    while obj:
-        if isinstance(obj, MMALEncoder):
-            yield obj.outputs[0]
-        yield obj
-        if not isinstance(obj, MMALDownstreamComponent):
+    assert isinstance(port, MMALControlPort)
+    while True:
+        yield port
+        comp = find_component(ct.addressof(port._port[0].component[0]))
+        yield comp
+        if not isinstance(comp, MMALDownstreamComponent):
             break
-        yield find_port(ct.addressof(obj.connection._connection[0].in_[0]))
-        yield obj.connection
-        yield find_port(ct.addressof(obj.connection._connection[0].out[0]))
-        obj = find_component(ct.addressof(obj.connection._connection[0].out[0].component[0]))
+        port = find_port(ct.addressof(comp.connection._connection[0].in_[0]))
+        yield port
+        yield comp.connection
+        port = find_port(ct.addressof(comp.connection._connection[0].out[0]))
 
 
 def print_pipeline(encoder):

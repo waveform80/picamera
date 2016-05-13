@@ -381,7 +381,7 @@ class PiEncoder(object):
         multi-image encoders).
         """
         if self.DEBUG > 0:
-            mo.print_pipeline(self)
+            mo.print_pipeline(self.output_port)
         self.event.clear()
         self.exception = None
         self._open_output(output)
