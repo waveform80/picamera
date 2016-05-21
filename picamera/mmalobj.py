@@ -310,14 +310,14 @@ def debug_pipeline(port):
         port = find_port(ct.addressof(comp.connection._connection[0].out[0]))
 
 
-def print_pipeline(encoder):
+def print_pipeline(port):
     """
     Prints a human readable representation of the pipeline feeding the
-    specified :class:`MMALEncoder` *encoder*.
+    specified :class:`MMALVideoPort` *port*.
     """
     rows = [[], [], [], []]
     under_comp = False
-    for obj in reversed(list(debug_pipeline(encoder))):
+    for obj in reversed(list(debug_pipeline(port))):
         if isinstance(obj, MMALComponent):
             rows[0].append(obj.name)
             under_comp = True
