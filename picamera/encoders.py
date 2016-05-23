@@ -648,7 +648,7 @@ class PiVideoEncoder(PiEncoder):
             # the split method below. If one is not set explicitly, query the
             # encoder's default
             if intra_period is not None:
-                self._output_port.params[mmal.MMAL_PARAMETER_INTRAPERIOD] = intra_period
+                self.output_port.params[mmal.MMAL_PARAMETER_INTRAPERIOD] = intra_period
                 self._intra_period = intra_period
             else:
                 self._intra_period = self.output_port.params[mmal.MMAL_PARAMETER_INTRAPERIOD]
