@@ -75,16 +75,16 @@ Connections
 
 .. autoclass:: MMALConnection
 
-.. autoclass:: MMALPool
-
-.. autoclass:: MMALPortPool
-    :show-inheritance:
-
 
 Buffers
 =======
 
 .. autoclass:: MMALBuffer
+
+.. autoclass:: MMALPool
+
+.. autoclass:: MMALPortPool
+    :show-inheritance:
 
 
 Debugging
