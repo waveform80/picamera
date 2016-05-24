@@ -168,13 +168,17 @@ class PiCamera(object):
             pass
 
     .. versionchanged:: 1.8
-        Added *stereo_mode* and *stereo_decimate* parameters
+        Added *stereo_mode* and *stereo_decimate* parameters.
 
     .. versionchanged:: 1.9
-        Added *resolution*, *framerate*, and *sensor_mode* parameters
+        Added *resolution*, *framerate*, and *sensor_mode* parameters.
 
     .. versionchanged:: 1.10
-        Added *led_pin* parameter
+        Added *led_pin* parameter.
+
+    .. versionchanged:: 1.11
+        Added *clock_mode* parameter, and permitted setting of resolution as
+        appropriately formatted string.
 
     .. _Compute Module: http://www.raspberrypi.org/documentation/hardware/computemodule/cmio-camera.md
     """
