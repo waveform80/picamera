@@ -422,29 +422,32 @@ class MMALObject(object):
 
 class MMALComponent(MMALObject):
     """
-    Represents a generic MMAL component. The *component_type* is specified as a
-    string to the constructor along with the number of expected input and
-    output ports.
+    Represents a generic MMAL component. Class attributes are read to determine
+    the component type, and the OPAQUE sub-formats of each connectable port.
     """
-    def __init__(
-            self, component_type, input_count, output_count):
+
+    component_type = 'none'
+    opaque_input_subformats = ()
+    opaque_output_subformats = ()
+
+    def __init__(self):
         super(MMALComponent, self).__init__()
         self._component = ct.POINTER(mmal.MMAL_COMPONENT_T)()
         mmal_check(
-            mmal.mmal_component_create(component_type, self._component),
-            prefix="Failed to create MMAL component %s" % component_type)
-        if self._component[0].input_num != input_count:
+            mmal.mmal_component_create(self.component_type, self._component),
+            prefix="Failed to create MMAL component %s" % self.component_type)
+        if self._component[0].input_num != len(self.opaque_input_subformats):
             raise PiCameraRuntimeError(
                 'Expected %d inputs but found %d on component %s' % (
                     input_count,
                     self._components[0].input_num,
-                    component_type))
-        if self._component[0].output_num != output_count:
+                    self.component_type))
+        if self._component[0].output_num != len(self.opaque_output_subformats):
             raise PiCameraRuntimeError(
                 'Expected %d inputs but found %d on component %s' % (
                     output_count,
                     self._components[0].input_num,
-                    component_type))
+                    self.component_type))
         self._control = MMALControlPort(self._component[0].control)
         port_class = {
             mmal.MMAL_ES_TYPE_UNKNOWN:    MMALPort,
@@ -455,12 +458,12 @@ class MMALComponent(MMALObject):
             }
         self._inputs = tuple(
             port_class[self._component[0].input[n][0].format[0].type](
-                self._component[0].input[n])
-            for n in range(input_count))
+                self._component[0].input[n], opaque_subformat)
+            for n, opaque_subformat in enumerate(self.opaque_input_subformats))
         self._outputs = tuple(
             port_class[self._component[0].output[n][0].format[0].type](
-                self._component[0].output[n])
-            for n in range(output_count))
+                self._component[0].output[n], opaque_subformat)
+            for n, opaque_subformat in enumerate(self.opaque_output_subformats))
 
     def close(self):
         """
@@ -1254,7 +1257,7 @@ class MMALConnection(MMALObject):
             'I420')
         } | {
         ('OPQV-dual', 'OPQV-single'),
-        ('OPQV-single', 'OPQV-dual'),
+        ('OPQV-single', 'OPQV-dual'), # recent firmwares permit this
         }
 
     def __init__(self, source, target):
@@ -1325,16 +1328,12 @@ class MMALCamera(MMALComponent):
 
     * Port 2 is intended for still image capture
     """
+
+    component_type = mmal.MMAL_COMPONENT_DEFAULT_CAMERA
+    opaque_output_subformats = ('OPQV-single', 'OPQV-dual', 'OPQV-strips')
+
     def __init__(self):
-        super(MMALCamera, self).__init__(
-            mmal.MMAL_COMPONENT_DEFAULT_CAMERA, 0, 3)
-        formats = (
-            'OPQV-single', # preview
-            'OPQV-dual',   # video
-            'OPQV-strips', # stills
-            )
-        for port, opaque_subformat in zip(self.outputs, formats):
-            port.opaque_subformat = opaque_subformat
+        super(MMALCamera, self).__init__()
         mp = self.control.params[mmal.MMAL_PARAMETER_ANNOTATE]
         self.annotate_rev = {
             ct.sizeof(mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_T):    1,
@@ -1372,9 +1371,7 @@ class MMALCameraInfo(MMALComponent):
     """
     Represents the MMAL camera-info component.
     """
-    def __init__(self):
-        super(MMALCameraInfo, self).__init__(
-            mmal.MMAL_COMPONENT_DEFAULT_CAMERA_INFO, 0, 0)
+    component_type = mmal.MMAL_COMPONENT_DEFAULT_CAMERA_INFO
 
 
 class MMALDownstreamComponent(MMALComponent):
@@ -1383,9 +1380,9 @@ class MMALDownstreamComponent(MMALComponent):
     single input that connects to an upstream source port. This is an asbtract
     base class.
     """
-    def __init__(self, component_type, output_count):
-        super(MMALDownstreamComponent, self).__init__(
-                component_type, 1, output_count)
+    def __init__(self):
+        super(MMALDownstreamComponent, self).__init__()
+        assert len(self.opaque_input_subformats) == 1
         self._connection = None
 
     def connect(self, source):
@@ -1421,21 +1418,18 @@ class MMALSplitter(MMALDownstreamComponent):
     """
     Represents the MMAL splitter component.
     """
-    def __init__(self):
-        super(MMALSplitter, self).__init__(mmal.MMAL_COMPONENT_DEFAULT_VIDEO_SPLITTER, 4)
-        self.inputs[0].opaque_subformat = 'OPQV-single'
-        for output in self.outputs:
-            output.opaque_subformat = 'OPQV-single'
+    component_type = mmal.MMAL_COMPONENT_DEFAULT_VIDEO_SPLITTER
+    opaque_input_subformats = ('OPQV-single',)
+    opaque_output_subformats = ('OPQV-single',) * 4
 
 
 class MMALResizer(MMALDownstreamComponent):
     """
     Represents the MMAL resizer component.
     """
-    def __init__(self):
-        super(MMALResizer, self).__init__(mmal.MMAL_COMPONENT_DEFAULT_RESIZER, 1)
-        self.inputs[0].opaque_subformat = None
-        self.outputs[0].opaque_subformat = None
+    component_type = mmal.MMAL_COMPONENT_DEFAULT_RESIZER
+    opaque_input_subformats = (None,)
+    opaque_output_subformats = (None,)
 
 
 class MMALEncoder(MMALDownstreamComponent):
@@ -1448,35 +1442,32 @@ class MMALVideoEncoder(MMALEncoder):
     """
     Represents the MMAL video encoder component.
     """
-    def __init__(self):
-        super(MMALVideoEncoder, self).__init__(mmal.MMAL_COMPONENT_DEFAULT_VIDEO_ENCODER, 1)
-        self.inputs[0].opaque_subformat = 'OPQV-dual'
-        self.outputs[0].opaque_subformat = None
+    component_type = mmal.MMAL_COMPONENT_DEFAULT_VIDEO_ENCODER
+    opaque_input_subformats = ('OPQV-dual',)
+    opaque_output_subformats = (None,)
 
 
 class MMALImageEncoder(MMALEncoder):
     """
     Represents the MMAL image encoder component.
     """
-    def __init__(self):
-        super(MMALImageEncoder, self).__init__(mmal.MMAL_COMPONENT_DEFAULT_IMAGE_ENCODER, 1)
-        self.inputs[0].opaque_subformat = 'OPQV-strips'
-        self.outputs[0].opaque_subformat = None
+    component_type = mmal.MMAL_COMPONENT_DEFAULT_IMAGE_ENCODER
+    opaque_input_subformats = ('OPQV-strips',)
+    opaque_output_subformats = (None,)
 
 
 class MMALRenderer(MMALDownstreamComponent):
     """
     Represents the MMAL preview renderer component.
     """
-    def __init__(self):
-        super(MMALRenderer, self).__init__(mmal.MMAL_COMPONENT_DEFAULT_VIDEO_RENDERER, 0)
-        self.inputs[0].opaque_subformat = 'OPQV-single'
+    component_type = mmal.MMAL_COMPONENT_DEFAULT_VIDEO_RENDERER
+    opaque_input_subformats = ('OPQV-single',)
 
 
 class MMALNullSink(MMALDownstreamComponent):
     """
     Represents the MMAL null-sink component.
     """
-    def __init__(self):
-        super(MMALNullSink, self).__init__(mmal.MMAL_COMPONENT_DEFAULT_NULL_SINK, 0)
-        self.inputs[0].opaque_subformat = 'OPQV-single'
+    component_type = mmal.MMAL_COMPONENT_DEFAULT_NULL_SINK
+    opaque_input_subformats = ('OPQV-single',)
+
