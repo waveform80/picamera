@@ -153,18 +153,19 @@ To remove your installation blow away the sandbox and the clone::
 
     $ rm -fr ~/sandbox/ ~/picamera/
 
-For anybody wishing to hack on the project please understand that although it
-is technically written in pure Python, heavy use of :mod:`ctypes` is involved
-so the code really doesn’t look much like Python - more a sort of horrid
-mishmash of C and Python.
+For anybody wishing to hack on the project, I would strongly recommend reading
+through the :class:`PiCamera` class' source, to get a handle on using the
+``mmalobj`` layer. This is a layer introduced in picamera 1.11 to ease the
+usage of ``libmmal`` (the underlying library that picamera, ``raspistill``,
+and ``raspivid`` all rely upon).
 
-The project consists primarily of a class (:class:`PiCamera`) which is a
-re-implementation of high-level bits of the ``raspistill`` and ``raspivid``
-commands using the :mod:`ctypes` based ``libmmal`` header conversion, plus a
-set of :ref:`encoder classes <custom_encoders>` which re-implement the encoder
-callback configuration in the aforementioned binaries. Various classes for
-specialized applications also exist (:class:`PiCameraCircularIO`,
-:class:`~array.PiBayerArray`, etc.)
+Beneath ``mmalobj`` is a :mod:`ctypes` translation of the ``libmmal`` headers
+but my hope is that most developers will never need to deal with this
+directly (thus, a working knowledge of C is hopefully no longer necessary to
+hack on picamera).
+
+Various classes for specialized applications also exist
+(:class:`PiCameraCircularIO`, :class:`~array.PiBayerArray`, etc.)
 
 Even if you don’t feel up to hacking on the code, I’d love to hear suggestions
 from people of what you’d like the API to look like (even if the code itself

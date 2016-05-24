@@ -15,19 +15,16 @@ PiCameraCircularIO
 ==================
 
 .. autoclass:: PiCameraCircularIO
-    :members:
 
 
 CircularIO
 ==========
 
 .. autoclass:: CircularIO
-    :members:
 
 
 BufferIO
 ========
 
 .. autoclass:: BufferIO
-    :members:
 

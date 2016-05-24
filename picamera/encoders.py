@@ -103,17 +103,18 @@ class PiEncoder(object):
 
     .. attribute:: camera_port
 
-        The :class:`MMALVideoPort` that needs to be activated and deactivated
-        in order to start/stop capture. This is not necessarily the port that
-        the encoder component's input port is connected to (for example, in the
-        case of video-port based captures, this will be the camera video port
-        behind the splitter).
+        The :class:`~mmalobj.MMALVideoPort` that needs to be activated and
+        deactivated in order to start/stop capture. This is not necessarily the
+        port that the encoder component's input port is connected to (for
+        example, in the case of video-port based captures, this will be the
+        camera video port behind the splitter).
 
     .. attribute:: encoder
 
-        The :class:`MMALComponent` representing the encoder, or ``None`` if no
-        encoder component has been created (some encoder classes don't use an
-        actual encoder component, for example :class:`PiRawImageMixin`).
+        The :class:`~mmalobj.MMALComponent` representing the encoder, or
+        ``None`` if no encoder component has been created (some encoder classes
+        don't use an actual encoder component, for example
+        :class:`PiRawImageMixin`).
 
     .. attribute:: event
 
@@ -134,12 +135,13 @@ class PiEncoder(object):
 
     .. attribute:: input_port
 
-        The :class:`MMALVideoPort` that the encoder should be connected to.
+        The :class:`~mmalobj.MMALVideoPort` that the encoder should be
+        connected to.
 
     .. attribute:: output_port
 
-        The :class:`MMALVideoPort` that produces the encoder's output. In the
-        case no encoder component is created, this should be the
+        The :class:`~mmalobj.MMALVideoPort` that produces the encoder's output.
+        In the case no encoder component is created, this should be the
         camera/component output port responsible for producing data. In other
         words, this attribute **must** be set on initialization.
 
@@ -165,8 +167,8 @@ class PiEncoder(object):
 
     .. attribute:: resizer
 
-        The :class:`MMALResizer` component, or ``None`` if no resizer component
-        has been created.
+        The :class:`~mmalobj.MMALResizer` component, or ``None`` if no resizer
+        component has been created.
     """
 
     DEBUG = 0
@@ -201,7 +203,7 @@ class PiEncoder(object):
 
     def _create_resizer(self, width, height):
         """
-        Creates and configures an MMAL resizer component.
+        Creates and configures an :class:`~mmalobj.MMALResizer` component.
 
         This is called when the initializer's *resize* parameter is something
         other than ``None``. The *width* and *height* parameters are passed to
@@ -219,7 +221,7 @@ class PiEncoder(object):
 
     def _create_encoder(self, format):
         """
-        Creates and configures the MMAL encoder component.
+        Creates and configures the :class:`~mmalobj.MMALEncoder` component.
 
         This method only constructs the encoder; it does not connect it to the
         input port. The method sets the :attr:`encoder` attribute to the
@@ -254,8 +256,9 @@ class PiEncoder(object):
         background thread. The *port* parameter specifies the :class:`MMALPort`
         providing the output (typically this is the encoder's output port, but
         in the case of unencoded captures may simply be a camera port), while
-        the *buf* parameter is an :class:`MMALBuffer` which can be used to
-        obtain the data to write, along with meta-data about the current frame.
+        the *buf* parameter is an :class:`~mmalobj.MMALBuffer` which can be
+        used to obtain the data to write, along with meta-data about the
+        current frame.
 
         This method must set :attr:`event` when the encoder has finished (and
         should set :attr:`exception` if an exception occurred during encoding).
@@ -281,9 +284,9 @@ class PiEncoder(object):
 
         This method is called by :meth:`_callback` to handle writing to an
         object in :attr:`outputs` identified by *key*. The *buf* parameter is
-        an :class:`MMALBuffer` which can be used to obtain the data.  The
-        method is expected to return a boolean to indicate whether output is
-        complete (``True``) or whether more data is expected (``False``).
+        an :class:`~mmalobj.MMALBuffer` which can be used to obtain the data.
+        The method is expected to return a boolean to indicate whether output
+        is complete (``True``) or whether more data is expected (``False``).
 
         The default implementation simply writes the contents of the buffer to
         the output identified by *key*, and returns ``True`` if the buffer

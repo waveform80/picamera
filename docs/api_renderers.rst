@@ -17,26 +17,22 @@ PiRenderer
 ==========
 
 .. autoclass:: PiRenderer
-    :members:
 
 
 PiOverlayRenderer
 =================
 
 .. autoclass:: PiOverlayRenderer
-    :members:
 
 
 PiPreviewRenderer
 =================
 
 .. autoclass:: PiPreviewRenderer
-    :members:
 
 
 PiNullSink
 ==========
 
 .. autoclass:: PiNullSink
-    :members:
 

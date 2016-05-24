@@ -269,10 +269,13 @@ encodings are equivalent:
   the single and dual image variants provided by the preview or video ports.
 
 * The H264 video encoder in older firmwares only accepts the dual image
-  OPAQUE format (it will accept full-frame YUV input instead though).
+  OPAQUE format (it will accept full-frame YUV input instead though). In newer
+  firmwares it now accepts the single image OPAQUE format too (presumably
+  constructing the second image itself for motion estimation).
 
 * The splitter accepts single or dual image OPAQUE input, but only outputs
-  single image OPAQUE input (or YUV).
+  single image OPAQUE input (or YUV; in later firmwares it also
+  supports RGB or BGR output).
 
 * The resizer theoretically accepts OPAQUE input (though the author hasn't
   managed to get this working at the time of writing) but will only produce

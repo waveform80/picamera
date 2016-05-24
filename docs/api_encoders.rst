@@ -12,11 +12,16 @@ frames for output to disk. However, picamera also has classes representing
 these classes directly, but advanced users may find them useful as base classes
 for :ref:`custom_encoders`.
 
+The inheritance diagram for the following classes is displayed below:
+
+.. image:: encoder_classes.*
+    :align: center
+
+
 PiEncoder
 =========
 
 .. autoclass:: PiEncoder
-    :members:
     :private-members:
 
 
@@ -24,7 +29,6 @@ PiVideoEncoder
 ==============
 
 .. autoclass:: PiVideoEncoder
-    :members:
     :private-members:
 
 
@@ -32,7 +36,6 @@ PiImageEncoder
 ==============
 
 .. autoclass:: PiImageEncoder
-    :members:
     :private-members:
 
 
@@ -40,7 +43,6 @@ PiRawMixin
 ==========
 
 .. autoclass:: PiRawMixin
-    :members:
     :private-members:
 
 
@@ -48,7 +50,6 @@ PiCookedVideoEncoder
 ====================
 
 .. autoclass:: PiCookedVideoEncoder
-    :members:
     :private-members:
 
 
@@ -56,7 +57,6 @@ PiRawVideoEncoder
 =================
 
 .. autoclass:: PiRawVideoEncoder
-    :members:
     :private-members:
 
 
@@ -64,7 +64,6 @@ PiOneImageEncoder
 =================
 
 .. autoclass:: PiOneImageEncoder
-    :members:
     :private-members:
 
 
@@ -72,7 +71,6 @@ PiMultiImageEncoder
 ===================
 
 .. autoclass:: PiMultiImageEncoder
-    :members:
     :private-members:
 
 
@@ -80,7 +78,6 @@ PiRawImageMixin
 ===============
 
 .. autoclass:: PiRawImageMixin
-    :members:
     :private-members:
 
 
@@ -88,7 +85,6 @@ PiCookedOneImageEncoder
 =======================
 
 .. autoclass:: PiCookedOneImageEncoder
-    :members:
     :private-members:
 
 
@@ -96,7 +92,6 @@ PiRawOneImageEncoder
 ====================
 
 .. autoclass:: PiRawOneImageEncoder
-    :members:
     :private-members:
 
 
@@ -104,7 +99,6 @@ PiCookedMultiImageEncoder
 =========================
 
 .. autoclass:: PiCookedMultiImageEncoder
-    :members:
     :private-members:
 
 
@@ -112,6 +106,5 @@ PiRawMultiImageEncoder
 ======================
 
 .. autoclass:: PiRawMultiImageEncoder
-    :members:
     :private-members:
 

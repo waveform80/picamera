@@ -49,7 +49,7 @@ from .exc import (
 
 class PiRenderer(object):
     """
-    Base implementation of an MMAL video renderer for use by PiCamera.
+    Wraps :class:`~mmalobj.MMALRenderer` for use by PiCamera.
 
     The *parent* parameter specifies the :class:`PiCamera` instance that has
     constructed this renderer. The *layer* parameter specifies the layer that
@@ -339,13 +339,14 @@ class PiRenderer(object):
 
 class PiOverlayRenderer(PiRenderer):
     """
-    Represents an MMAL renderer with a static source for overlays.
+    Represents an :class:`~mmalobj.MMALRenderer` with a static source for
+    overlays.
 
     This class descends from :class:`PiRenderer` and adds a static source for
-    the MMAL renderer. The optional *size* parameter specifies the size of the
-    source image as a ``(width, height)`` tuple. If this is omitted or ``None``
-    then the size is assumed to be the same as the parent camera's current
-    :attr:`~PiCamera.resolution`.
+    the :class:`~mmalobj.MMALRenderer`. The optional *size* parameter specifies
+    the size of the source image as a ``(width, height)`` tuple. If this is
+    omitted or ``None`` then the size is assumed to be the same as the parent
+    camera's current :attr:`~PiCamera.resolution`.
 
     The *source* must be an object that supports the :ref:`buffer protocol
     <bufferobjects>` which has the same length as an image in `RGB`_ format
@@ -405,11 +406,13 @@ class PiOverlayRenderer(PiRenderer):
 
 class PiPreviewRenderer(PiRenderer):
     """
-    Represents an MMAL renderer which uses the camera's preview as a source.
+    Represents an :class:`~mmalobj.MMALRenderer` which uses the camera's
+    preview as a source.
 
-    This class descends from :class:`PiRenderer` and adds an MMAL connection to
-    connect the renderer to an MMAL port. The *source* parameter specifies the
-    MMAL port to connect to the renderer.
+    This class descends from :class:`PiRenderer` and adds an
+    :class:`~mmalobj.MMALConnection` to connect the renderer to an MMAL port.
+    The *source* parameter specifies the :class:`~mmalobj.MMALPort` to connect
+    to the renderer.
 
     The *layer*, *alpha*, *fullscreen*, and *window* parameters are the same
     as in :class:`PiRenderer`.
@@ -426,11 +429,13 @@ class PiPreviewRenderer(PiRenderer):
 
 class PiNullSink(object):
     """
-    Implements an MMAL null-sink which can be used in place of a renderer.
+    Implements an :class:`~mmalobj.MMALNullSink` which can be used in place of
+    a renderer.
 
     The *parent* parameter specifies the :class:`PiCamera` instance which
-    constructed this null-sink. The *source* parameter specifies the MMAL port
-    which the null-sink should connect to its input.
+    constructed this :class:`~mmalobj.MMALNullSink`. The *source* parameter
+    specifies the :class:`~mmalobj.MMALPort` which the null-sink should connect
+    to its input.
 
     The null-sink can act as a drop-in replacement for :class:`PiRenderer` in
     most cases, but obviously doesn't implement attributes like ``alpha``,

@@ -24,6 +24,7 @@ Table of Contents
    api_exc
    api_color
    api_array
+   api_mmalobj
    changelog
    license
 

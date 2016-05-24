@@ -13,7 +13,7 @@
    height="232.70833"
    id="svg7222"
    version="1.1"
-   inkscape:version="0.48.4 r9939"
+   inkscape:version="0.91 r13725"
    sodipodi:docname="video_fullfov_record.svg">
   <defs
      id="defs7224">
@@ -40,16 +40,16 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="1.979899"
-     inkscape:cx="135.17177"
+     inkscape:cx="256.39007"
      inkscape:cy="102.77325"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="false"
-     inkscape:window-width="960"
-     inkscape:window-height="1028"
+     inkscape:window-width="1920"
+     inkscape:window-height="1056"
      inkscape:window-x="0"
      inkscape:window-y="24"
-     inkscape:window-maximized="0"
+     inkscape:window-maximized="1"
      fit-margin-top="0"
      fit-margin-left="0"
      fit-margin-right="0"
@@ -79,7 +79,7 @@
        sodipodi:cy="102.00504"
        sodipodi:rx="41.42857"
        sodipodi:ry="44.642857"
-       d="m 160,102.00504 c 0,24.65557 -18.54821,44.64286 -41.42857,44.64286 -22.880371,0 -41.428573,-19.98729 -41.428573,-44.64286 0,-24.655566 18.548202,-44.642854 41.428573,-44.642854 22.88036,0 41.42857,19.987288 41.42857,44.642854 z"
+       d="M 160,102.00504 A 41.42857,44.642857 0 0 1 118.57143,146.6479 41.42857,44.642857 0 0 1 77.142857,102.00504 41.42857,44.642857 0 0 1 118.57143,57.362186 41.42857,44.642857 0 0 1 160,102.00504 Z"
        transform="translate(-1.4285714,41.571429)" />
     <g
        id="g3827"
@@ -164,34 +164,6 @@
            x="203.70613"
            sodipodi:role="line"
            id="tspan3871">Port</tspan></text>
-    </g>
-    <g
-       transform="translate(-145.56961,132.71175)"
-       id="g3847">
-      <rect
-         style="fill:none;stroke:#222222;stroke-width:2;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0"
-         id="rect3849"
-         width="45.357143"
-         height="24.642857"
-         x="181.35715"
-         y="68.790756"
-         ry="5"
-         inkscape:connector-avoid="true" />
-      <text
-         xml:space="preserve"
-         style="font-size:9px;font-style:normal;font-weight:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#222222;fill-opacity:1;stroke:none;font-family:Sans"
-         x="203.73055"
-         y="78.502319"
-         id="text3851"
-         sodipodi:linespacing="125%"><tspan
-           sodipodi:role="line"
-           x="203.73055"
-           y="78.502319"
-           id="tspan3855">JPEG</tspan><tspan
-           sodipodi:role="line"
-           x="203.73055"
-           y="89.752319"
-           id="tspan3859">Encoder</tspan></text>
     </g>
     <g
        id="g3873"
@@ -282,7 +254,7 @@
          style="fill:none;stroke:#222222;stroke-width:2;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none" />
       <path
          transform="translate(-49.500007,-32.785716)"
-         d="m 116.78572,103.07647 c 0,8.08703 -6.55583,14.64286 -14.64286,14.64286 -8.087027,0 -14.642857,-6.55583 -14.642857,-14.64286 0,-8.087027 6.55583,-14.642858 14.642857,-14.642858 8.08703,0 14.64286,6.555831 14.64286,14.642858 z"
+         d="M 116.78572,103.07647 A 14.642858,14.642858 0 0 1 102.14286,117.71933 14.642858,14.642858 0 0 1 87.500003,103.07647 14.642858,14.642858 0 0 1 102.14286,88.433612 14.642858,14.642858 0 0 1 116.78572,103.07647 Z"
          sodipodi:ry="14.642858"
          sodipodi:rx="14.642858"
          sodipodi:cy="103.07647"
@@ -528,7 +500,7 @@
          sodipodi:cy="103.07647"
          sodipodi:rx="14.642858"
          sodipodi:ry="14.642858"
-         d="m 116.78572,103.07647 c 0,8.08703 -6.55583,14.64286 -14.64286,14.64286 -8.087027,0 -14.642857,-6.55583 -14.642857,-14.64286 0,-8.087027 6.55583,-14.642858 14.642857,-14.642858 8.08703,0 14.64286,6.555831 14.64286,14.642858 z"
+         d="M 116.78572,103.07647 A 14.642858,14.642858 0 0 1 102.14286,117.71933 14.642858,14.642858 0 0 1 87.500003,103.07647 14.642858,14.642858 0 0 1 102.14286,88.433612 14.642858,14.642858 0 0 1 116.78572,103.07647 Z"
          transform="translate(-49.500007,-32.785716)" />
       <rect
          style="fill:none;stroke:#222222;stroke-width:2;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0"

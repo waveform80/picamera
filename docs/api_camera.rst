@@ -19,19 +19,16 @@ PiCamera
 ========
 
 .. autoclass:: PiCamera
-    :members:
 
 
 PiVideoFrameType
 ================
 
 .. autoclass:: PiVideoFrameType
-    :members:
 
 
 PiVideoFrame
 ============
 
 .. autoclass:: PiVideoFrame(index, frame_type, frame_size, video_size, split_size, timestamp)
-    :members:
 

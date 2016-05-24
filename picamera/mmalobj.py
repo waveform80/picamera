@@ -266,21 +266,21 @@ def to_fraction(rational):
 
 def debug_pipeline(port):
     """
-    Given an :class:`MMALVideoPort` *obj*, this traces all objects in the
+    Given an :class:`MMALVideoPort` *port*, this traces all objects in the
     pipeline feeding it (including components and connections) and yields each
     object in turn. Hence the generator expression typically yields something
     like:
 
-    * MMALVideoPort
-    * MMALEncoder
-    * MMALVideoPort
-    * MMALConnection
-    * MMALVideoPort
-    * MMALSplitter
-    * MMALVideoPort
-    * MMALConnection
-    * MMALVideoPort
-    * MMALCamera
+    * :class:`MMALVideoPort` (the specified output port)
+    * :class:`MMALEncoder` (the encoder which owns the output port)
+    * :class:`MMALVideoPort` (the encoder's input port)
+    * :class:`MMALConnection` (the connection between the splitter and encoder)
+    * :class:`MMALVideoPort` (the splitter's output port)
+    * :class:`MMALSplitter` (the splitter on the camera's video port)
+    * :class:`MMALVideoPort` (the splitter's input port)
+    * :class:`MMALConnection` (the connection between the splitter and camera)
+    * :class:`MMALVideoPort` (the camera's video port)
+    * :class:`MMALCamera` (the camera component)
     """
 
     def find_port(addr):
@@ -376,10 +376,9 @@ class MMALObject(object):
 
 class MMALComponent(MMALObject):
     """
-    Represents a generic MMAL component. The component type is specified as a
-    string to the constructor along with the opaque sub-formats to apply to the
-    input and output ports respectively (the length of these sequences are also
-    checked against the number of inputs and outputs defined by the component).
+    Represents a generic MMAL component. The *component_type* is specified as a
+    string to the constructor along with the number of expected input and
+    output ports.
     """
     def __init__(
             self, component_type, input_count, output_count):
@@ -653,7 +652,7 @@ class MMALPort(MMALControlPort):
         .. warning::
 
             This property does not work on the camera's still port
-            (MMALCamera.outputs[2]) due to an underlying firmware bug.
+            (``MMALCamera.outputs[2]``) due to an underlying firmware bug.
         """
         mp = self.params[mmal.MMAL_PARAMETER_SUPPORTED_ENCODINGS]
         return [
@@ -724,8 +723,9 @@ class MMALPort(MMALControlPort):
 
         The callback function must accept two parameters which will be this
         :class:`MMALControlPort` (or descendent) and an :class:`MMALBuffer`
-        instance. The callback should return ``True`` when its processing is
-        complete, and ``False`` otherwise.
+        instance. The callback should return ``True`` when processing is
+        complete and no further calls are expected (e.g. at frame-end for an
+        image encoder), and ``False`` otherwise.
         """
         def wrapper(port, buf):
             buf = MMALBuffer(buf)
@@ -788,8 +788,8 @@ class MMALVideoPort(MMALPort):
     width = property(_get_width, _set_width, doc="""\
         Retrieves or sets the width of the port's video frames in pixels.
 
-        After setting this attribute, call :meth:`commit` to make the changes
-        effective.
+        After setting this attribute, call :meth:`~MMALPort.commit` to make the
+        changes effective.
         """)
 
     def _get_height(self):
@@ -801,8 +801,8 @@ class MMALVideoPort(MMALPort):
     height = property(_get_height, _set_height, doc="""\
         Retrieves or sets the height of the port's video frames in pixels.
 
-        After setting this attribute, call :meth:`commit` to make the changes
-        effective.
+        After setting this attribute, call :meth:`~MMALPort.commit` to make the
+        changes effective.
         """)
 
     def _get_framerate(self):
@@ -821,8 +821,8 @@ class MMALVideoPort(MMALPort):
     framerate = property(_get_framerate, _set_framerate, doc="""\
         Retrieves or sets the framerate of the port's video frames in fps.
 
-        After setting this attribute, call :meth:`commit` to make the changes
-        effective.
+        After setting this attribute, call :meth:`~MMALPort.commit` to make the
+        changes effective.
         """)
 
     def __repr__(self):
@@ -992,18 +992,32 @@ class MMALBuffer(object):
 
     @property
     def command(self):
+        """
+        Returns the command set in the buffer's meta-data. This is usually 0
+        for buffers returned by an encoder; typically this is only used by
+        buffers sent to the callback of a control port.
+        """
         return self._buf[0].cmd
 
     @property
     def flags(self):
+        """
+        Returns the flags set in the buffer's meta-data.
+        """
         return self._buf[0].flags
 
     @property
     def pts(self):
+        """
+        Returns the presentation timestamp (PTS) of the buffer.
+        """
         return self._buf[0].pts
 
     @property
     def dts(self):
+        """
+        Returns the decoding timestamp (DTS) of the buffer.
+        """
         return self._buf[0].dts
 
     @property
@@ -1025,6 +1039,9 @@ class MMALBuffer(object):
 
     @property
     def data(self):
+        """
+        Returns the data held in the buffer as a :class:`bytes` string.
+        """
         # dirty hack; we could do pointer arithmetic with offset but it's
         # rather long-winded in Python and this method needs to be *fast*
         assert self._buf[0].offset == 0
@@ -1040,7 +1057,12 @@ class MMALBuffer(object):
         """
         Overwrites the :attr:`data` in the buffer. The *data* parameter is an
         object supporting the buffer protocol which contains up to
-        :attr:`alloc_size` bytes.
+        :attr:`size` bytes.
+
+        .. warning::
+
+            Some buffer objects *cannot* be modified without consequence (for
+            example, buffers returned by an encoder's output port).
         """
         bp = ct.c_uint8 * len(data)
         try:
@@ -1177,31 +1199,13 @@ class MMALPortPool(MMALPool):
 class MMALConnection(MMALObject):
     """
     Represents an MMAL internal connection between two components. The
-    constructor accepts arguments providing the source and target components,
-    along with the index numbers of the output and input to connect.
-    """
+    constructor accepts arguments providing the *source* :class:`MMALPort` and
+    *target* :class:`MMALPort`.
 
-    # Format encoding negotiation. Some things to be aware of:
-    #
-    # 1. OPAQUE is always the most efficient format as it simply passes
-    #    around pointers under the covers
-    # 2. Not all OPAQUE formats are equivalent.
-    # 3. The camera's video port's OPAQUE format outputs two
-    #    pictures ("OPQV-dual")
-    # 4. The camera's image port's OPAQUE format outputs strips of
-    #    pictures ("OPQV-strips")
-    # 5. The camera's preview port's OPAQUE format, and the splitter's
-    #    OPAQUE format is a single image ("OPQV-single")
-    # 6. The image encoder's input port, if configured for OPAQUE, expects
-    #    the strips of pictures output by the camera's image port
-    #    ("OPQV-strips")
-    # 7. The video encoder's input port, if configured for OPAQUE, expects
-    #    the dual-frames outputs by the camera's video port ("OPQV-dual")
-    # 8. Ergo, the splitter *will* break the use of OPAQUE in the above
-    #    cases. However, it's still worth using OPAQUE on the splitter
-    #    input as it improves efficiency.
-    # 9. I420 is the next most efficient format; RGB should be avoided
-    #    wherever possible
+    The connection will automatically negotiate the most efficient format
+    supported by both ports (implicitly handling the incompatibility of some
+    OPAQUE sub-formats). See :ref:`under_the_hood` for more information.
+    """
     compatible_formats = {
         (f, f) for f in (
             'OPQV-single',
@@ -1271,6 +1275,15 @@ class MMALConnection(MMALObject):
 class MMALCamera(MMALComponent):
     """
     Represents the MMAL camera component.
+
+    The intended use of the output ports (which in turn determines the
+    behaviour of those ports) is as follows:
+
+    * Port 0 is intended for preview renderers
+
+    * Port 1 is intended for video recording
+
+    * Port 2 is intended for still image capture
     """
     def __init__(self):
         super(MMALCamera, self).__init__(
@@ -1327,7 +1340,8 @@ class MMALCameraInfo(MMALComponent):
 class MMALDownstreamComponent(MMALComponent):
     """
     Represents an MMAL component that acts as a filter of some sort, with a
-    single input that connects to an upstream source port.
+    single input that connects to an upstream source port. This is an asbtract
+    base class.
     """
     def __init__(self, component_type, output_count):
         super(MMALDownstreamComponent, self).__init__(

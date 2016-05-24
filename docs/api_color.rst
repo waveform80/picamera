@@ -16,47 +16,20 @@ Color
 =====
 
 .. autoclass:: Color
-    :members:
 
 
-Red
-===
+Manipulation Classes
+====================
 
 .. autoclass:: Red
-    :members:
-
-
-Green
-=====
 
 .. autoclass:: Green
-    :members:
-
-
-Blue
-====
 
 .. autoclass:: Blue
-    :members:
-
-
-Hue
-===
 
 .. autoclass:: Hue
-    :members:
-
-
-Saturation
-==========
 
 .. autoclass:: Saturation
-    :members:
-
-
-Lightness
-=========
 
 .. autoclass:: Lightness
-    :members:
 

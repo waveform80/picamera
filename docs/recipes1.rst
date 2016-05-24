@@ -152,12 +152,12 @@ the camera's exposure time, white balance, and gains are all fixed:
 
 * To fix exposure time, set the :attr:`~PiCamera.shutter_speed` attribute to a
   reasonable value.
+* Optionally, set :attr:`~PiCamera.iso` to a fixed value.
 * To fix exposure gains, let :attr:`~PiCamera.analog_gain` and
   :attr:`~PiCamera.digital_gain` settle on reasonable values, then set
   :attr:`~PiCamera.exposure_mode` to ``'off'``.
 * To fix white balance, set the :attr:`~PiCamera.awb_mode` to ``'off'``, then
   set :attr:`~PiCamera.awb_gains` to a (red, blue) tuple of gains.
-* Optionally, set :attr:`~PiCamera.iso` to a fixed value.
 
 It can be difficult to know what appropriate values might be for these
 attributes.  For :attr:`~PiCamera.iso`, a simple rule of thumb is that 100 and
@@ -178,6 +178,8 @@ The following script provides a brief example of configuring these settings::
     from picamera import PiCamera
 
     camera = PiCamera(resolution=(1280, 720), framerate=30)
+    # Set ISO to the desired value
+    camera.iso = 100
     # Wait for the automatic gain control to settle
     sleep(2)
     # Now fix the values

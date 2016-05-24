@@ -51,10 +51,10 @@ class BufferIO(io.IOBase):
     A stream which uses a writeable :class:`memoryview` for storage.
 
     This is used internally by picamera for capturing directly to an existing
-    object which supports the buffer protocol (like a numpy array). Because
-    the underlying storage is fixed in size, the stream also has a fixed size
-    and will raise an IOError exception if an attempt is made to write beyond
-    the end of the buffer (though seek beyond the end is supported).
+    object which supports the buffer protocol (like a numpy array). Because the
+    underlying storage is fixed in size, the stream also has a fixed size and
+    will raise an :exc:`IOError` exception if an attempt is made to write
+    beyond the end of the buffer (though seek beyond the end is supported).
 
     Users should never need this class directly.
     """
@@ -215,10 +215,10 @@ class CircularIO(io.IOBase):
     A thread-safe stream which uses a ring buffer for storage.
 
     CircularIO provides an in-memory stream similar to the :class:`io.BytesIO`
-    class. However, unlike BytesIO its underlying storage is a `ring buffer`_
-    with a fixed maximum size. Once the maximum size is reached, writing
-    effectively loops round to the beginning to the ring and starts overwriting
-    the oldest content.
+    class. However, unlike :class:`io.BytesIO` its underlying storage is a
+    `ring buffer`_ with a fixed maximum size. Once the maximum size is reached,
+    writing effectively loops round to the beginning to the ring and starts
+    overwriting the oldest content.
 
     The *size* parameter specifies the maximum size of the stream in bytes. The
     :meth:`read`, :meth:`tell`, and :meth:`seek` methods all operate
