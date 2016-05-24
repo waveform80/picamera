@@ -192,7 +192,7 @@ class PiCamera(object):
         CAMERA_VIDEO_PORT:   "video",
         CAMERA_CAPTURE_PORT: "still",
         }
-    MAX_RESOLUTION = (2592, 1944)
+    MAX_RESOLUTION = mo.PiCameraResolution(2592, 1944)
     DEFAULT_ANNOTATE_SIZE = 32
     CAPTURE_TIMEOUT = 30
 
@@ -379,9 +379,13 @@ class PiCamera(object):
             else:
                 w = int(w.value)
                 h = int(h.value)
-            resolution = (w, h)
+            resolution = mo.PiCameraResolution(w, h)
+        else:
+            resolution = mo.to_resolution(resolution)
         if framerate is None:
             framerate = 30
+        else:
+            framerate = mo.to_fraction(framerate)
         try:
             stereo_mode = self.STEREO_MODES[stereo_mode]
         except KeyError:
@@ -1914,25 +1918,23 @@ class PiCamera(object):
         if not self._camera.control.enabled:
             self._camera.control.enable(_control_callback)
 
-        w, h = resolution
-        fn, fd = mo.to_rational(framerate)
         # Determine the FPS range for the requested framerate
-        if fn / fd >= 1.0:
+        if framerate >= 1.0:
             fps_low = 1
             fps_high = 30
-        elif fn / fd >= 0.166:
+        elif framerate >= 0.166:
             fps_low = Fraction(166, 1000)
             fps_high = Fraction(999, 1000)
         else:
             fps_low = Fraction(50, 1000)
             fps_high = Fraction(166, 1000)
         cc = self._camera_config
-        cc.max_stills_w = w
-        cc.max_stills_h = h
+        cc.max_stills_w = resolution.width
+        cc.max_stills_h = resolution.height
         cc.stills_yuv422 = 0
         cc.one_shot_stills = 1
-        cc.max_preview_video_w = w
-        cc.max_preview_video_h = h
+        cc.max_preview_video_w = resolution.width
+        cc.max_preview_video_h = resolution.height
         cc.num_preview_video_frames = 3
         cc.stills_capture_circular_buffer_height = 0
         cc.fast_preview_resume = 0
@@ -1944,14 +1946,13 @@ class PiCamera(object):
                 mmal.MMAL_PARAMETER_FPS_RANGE,
                 ct.sizeof(mmal.MMAL_PARAMETER_FPS_RANGE_T)
             ),
-            fps_low=mmal.MMAL_RATIONAL_T(*mo.to_rational(fps_low)),
-            fps_high=mmal.MMAL_RATIONAL_T(*mo.to_rational(fps_high)),
+            fps_low=mo.to_rational(fps_low),
+            fps_high=mo.to_rational(fps_high),
             )
         for port in self._camera.outputs:
             port.params[mmal.MMAL_PARAMETER_FPS_RANGE] = mp
-            port.width = w
-            port.height = h
-            port.framerate = Fraction(fn, fd)
+            port.framesize = resolution
+            port.framerate = framerate
             port.commit()
 
     def _get_framerate(self):
@@ -1960,15 +1961,15 @@ class PiCamera(object):
     def _set_framerate(self, value):
         self._check_camera_open()
         self._check_recording_stopped()
-        n, d = mo.to_rational(value)
-        if not (0 <= n / d <= 90):
+        value = mo.to_fraction(value)
+        if not (0 <= value <= 100):
             raise PiCameraValueError("Invalid framerate: %.2ffps" % value)
         sensor_mode = self.sensor_mode
         clock_mode = self.CLOCK_MODES[self.clock_mode]
         resolution = self.resolution
         self._disable_camera()
         self._configure_camera(
-            sensor_mode=sensor_mode, framerate=(n, d), resolution=resolution,
+            sensor_mode=sensor_mode, framerate=value, resolution=resolution,
             clock_mode=clock_mode)
         self._configure_splitter()
         self._enable_camera()
@@ -1996,8 +1997,18 @@ class PiCamera(object):
         recording and previewing methods will use the new framerate.  The
         framerate can be specified as an :ref:`int <typesnumeric>`, :ref:`float
         <typesnumeric>`, :class:`~fractions.Fraction`, or a ``(numerator,
-        denominator)`` tuple.  The camera must not be closed, and no recording
-        must be active when the property is set.
+        denominator)`` tuple. For example, the following definitions are all
+        equivalent::
+
+            from fractions import Fraction
+
+            camera.framerate = 30
+            camera.framerate = 30 / 1
+            camera.framerate = Fraction(30, 1)
+            camera.framerate = (30, 1) # deprecated
+
+        The camera must not be closed, and no recording must be active when the
+        property is set.
 
         .. note::
 
@@ -2098,18 +2109,19 @@ class PiCamera(object):
 
     def _get_resolution(self):
         self._check_camera_open()
-        return (
+        return mo.PiCameraResolution(
             int(self._camera_config.max_stills_w),
             int(self._camera_config.max_stills_h)
             )
     def _set_resolution(self, value):
         self._check_camera_open()
         self._check_recording_stopped()
-        try:
-            w, h = value
-        except (TypeError, ValueError) as e:
+        value = mo.to_resolution(value)
+        if not (
+                (0 < value.width <= self.MAX_RESOLUTION.width) and
+                (0 < value.height <= self.MAX_RESOLUTION.height)):
             raise PiCameraValueError(
-                "Invalid resolution (width, height) tuple: %s" % value)
+                    "Invalid resolution requested: %r" % value)
         sensor_mode = self.sensor_mode
         clock_mode = self.CLOCK_MODES[self.clock_mode]
         framerate = self.framerate
@@ -2130,9 +2142,20 @@ class PiCamera(object):
         :meth:`start_recording` will produce videos at.
 
         When set, the property configures the camera so that the next call to
-        these methods will use the new resolution.  The resolution must be
-        specified as a ``(width, height)`` tuple, the camera must not be
-        closed, and no recording must be active when the property is set.
+        these methods will use the new resolution.  The resolution can be
+        specified as a ``(width, height)`` tuple, as a string formatted
+        ``'WIDTHxHEIGHT'``, or as a string containing a commonly recognized
+        `display resolution`_ name (e.g. "VGA", "HD", "1080p", etc). For
+        example, the following definitions are all equivalent::
+
+            camera.resolution = (1280, 720)
+            camera.resolution = '1280x720'
+            camera.resolution = '1280 x 720'
+            camera.resolution = 'HD'
+            camera.resolution = '720p'
+
+        The camera must not be closed, and no recording must be active when the
+        property is set.
 
         .. note::
 
@@ -2145,7 +2168,12 @@ class PiCamera(object):
         The initial value of this property can be specified with the
         *resolution* parameter in the :class:`PiCamera` constructor, and will
         default to the display's resolution or 1280x720 if the display has
-        been disabled (with `tvservice -o`).
+        been disabled (with ``tvservice -o``).
+
+        .. versionchanged:: 1.11
+            Resolution permitted to be set as a string.
+
+        .. _display resolution: https://en.wikipedia.org/wiki/Graphics_display_resolution
         """)
 
     def _get_still_stats(self):
@@ -2710,8 +2738,8 @@ class PiCamera(object):
                 mmal.MMAL_PARAMETER_CUSTOM_AWB_GAINS,
                 ct.sizeof(mmal.MMAL_PARAMETER_AWB_GAINS_T)
                 ),
-            mmal.MMAL_RATIONAL_T(*mo.to_rational(red_gain)),
-            mmal.MMAL_RATIONAL_T(*mo.to_rational(blue_gain)),
+            mo.to_rational(red_gain),
+            mo.to_rational(blue_gain),
             )
         self._camera.control.params[mmal.MMAL_PARAMETER_CUSTOM_AWB_GAINS] = mp
     awb_gains = property(_get_awb_gains, _set_awb_gains, doc="""\

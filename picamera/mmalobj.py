@@ -44,6 +44,7 @@ str = type('')
 import ctypes as ct
 import warnings
 import weakref
+from collections import namedtuple
 from fractions import Fraction
 from itertools import cycle
 
@@ -220,13 +221,54 @@ class PiCameraFraction(Fraction):
         return value in (self.numerator, self.denominator)
 
 
-def to_rational(value):
+class PiCameraResolution(namedtuple('PiCameraResolution', ('width', 'height'))):
     """
-    Converts a value to a numerator, denominator tuple.
+    A :func:`~collections.namedtuple` derivative which represents a resolution
+    with a :attr:`width` and :attr:`height`.
+    """
+    def __str__(self):
+        return '%dx%d' % (self.width, self.height)
 
-    Given a :class:`int`, :class:`float`, or :class:`~fractions.Fraction`
-    instance, returns the value as a `(numerator, denominator)` tuple where the
-    numerator and denominator are integer values.
+
+def to_resolution(value):
+    """
+    Converts *value* which may be a (width, height) tuple or a string
+    containing a representation of a resolution (e.g. "1024x768" or "1080p") to
+    a (width, height) tuple.
+    """
+    if isinstance(value, bytes):
+        value = value.decode('utf-8')
+    if isinstance(value, str):
+        try:
+            # A selection from https://en.wikipedia.org/wiki/Graphics_display_resolution
+            # Feel free to suggest additions
+            w, h = {
+                'VGA':   (640, 480),
+                'SVGA':  (800, 600),
+                'XGA':   (1024, 768),
+                'SXGA':  (1280, 1024),
+                'UXGA':  (1600, 1200),
+                'HD':    (1280, 720),
+                'FHD':   (1920, 1080),
+                '1080P': (1920, 1080),
+                '720P':  (1280, 720),
+                }[value.strip().upper()]
+        except KeyError:
+            w, h = (int(i.strip()) for i in value.upper().split('X', 1))
+    else:
+        try:
+            w, h = value
+        except (TypeError, ValueError):
+            raise PiCameraValueError("Invalid resolution tuple: %r" % value)
+    return PiCameraResolution(w, h)
+
+
+def to_fraction(value, den_limit=65536):
+    """
+    Converts *value*, which can be any numeric type, an MMAL_RATIONAL_T, or a
+    (numerator, denominator) tuple to a :class:`~fractions.Fraction` limiting
+    the denominator to the range 0 < n <= *den_limit* (which defaults to
+    65536).
     """
     try:
         # int, long, or fraction
@@ -237,31 +279,36 @@ def to_rational(value):
             n, d = value.as_integer_ratio()
         except AttributeError:
             try:
-                # tuple
-                n, d = value
-                warnings.warn(
-                    PiCameraDeprecated(
-                        "Setting framerate or gains as a tuple is deprecated; "
-                        "please use one of Python's many numeric classes like "
-                        "int, float, Decimal, or Fraction instead"))
-            except (TypeError, ValueError):
-                # try and convert anything else (e.g. Decimal) to a Fraction
-                value = Fraction(value)
-                n, d = value.numerator, value.denominator
+                n, d = value.num, value.den
+            except AttributeError:
+                try:
+                    # tuple
+                    n, d = value
+                    warnings.warn(
+                        PiCameraDeprecated(
+                            "Setting framerate or gains as a tuple is "
+                            "deprecated; please use one of Python's many "
+                            "numeric classes like int, float, Decimal, or "
+                            "Fraction instead"))
+                except (TypeError, ValueError):
+                    # try and convert anything else to a Fraction directly
+                    value = Fraction(value)
+                    n, d = value.numerator, value.denominator
     # Ensure denominator is reasonable
     if d == 0:
         raise PiCameraValueError("Denominator cannot be 0")
-    elif d > 65536:
-        f = Fraction(n, d).limit_denominator(65536)
-        n, d = f.numerator, f.denominator
-    return n, d
+    elif d > den_limit:
+        return Fraction(n, d).limit_denominator(den_limit)
+    else:
+        return Fraction(n, d)
 
 
-def to_fraction(rational):
+def to_rational(value):
     """
-    Converts an MMAL_RATIONAL_T to a Fraction instance.
+    Converts *value* to an MMAL_RATIONAL_T.
     """
-    return Fraction(rational.num, rational.den)
+    value = to_fraction(value)
+    return mmal.MMAL_RATIONAL_T(value.numerator, value.denominator)
 
 
 def debug_pipeline(port):
@@ -778,27 +825,22 @@ class MMALVideoPort(MMALPort):
     Represents an MMAL port used to pass video data.
     """
 
-    def _get_width(self):
-        return self._port[0].format[0].es[0].video.crop.width
-    def _set_width(self, value):
+    def _get_framesize(self):
+        return PiCameraResolution(
+            self._port[0].format[0].es[0].video.crop.width,
+            self._port[0].format[0].es[0].video.crop.height,
+            )
+    def _set_framesize(self, value):
+        value = to_resolution(value)
         video = self._port[0].format[0].es[0].video
-        video.width = mmal.VCOS_ALIGN_UP(value, 32)
-        video.crop.width = value
-    width = property(_get_width, _set_width, doc="""\
-        Retrieves or sets the width of the port's video frames in pixels.
-
-        After setting this attribute, call :meth:`~MMALPort.commit` to make the
-        changes effective.
-        """)
-
-    def _get_height(self):
-        return self._port[0].format[0].es[0].video.crop.height
-    def _set_height(self, value):
-        video = self._port[0].format[0].es[0].video
-        video.height = mmal.VCOS_ALIGN_UP(value, 16)
-        video.crop.height = value
-    height = property(_get_height, _set_height, doc="""\
-        Retrieves or sets the height of the port's video frames in pixels.
+        video.width = mmal.VCOS_ALIGN_UP(value.width, 32)
+        video.height = mmal.VCOS_ALIGN_UP(value.height, 16)
+        video.crop.width = value.width
+        video.crop.height = value.height
+    framesize = property(_get_framesize, _set_framesize, doc="""\
+        Retrieves or sets the size of the port's video frames as a (width,
+        height) tuple. This attribute implicitly handles scaling the given
+        size up to the block size of the camera (32x16).
 
         After setting this attribute, call :meth:`~MMALPort.commit` to make the
         changes effective.
@@ -813,10 +855,10 @@ class MMALVideoPort(MMALPort):
         except ZeroDivisionError:
             return Fraction(0, 1)
     def _set_framerate(self, value):
-        n, d = to_rational(value)
+        value = to_fraction(value)
         video = self._port[0].format[0].es[0].video
-        video.frame_rate.num = n
-        video.frame_rate.den = d
+        video.frame_rate.num = value.numerator
+        video.frame_rate.den = value.denominator
     framerate = property(_get_framerate, _set_framerate, doc="""\
         Retrieves or sets the framerate of the port's video frames in fps.
 
@@ -826,10 +868,9 @@ class MMALVideoPort(MMALPort):
 
     def __repr__(self):
         if self._port:
-            return '<MMALVideoPort "%s": format=%r buffers=%dx%d frames=%dx%d@%sfps>' % (
+            return '<MMALVideoPort "%s": format=%r buffers=%dx%d frames=%s@%sfps>' % (
                 self.name, self.format, self._port[0].buffer_num,
-                self._port[0].buffer_size, self.width, self.height,
-                self.framerate)
+                self._port[0].buffer_size, self.framesize, self.framerate)
         else:
             return '<MMALVideoPort closed>'
 
@@ -933,11 +974,11 @@ class MMALPortParams(object):
             ct.c_int32:           mmal.mmal_port_parameter_set_int32,
             }.get(dtype, mmal.mmal_port_parameter_set)
         conv = {
-            mmal.MMAL_RATIONAL_T:           lambda v: mmal.MMAL_RATIONAL_T(*to_rational(v)),
+            mmal.MMAL_RATIONAL_T:           lambda v: to_rational(v),
             mmal.MMAL_PARAMETER_RATIONAL_T: lambda v: mmal.MMAL_PARAMETER_RATIONAL_T(
                 mmal.MMAL_PARAMETER_HEADER_T(
                     key, ct.sizeof(mmal.MMAL_PARAMETER_RATIONAL_T)),
-                mmal.MMAL_RATIONAL_T(*to_rational(v))),
+                to_rational(v)),
             mmal.MMAL_PARAMETER_BOOLEAN_T:  lambda v: mmal.MMAL_PARAMETER_BOOLEAN_T(
                 mmal.MMAL_PARAMETER_HEADER_T(
                     key, ct.sizeof(mmal.MMAL_PARAMETER_BOOLEAN_T)),

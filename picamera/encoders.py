@@ -215,8 +215,7 @@ class PiEncoder(object):
         self.resizer.connect(self.input_port)
         self.resizer.outputs[0].copy_from(self.resizer.inputs[0])
         self.resizer.outputs[0].format = mmal.MMAL_ENCODING_I420
-        self.resizer.outputs[0].width = width
-        self.resizer.outputs[0].height = height
+        self.resizer.outputs[0].framesize = (width, height)
         self.resizer.outputs[0].commit()
 
     def _create_encoder(self, format):
