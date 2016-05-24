@@ -268,8 +268,7 @@ def debug_pipeline(port):
     """
     Given an :class:`MMALVideoPort` *port*, this traces all objects in the
     pipeline feeding it (including components and connections) and yields each
-    object in turn. Hence the generator expression typically yields something
-    like:
+    object in turn. Hence the generator typically yields something like:
 
     * :class:`MMALVideoPort` (the specified output port)
     * :class:`MMALEncoder` (the encoder which owns the output port)
