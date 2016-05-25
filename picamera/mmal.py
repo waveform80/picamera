@@ -81,7 +81,11 @@ MMAL_TRUE = 1
 class MMAL_BOOL_T(ct.c_int32):
     # This only exists to ensure we've got a distinct type to ct.c_int32
     # for mmalobj to perform dict-lookups against
-    pass
+    def __str__(self):
+        return ['MMAL_FALSE', 'MMAL_TRUE'][bool(self.value)]
+
+    def __repr__(self):
+        return str(self)
 
 
 class MMAL_CORE_STATISTICS_T(ct.Structure):
@@ -944,6 +948,7 @@ class MMAL_PARAMETER_CAMERA_CONFIG_T(ct.Structure):
 
 MMAL_PARAMETER_CAMERA_INFO_MAX_CAMERAS = 4
 MMAL_PARAMETER_CAMERA_INFO_MAX_FLASHES = 2
+MMAL_PARAMETER_CAMERA_INFO_MAX_STR_LEN = 16
 
 class MMAL_PARAMETER_CAMERA_INFO_CAMERA_T(ct.Structure):
     _fields_ = [
@@ -951,6 +956,15 @@ class MMAL_PARAMETER_CAMERA_INFO_CAMERA_T(ct.Structure):
         ('max_width',    ct.c_uint32),
         ('max_height',   ct.c_uint32),
         ('lens_present', MMAL_BOOL_T),
+        ]
+
+class MMAL_PARAMETER_CAMERA_INFO_CAMERA_V2_T(ct.Structure):
+    _fields_ = [
+        ('port_id',      ct.c_uint32),
+        ('max_width',    ct.c_uint32),
+        ('max_height',   ct.c_uint32),
+        ('lens_present', MMAL_BOOL_T),
+        ('camera_name',  ct.c_char * MMAL_PARAMETER_CAMERA_INFO_MAX_STR_LEN),
         ]
 
 MMAL_PARAMETER_CAMERA_INFO_FLASH_TYPE_T = ct.c_uint32 # enum
@@ -970,6 +984,15 @@ class MMAL_PARAMETER_CAMERA_INFO_T(ct.Structure):
         ('num_cameras', ct.c_uint32),
         ('num_flashes', ct.c_uint32),
         ('cameras',     MMAL_PARAMETER_CAMERA_INFO_CAMERA_T * MMAL_PARAMETER_CAMERA_INFO_MAX_CAMERAS),
+        ('flashes',     MMAL_PARAMETER_CAMERA_INFO_FLASH_T * MMAL_PARAMETER_CAMERA_INFO_MAX_FLASHES),
+        ]
+
+class MMAL_PARAMETER_CAMERA_INFO_V2_T(ct.Structure):
+    _fields_ = [
+        ('hdr',         MMAL_PARAMETER_HEADER_T),
+        ('num_cameras', ct.c_uint32),
+        ('num_flashes', ct.c_uint32),
+        ('cameras',     MMAL_PARAMETER_CAMERA_INFO_CAMERA_V2_T * MMAL_PARAMETER_CAMERA_INFO_MAX_CAMERAS),
         ('flashes',     MMAL_PARAMETER_CAMERA_INFO_FLASH_T * MMAL_PARAMETER_CAMERA_INFO_MAX_FLASHES),
         ]
 

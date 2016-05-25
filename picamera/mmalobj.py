@@ -60,7 +60,7 @@ from .exc import (
 
 PARAM_TYPES = {
     mmal.MMAL_PARAMETER_ALGORITHM_CONTROL:              mmal.MMAL_PARAMETER_ALGORITHM_CONTROL_T,
-    mmal.MMAL_PARAMETER_ANNOTATE:                       mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V3_T, # XXX adjust for firmware
+    mmal.MMAL_PARAMETER_ANNOTATE:                       None, # adjusted by MMALCamera.annotate_rev
     mmal.MMAL_PARAMETER_ANTISHAKE:                      mmal.MMAL_PARAMETER_BOOLEAN_T,
     mmal.MMAL_PARAMETER_AUDIO_LATENCY_TARGET:           mmal.MMAL_PARAMETER_AUDIO_LATENCY_TARGET_T,
     mmal.MMAL_PARAMETER_AWB_MODE:                       mmal.MMAL_PARAMETER_AWBMODE_T,
@@ -71,7 +71,7 @@ PARAM_TYPES = {
     mmal.MMAL_PARAMETER_CAMERA_CLOCKING_MODE:           mmal.MMAL_PARAMETER_CAMERA_CLOCKING_MODE_T,
     mmal.MMAL_PARAMETER_CAMERA_CONFIG:                  mmal.MMAL_PARAMETER_CAMERA_CONFIG_T,
     mmal.MMAL_PARAMETER_CAMERA_CUSTOM_SENSOR_CONFIG:    ct.c_uint32,
-    mmal.MMAL_PARAMETER_CAMERA_INFO:                    mmal.MMAL_PARAMETER_CAMERA_INFO_T,
+    mmal.MMAL_PARAMETER_CAMERA_INFO:                    None, # adjusted by MMALCameraInfo.info_rev
     mmal.MMAL_PARAMETER_CAMERA_INTERFACE:               mmal.MMAL_PARAMETER_CAMERA_INTERFACE_T,
     mmal.MMAL_PARAMETER_CAMERA_MIN_ISO:                 mmal.MMAL_PARAMETER_UINT32_T,
     mmal.MMAL_PARAMETER_CAMERA_NUM:                     mmal.MMAL_PARAMETER_INT32_T,
@@ -1332,31 +1332,45 @@ class MMALCamera(MMALComponent):
     component_type = mmal.MMAL_COMPONENT_DEFAULT_CAMERA
     opaque_output_subformats = ('OPQV-single', 'OPQV-dual', 'OPQV-strips')
 
+    annotate_structs = (
+        mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_T,
+        mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V2_T,
+        mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V3_T,
+        )
+
     def __init__(self):
         super(MMALCamera, self).__init__()
-        mp = self.control.params[mmal.MMAL_PARAMETER_ANNOTATE]
-        self.annotate_rev = {
-            ct.sizeof(mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_T):    1,
-            ct.sizeof(mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V2_T): 2,
-            ct.sizeof(mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V3_T): 3,
-            }.get(mp.hdr.size, 3)
+        if PARAM_TYPES[mmal.MMAL_PARAMETER_ANNOTATE] is None:
+            found = False
+            # try largest struct to smallest as later firmwares still happily
+            # accept earlier revision structures
+            # XXX do old firmwares reject too-large structs?
+            for struct in reversed(MMALCamera.annotate_structs):
+                try:
+                    PARAM_TYPES[mmal.MMAL_PARAMETER_ANNOTATE] = struct
+                    self.control.params[mmal.MMAL_PARAMETER_ANNOTATE]
+                except PiCameraMMALError:
+                    pass
+                else:
+                    found = True
+                    break
+            if not found:
+                PARAM_TYPES[mmal.MMAL_PARAMETER_ANNOTATE] = None
+                raise PiCameraMMALError(
+                        mmal.MMAL_EINVAL, "unknown camera annotation structure revision")
 
     def _get_annotate_rev(self):
-        return {
-            mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_T:    1,
-            mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V2_T: 2,
-            mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V3_T: 3,
-            }[PARAM_TYPES[mmal.MMAL_PARAMETER_ANNOTATE]]
+        try:
+            return MMALCamera.annotate_structs.index(PARAM_TYPES[mmal.MMAL_PARAMETER_ANNOTATE]) + 1
+        except IndexError:
+            raise PiCameraMMALError(
+                    mmal.MMAL_EINVAL, "unknown camera annotation structure revision")
     def _set_annotate_rev(self, value):
         try:
-            PARAM_TYPES[mmal.MMAL_PARAMETER_ANNOTATE] = {
-                1: mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_T,
-                2: mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V2_T,
-                3: mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V3_T,
-                }[value]
-        except KeyError:
+            PARAM_TYPES[mmal.MMAL_PARAMETER_ANNOTATE] = MMALCamera.annotate_structs[value - 1]
+        except IndexError:
             raise PiCameraMMALError(
-                mmal.MMAL_EINVAL, "cannot set annotation revision")
+                mmal.MMAL_EINVAL, "invalid camera annotation structure revision")
     annotate_rev = property(_get_annotate_rev, _set_annotate_rev, doc="""\
         The annotation capabilities of the firmware have evolved over time and
         several structures are available for querying and setting video
@@ -1372,6 +1386,52 @@ class MMALCameraInfo(MMALComponent):
     Represents the MMAL camera-info component.
     """
     component_type = mmal.MMAL_COMPONENT_DEFAULT_CAMERA_INFO
+
+    info_structs = (
+        mmal.MMAL_PARAMETER_CAMERA_INFO_T,
+        mmal.MMAL_PARAMETER_CAMERA_INFO_V2_T,
+        )
+
+    def __init__(self):
+        super(MMALCameraInfo, self).__init__()
+        if PARAM_TYPES[mmal.MMAL_PARAMETER_CAMERA_INFO] is None:
+            found = False
+            # try smallest structure to largest as later firmwares reject
+            # older structures
+            for struct in MMALCameraInfo.info_structs:
+                try:
+                    PARAM_TYPES[mmal.MMAL_PARAMETER_CAMERA_INFO] = struct
+                    self.control.params[mmal.MMAL_PARAMETER_CAMERA_INFO]
+                except PiCameraMMALError:
+                    pass
+                else:
+                    found = True
+                    break
+            if not found:
+                PARAM_TYPES[mmal.MMAL_PARAMETER_CAMERA_INFO] = None
+                raise PiCameraMMALError(
+                        mmal.MMAL_EINVAL, "unknown camera info structure revision")
+
+    def _get_info_rev(self):
+        try:
+            return MMALCameraInfo.info_structs.index(PARAM_TYPES[mmal.MMAL_PARAMETER_CAMERA_INFO]) + 1
+        except IndexError:
+            raise PiCameraMMALError(
+                    mmal.MMAL_EINVAL, "unknown camera info structure revision")
+    def _set_info_rev(self, value):
+        try:
+            PARAM_TYPES[mmal.MMAL_PARAMETER_CAMERA_INFO] = MMALCameraInfo.info_structs[value - 1]
+        except IndexError:
+            raise PiCameraMMALError(
+                mmal.MMAL_EINVAL, "invalid camera info structure revision")
+    info_rev = property(_get_info_rev, _set_info_rev, doc="""\
+        The camera information capabilities of the firmware have evolved over
+        time and several structures are available for querying camera
+        information. When initialized, :class:`MMALCameraInfo` will attempt
+        to discover which structure is in use by the extant firmware. This
+        property can be used to discover the structure version and to modify
+        the version in use for other purposes (e.g. testing).
+        """)
 
 
 class MMALDownstreamComponent(MMALComponent):

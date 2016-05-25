@@ -97,6 +97,13 @@ def docstring_values(values, indent=8):
         sorted(values.items(), key=itemgetter(1)))
 
 
+class PiCameraMaxResolution(object):
+    """
+    Singleton representing the maximum resolution of the camera module.
+    """
+PiCameraMaxResolution = PiCameraMaxResolution()
+
+
 class PiCamera(object):
     """
     Provides a pure Python interface to the Raspberry Pi's camera module.
@@ -176,7 +183,8 @@ class PiCamera(object):
     CAMERA_PREVIEW_PORT = 0
     CAMERA_VIDEO_PORT = 1
     CAMERA_CAPTURE_PORT = 2
-    MAX_RESOLUTION = mo.PiCameraResolution(2592, 1944)
+    MAX_RESOLUTION = PiCameraMaxResolution # modified by PiCamera.__init__
+    MAX_FRAMERATE = 90
     DEFAULT_ANNOTATE_SIZE = 32
     CAPTURE_TIMEOUT = 30
 
@@ -347,27 +355,38 @@ class PiCamera(object):
         self._overlays = []
         self._raw_format = 'yuv'
         self._image_effect_params = None
-        self._exif_tags = {
-            'IFD0.Model': 'RP_OV5647',
-            'IFD0.Make': 'RaspberryPi',
-            }
-        if resolution is None:
-            # Get screen resolution
-            w = ct.c_uint32()
-            h = ct.c_uint32()
-            if bcm_host.graphics_get_display_size(0, w, h) == -1:
-                w = 1280
-                h = 720
+        with mo.MMALCameraInfo() as camera_info:
+            info = camera_info.control.params[mmal.MMAL_PARAMETER_CAMERA_INFO]
+            self._exif_tags = {
+                'IFD0.Model': 'RP_OV5647',
+                'IFD0.Make': 'RaspberryPi',
+                }
+            if camera_info.info_rev > 1:
+                self._exif_tags['IFD0.Model'] = 'RP_%s' % info.cameras[camera_num].camera_name
+            if PiCamera.MAX_RESOLUTION is PiCameraMaxResolution:
+                PiCamera.MAX_RESOLUTION = mo.PiCameraResolution(
+                        info.cameras[camera_num].max_width,
+                        info.cameras[camera_num].max_height,
+                        )
+            if resolution is None:
+                # Get screen resolution
+                w = ct.c_uint32()
+                h = ct.c_uint32()
+                if bcm_host.graphics_get_display_size(0, w, h) == -1:
+                    w = 1280
+                    h = 720
+                else:
+                    w = int(w.value)
+                    h = int(h.value)
+                resolution = mo.PiCameraResolution(w, h)
+            elif resolution is PiCameraMaxResolution:
+                resolution = PiCamera.MAX_RESOLUTION
             else:
-                w = int(w.value)
-                h = int(h.value)
-            resolution = mo.PiCameraResolution(w, h)
-        else:
-            resolution = mo.to_resolution(resolution)
-        if framerate is None:
-            framerate = 30
-        else:
-            framerate = mo.to_fraction(framerate)
+                resolution = mo.to_resolution(resolution)
+            if framerate is None:
+                framerate = 30
+            else:
+                framerate = mo.to_fraction(framerate)
         try:
             stereo_mode = self.STEREO_MODES[stereo_mode]
         except KeyError:
@@ -1951,7 +1970,7 @@ class PiCamera(object):
         self._check_camera_open()
         self._check_recording_stopped()
         value = mo.to_fraction(value)
-        if not (0 <= value <= 100):
+        if not (0 <= value <= self.MAX_FRAMERATE):
             raise PiCameraValueError("Invalid framerate: %.2ffps" % value)
         sensor_mode = self.sensor_mode
         clock_mode = self.CLOCK_MODES[self.clock_mode]
