@@ -71,7 +71,7 @@ def test_camera_init():
         assert e.value.args[0].startswith("Unable to enable control port")
         mmal.mmal_port_enable.return_value = 0
         mmal.mmal_port_format_commit.return_value = 0
-        for p in picamera.PiCamera.CAMERA_PORTS:
+        for p in range(3):
             ct.POINTER.return_value.return_value[0].output[p][0].buffer_num = 1
         mmal.mmal_component_enable.return_value = 1
         with pytest.raises(picamera.PiCameraError) as e:

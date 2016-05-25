@@ -87,16 +87,6 @@ except ImportError:
     GPIO = None
 
 
-def _control_callback(port, buf):
-    if buf.command == mmal.MMAL_EVENT_ERROR:
-        raise PiCameraRuntimeError(
-            "No data recevied from sensor. Check all connections, "
-            "including the SUNNY chip on the camera board")
-    elif buf.command != mmal.MMAL_EVENT_PARAMETER_CHANGED:
-        raise PiCameraRuntimeError(
-            "Received unexpected camera control callback event, 0x%08x" % buf[0].cmd)
-
-
 def docstring_values(values, indent=8):
     """
     Formats a dictionary of values for inclusion in a docstring.
@@ -186,16 +176,6 @@ class PiCamera(object):
     CAMERA_PREVIEW_PORT = 0
     CAMERA_VIDEO_PORT = 1
     CAMERA_CAPTURE_PORT = 2
-    CAMERA_PORTS = (
-        CAMERA_PREVIEW_PORT,
-        CAMERA_VIDEO_PORT,
-        CAMERA_CAPTURE_PORT,
-        )
-    CAMERA_PORT_NAMES = {
-        CAMERA_PREVIEW_PORT: "preview",
-        CAMERA_VIDEO_PORT:   "video",
-        CAMERA_CAPTURE_PORT: "still",
-        }
     MAX_RESOLUTION = mo.PiCameraResolution(2592, 1944)
     DEFAULT_ANNOTATE_SIZE = 32
     CAPTURE_TIMEOUT = 30
@@ -282,12 +262,11 @@ class PiCamera(object):
         }
 
     RAW_FORMATS = {
-        # For some bizarre reason, the non-alpha formats are backwards...
-        'yuv':  mmal.MMAL_ENCODING_I420,
-        'rgb':  mmal.MMAL_ENCODING_BGR24,
-        'rgba': mmal.MMAL_ENCODING_RGBA,
-        'bgr':  mmal.MMAL_ENCODING_RGB24,
-        'bgra': mmal.MMAL_ENCODING_BGRA,
+        'yuv',
+        'rgb',
+        'rgba',
+        'bgr',
+        'bgra',
         }
 
     STEREO_MODES = {
@@ -306,7 +285,6 @@ class PiCamera(object):
     _FLASH_MODES_R    = {v: k for (k, v) in FLASH_MODES.items()}
     _AWB_MODES_R      = {v: k for (k, v) in AWB_MODES.items()}
     _IMAGE_EFFECTS_R  = {v: k for (k, v) in IMAGE_EFFECTS.items()}
-    _RAW_FORMATS_R    = {v: k for (k, v) in RAW_FORMATS.items()}
     _DRC_STRENGTHS_R  = {v: k for (k, v) in DRC_STRENGTHS.items()}
     _STEREO_MODES_R   = {v: k for (k, v) in STEREO_MODES.items()}
     _CLOCK_MODES_R    = {v: k for (k, v) in CLOCK_MODES.items()}
@@ -1812,9 +1790,7 @@ class PiCamera(object):
             PiCameraDeprecated(
                 'PiCamera.raw_format is deprecated; use required format '
                 'directly with capture methods instead'))
-        try:
-            self.RAW_FORMATS[value]
-        except KeyError:
+        if value not in self.RAW_FORMATS:
             raise PiCameraValueError("Invalid raw format: %s" % value)
         self._raw_format = value
     raw_format = property(_get_raw_format, _set_raw_format, doc="""
@@ -1903,6 +1879,15 @@ class PiCamera(object):
             port.copy_from(self._splitter.inputs[0])
             port.commit()
 
+    def _control_callback(self, port, buf):
+        if buf.command == mmal.MMAL_EVENT_ERROR:
+            raise PiCameraRuntimeError(
+                "No data recevied from sensor. Check all connections, "
+                "including the SUNNY chip on the camera board")
+        elif buf.command != mmal.MMAL_EVENT_PARAMETER_CHANGED:
+            raise PiCameraRuntimeError(
+                "Received unexpected camera control callback event, 0x%08x" % buf[0].cmd)
+
     def _configure_camera(
             self, sensor_mode, framerate, resolution, clock_mode,
             old_sensor_mode=0):
@@ -1920,7 +1905,7 @@ class PiCamera(object):
         if old_sensor_mode != 0 and sensor_mode != 0:
             self._camera.control.params[mmal.MMAL_PARAMETER_CAMERA_CUSTOM_SENSOR_CONFIG] = sensor_mode
         if not self._camera.control.enabled:
-            self._camera.control.enable(_control_callback)
+            self._camera.control.enable(self._control_callback)
 
         # Determine the FPS range for the requested framerate
         if framerate >= 1.0:
