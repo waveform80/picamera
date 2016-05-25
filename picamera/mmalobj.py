@@ -64,13 +64,13 @@ PARAM_TYPES = {
     mmal.MMAL_PARAMETER_ANTISHAKE:                      mmal.MMAL_PARAMETER_BOOLEAN_T,
     mmal.MMAL_PARAMETER_AUDIO_LATENCY_TARGET:           mmal.MMAL_PARAMETER_AUDIO_LATENCY_TARGET_T,
     mmal.MMAL_PARAMETER_AWB_MODE:                       mmal.MMAL_PARAMETER_AWBMODE_T,
-    mmal.MMAL_PARAMETER_BRIGHTNESS:                     mmal.MMAL_RATIONAL_T,
+    mmal.MMAL_PARAMETER_BRIGHTNESS:                     mmal.MMAL_PARAMETER_RATIONAL_T,
     mmal.MMAL_PARAMETER_BUFFER_FLAG_FILTER:             mmal.MMAL_PARAMETER_UINT32_T,
     mmal.MMAL_PARAMETER_BUFFER_REQUIREMENTS:            mmal.MMAL_PARAMETER_BUFFER_REQUIREMENTS_T,
-    mmal.MMAL_PARAMETER_CAMERA_BURST_CAPTURE:           mmal.MMAL_BOOL_T,
+    mmal.MMAL_PARAMETER_CAMERA_BURST_CAPTURE:           mmal.MMAL_PARAMETER_BOOLEAN_T,
     mmal.MMAL_PARAMETER_CAMERA_CLOCKING_MODE:           mmal.MMAL_PARAMETER_CAMERA_CLOCKING_MODE_T,
     mmal.MMAL_PARAMETER_CAMERA_CONFIG:                  mmal.MMAL_PARAMETER_CAMERA_CONFIG_T,
-    mmal.MMAL_PARAMETER_CAMERA_CUSTOM_SENSOR_CONFIG:    ct.c_uint32,
+    mmal.MMAL_PARAMETER_CAMERA_CUSTOM_SENSOR_CONFIG:    mmal.MMAL_PARAMETER_UINT32_T,
     mmal.MMAL_PARAMETER_CAMERA_INFO:                    None, # adjusted by MMALCameraInfo.info_rev
     mmal.MMAL_PARAMETER_CAMERA_INTERFACE:               mmal.MMAL_PARAMETER_CAMERA_INTERFACE_T,
     mmal.MMAL_PARAMETER_CAMERA_MIN_ISO:                 mmal.MMAL_PARAMETER_UINT32_T,
@@ -79,10 +79,10 @@ PARAM_TYPES = {
     mmal.MMAL_PARAMETER_CAMERA_RX_TIMING:               mmal.MMAL_PARAMETER_CAMERA_RX_TIMING_T,
     mmal.MMAL_PARAMETER_CAMERA_SETTINGS:                mmal.MMAL_PARAMETER_CAMERA_SETTINGS_T,
     mmal.MMAL_PARAMETER_CAMERA_USE_CASE:                mmal.MMAL_PARAMETER_CAMERA_USE_CASE_T,
-    mmal.MMAL_PARAMETER_CAPTURE_EXPOSURE_COMP:          ct.c_int32,
-    mmal.MMAL_PARAMETER_CAPTURE:                        mmal.MMAL_BOOL_T,
+    mmal.MMAL_PARAMETER_CAPTURE_EXPOSURE_COMP:          mmal.MMAL_PARAMETER_INT32_T,
+    mmal.MMAL_PARAMETER_CAPTURE:                        mmal.MMAL_PARAMETER_BOOLEAN_T,
     mmal.MMAL_PARAMETER_CAPTURE_MODE:                   mmal.MMAL_PARAMETER_CAPTUREMODE_T,
-    mmal.MMAL_PARAMETER_CAPTURE_STATS_PASS:             mmal.MMAL_BOOL_T,
+    mmal.MMAL_PARAMETER_CAPTURE_STATS_PASS:             mmal.MMAL_PARAMETER_BOOLEAN_T,
     mmal.MMAL_PARAMETER_CAPTURE_STATUS:                 mmal.MMAL_PARAMETER_CAPTURE_STATUS_T,
     mmal.MMAL_PARAMETER_CHANGE_EVENT_REQUEST:           mmal.MMAL_PARAMETER_CHANGE_EVENT_REQUEST_T,
     mmal.MMAL_PARAMETER_CLOCK_ACTIVE:                   mmal.MMAL_PARAMETER_BOOLEAN_T,
@@ -95,17 +95,17 @@ PARAM_TYPES = {
     mmal.MMAL_PARAMETER_CLOCK_TIME:                     mmal.MMAL_PARAMETER_INT64_T,
     mmal.MMAL_PARAMETER_CLOCK_UPDATE_THRESHOLD:         mmal.MMAL_PARAMETER_CLOCK_UPDATE_THRESHOLD_T,
     mmal.MMAL_PARAMETER_COLOUR_EFFECT:                  mmal.MMAL_PARAMETER_COLOURFX_T,
-    mmal.MMAL_PARAMETER_CONTRAST:                       mmal.MMAL_RATIONAL_T,
+    mmal.MMAL_PARAMETER_CONTRAST:                       mmal.MMAL_PARAMETER_RATIONAL_T,
     mmal.MMAL_PARAMETER_CORE_STATISTICS:                mmal.MMAL_PARAMETER_CORE_STATISTICS_T,
     mmal.MMAL_PARAMETER_CUSTOM_AWB_GAINS:               mmal.MMAL_PARAMETER_AWB_GAINS_T,
     mmal.MMAL_PARAMETER_DISPLAYREGION:                  mmal.MMAL_DISPLAYREGION_T,
     mmal.MMAL_PARAMETER_DPF_CONFIG:                     mmal.MMAL_PARAMETER_UINT32_T,
     mmal.MMAL_PARAMETER_DYNAMIC_RANGE_COMPRESSION:      mmal.MMAL_PARAMETER_DRC_T,
-    mmal.MMAL_PARAMETER_ENABLE_RAW_CAPTURE:             mmal.MMAL_BOOL_T,
+    mmal.MMAL_PARAMETER_ENABLE_RAW_CAPTURE:             mmal.MMAL_PARAMETER_BOOLEAN_T,
     mmal.MMAL_PARAMETER_EXIF_DISABLE:                   mmal.MMAL_PARAMETER_BOOLEAN_T,
     mmal.MMAL_PARAMETER_EXIF:                           mmal.MMAL_PARAMETER_EXIF_T,
     mmal.MMAL_PARAMETER_EXP_METERING_MODE:              mmal.MMAL_PARAMETER_EXPOSUREMETERINGMODE_T,
-    mmal.MMAL_PARAMETER_EXPOSURE_COMP:                  ct.c_int32,
+    mmal.MMAL_PARAMETER_EXPOSURE_COMP:                  mmal.MMAL_PARAMETER_INT32_T,
     mmal.MMAL_PARAMETER_EXPOSURE_MODE:                  mmal.MMAL_PARAMETER_EXPOSUREMODE_T,
     mmal.MMAL_PARAMETER_EXTRA_BUFFERS:                  mmal.MMAL_PARAMETER_UINT32_T,
     mmal.MMAL_PARAMETER_FIELD_OF_VIEW:                  mmal.MMAL_PARAMETER_FIELD_OF_VIEW_T,
@@ -117,14 +117,14 @@ PARAM_TYPES = {
     mmal.MMAL_PARAMETER_FOCUS_REGIONS:                  mmal.MMAL_PARAMETER_FOCUS_REGIONS_T,
     mmal.MMAL_PARAMETER_FOCUS_STATUS:                   mmal.MMAL_PARAMETER_FOCUS_STATUS_T,
     mmal.MMAL_PARAMETER_FPS_RANGE:                      mmal.MMAL_PARAMETER_FPS_RANGE_T,
-    mmal.MMAL_PARAMETER_FRAME_RATE:                     mmal.MMAL_PARAMETER_FRAME_RATE_T,
+    mmal.MMAL_PARAMETER_FRAME_RATE:                     mmal.MMAL_PARAMETER_RATIONAL_T, # actually mmal.MMAL_PARAMETER_FRAME_RATE_T but this only contains a rational anyway...
     mmal.MMAL_PARAMETER_IMAGE_EFFECT:                   mmal.MMAL_PARAMETER_IMAGEFX_T,
     mmal.MMAL_PARAMETER_IMAGE_EFFECT_PARAMETERS:        mmal.MMAL_PARAMETER_IMAGEFX_PARAMETERS_T,
     mmal.MMAL_PARAMETER_INPUT_CROP:                     mmal.MMAL_PARAMETER_INPUT_CROP_T,
     mmal.MMAL_PARAMETER_INTRAPERIOD:                    mmal.MMAL_PARAMETER_UINT32_T,
-    mmal.MMAL_PARAMETER_ISO:                            ct.c_uint32,
+    mmal.MMAL_PARAMETER_ISO:                            mmal.MMAL_PARAMETER_UINT32_T,
     mmal.MMAL_PARAMETER_JPEG_ATTACH_LOG:                mmal.MMAL_PARAMETER_BOOLEAN_T,
-    mmal.MMAL_PARAMETER_JPEG_Q_FACTOR:                  ct.c_uint32,
+    mmal.MMAL_PARAMETER_JPEG_Q_FACTOR:                  mmal.MMAL_PARAMETER_UINT32_T,
     mmal.MMAL_PARAMETER_LOCKSTEP_ENABLE:                mmal.MMAL_PARAMETER_BOOLEAN_T,
     mmal.MMAL_PARAMETER_LOGGING:                        mmal.MMAL_PARAMETER_LOGGING_T,
     mmal.MMAL_PARAMETER_MB_ROWS_PER_SLICE:              mmal.MMAL_PARAMETER_UINT32_T,
@@ -138,15 +138,15 @@ PARAM_TYPES = {
     mmal.MMAL_PARAMETER_PROFILE:                        mmal.MMAL_PARAMETER_VIDEO_PROFILE_T,
     mmal.MMAL_PARAMETER_RATECONTROL:                    mmal.MMAL_PARAMETER_VIDEO_RATECONTROL_T,
     mmal.MMAL_PARAMETER_REDEYE:                         mmal.MMAL_PARAMETER_REDEYE_T,
-    mmal.MMAL_PARAMETER_ROTATION:                       ct.c_int32,
-    mmal.MMAL_PARAMETER_SATURATION:                     mmal.MMAL_RATIONAL_T,
+    mmal.MMAL_PARAMETER_ROTATION:                       mmal.MMAL_PARAMETER_INT32_T,
+    mmal.MMAL_PARAMETER_SATURATION:                     mmal.MMAL_PARAMETER_RATIONAL_T,
     mmal.MMAL_PARAMETER_SEEK:                           mmal.MMAL_PARAMETER_SEEK_T,
     mmal.MMAL_PARAMETER_SENSOR_INFORMATION:             mmal.MMAL_PARAMETER_SENSOR_INFORMATION_T,
-    mmal.MMAL_PARAMETER_SHARPNESS:                      mmal.MMAL_RATIONAL_T,
-    mmal.MMAL_PARAMETER_SHUTTER_SPEED:                  ct.c_uint32,
+    mmal.MMAL_PARAMETER_SHARPNESS:                      mmal.MMAL_PARAMETER_RATIONAL_T,
+    mmal.MMAL_PARAMETER_SHUTTER_SPEED:                  mmal.MMAL_PARAMETER_UINT32_T,
     mmal.MMAL_PARAMETER_STATISTICS:                     mmal.MMAL_PARAMETER_STATISTICS_T,
     mmal.MMAL_PARAMETER_STEREOSCOPIC_MODE:              mmal.MMAL_PARAMETER_STEREOSCOPIC_MODE_T,
-    mmal.MMAL_PARAMETER_STILLS_DENOISE:                 mmal.MMAL_BOOL_T,
+    mmal.MMAL_PARAMETER_STILLS_DENOISE:                 mmal.MMAL_PARAMETER_BOOLEAN_T,
     mmal.MMAL_PARAMETER_SUPPORTED_ENCODINGS:            mmal.MMAL_PARAMETER_ENCODING_T,
     mmal.MMAL_PARAMETER_SUPPORTED_PROFILES:             mmal.MMAL_PARAMETER_VIDEO_PROFILE_T,
     mmal.MMAL_PARAMETER_SW_SATURATION_DISABLE:          mmal.MMAL_PARAMETER_BOOLEAN_T,
@@ -158,23 +158,24 @@ PARAM_TYPES = {
     mmal.MMAL_PARAMETER_VIDEO_ALIGN_HORIZ:              mmal.MMAL_PARAMETER_UINT32_T,
     mmal.MMAL_PARAMETER_VIDEO_ALIGN_VERT:               mmal.MMAL_PARAMETER_UINT32_T,
     mmal.MMAL_PARAMETER_VIDEO_BIT_RATE:                 mmal.MMAL_PARAMETER_UINT32_T,
-    mmal.MMAL_PARAMETER_VIDEO_DENOISE:                  mmal.MMAL_BOOL_T,
+    mmal.MMAL_PARAMETER_VIDEO_DENOISE:                  mmal.MMAL_PARAMETER_BOOLEAN_T,
     mmal.MMAL_PARAMETER_VIDEO_DROPPABLE_PFRAMES:        mmal.MMAL_PARAMETER_BOOLEAN_T,
     mmal.MMAL_PARAMETER_VIDEO_EEDE_ENABLE:              mmal.MMAL_PARAMETER_VIDEO_EEDE_ENABLE_T,
     mmal.MMAL_PARAMETER_VIDEO_EEDE_LOSSRATE:            mmal.MMAL_PARAMETER_VIDEO_EEDE_LOSSRATE_T,
     mmal.MMAL_PARAMETER_VIDEO_ENCODE_FRAME_LIMIT_BITS:  mmal.MMAL_PARAMETER_UINT32_T,
     mmal.MMAL_PARAMETER_VIDEO_ENCODE_INITIAL_QUANT:     mmal.MMAL_PARAMETER_UINT32_T,
-    mmal.MMAL_PARAMETER_VIDEO_ENCODE_INLINE_HEADER:     mmal.MMAL_BOOL_T,
-    mmal.MMAL_PARAMETER_VIDEO_ENCODE_INLINE_VECTORS:    mmal.MMAL_BOOL_T,
+    mmal.MMAL_PARAMETER_VIDEO_ENCODE_INLINE_HEADER:     mmal.MMAL_PARAMETER_BOOLEAN_T,
+    mmal.MMAL_PARAMETER_VIDEO_ENCODE_INLINE_VECTORS:    mmal.MMAL_PARAMETER_BOOLEAN_T,
     mmal.MMAL_PARAMETER_VIDEO_ENCODE_MAX_QUANT:         mmal.MMAL_PARAMETER_UINT32_T,
     mmal.MMAL_PARAMETER_VIDEO_ENCODE_MIN_QUANT:         mmal.MMAL_PARAMETER_UINT32_T,
     mmal.MMAL_PARAMETER_VIDEO_ENCODE_PEAK_RATE:         mmal.MMAL_PARAMETER_UINT32_T,
     mmal.MMAL_PARAMETER_VIDEO_ENCODE_QP_P:              mmal.MMAL_PARAMETER_UINT32_T,
     mmal.MMAL_PARAMETER_VIDEO_ENCODE_RC_MODEL:          mmal.MMAL_PARAMETER_VIDEO_ENCODE_RC_MODEL_T,
     mmal.MMAL_PARAMETER_VIDEO_ENCODE_RC_SLICE_DQUANT:   mmal.MMAL_PARAMETER_UINT32_T,
-    mmal.MMAL_PARAMETER_VIDEO_ENCODE_SEI_ENABLE:        mmal.MMAL_BOOL_T,
+    mmal.MMAL_PARAMETER_VIDEO_ENCODE_SEI_ENABLE:        mmal.MMAL_PARAMETER_BOOLEAN_T,
     mmal.MMAL_PARAMETER_VIDEO_ENCODE_SPS_TIMINGS:       mmal.MMAL_PARAMETER_BOOLEAN_T,
-    mmal.MMAL_PARAMETER_VIDEO_IMMUTABLE_INPUT:          mmal.MMAL_BOOL_T,
+    mmal.MMAL_PARAMETER_VIDEO_FRAME_RATE:               mmal.MMAL_PARAMETER_RATIONAL_T, # actually mmal.MMAL_PARAMETER_FRAME_RATE_T but this only contains a rational anyway...
+    mmal.MMAL_PARAMETER_VIDEO_IMMUTABLE_INPUT:          mmal.MMAL_PARAMETER_BOOLEAN_T,
     mmal.MMAL_PARAMETER_VIDEO_INTERLACE_TYPE:           mmal.MMAL_PARAMETER_VIDEO_INTERLACE_TYPE_T,
     mmal.MMAL_PARAMETER_VIDEO_INTERPOLATE_TIMESTAMPS:   mmal.MMAL_PARAMETER_BOOLEAN_T,
     mmal.MMAL_PARAMETER_VIDEO_INTRA_REFRESH:            mmal.MMAL_PARAMETER_VIDEO_INTRA_REFRESH_T,
@@ -182,7 +183,7 @@ PARAM_TYPES = {
     mmal.MMAL_PARAMETER_VIDEO_MAX_NUM_CALLBACKS:        mmal.MMAL_PARAMETER_UINT32_T,
     mmal.MMAL_PARAMETER_VIDEO_RENDER_STATS:             mmal.MMAL_PARAMETER_VIDEO_RENDER_STATS_T,
     mmal.MMAL_PARAMETER_VIDEO_REQUEST_I_FRAME:          mmal.MMAL_PARAMETER_BOOLEAN_T,
-    mmal.MMAL_PARAMETER_VIDEO_STABILISATION:            mmal.MMAL_BOOL_T,
+    mmal.MMAL_PARAMETER_VIDEO_STABILISATION:            mmal.MMAL_PARAMETER_BOOLEAN_T,
     mmal.MMAL_PARAMETER_ZERO_COPY:                      mmal.MMAL_PARAMETER_BOOLEAN_T,
     mmal.MMAL_PARAMETER_ZERO_SHUTTER_LAG:               mmal.MMAL_PARAMETER_ZEROSHUTTERLAG_T,
     mmal.MMAL_PARAMETER_ZOOM:                           mmal.MMAL_PARAMETER_SCALEFACTOR_T,
@@ -929,28 +930,24 @@ class MMALPortParams(object):
 
     def __getitem__(self, key):
         dtype = PARAM_TYPES[key]
+        # Use the short-cut functions where possible (teeny bit faster if we
+        # get some C to do the structure wrapping for us)
         func = {
-            mmal.MMAL_RATIONAL_T: mmal.mmal_port_parameter_get_rational,
-            mmal.MMAL_BOOL_T:     mmal.mmal_port_parameter_get_boolean,
-            ct.c_uint64:          mmal.mmal_port_parameter_get_uint64,
-            ct.c_int64:           mmal.mmal_port_parameter_get_int64,
-            ct.c_uint32:          mmal.mmal_port_parameter_get_uint32,
-            ct.c_int32:           mmal.mmal_port_parameter_get_int32,
+            mmal.MMAL_PARAMETER_RATIONAL_T: mmal.mmal_port_parameter_get_rational,
+            mmal.MMAL_PARAMETER_BOOLEAN_T:  mmal.mmal_port_parameter_get_boolean,
+            mmal.MMAL_PARAMETER_INT32_T:    mmal.mmal_port_parameter_get_int32,
+            mmal.MMAL_PARAMETER_INT64_T:    mmal.mmal_port_parameter_get_int64,
+            mmal.MMAL_PARAMETER_UINT32_T:   mmal.mmal_port_parameter_get_uint32,
+            mmal.MMAL_PARAMETER_UINT64_T:   mmal.mmal_port_parameter_get_uint64,
             }.get(dtype, mmal.mmal_port_parameter_get)
         conv = {
-            mmal.MMAL_RATIONAL_T:           lambda v: Fraction(v.num, v.den),
-            mmal.MMAL_PARAMETER_RATIONAL_T: lambda v: Fraction(v.value.num, v.value.den),
-            mmal.MMAL_BOOL_T:               lambda v: v.value != mmal.MMAL_FALSE,
-            mmal.MMAL_PARAMETER_BOOLEAN_T:  lambda v: v.enable != mmal.MMAL_FALSE,
+            mmal.MMAL_PARAMETER_RATIONAL_T: lambda v: Fraction(v.num, v.den),
+            mmal.MMAL_PARAMETER_BOOLEAN_T:  lambda v: v.value != mmal.MMAL_FALSE,
             mmal.MMAL_PARAMETER_INT32_T:    lambda v: v.value,
             mmal.MMAL_PARAMETER_INT64_T:    lambda v: v.value,
             mmal.MMAL_PARAMETER_UINT32_T:   lambda v: v.value,
             mmal.MMAL_PARAMETER_UINT64_T:   lambda v: v.value,
             mmal.MMAL_PARAMETER_STRING_T:   lambda v: v.str.decode('ascii'),
-            ct.c_uint64:                    lambda v: v.value,
-            ct.c_int64:                     lambda v: v.value,
-            ct.c_uint32:                    lambda v: v.value,
-            ct.c_int32:                     lambda v: v.value,
             }.get(dtype, lambda v: v)
         if func == mmal.mmal_port_parameter_get:
             result = dtype(
@@ -960,6 +957,14 @@ class MMALPortParams(object):
                 func(self._port, result.hdr),
                 prefix="Failed to get parameter %d" % key)
         else:
+            dtype = {
+                mmal.MMAL_PARAMETER_RATIONAL_T: mmal.MMAL_RATIONAL_T,
+                mmal.MMAL_PARAMETER_BOOLEAN_T:  mmal.MMAL_BOOL_T,
+                mmal.MMAL_PARAMETER_INT32_T:    ct.c_int32,
+                mmal.MMAL_PARAMETER_INT64_T:    ct.c_int64,
+                mmal.MMAL_PARAMETER_UINT32_T:   ct.c_uint32,
+                mmal.MMAL_PARAMETER_UINT64_T:   ct.c_uint64,
+                }[dtype]
             result = dtype()
             mmal_check(
                 func(self._port, key, result),
@@ -969,44 +974,18 @@ class MMALPortParams(object):
     def __setitem__(self, key, value):
         dtype = PARAM_TYPES[key]
         func = {
-            mmal.MMAL_RATIONAL_T: mmal.mmal_port_parameter_set_rational,
-            mmal.MMAL_BOOL_T:     mmal.mmal_port_parameter_set_boolean,
-            ct.c_uint64:          mmal.mmal_port_parameter_set_uint64,
-            ct.c_int64:           mmal.mmal_port_parameter_set_int64,
-            ct.c_uint32:          mmal.mmal_port_parameter_set_uint32,
-            ct.c_int32:           mmal.mmal_port_parameter_set_int32,
+            mmal.MMAL_PARAMETER_RATIONAL_T: mmal.mmal_port_parameter_set_rational,
+            mmal.MMAL_PARAMETER_BOOLEAN_T:  mmal.mmal_port_parameter_set_boolean,
+            mmal.MMAL_PARAMETER_INT32_T:    mmal.mmal_port_parameter_set_int32,
+            mmal.MMAL_PARAMETER_INT64_T:    mmal.mmal_port_parameter_set_int64,
+            mmal.MMAL_PARAMETER_UINT32_T:   mmal.mmal_port_parameter_set_uint32,
+            mmal.MMAL_PARAMETER_UINT64_T:   mmal.mmal_port_parameter_set_uint64,
+            mmal.MMAL_PARAMETER_STRING_T:   mmal.mmal_port_parameter_set_string,
             }.get(dtype, mmal.mmal_port_parameter_set)
         conv = {
-            mmal.MMAL_RATIONAL_T:           lambda v: to_rational(v),
-            mmal.MMAL_PARAMETER_RATIONAL_T: lambda v: mmal.MMAL_PARAMETER_RATIONAL_T(
-                mmal.MMAL_PARAMETER_HEADER_T(
-                    key, ct.sizeof(mmal.MMAL_PARAMETER_RATIONAL_T)),
-                to_rational(v)),
-            mmal.MMAL_PARAMETER_BOOLEAN_T:  lambda v: mmal.MMAL_PARAMETER_BOOLEAN_T(
-                mmal.MMAL_PARAMETER_HEADER_T(
-                    key, ct.sizeof(mmal.MMAL_PARAMETER_BOOLEAN_T)),
-                bool(value)),
-            mmal.MMAL_BOOL_T:               lambda v: mmal.MMAL_TRUE if v else mmal.MMAL_FALSE,
-            mmal.MMAL_PARAMETER_INT32_T:    lambda v: mmal.MMAL_PARAMETER_INT32_T(
-                mmal.MMAL_PARAMETER_HEADER_T(
-                    key, ct.sizeof(mmal.MMAL_PARAMETER_INT32_T)),
-                v),
-            mmal.MMAL_PARAMETER_INT64_T:    lambda v: mmal.MMAL_PARAMETER_INT64_T(
-                mmal.MMAL_PARAMETER_HEADER_T(
-                    key, ct.sizeof(mmal.MMAL_PARAMETER_INT64_T)),
-                v),
-            mmal.MMAL_PARAMETER_UINT32_T:   lambda v: mmal.MMAL_PARAMETER_UINT32_T(
-                mmal.MMAL_PARAMETER_HEADER_T(
-                    key, ct.sizeof(mmal.MMAL_PARAMETER_UINT32_T)),
-                v),
-            mmal.MMAL_PARAMETER_UINT64_T:   lambda v: mmal.MMAL_PARAMETER_UINT64_T(
-                mmal.MMAL_PARAMETER_HEADER_T(
-                    key, ct.sizeof(mmal.MMAL_PARAMETER_UINT64_T)),
-                v),
-            mmal.MMAL_PARAMETER_STRING_T:   lambda v: mmal.MMAL_PARAMETER_STRING_T(
-                mmal.MMAL_PARAMETER_HEADER_T(
-                    key, ct.sizeof(mmal.MMAL_PARAMETER_STRING_T)),
-                v.encode('ascii')),
+            mmal.MMAL_PARAMETER_RATIONAL_T: lambda v: to_rational(v),
+            mmal.MMAL_PARAMETER_BOOLEAN_T:  lambda v: mmal.MMAL_TRUE if v else mmal.MMAL_FALSE,
+            mmal.MMAL_PARAMETER_STRING_T:   lambda v: v.encode('ascii'),
             }.get(dtype, lambda v: v)
         if func == mmal.mmal_port_parameter_set:
             mp = conv(value)
