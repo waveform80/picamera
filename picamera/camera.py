@@ -397,7 +397,8 @@ class PiCamera(object):
             raise PiCameraValueError('Invalid clock mode: %s' % clock_mode)
         try:
             self._init_camera(camera_num, stereo_mode, stereo_decimate)
-            self._configure_camera(sensor_mode, framerate, resolution, clock_mode)
+            self.framerate = framerate
+            self._configure_camera(sensor_mode, resolution, clock_mode)
             self._camera.enabled = True
             self._init_defaults()
             self._init_preview()
@@ -1908,14 +1909,13 @@ class PiCamera(object):
                 "Received unexpected camera control callback event, 0x%08x" % buf[0].cmd)
 
     def _configure_camera(
-            self, sensor_mode, framerate, resolution, clock_mode,
-            old_sensor_mode=0):
+            self, sensor_mode, resolution, clock_mode, old_sensor_mode=0):
         """
-        An internal method for setting a new camera mode, framerate,
-        resolution, and/or clock_mode.
+        An internal method for setting a new camera mode, resolution, and/or
+        clock_mode.
 
         This method is used by the setters of the :attr:`resolution`,
-        :attr:`framerate`, and :attr:`sensor_mode` properties. It assumes the
+        :attr:`clock_mode`, and :attr:`sensor_mode` properties. It assumes the
         camera is currently disabled. The *old_mode* and *new_mode* arguments
         are required to ensure correct operation on older firmwares
         (specifically that we don't try to set the sensor mode when both old
@@ -1926,16 +1926,7 @@ class PiCamera(object):
         if not self._camera.control.enabled:
             self._camera.control.enable(self._control_callback)
 
-        # Determine the FPS range for the requested framerate
-        if framerate >= 1.0:
-            fps_low = 1
-            fps_high = 30
-        elif framerate >= 0.166:
-            fps_low = Fraction(166, 1000)
-            fps_high = Fraction(999, 1000)
-        else:
-            fps_low = Fraction(50, 1000)
-            fps_high = Fraction(166, 1000)
+        framerate = self.framerate
         cc = self._camera_config
         cc.max_stills_w = resolution.width
         cc.max_stills_h = resolution.height
@@ -1948,88 +1939,13 @@ class PiCamera(object):
         cc.fast_preview_resume = 0
         cc.use_stc_timestamp = clock_mode
         self._camera.control.params[mmal.MMAL_PARAMETER_CAMERA_CONFIG] = cc
-
-        mp = mmal.MMAL_PARAMETER_FPS_RANGE_T(
-            mmal.MMAL_PARAMETER_HEADER_T(
-                mmal.MMAL_PARAMETER_FPS_RANGE,
-                ct.sizeof(mmal.MMAL_PARAMETER_FPS_RANGE_T)
-            ),
-            fps_low=mo.to_rational(fps_low),
-            fps_high=mo.to_rational(fps_high),
-            )
-        for port in self._camera.outputs:
-            port.params[mmal.MMAL_PARAMETER_FPS_RANGE] = mp
+        for index, port in enumerate(self._camera.outputs):
             port.framesize = resolution
-            port.framerate = framerate
+            if index == self.CAMERA_CAPTURE_PORT:
+                port.framerate = 0
+            else:
+                port.framerate = framerate
             port.commit()
-
-    def _get_framerate(self):
-        self._check_camera_open()
-        return mo.PiCameraFraction(self._camera.outputs[self.CAMERA_VIDEO_PORT].framerate)
-    def _set_framerate(self, value):
-        self._check_camera_open()
-        self._check_recording_stopped()
-        value = mo.to_fraction(value)
-        if not (0 <= value <= self.MAX_FRAMERATE):
-            raise PiCameraValueError("Invalid framerate: %.2ffps" % value)
-        sensor_mode = self.sensor_mode
-        clock_mode = self.CLOCK_MODES[self.clock_mode]
-        resolution = self.resolution
-        self._disable_camera()
-        self._configure_camera(
-            sensor_mode=sensor_mode, framerate=value, resolution=resolution,
-            clock_mode=clock_mode)
-        self._configure_splitter()
-        self._enable_camera()
-    framerate = property(_get_framerate, _set_framerate, doc="""\
-        Retrieves or sets the framerate at which video-port based image
-        captures, video recordings, and previews will run.
-
-        When queried, the :attr:`framerate` property returns the rate at which
-        the camera's video and preview ports will operate as a
-        :class:`~fractions.Fraction` instance which can be easily converted to
-        an :class:`int` or :class:`float`.
-
-        .. note::
-
-            For backwards compatibility, a derivative of the
-            :class:`~fractions.Fraction` class is actually used which permits
-            the value to be treated as a tuple of ``(numerator, denominator)``.
-
-            Setting and retrieving framerate as a ``(numerator, denominator)``
-            tuple is deprecated and will be removed in 2.0. Please use a
-            :class:`~fractions.Fraction` instance instead (which is just as
-            accurate and also permits direct use with math operators).
-
-        When set, the property configures the camera so that the next call to
-        recording and previewing methods will use the new framerate.  The
-        framerate can be specified as an :ref:`int <typesnumeric>`, :ref:`float
-        <typesnumeric>`, :class:`~fractions.Fraction`, or a ``(numerator,
-        denominator)`` tuple. For example, the following definitions are all
-        equivalent::
-
-            from fractions import Fraction
-
-            camera.framerate = 30
-            camera.framerate = 30 / 1
-            camera.framerate = Fraction(30, 1)
-            camera.framerate = (30, 1) # deprecated
-
-        The camera must not be closed, and no recording must be active when the
-        property is set.
-
-        .. note::
-
-            This attribute, in combination with :attr:`resolution`, determines
-            the mode that the camera operates in. The actual sensor framerate
-            and resolution used by the camera is influenced, but not directly
-            set, by this property. See :attr:`sensor_mode` for more
-            information.
-
-        The initial value of this property can be specified with the
-        *framerate* parameter in the :class:`PiCamera` constructor, and will
-        default to 30 if not specified.
-        """)
 
     def _get_sensor_mode(self):
         self._check_camera_open()
@@ -2046,12 +1962,10 @@ class PiCamera(object):
         sensor_mode = self.sensor_mode
         clock_mode = self.CLOCK_MODES[self.clock_mode]
         resolution = self.resolution
-        framerate = self.framerate
         self._disable_camera()
         self._configure_camera(
             old_sensor_mode=sensor_mode, sensor_mode=value,
-            framerate=framerate, resolution=resolution,
-            clock_mode=clock_mode)
+            resolution=resolution, clock_mode=clock_mode)
         self._configure_splitter()
         self._enable_camera()
     sensor_mode = property(_get_sensor_mode, _set_sensor_mode, doc="""\
@@ -2091,12 +2005,11 @@ class PiCamera(object):
         except KeyError:
             raise PiCameraValueError("Invalid clock mode %s" % value)
         sensor_mode = self.sensor_mode
-        framerate = self.framerate
         resolution = self.resolution
         self._disable_camera()
         self._configure_camera(
-            sensor_mode=sensor_mode, framerate=framerate,
-            resolution=resolution, clock_mode=clock_mode)
+            sensor_mode=sensor_mode, resolution=resolution,
+            clock_mode=clock_mode)
         self._configure_splitter()
         self._enable_camera()
     clock_mode = property(_get_clock_mode, _set_clock_mode, doc="""\
@@ -2132,11 +2045,9 @@ class PiCamera(object):
                     "Invalid resolution requested: %r" % value)
         sensor_mode = self.sensor_mode
         clock_mode = self.CLOCK_MODES[self.clock_mode]
-        framerate = self.framerate
         self._disable_camera()
         self._configure_camera(
-            sensor_mode=sensor_mode, framerate=framerate,
-            resolution=value, clock_mode=clock_mode)
+            sensor_mode=sensor_mode, resolution=value, clock_mode=clock_mode)
         self._configure_splitter()
         self._enable_camera()
     resolution = property(_get_resolution, _set_resolution, doc="""
@@ -2182,6 +2093,101 @@ class PiCamera(object):
             Resolution permitted to be set as a string.
 
         .. _display resolution: https://en.wikipedia.org/wiki/Graphics_display_resolution
+        """)
+
+    def _get_framerate(self):
+        self._check_camera_open()
+        port_num = (
+            self.CAMERA_VIDEO_PORT
+            if self._encoders else
+            self.CAMERA_PREVIEW_PORT
+            )
+        return mo.PiCameraFraction(
+            self._camera.outputs[port_num].params[mmal.MMAL_PARAMETER_FRAME_RATE])
+    def _set_framerate(self, value):
+        self._check_camera_open()
+        value = mo.to_fraction(value, den_limit=256)
+        if not (0 <= value <= self.MAX_FRAMERATE):
+            raise PiCameraValueError("Invalid framerate: %.2ffps" % value)
+        self._camera.outputs[self.CAMERA_PREVIEW_PORT].params[mmal.MMAL_PARAMETER_FRAME_RATE] = value
+        self._camera.outputs[self.CAMERA_VIDEO_PORT].params[mmal.MMAL_PARAMETER_FRAME_RATE] = value
+        if value >= 1.0:
+            fps_low = 1
+            fps_high = value
+        elif value >= 0.166:
+            fps_low = Fraction(166, 1000)
+            fps_high = Fraction(999, 1000)
+        else:
+            fps_low = Fraction(50, 1000)
+            fps_high = Fraction(166, 1000)
+        mp = mmal.MMAL_PARAMETER_FPS_RANGE_T(
+            mmal.MMAL_PARAMETER_HEADER_T(
+                mmal.MMAL_PARAMETER_FPS_RANGE,
+                ct.sizeof(mmal.MMAL_PARAMETER_FPS_RANGE_T)
+            ),
+            fps_low=mo.to_rational(fps_low),
+            fps_high=mo.to_rational(fps_high),
+            )
+        self._camera.outputs[self.CAMERA_CAPTURE_PORT].params[mmal.MMAL_PARAMETER_FPS_RANGE] = mp
+    framerate = property(_get_framerate, _set_framerate, doc="""\
+        Retrieves or sets the framerate at which video-port based image
+        captures, video recordings, and previews will run.
+
+        When queried, the :attr:`framerate` property returns the rate at which
+        the camera's video and preview ports will operate as a
+        :class:`~fractions.Fraction` instance which can be easily converted to
+        an :class:`int` or :class:`float`.
+
+        .. note::
+
+            For backwards compatibility, a derivative of the
+            :class:`~fractions.Fraction` class is actually used which permits
+            the value to be treated as a tuple of ``(numerator, denominator)``.
+
+            Setting and retrieving framerate as a ``(numerator, denominator)``
+            tuple is deprecated and will be removed in 2.0. Please use a
+            :class:`~fractions.Fraction` instance instead (which is just as
+            accurate and also permits direct use with math operators).
+
+        When set, the property configures the camera with the new framerate on
+        the fly. The property can be set while recordings or previews are in
+        progress. If the new framerate demands a mode switch (such as moving
+        between a low framerate and a high framerate mode), currently active
+        recordings may drop a frame.
+
+        .. note::
+
+            Framerates can be fractional with adjustments as small as 1/256th
+            of an fps possible (finer adjustments will be rounded). With an
+            appropriately tuned PID controller, this can be used to achieve
+            synchronization between the camera framerate and other devices.
+
+        The framerate can be specified as an :ref:`int <typesnumeric>`,
+        :ref:`float <typesnumeric>`, :class:`~fractions.Fraction` or a
+        ``(numerator, denominator)`` tuple. For example, the following
+        definitions are all equivalent::
+
+            from fractions import Fraction
+
+            camera.framerate = 30
+            camera.framerate = 30.0 / 1.0
+            camera.framerate = Fraction(30, 1)
+            camera.framerate = (30, 1) # deprecated
+
+        The camera must not be closed, and no recording must be active when the
+        property is set.
+
+        .. note::
+
+            This attribute, in combination with :attr:`resolution`, determines
+            the mode that the camera operates in. The actual sensor framerate
+            and resolution used by the camera is influenced, but not directly
+            set, by this property. See :attr:`sensor_mode` for more
+            information.
+
+        The initial value of this property can be specified with the
+        *framerate* parameter in the :class:`PiCamera` constructor, and will
+        default to 30 if not specified.
         """)
 
     def _get_still_stats(self):
