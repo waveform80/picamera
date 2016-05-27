@@ -134,7 +134,8 @@ within a virtual Python environment::
 
     $ sudo apt-get install lsb-release build-essential git git-core \
         exuberant-ctags python-virtualenv python3-virtualenv python-dev \
-        python3-dev libjpeg8-dev zlib1g-dev libav-tools
+        python3-dev libjpeg8-dev zlib1g-dev libav-tools \
+        texlive-latex-recommended texlive-latex-extra texlive-fonts-recommended
     $ virtualenv -p /usr/bin/python3 sandbox
     $ source sandbox/bin/activate
     (sandbox) $ git clone https://github.com/waveform80/picamera.git
