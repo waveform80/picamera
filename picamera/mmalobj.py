@@ -58,6 +58,13 @@ from .exc import (
     )
 
 
+# Old firmwares confuse the RGB24 and BGR24 encodings. This flag tracks whether
+# the order needs fixing (it is set during MMALCamera.__init__).
+FIX_RGB_BGR_ORDER = None
+
+# Mapping of parameters to the C-structure they expect / return. If a parameter
+# does not appear in this mapping, it cannot be queried / set with the
+# MMALControlPort.params attribute.
 PARAM_TYPES = {
     mmal.MMAL_PARAMETER_ALGORITHM_CONTROL:              mmal.MMAL_PARAMETER_ALGORITHM_CONTROL_T,
     mmal.MMAL_PARAMETER_ANNOTATE:                       None, # adjusted by MMALCamera.annotate_rev
@@ -668,22 +675,26 @@ class MMALPort(MMALControlPort):
         """)
 
     def _get_format(self):
-        # Workaround: swap RGB3 and BGR3 formats (the firmware has them
-        # backwards)
         result = self._port[0].format[0].encoding
-        return {
-            mmal.MMAL_ENCODING_RGB24: mmal.MMAL_ENCODING_BGR24,
-            mmal.MMAL_ENCODING_BGR24: mmal.MMAL_ENCODING_RGB24,
-            }.get(result.value, result)
+        if FIX_RGB_BGR_ORDER:
+            return {
+                mmal.MMAL_ENCODING_RGB24: mmal.MMAL_ENCODING_BGR24,
+                mmal.MMAL_ENCODING_BGR24: mmal.MMAL_ENCODING_RGB24,
+                }.get(result.value, result.value)
+        else:
+            return result.value
     def _set_format(self, value):
-        value = {
-            mmal.MMAL_ENCODING_RGB24: mmal.MMAL_ENCODING_BGR24,
-            mmal.MMAL_ENCODING_BGR24: mmal.MMAL_ENCODING_RGB24,
-            }.get(value, value)
+        if FIX_RGB_BGR_ORDER:
+            value = {
+                mmal.MMAL_ENCODING_RGB24: mmal.MMAL_ENCODING_BGR24,
+                mmal.MMAL_ENCODING_BGR24: mmal.MMAL_ENCODING_RGB24,
+                }.get(value, value)
         self._port[0].format[0].encoding = value
         if value == mmal.MMAL_ENCODING_OPAQUE:
             self._port[0].format[0].encoding_variant = mmal.MMAL_ENCODING_I420
         else:
+            # encoding_variant is irrelevant when not in OPAQUE encoding, so
+            # just set it to the same as the encoding
             self._port[0].format[0].encoding_variant = value
     format = property(_get_format, _set_format, doc="""\
         Retrieves or sets the encoding format of the port. Setting this
@@ -709,7 +720,7 @@ class MMALPort(MMALControlPort):
             mmal.MMAL_FOURCC_T(v)
             for v in mp.encoding
             if v != 0
-            ]
+            ][:mp.hdr.size // ct.sizeof(ct.c_uint32)]
 
     def _get_bitrate(self):
         return self._port[0].format[0].bitrate
@@ -1318,6 +1329,7 @@ class MMALCamera(MMALComponent):
         )
 
     def __init__(self):
+        global FIX_RGB_BGR_ORDER
         super(MMALCamera, self).__init__()
         if PARAM_TYPES[mmal.MMAL_PARAMETER_ANNOTATE] is None:
             found = False
@@ -1337,6 +1349,22 @@ class MMALCamera(MMALComponent):
                 PARAM_TYPES[mmal.MMAL_PARAMETER_ANNOTATE] = None
                 raise PiCameraMMALError(
                         mmal.MMAL_EINVAL, "unknown camera annotation structure revision")
+        if FIX_RGB_BGR_ORDER is None:
+            try:
+                self.outputs[2].supported_formats
+            except PiCameraMMALError:
+                # old firmware lists BGR24 before RGB24 in supported_formats
+                for f in self.outputs[1].supported_formats:
+                    if f == mmal.MMAL_ENCODING_BGR24:
+                        FIX_RGB_BGR_ORDER = True
+                        break
+                    elif f == mmal.MMAL_ENCODING_RGB24:
+                        FIX_RGB_BGR_ORDER = False
+                        break
+            else:
+                # old firmware has a bug which prevents supported_formats
+                # working on the still port
+                FIX_RGB_BGR_ORDER = False
 
     def _get_annotate_rev(self):
         try:

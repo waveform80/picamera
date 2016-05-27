@@ -1825,7 +1825,7 @@ class MMAL_PARAMETER_URI_T(ct.Structure):
 class MMAL_PARAMETER_ENCODING_T(ct.Structure):
     _fields_ = [
         ('hdr',      MMAL_PARAMETER_HEADER_T),
-        ('encoding', ct.c_uint32 * 50),
+        ('encoding', ct.c_uint32 * 30),
         ]
 
 class MMAL_PARAMETER_FRAME_RATE_T(ct.Structure):
