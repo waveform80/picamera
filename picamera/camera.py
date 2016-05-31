@@ -2965,7 +2965,7 @@ class PiCamera(object):
     def _get_color_effects(self):
         self._check_camera_open()
         mp = self._camera.control.params[mmal.MMAL_PARAMETER_COLOUR_EFFECT]
-        if mp.enable.value != mmal.MMAL_FALSE:
+        if mp.enable != mmal.MMAL_FALSE:
             return (mp.u, mp.v)
         else:
             return None
