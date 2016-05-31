@@ -441,16 +441,13 @@ def test_resolution(camera, previewing):
         # Test setting some regular resolutions
         camera.resolution = (320, 240)
         assert camera.resolution == (320, 240)
-        assert camera._camera.outputs[2].width == 320
-        assert camera._camera.outputs[2].height == 240
+        assert camera._camera.outputs[2].framesize == (320, 240)
         camera.resolution = (640, 480)
         assert camera.resolution == (640, 480)
-        assert camera._camera.outputs[2].width == 640
-        assert camera._camera.outputs[2].height == 480
+        assert camera._camera.outputs[2].framesize == (640, 480)
         camera.resolution = (1280, 720)
         assert camera.resolution == (1280, 720)
-        assert camera._camera.outputs[2].width == 1280
-        assert camera._camera.outputs[2].height == 720
+        assert camera._camera.outputs[2].framesize == (1280, 720)
         camera.resolution = (1920, 1080)
         assert camera.resolution == (1920, 1080)
         # Camera's vertical resolution is always a multiple of 16, and
