@@ -2042,7 +2042,7 @@ class PiCamera(object):
                 (0 < value.width <= self.MAX_RESOLUTION.width) and
                 (0 < value.height <= self.MAX_RESOLUTION.height)):
             raise PiCameraValueError(
-                    "Invalid resolution requested: %r" % value)
+                    "Invalid resolution requested: %r" % (value,))
         sensor_mode = self.sensor_mode
         clock_mode = self.CLOCK_MODES[self.clock_mode]
         self._disable_camera()
