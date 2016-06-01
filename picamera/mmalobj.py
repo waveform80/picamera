@@ -808,12 +808,16 @@ class MMALPort(MMALControlPort):
                     prefix="Unable to enable port %s" % self.name)
                 assert self._pool is None
                 self._pool = MMALPortPool(self)
-                try:
-                    self._pool.send_all_buffers(self)
-                except:
-                    self._pool.close()
-                    self._pool = None
-                    raise
+                # If this port is an output port, send it all the buffers
+                # in the pool. If it's an input port, don't bother: the user
+                # will presumably want to feed buffers to it manually
+                if self._port[0].type == mmal.MMAL_PORT_TYPE_OUTPUT:
+                    try:
+                        self._pool.send_all_buffers(self)
+                    except:
+                        self._pool.close()
+                        self._pool = None
+                        raise
             else:
                 super(MMALPort, self).enable()
 

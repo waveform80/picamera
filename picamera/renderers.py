@@ -380,10 +380,8 @@ class PiOverlayRenderer(PiRenderer):
         self.renderer.inputs[0].copy_from(parent._camera.outputs[parent.CAMERA_PREVIEW_PORT])
         self.renderer.inputs[0].format = mmal.MMAL_ENCODING_RGB24
         if size is not None:
-            w, h = size
-            self.renderer.inputs[0].framesize = (w, h)
+            self.renderer.inputs[0].framesize = size
         self.renderer.inputs[0].commit()
-        self.renderer.enabled = True
         # The following callback is required to prevent the mmalobj layer
         # automatically passing buffers back to the port
         self.renderer.inputs[0].enable(callback=lambda port, buf: True)
