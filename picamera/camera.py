@@ -2109,7 +2109,9 @@ class PiCamera(object):
         value = mo.to_fraction(value, den_limit=256)
         if not (0 <= value <= self.MAX_FRAMERATE):
             raise PiCameraValueError("Invalid framerate: %.2ffps" % value)
+        self._camera.outputs[self.CAMERA_PREVIEW_PORT].framerate = value
         self._camera.outputs[self.CAMERA_PREVIEW_PORT].params[mmal.MMAL_PARAMETER_FRAME_RATE] = value
+        self._camera.outputs[self.CAMERA_VIDEO_PORT].framerate = value
         self._camera.outputs[self.CAMERA_VIDEO_PORT].params[mmal.MMAL_PARAMETER_FRAME_RATE] = value
         if value >= 1.0:
             fps_low = 1
@@ -2128,6 +2130,7 @@ class PiCamera(object):
             fps_low=mo.to_rational(fps_low),
             fps_high=mo.to_rational(fps_high),
             )
+        self._camera.outputs[self.CAMERA_CAPTURE_PORT].framerate = 0
         self._camera.outputs[self.CAMERA_CAPTURE_PORT].params[mmal.MMAL_PARAMETER_FPS_RANGE] = mp
     framerate = property(_get_framerate, _set_framerate, doc="""\
         Retrieves or sets the framerate at which video-port based image
