@@ -302,6 +302,7 @@ class PiCamera(object):
         '_led_pin',
         '_camera',
         '_camera_config',
+        '_camera_exception',
         '_preview',
         '_preview_alpha',
         '_preview_layer',
@@ -343,6 +344,7 @@ class PiCamera(object):
         self._led_pin = led_pin
         self._camera = None
         self._camera_config = None
+        self._camera_exception = None
         self._preview = None
         self._preview_alpha = 255
         self._preview_layer = 2
@@ -498,14 +500,18 @@ class PiCamera(object):
 
     def _check_camera_open(self):
         """
-        Raise an exception if the camera is already closed
+        Raise an exception if the camera is already closed, or if the camera
+        has encountered a fatal error.
         """
+        exc, self._camera_exception = self._camera_exception, None
+        if exc:
+            raise exc
         if self.closed:
             raise PiCameraClosed("Camera is closed")
 
     def _check_recording_stopped(self):
         """
-        Raise an exception if the camera is currently recording
+        Raise an exception if the camera is currently recording.
         """
         if self.recording:
             raise PiCameraRuntimeError("Recording is currently running")
@@ -520,6 +526,7 @@ class PiCamera(object):
         always connected to a splitter component, so requests for a video port
         also have to specify which splitter port they want to use.
         """
+        self._check_camera_open()
         if from_video_port and (splitter_port in self._encoders):
             raise PiCameraAlreadyRecording(
                     'The camera is already using port %d ' % splitter_port)
@@ -704,6 +711,9 @@ class PiCamera(object):
         if self._camera:
             self._camera.close()
             self._camera = None
+        exc, self._camera_exception = self._camera_exception, None
+        if exc:
+            raise exc
 
     def __enter__(self):
         return self
@@ -833,6 +843,7 @@ class PiCamera(object):
 
         .. versionadded:: 1.8
         """
+        self._check_camera_open()
         renderer = PiOverlayRenderer(self, source, size, **options)
         self._overlays.append(renderer)
         return renderer
@@ -1822,6 +1833,7 @@ class PiCamera(object):
         """)
 
     def _get_timestamp(self):
+        self._check_camera_open()
         return self._camera.control.params[mmal.MMAL_PARAMETER_SYSTEM_TIME]
     timestamp = property(_get_timestamp, doc="""
         Retrieves the system time according to the camera firmware.
@@ -1834,6 +1846,7 @@ class PiCamera(object):
         """)
 
     def _get_frame(self):
+        self._check_camera_open()
         for e in self._encoders.values():
             try:
                 return e.frame
@@ -1900,13 +1913,18 @@ class PiCamera(object):
             port.commit()
 
     def _control_callback(self, port, buf):
-        if buf.command == mmal.MMAL_EVENT_ERROR:
-            raise PiCameraRuntimeError(
-                "No data recevied from sensor. Check all connections, "
-                "including the SUNNY chip on the camera board")
-        elif buf.command != mmal.MMAL_EVENT_PARAMETER_CHANGED:
-            raise PiCameraRuntimeError(
-                "Received unexpected camera control callback event, 0x%08x" % buf[0].cmd)
+        try:
+            if buf.command == mmal.MMAL_EVENT_ERROR:
+                raise PiCameraRuntimeError(
+                    "No data recevied from sensor. Check all connections, "
+                    "including the SUNNY chip on the camera board")
+            elif buf.command != mmal.MMAL_EVENT_PARAMETER_CHANGED:
+                raise PiCameraRuntimeError(
+                    "Received unexpected camera control callback event, 0x%08x" % buf[0].cmd)
+        except Exception as exc:
+            # Pass the exception to the main thread; next time
+            # check_camera_open() is called this will get raised
+            self._camera_exception = exc
 
     def _configure_camera(
             self, sensor_mode, resolution, clock_mode, old_sensor_mode=0):
@@ -3147,6 +3165,7 @@ class PiCamera(object):
         """)
 
     def _get_overlays(self):
+        self._check_camera_open()
         return self._overlays
     overlays = property(_get_overlays, doc="""\
         Retrieves all active :class:`PiRenderer` overlays.
