@@ -398,6 +398,11 @@ def test_sensor_mode(camera, previewing):
     finally:
         camera.sensor_mode = save_mode
 
+def test_framerate_delta(camera, previewing):
+    for num in range(-10, 11):
+        camera.framerate_delta = num / 10
+        assert num - Fraction(1, 256) < camera.framerate_delta < num + Fraction(1, 256)
+
 def test_framerate(camera, previewing):
     save_framerate = camera.framerate
     try:
