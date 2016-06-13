@@ -1810,6 +1810,12 @@ class PiCamera(object):
             camera's LED, you cannot query the state of the camera's LED using
             this property.
 
+        .. note::
+
+            At present, the camera's LED cannot be controlled on the Pi 3
+            (the GPIOs used to control the camera LED were re-routed to GPIO
+            expander on the Pi 3).
+
         .. warning::
 
             There are circumstances in which the camera firmware may override
