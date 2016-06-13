@@ -104,6 +104,13 @@ class PiCameraMaxResolution(object):
 PiCameraMaxResolution = PiCameraMaxResolution()
 
 
+class PiCameraMaxFramerate(object):
+    """
+    Singleton representing the maximum framerate of the camera module.
+    """
+PiCameraMaxFramerate = PiCameraMaxFramerate()
+
+
 class PiCamera(object):
     """
     Provides a pure Python interface to the Raspberry Pi's camera module.
@@ -184,7 +191,7 @@ class PiCamera(object):
     CAMERA_VIDEO_PORT = 1
     CAMERA_CAPTURE_PORT = 2
     MAX_RESOLUTION = PiCameraMaxResolution # modified by PiCamera.__init__
-    MAX_FRAMERATE = 90
+    MAX_FRAMERATE = PiCameraMaxFramerate # modified by PiCamera.__init__
     DEFAULT_ANNOTATE_SIZE = 32
     CAPTURE_TIMEOUT = 30
 
@@ -370,6 +377,11 @@ class PiCamera(object):
                         info.cameras[camera_num].max_width,
                         info.cameras[camera_num].max_height,
                         )
+            if PiCamera.MAX_FRAMERATE is PiCameraMaxFramerate:
+                if info.cameras[camera_num].camera_name.upper() == 'OV5647':
+                    PiCamera.MAX_FRAMERATE = 90
+                else:
+                    PiCamera.MAX_FRAMERATE = 120
             if resolution is None:
                 # Get screen resolution
                 w = ct.c_uint32()
@@ -387,6 +399,8 @@ class PiCamera(object):
                 resolution = mo.to_resolution(resolution)
             if framerate is None:
                 framerate = 30
+            elif framerate is PiCameraMaxFramerate:
+                framerate = PiCamera.MAX_FRAMERATE
             else:
                 framerate = mo.to_fraction(framerate)
         try:
@@ -2247,7 +2261,8 @@ class PiCamera(object):
         If the new framerate demands a mode switch (such as moving between a
         low framerate and a high framerate mode), currently active recordings
         may drop a frame. This should only happen when specifying quite large
-        deltas.
+        deltas, or when framerate is at the boundary of a sensor mode (e.g.
+        49fps).
 
         The framerate delta can be specified as an :ref:`int <typesnumeric>`,
         :ref:`float <typesnumeric>`, :class:`~fractions.Fraction` or a
