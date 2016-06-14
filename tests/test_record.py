@@ -245,6 +245,17 @@ def test_multi_res_record(camera, mode):
     verify_video(v_stream1, 'h264', resolution)
     verify_video(v_stream2, 'h264', new_res)
 
+def test_macroblock_limit(camera):
+    res, fps = camera.resolution, camera.framerate
+    try:
+        camera.resolution = '1080p'
+        camera.framerate = 31
+        with pytest.raises(picamera.PiCameraValueError):
+            camera.start_recording(os.devnull, 'h264')
+    finally:
+        camera.resolution = res
+        camera.framerate = fps
+
 class SizeTest(object):
     def __init__(self):
         self.size = 0

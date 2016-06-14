@@ -596,7 +596,7 @@ class PiVideoEncoder(PiEncoder):
     def _create_encoder(
             self, format, bitrate=17000000, intra_period=None, profile='high',
             quantization=0, quality=0, inline_headers=True, sei=False,
-            motion_output=None, intra_refresh=None):
+            motion_output=None, intra_refresh=None, level='4'):
         """
         Extends the base :meth:`~PiEncoder._create_encoder` implementation to
         configure the video encoder for H.264 or MJPEG output.
@@ -614,13 +614,23 @@ class PiVideoEncoder(PiEncoder):
         except KeyError:
             raise PiCameraValueError('Unsupported format %s' % format)
 
-        if not (0 <= bitrate <= 25000000):
-            raise PiCameraValueError('bitrate must be between 0 and 25Mbps')
+        limit = 62500000 if format == 'h264' and level == '4.2' else 25000000
+        if not (0 <= bitrate <= limit):
+            raise PiCameraValueError(
+                'bitrate must be between 0 and %.1fMbps' % (bitrate / 1000000))
         self.output_port.bitrate = bitrate
         self.output_port.framerate = 0
         self.output_port.commit()
 
         if format == 'h264':
+            limit = 522240 if level == '4.2' else 245760
+            w, h = self.output_port.framesize
+            w = mmal.VCOS_ALIGN_UP(w, 16) >> 4
+            h = mmal.VCOS_ALIGN_UP(h, 16) >> 4
+            if w * h * (self.parent.framerate + self.parent.framerate_delta) > limit:
+                raise PiCameraValueError(
+                    'too many macroblocks/s requested; reduce resolution or '
+                    'framerate')
             mp = mmal.MMAL_PARAMETER_VIDEO_PROFILE_T(
                     mmal.MMAL_PARAMETER_HEADER_T(
                         mmal.MMAL_PARAMETER_PROFILE,
@@ -633,10 +643,17 @@ class PiVideoEncoder(PiEncoder):
                     'main':        mmal.MMAL_VIDEO_PROFILE_H264_MAIN,
                     'high':        mmal.MMAL_VIDEO_PROFILE_H264_HIGH,
                     'constrained': mmal.MMAL_VIDEO_PROFILE_H264_CONSTRAINED_BASELINE,
-                }[profile]
+                    }[profile]
             except KeyError:
                 raise PiCameraValueError("Invalid H.264 profile %s" % profile)
-            mp.profile[0].level = mmal.MMAL_VIDEO_LEVEL_H264_4
+            try:
+                mp.profile[0].level = {
+                    '4':   mmal.MMAL_VIDEO_LEVEL_H264_4,
+                    '4.1': mmal.MMAL_VIDEO_LEVEL_H264_41,
+                    '4.2': mmal.MMAL_VIDEO_LEVEL_H264_42,
+                    }[level]
+            except KeyError:
+                raise PiCameraValueError("Invalid H.264 level %s" % level)
             self.output_port.params[mmal.MMAL_PARAMETER_PROFILE] = mp
 
             if inline_headers:

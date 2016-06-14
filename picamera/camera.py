@@ -935,6 +935,9 @@ class PiCamera(object):
           'high', but can be one of 'baseline', 'main', 'high', or
           'constrained'.
 
+        * *level* - The H.264 level to use for encoding. Defaults to '4', but
+          can be one of '4', '4.1', or '4.2'.
+
         * *intra_period* - The key frame rate (the rate at which I-frames are
           inserted in the output). Defaults to ``None``, but can be any 32-bit
           integer value representing the number of frames between successive
@@ -966,8 +969,9 @@ class PiCamera(object):
 
         * *bitrate* - The bitrate at which video will be encoded. Defaults to
           17000000 (17Mbps) if not specified.  The maximum value is 25000000
-          (25Mbps). Bitrate 0 indicates the encoder should not use bitrate
-          control (the encoder is limited by the quality only).
+          (25Mbps), except for H.264 level 4.2 for which the maximum is
+          62500000 (62.5Mbps). Bitrate 0 indicates the encoder should not use
+          bitrate control (the encoder is limited by the quality only).
 
         * *quality* - Specifies the quality that the encoder should attempt
           to maintain. For the ``'h264'`` format, use values between 10 and 40
@@ -1971,7 +1975,7 @@ class PiCamera(object):
         cc.one_shot_stills = 1
         cc.max_preview_video_w = resolution.width
         cc.max_preview_video_h = resolution.height
-        cc.num_preview_video_frames = 3
+        cc.num_preview_video_frames = max(3, framerate // 10)
         cc.stills_capture_circular_buffer_height = 0
         cc.fast_preview_resume = 0
         cc.use_stc_timestamp = clock_mode
