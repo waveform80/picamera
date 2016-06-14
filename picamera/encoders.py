@@ -240,7 +240,10 @@ class PiEncoder(object):
         assert not self.encoder
         self.encoder = self.encoder_type()
         self.output_port = self.encoder.outputs[0]
-        self.encoder.inputs[0].copy_from(self.input_port)
+        if self.resizer:
+            self.encoder.inputs[0].copy_from(self.resizer.outputs[0])
+        else:
+            self.encoder.inputs[0].copy_from(self.input_port)
         self.encoder.outputs[0].copy_from(self.encoder.inputs[0])
         # NOTE: We deliberately don't commit the output port format here as
         # this is a base class and the output configuration is incomplete at
