@@ -1495,7 +1495,7 @@ class PiCamera(object):
 
     def capture_continuous(
             self, output, format=None, use_video_port=False, resize=None,
-            splitter_port=0, burst=False, **options):
+            splitter_port=0, burst=False, bayer=False, **options):
         """
         Capture images continuously from the camera as an infinite iterator.
 
