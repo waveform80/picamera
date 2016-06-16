@@ -62,7 +62,12 @@ def verify_video(filename_or_obj, format, resolution):
     """
     width, height = resolution
     if format in RAW_FORMATS:
-        size = (
+        size1 = (
+                math.ceil(width / 16) * 16
+                * math.ceil(height / 16) * 16
+                * RAW_FORMATS[format]
+                )
+        size2 = (
                 math.ceil(width / 32) * 32
                 * math.ceil(height / 16) * 16
                 * RAW_FORMATS[format]
@@ -73,8 +78,9 @@ def verify_video(filename_or_obj, format, resolution):
             stream = filename_or_obj
         stream.seek(0, os.SEEK_END)
         assert stream.tell() > 0
-        # Check the stream size is an exact multiple of the frame size
-        assert stream.tell() % size == 0
+        # Check the stream size is an exact multiple of the one of the possible
+        # frame sizes
+        assert (stream.tell() % size1 == 0) or (stream.tell() % size2 == 0)
     else:
         if isinstance(filename_or_obj, str):
             p = subprocess.Popen([
@@ -118,7 +124,12 @@ def verify_image(filename_or_obj, format, resolution):
     """
     width, height = resolution
     if format in RAW_FORMATS:
-        size = (
+        size1 = (
+                math.ceil(width / 16) * 16
+                * math.ceil(height / 16) * 16
+                * RAW_FORMATS[format]
+                )
+        size2 = (
                 math.ceil(width / 32) * 32
                 * math.ceil(height / 16) * 16
                 * RAW_FORMATS[format]
@@ -128,7 +139,7 @@ def verify_image(filename_or_obj, format, resolution):
         else:
             stream = filename_or_obj
         stream.seek(0, os.SEEK_END)
-        assert stream.tell() == size
+        assert stream.tell() in (size1, size2)
     else:
         img = Image.open(filename_or_obj)
         assert img.size == resolution

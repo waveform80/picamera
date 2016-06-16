@@ -119,7 +119,7 @@ def test_yuv_array3(camera, mode):
 def test_yuv_buffer(camera, mode):
     resolution, framerate = mode
     width, height = resolution
-    fwidth = (width + 31) // 32 * 32
+    fwidth = (width + 31) // 32 * 32 # big enough even if 16x16 rounding
     fheight = (height + 15) // 16 * 16
     buf = np.empty((int(fwidth * fheight * 1.5),), dtype=np.uint8)
     camera.capture(buf, 'yuv')
@@ -127,7 +127,7 @@ def test_yuv_buffer(camera, mode):
 def test_rgb_buffer(camera, mode):
     resolution, framerate = mode
     width, height = resolution
-    fwidth = (width + 31) // 32 * 32
+    fwidth = (width + 31) // 32 * 32 # big enough even if 16x16 rounding
     fheight = (height + 15) // 16 * 16
     buf = np.empty((fwidth * fheight * 3,), dtype=np.uint8)
     camera.capture(buf, 'rgb')

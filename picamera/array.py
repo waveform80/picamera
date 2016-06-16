@@ -58,15 +58,18 @@ motion_dtype = np.dtype([
     ])
 
 
-def raw_resolution(resolution):
+def raw_resolution(resolution, splitter=False):
     """
     Round a (width, height) tuple up to the nearest multiple of 32 horizontally
     and 16 vertically (as this is what the Pi's camera module does for
     unencoded output).
     """
     width, height = resolution
-    fwidth = (width + 31) // 32 * 32
-    fheight = (height + 15) // 16 * 16
+    if splitter:
+        fwidth = (width + 15) & ~15
+    else:
+        fwidth = (width + 31) & ~31
+    fheight = (height + 15) & ~15
     return fwidth, fheight
 
 
@@ -101,9 +104,13 @@ def bytes_to_rgb(data, resolution):
     """
     width, height = resolution
     fwidth, fheight = raw_resolution(resolution)
+    # Workaround: output from the video splitter is rounded to 16x16 instead
+    # of 32x16 (but only for RGB, and only when a resizer is not used)
     if len(data) != (fwidth * fheight * 3):
-        raise PiCameraValueError(
-            'Incorrect buffer length for resolution %dx%d' % (width, height))
+        fwidth, fheith = raw_resolution(resolution, splitter=True)
+        if len(data) != (fwidth * fheight * 3):
+            raise PiCameraValueError(
+                'Incorrect buffer length for resolution %dx%d' % (width, height))
     # Crop to the actual resolution
     return np.frombuffer(data, dtype=np.uint8).\
             reshape((fheight, fwidth, 3))[:height, :width, :]
