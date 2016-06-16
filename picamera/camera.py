@@ -414,10 +414,10 @@ class PiCamera(object):
         try:
             self._init_camera(camera_num, stereo_mode, stereo_decimate)
             self._configure_camera(sensor_mode, framerate, resolution, clock_mode)
-            self._camera.enabled = True
-            self._init_defaults()
             self._init_preview()
             self._init_splitter()
+            self._camera.enabled = True
+            self._init_defaults()
         except:
             self.close()
             raise
@@ -1931,9 +1931,6 @@ class PiCamera(object):
         """
         self._splitter.inputs[0].copy_from(self._camera.outputs[self.CAMERA_VIDEO_PORT])
         self._splitter.inputs[0].commit()
-        for port in self._splitter.outputs:
-            port.copy_from(self._splitter.inputs[0])
-            port.commit()
 
     def _control_callback(self, port, buf):
         try:
