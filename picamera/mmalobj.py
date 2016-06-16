@@ -680,9 +680,9 @@ class MMALPort(MMALControlPort):
             return {
                 mmal.MMAL_ENCODING_RGB24: mmal.MMAL_ENCODING_BGR24,
                 mmal.MMAL_ENCODING_BGR24: mmal.MMAL_ENCODING_RGB24,
-                }.get(result.value, result.value)
+                }.get(result.value, result)
         else:
-            return result.value
+            return result
     def _set_format(self, value):
         if FIX_RGB_BGR_ORDER:
             value = {
@@ -692,10 +692,6 @@ class MMALPort(MMALControlPort):
         self._port[0].format[0].encoding = value
         if value == mmal.MMAL_ENCODING_OPAQUE:
             self._port[0].format[0].encoding_variant = mmal.MMAL_ENCODING_I420
-        else:
-            # encoding_variant is irrelevant when not in OPAQUE encoding, so
-            # just set it to the same as the encoding
-            self._port[0].format[0].encoding_variant = value
     format = property(_get_format, _set_format, doc="""\
         Retrieves or sets the encoding format of the port. Setting this
         attribute implicitly sets the encoding variant to a sensible value
