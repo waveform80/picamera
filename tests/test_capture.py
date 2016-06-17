@@ -243,4 +243,6 @@ def test_capture_bad_format(camera):
 
 def test_capture_bad_burst(camera):
     with pytest.raises(picamera.PiCameraValueError):
+        camera.capture_sequence(['test.jpg'], use_video_port=True, burst=True)
+    with pytest.raises(picamera.PiCameraValueError):
         camera.capture('test.jpg', use_video_port=True, burst=True)

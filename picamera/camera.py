@@ -1361,6 +1361,9 @@ class PiCamera(object):
         if use_video_port and bayer:
             raise PiCameraValueError(
                 'bayer is only valid with still port captures')
+        if 'burst' in options:
+            raise PiCameraValueError(
+                'burst is only valid with capture_sequence or capture_continuous')
         with self._encoders_lock:
             camera_port, output_port = self._get_ports(use_video_port, splitter_port)
             format = self._get_image_format(output, format)
