@@ -92,10 +92,8 @@ def burst(request):
     return request.param
 
 def expected_failures(resolution, format, use_video_port, burst=False):
-    if resolution == (2592, 1944) and format == 'gif' and not use_video_port:
-        pytest.xfail('Camera fails to produce output with max. res GIFs')
-    if resolution == (2592, 1944) and format == 'bmp':
-        pytest.xfail('Camera fails to produce output with max. res BMPs')
+    if resolution == (2592, 1944) and format in ('gif', 'bmp'):
+        pytest.xfail('Camera fails to produce output with max. res BMPs or GIFs')
     if resolution == (2592, 1944) and format in ('rgba', 'bgra') and not use_video_port:
         pytest.xfail('Camera runs out of memory with this combination')
     if use_video_port and burst:
