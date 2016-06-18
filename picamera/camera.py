@@ -378,7 +378,7 @@ class PiCamera(object):
                         info.cameras[camera_num].max_height,
                         )
             if PiCamera.MAX_FRAMERATE is PiCameraMaxFramerate:
-                if info.cameras[camera_num].camera_name.upper() == 'OV5647':
+                if self.exif_tags['IFD0.Model'].upper() == 'RP_OV5647':
                     PiCamera.MAX_FRAMERATE = 90
                 else:
                     PiCamera.MAX_FRAMERATE = 120
