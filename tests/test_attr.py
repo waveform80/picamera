@@ -436,7 +436,7 @@ def test_framerate(camera, previewing):
         with pytest.raises(picamera.PiCameraError):
             camera.framerate = -1
         with pytest.raises(picamera.PiCameraError):
-            camera.framerate = 100
+            camera.framerate = 200
     finally:
         camera.framerate = save_framerate
 
