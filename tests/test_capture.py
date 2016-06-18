@@ -200,7 +200,10 @@ def test_capture_sequence_bayer(camera, mode):
     streams = [io.BytesIO() for i in range(3)]
     camera.capture_sequence(streams, format='jpeg', bayer=True)
     for stream in streams:
-        stream.seek(-6404096, io.SEEK_END)
+        if camera.exif_tags['IFD0.Model'] == 'RP_ov5647':
+            stream.seek(-6404096, io.SEEK_END)
+        else:
+            stream.seek(-10270208, io.SEEK_END)
         assert stream.read(4) == 'BRCM'
 
 def test_exif_ascii(camera, mode):
