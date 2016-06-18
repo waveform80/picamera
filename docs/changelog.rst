@@ -7,6 +7,57 @@ Change log
 .. currentmodule:: picamera
 
 
+Release 1.11 (2016-06-19)
+=========================
+
+1.11 on the surface consists mostly of enhancements, but underneath
+includes a major re-write of picamera's core:
+
+* Direct capture to buffer-protocol objects, such as numpy arrays
+  (`#241`_)
+* Add :meth:`~PiCamera.request_key_frame` method to permit manual request
+  of an I-frame during H264 recording; this is now used implicitly by
+  :meth:`~PiCamera.split_recording` (`#257`_)
+* Added :attr:`~PiCamera.timestamp` attribute to query camera's clock
+  (`#212`_)
+* Added :attr:`~PiCamera.framerate_delta` to permit small adjustments to
+  the camera's framerate to be performed "live" (`#279`_)
+* Added :meth:`~PiCameraCircularIO.clear` and
+  :meth:`~PiCameraCircularIO.copy_to` methods to
+  :class:`PiCameraCircularIO` (`#216`_)
+* Prevent setting attributes on the main :class:`PiCamera` class to ease
+  debugging in educational settings (`#240`_)
+* Due to the core re-writes in this version, you may require cutting edge
+  firmware (``sudo rpi-update``) if you are performing unencoded captures,
+  unencoded video recording, motion estimation vector sampling, or manual
+  sensor mode setting.
+
+There are also several bug fixes:
+
+* Fixed basic stereoscopic operation on compute module (`#218`_)
+* Fixed accessing framerate as a tuple (`#228`_)
+* Fixed hang when invalid file format is specified (`#236`_)
+* Fixed multiple bayer captures with :meth:`~PiCamera.capture_sequence`
+  and :meth:`~PiCamera.capture_continuous` (`#264`_)
+* Fixed usage of "falsy" custom outputs with ``motion_output`` (`#281`_)
+
+Many thanks to the community, and especially thanks to 6by9 (one of the
+firmware developers) who's fielded seemingly endless questions and
+requests from me in the last couple of months!
+
+.. _#241: https://github.com/waveform80/picamera/issues/241
+.. _#257: https://github.com/waveform80/picamera/issues/257
+.. _#212: https://github.com/waveform80/picamera/issues/212
+.. _#279: https://github.com/waveform80/picamera/issues/279
+.. _#216: https://github.com/waveform80/picamera/issues/216
+.. _#240: https://github.com/waveform80/picamera/issues/240
+.. _#218: https://github.com/waveform80/picamera/issues/218
+.. _#228: https://github.com/waveform80/picamera/issues/228
+.. _#236: https://github.com/waveform80/picamera/issues/236
+.. _#264: https://github.com/waveform80/picamera/issues/264
+.. _#281: https://github.com/waveform80/picamera/issues/281
+
+
 Release 1.10 (2015-03-31)
 =========================
 
