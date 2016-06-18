@@ -749,14 +749,7 @@ class MMALPort(MMALControlPort):
         # issue with buffer_num_min which means we need to guard against 0
         # values...
         self._port[0].buffer_num = max(1, self._port[0].buffer_num_min)
-        # Workaround: There is a bug in the MJPEG encoder that causes a
-        # deadlock if the FIFO is full on shutdown. Increasing the encoder
-        # buffer size makes this less likely to happen. See
-        # raspberrypi/userland#208
-        if self._port[0].format[0].encoding == mmal.MMAL_ENCODING_MJPEG:
-            self._port[0].buffer_size = max(512 * 1024, self._port[0].buffer_size_recommended)
-        else:
-            self._port[0].buffer_size = self._port[0].buffer_size_recommended
+        self._port[0].buffer_size = self._port[0].buffer_size_recommended
 
     @property
     def pool(self):
@@ -795,6 +788,14 @@ class MMALPort(MMALControlPort):
                     self._pool.send_buffer()
 
         if not self.enabled:
+            # Workaround: There is a bug in the MJPEG encoder that causes a
+            # deadlock if the FIFO is full on shutdown. Increasing the encoder
+            # buffer size makes this less likely to happen. See
+            # raspberrypi/userland#208. Connecting the encoder component resets
+            # the output port's buffer size, hence why we correct this here,
+            # just before enabling the port.
+            if self._port[0].format[0].encoding == mmal.MMAL_ENCODING_MJPEG:
+                self._port[0].buffer_size = max(512 * 1024, self._port[0].buffer_size_recommended)
             if callback:
                 assert self._stopped
                 self._stopped = False
@@ -1258,8 +1259,6 @@ class MMALConnection(MMALObject):
         else:
             source.format = mmal.MMAL_ENCODING_I420
         source.commit()
-        target.copy_from(source)
-        target.commit()
         mmal_check(
             mmal.mmal_connection_create(
                 self._connection, source._port, target._port,
