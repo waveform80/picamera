@@ -234,9 +234,12 @@ def test_motion_analysis1(camera, mode):
         camera.wait_recording(1)
         camera.stop_recording()
 
-def test_motion_analysis1(camera, mode):
+def test_motion_analysis2(camera, mode):
     resolution, framerate = mode
-    resize = (resolution[0] // 2, resolution[1] // 2)
+    if resolution == (2592, 1944):
+        resize = (640, 480)
+    else:
+        resize = (resolution[0] // 2, resolution[1] // 2)
     width = ((resize[0] + 15) // 16) + 1
     height = (resize[1] + 15) // 16
     class MATest(picamera.array.PiMotionAnalysis):
