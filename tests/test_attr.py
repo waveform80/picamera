@@ -142,7 +142,7 @@ def test_awb_gains(camera, previewing):
 
     def check_gains(red, blue):
         # The camera needs some time to let the AWB gains adjust
-        time.sleep(0.2)
+        time.sleep(0.4)
         # The gains we get back aren't absolutely precise, but they're
         # close (+/- 0.05)
         r, b = camera.awb_gains
