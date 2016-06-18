@@ -51,13 +51,13 @@ On the V2 camera, these are:
 +===+============+==============+============+=======+=======+=========+=========+
 | 1 | 1920x1080  | 16:9         | 0.1-30fps  | x     |       | Partial | None    |
 +---+------------+--------------+------------+-------+-------+---------+---------+
-| 2 | 3240x2464  | 4:3          | 0.1-15fps  | x     | x     | Full    | None    |
+| 2 | 3280x2464  | 4:3          | 0.1-15fps  | x     | x     | Full    | None    |
 +---+------------+--------------+------------+-------+-------+---------+---------+
-| 3 | 3240x2464  | 4:3          | 0.1-15fps  | x     | x     | Full    | None    |
+| 3 | 3280x2464  | 4:3          | 0.1-15fps  | x     | x     | Full    | None    |
 +---+------------+--------------+------------+-------+-------+---------+---------+
-| 4 | 1620x1232  | 4:3          | 0.1-40fps  | x     |       | Full    | 2x2     |
+| 4 | 1640x1232  | 4:3          | 0.1-40fps  | x     |       | Full    | 2x2     |
 +---+------------+--------------+------------+-------+-------+---------+---------+
-| 5 | 1620x922   | 16:9         | 0.1-40fps  | x     |       | Full    | 2x2     |
+| 5 | 1640x922   | 16:9         | 0.1-40fps  | x     |       | Full    | 2x2     |
 +---+------------+--------------+------------+-------+-------+---------+---------+
 | 6 | 1280x720   | 16:9         | 40-90fps   | x     |       | Partial | 2x2     |
 +---+------------+--------------+------------+-------+-------+---------+---------+
@@ -65,7 +65,7 @@ On the V2 camera, these are:
 +---+------------+--------------+------------+-------+-------+---------+---------+
 
 Modes with full field of view (FoV) capture from the whole area of the camera's
-sensor (2592x1944 pixels for the V1 camera, 3240x2464 for the V2 camera).
+sensor (2592x1944 pixels for the V1 camera, 3280x2464 for the V2 camera).
 Modes with partial FoV capture from the center of the sensor. The combination
 of FoV limiting, and `binning`_ is used to achieve the requested resolution.
 
@@ -101,9 +101,7 @@ are as follows:
   preferable to upscaling from a lower input resolution.
 
 * The requested :attr:`~PiCamera.framerate` should be within the range of the
-  input mode. Note that this is not a hard restriction (it is possible, but
-  unlikely, for the camera to select a mode that does not support the requested
-  framerate).
+  input mode.
 
 * The closer the aspect ratio of the requested :attr:`~PiCamera.resolution` to
   the mode's resolution, the better. Attempts to set resolutions with aspect
@@ -140,6 +138,42 @@ these examples assume the V1 camera module):
 .. _binning: http://www.andor.com/learning-academy/ccd-binning-what-does-binning-mean
 
 
+.. _hardware_limits:
+
+Hardware Limits
+===============
+
+The are additional limits imposed by the GPU hardware that performs all
+image and video processing:
+
+* The maximum resolution for MJPEG recording depends partially on GPU
+  memory. If you get "Out of resource" errors with MJPEG recording at high
+  resolutions, try increasing ``gpu_mem`` in ``/boot/config.txt``.
+
+* The maximum horizontal resolution for default H264 recording is 1920.
+  Any attempt to recording H264 video at higher horizontal resolutions
+  will fail.
+
+* However, H264 high profile level 4.2 has slightly higher limits and may
+  succeed with higher resolutions.
+
+* The maximum resolution of the V2 camera can cause issues with previews.
+  Currently, picamera runs previews at the same resolution as captures
+  (equivalent to ``-fp`` in ``raspistill``).  You may need to increase
+  ``gpu_mem`` in ``/boot/config.txt`` to achieve full resolution operation
+  with the V2 camera module.
+
+* The maximum framerate of the camera depends on several factors. With
+  overclocking, 120fps has been achieved on a V2 module but 90fps is the
+  maximum supported framerate.
+
+* The maximum exposure time is currently 6 seconds on the V1 camera
+  module, and 10 seconds on the V2 camera module. Remember that exposure
+  time is limited by framerate, so you need to set an extremely slow
+  :attr:`~picamera.PiCamera.framerate` before setting
+  :attr:`~picamera.PiCamera.shutter_speed`.
+
+
 .. _under_the_hood:
 
 Under the Hood
@@ -148,9 +182,10 @@ Under the Hood
 This section attempts to provide detail of what picamera is doing "under the
 hood" in response to various method calls.
 
-The Pi's camera has three ports, the still port, the video port, and the
-preview port. The following sections describe how these ports are used by
-picamera and how they influence the camera's resolutions.
+The MMAL layer below picamera presents the camera with three ports: the
+still port, the video port, and the preview port. The following sections
+describe how these ports are used by picamera and how they influence the
+camera's resolutions.
 
 The Still Port
 --------------

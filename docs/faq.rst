@@ -253,3 +253,7 @@ only want the camera to output the H264 stream so you can mux it with, say, an
 AAC stream recorded from the microphone input and wrap the result into a full
 MP4 file.
 
+Out of resources at full resolution on a V2 module
+==================================================
+
+See :ref:`hardware_limits`.
