@@ -318,11 +318,12 @@ class PiBayerArray(PiArrayOutput):
                 camera.capture(output, 'jpeg', bayer=True)
                 print(output.array.shape)
 
-    Note that Bayer data is *always* full resolution, so the resulting array
-    always has the shape (1944, 2592, 3); this also implies that the optional
-    *size* parameter (for specifying a resizer resolution) is not available
-    with this array class. As the sensor records 10-bit values, the array uses
-    the unsigned 16-bit integer data type.
+    Note that Bayer data is *always* full resolution, so the resulting
+    array always has the shape (1944, 2592, 3) with the V1 module, or
+    (2464, 3280, 3) with the V2 module; this also implies that the
+    optional *size* parameter (for specifying a resizer resolution) is not
+    available with this array class. As the sensor records 10-bit values,
+    the array uses the unsigned 16-bit integer data type.
 
     By default, `de-mosaicing`_ is **not** performed; if the resulting array is
     viewed it will therefore appear dark and too green (due to the green bias
@@ -353,14 +354,22 @@ class PiBayerArray(PiArrayOutput):
     def flush(self):
         super(PiBayerArray, self).flush()
         self._demo = None
+        ver = 1
         data = self.getvalue()[-6404096:]
         if data[:4] != b'BRCM':
-            raise PiCameraValueError('Unable to locate Bayer data at end of buffer')
+            ver = 2
+            data = self.getvalue()[-10270208:]
+            if data[:4] != b'BRCM':
+                raise PiCameraValueError('Unable to locate Bayer data at end of buffer')
         # Strip header
         data = data[32768:]
         # Reshape into 2D pixel values
+        reshape, crop = {
+            1: ((1952, 3264), (1944, 3240)),
+            2: ((2480, 4128), (2464, 4100)),
+            }[ver]
         data = np.frombuffer(data, dtype=np.uint8).\
-                reshape((1952, 3264))[:1944, :3240]
+                reshape(reshape)[:crop[0], :crop[1]]
         # Unpack 10-bit values; every 5 bytes contains the high 8-bits of 4
         # values followed by the low 2-bits of 4 values packed into the fifth
         # byte

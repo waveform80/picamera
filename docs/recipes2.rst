@@ -68,6 +68,12 @@ demonstrates this along with the re-shaping necessary under Python 2.x::
         output = output.reshape((112, 128, 3))
         output = output[:100, :100, :]
 
+.. warning::
+
+    Under certain circumstances (non-resized, non-YUV, video-port captures),
+    the resolution is rounded to 16x16 blocks instead of 32x16. Adjust your
+    resolution rounding accordingly.
+
 .. versionadded:: 1.11
 
 
@@ -295,6 +301,12 @@ of data produced is:
 
 .. image:: rgb_math.*
     :align: center
+
+.. warning::
+
+    Under certain circumstances (non-resized, non-YUV, video-port captures),
+    the resolution is rounded to 16x16 blocks instead of 32x16. Adjust your
+    resolution rounding accordingly.
 
 The resulting `RGB`_ data is interleaved. That is to say that the red, green
 and blue values for a given pixel are grouped together, in that order. The
@@ -1235,13 +1247,14 @@ etc. This also means:
 * Bayer data is *always* full resolution, regardless of the camera's output
   :attr:`~PiCamera.resolution` and any ``resize`` parameter.
 
-* Bayer data occupies the last 6,404,096 bytes of the output file. The first
-  32,768 bytes of this is header data which starts with the string ``'BRCM'``.
+* Bayer data occupies the last 6,404,096 bytes of the output file for the V1
+  module, or the last 10,270,208 bytes for the V2 module. The first 32,768
+  bytes of this is header data which starts with the string ``'BRCM'``.
 
 * Bayer data consists of 10-bit values, because this is the sensitivity of the
-  `OV5647`_ sensor used by the Pi's camera. The 10-bit values are organized as
-  4 8-bit values, followed by the low-order 2-bits of the 4 values packed into
-  a fifth byte.
+  `OV5647`_ and `IMX219`_ sensors used in the Pi's camera modules. The 10-bit
+  values are organized as 4 8-bit values, followed by the low-order 2-bits of
+  the 4 values packed into a fifth byte.
 
 .. image:: bayer_bytes.*
     :align: center
@@ -1286,34 +1299,51 @@ captures::
         time.sleep(2)
         # Capture the image, including the Bayer data
         camera.capture(stream, format='jpeg', bayer=True)
+        ver = {
+            'RP_ov5647': 1,
+            'RP_imx219': 2,
+            }[camera.exif_tags['IFD0.Model']]
 
     # Extract the raw Bayer data from the end of the stream, check the
     # header and strip if off before converting the data into a numpy array
 
-    data = stream.getvalue()[-6404096:]
+    offset = {
+        1: 6404096,
+        2: 10270208,
+        }[ver]
+    data = stream.getvalue()[-offset:]
     assert data[:4] == 'BRCM'
     data = data[32768:]
     data = np.fromstring(data, dtype=np.uint8)
 
-    # The data consists of 1952 rows of 3264 bytes of data. The last 8 rows
-    # of data are unused (they only exist because the actual resolution of
-    # 1944 rows is rounded up to the nearest 16). Likewise, the last 24
-    # bytes of each row are unused (why?). Here we reshape the data and
-    # strip off the unused bytes
+    # For the V1 module, the data consists of 1952 rows of 3264 bytes of data.
+    # The last 8 rows of data are unused (they only exist because the maximum
+    # resolution of 1944 rows is rounded up to the nearest 16).
+    #
+    # For the V2 module, the data consists of 2480 rows of 4128 bytes of data.
+    # There's actually 2464 rows of data, but the sensor's raw size is 2466
+    # rows, rounded up to the nearest multiple of 16: 2480.
+    #
+    # Likewise, the last few bytes of each row are unused (why?). Here we
+    # reshape the data and strip off the unused bytes.
 
-    data = data.reshape((1952, 3264))[:1944, :3240]
+    reshape, crop = {
+        1: ((1952, 3264), (1944, 3240)),
+        2: ((2480, 4128), (2464, 4100)),
+        }[ver]
+    data = data.reshape(reshape)[:crop[0], :crop[1]]
 
-    # Horizontally, each row consists of 2592 10-bit values. Every four
-    # bytes are the high 8-bits of four values, and the 5th byte contains
-    # the packed low 2-bits of the preceding four values. In other words,
-    # the bits of the values A, B, C, D and arranged like so:
+    # Horizontally, each row consists of 10-bit values. Every four bytes are
+    # the high 8-bits of four values, and the 5th byte contains the packed low
+    # 2-bits of the preceding four values. In other words, the bits of the
+    # values A, B, C, D and arranged like so:
     #
     #  byte 1   byte 2   byte 3   byte 4   byte 5
     # AAAAAAAA BBBBBBBB CCCCCCCC DDDDDDDD AABBCCDD
     #
-    # Here, we convert our data into a 16-bit array, shift all values left
-    # by 2-bits and unpack the low-order bits from every 5th byte in each
-    # row, then remove the columns containing the packed bits
+    # Here, we convert our data into a 16-bit array, shift all values left by
+    # 2-bits and unpack the low-order bits from every 5th byte in each row,
+    # then remove the columns containing the packed bits
 
     data = data.astype(np.uint16) << 2
     for byte in range(4):
@@ -1629,6 +1659,7 @@ acts as a flash LED with the Python script above.
 .. _numpy: http://www.numpy.org/
 .. _ring buffer: http://en.wikipedia.org/wiki/Circular_buffer
 .. _OV5647: http://www.ovt.com/products/sensor.php?id=66
+.. _IMX219: http://www.sony.net/Products/SC-HP/new_pro/april_2014/imx219_e.html
 .. _Bayer CFA: http://en.wikipedia.org/wiki/Bayer_filter
 .. _de-mosaicing: http://en.wikipedia.org/wiki/Demosaicing
 .. _color balance: http://en.wikipedia.org/wiki/Color_balance
