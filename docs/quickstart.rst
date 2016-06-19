@@ -39,10 +39,10 @@ SD cards). Once rebooted, start a terminal and try the following command::
 
     raspistill -o image.jpg
 
-If everything is working correctly, the camera should start (the LED on it
-should light up), a preview from the camera should appear on the display and,
-after a 5 second delay it should capture an image (storing it as ``image.jpg``)
-before shutting down the camera. Proceed to the :ref:`recipes1`.
+If everything is working correctly, the camera should start, a preview from the
+camera should appear on the display and, after a 5 second delay it should
+capture an image (storing it as ``image.jpg``) before shutting down the camera.
+Proceed to the :ref:`recipes1`.
 
 If something else happens, read any error message displayed and try any
 recommendations suggested by such messages. If your Pi reboots as soon as you
