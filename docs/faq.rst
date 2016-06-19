@@ -257,3 +257,16 @@ Out of resources at full resolution on a V2 module
 ==================================================
 
 See :ref:`hardware_limits`.
+
+Preview flickers at full resolution on a V2 module
+==================================================
+
+Use the new :attr:`~PiPreviewRenderer.resolution` property to select a lower
+resolution for the preview, or specify one when starting the preview. For
+example::
+
+    from picamera import PiCamera
+
+    camera = PiCamera()
+    camera.resolution = camera.MAX_RESOLUTION
+    camera.start_preview(resolution=(1024, 768))

@@ -187,8 +187,9 @@ If you wish to run the picamera test suite, follow the instructions in
 
 .. warning::
 
-    The test suite takes a *very* long time to execute (at least 2 hours on an
-    overclocked Pi). Depending on configuration, it can also lockup the camera
-    requiring a reboot to reset, so ensure you are familiar with SSH or using
-    alternate TTYs to access a command line in the event you need to reboot.
+    The test suite takes a *very* long time to execute (at least 1 hour on an
+    overclocked Pi 3). Depending on configuration, it can also lockup the
+    camera requiring a reboot to reset, so ensure you are familiar with SSH or
+    using alternate TTYs to access a command line in the event you need to
+    reboot.
 
