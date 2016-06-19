@@ -1999,9 +1999,24 @@ class PiCamera(object):
             fps_low=mo.to_rational(fps_low),
             fps_high=mo.to_rational(fps_high),
             )
+        if (
+                self._camera.outputs[self.CAMERA_PREVIEW_PORT].framesize ==
+                self._camera.outputs[self.CAMERA_VIDEO_PORT].framesize
+                ):
+            preview_resolution = resolution
+        else:
+            preview_resolution = self._camera.outputs[self.CAMERA_PREVIEW_PORT].framesize
+        if (
+                preview_resolution.width > resolution.width or
+                preview_resolution.height > resolution.height
+                ):
+            preview_resolution = resolution
         for port in self._camera.outputs:
             port.params[mmal.MMAL_PARAMETER_FPS_RANGE] = mp
-            port.framesize = resolution
+            if port.index == self.CAMERA_PREVIEW_PORT:
+                port.framesize = preview_resolution
+            else:
+                port.framesize = resolution
             if framerate < 1:
                 port.framerate = 0
             else:
@@ -2229,7 +2244,8 @@ class PiCamera(object):
         been disabled (with ``tvservice -o``).
 
         .. versionchanged:: 1.11
-            Resolution permitted to be set as a string.
+            Resolution permitted to be set as a string. Preview resolution
+            added as separate property.
 
         .. _display resolution: https://en.wikipedia.org/wiki/Graphics_display_resolution
         """)

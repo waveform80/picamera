@@ -564,6 +564,14 @@ class MMALControlPort(MMALObject):
         self._wrapper = None
 
     @property
+    def index(self):
+        """
+        Returns an integer indicating the port's position within its owning
+        list (inputs, outputs, etc.)
+        """
+        return self._port[0].index
+
+    @property
     def enabled(self):
         """
         Returns a :class:`bool` indicating whether the port is currently

@@ -343,23 +343,23 @@ class PiOverlayRenderer(PiRenderer):
     overlays.
 
     This class descends from :class:`PiRenderer` and adds a static source for
-    the :class:`~mmalobj.MMALRenderer`. The optional *size* parameter specifies
-    the size of the source image as a ``(width, height)`` tuple. If this is
-    omitted or ``None`` then the size is assumed to be the same as the parent
-    camera's current :attr:`~PiCamera.resolution`.
+    the :class:`~mmalobj.MMALRenderer`. The optional *resolution* parameter
+    specifies the size of the source image as a ``(width, height)`` tuple. If
+    this is omitted or ``None`` then the resolution is assumed to be the same
+    as the parent camera's current :attr:`~PiCamera.resolution`.
 
     The *source* must be an object that supports the :ref:`buffer protocol
     <bufferobjects>` which has the same length as an image in `RGB`_ format
     (colors represented as interleaved unsigned bytes) with the specified
-    *size* after the width has been rounded up to the nearest multiple of 32,
-    and the height has been rounded up to the nearest multiple of 16.
+    *resolution* after the width has been rounded up to the nearest multiple of
+    32, and the height has been rounded up to the nearest multiple of 16.
 
-    For example, if *size* is ``(1280, 720)``, then *source* must be a buffer
-    with length 1280 x 720 x 3 bytes, or 2,764,800 bytes (because 1280 is a
-    multiple of 32, and 720 is a multiple of 16 no extra rounding is required).
-    However, if *size* is ``(97, 57)``, then *source* must be a buffer with
-    length 128 x 64 x 3 bytes, or 24,576 bytes (pixels beyond column 97 and row
-    57 in the source will be ignored).
+    For example, if *resolution* is ``(1280, 720)``, then *source* must be a
+    buffer with length 1280 x 720 x 3 bytes, or 2,764,800 bytes (because 1280
+    is a multiple of 32, and 720 is a multiple of 16 no extra rounding is
+    required).  However, if *resolution* is ``(97, 57)``, then *source* must be
+    a buffer with length 128 x 64 x 3 bytes, or 24,576 bytes (pixels beyond
+    column 97 and row 57 in the source will be ignored).
 
     The *layer*, *alpha*, *fullscreen*, and *window* parameters are the same
     as in :class:`PiRenderer`.
@@ -368,7 +368,7 @@ class PiOverlayRenderer(PiRenderer):
     """
 
     def __init__(
-            self, parent, source, size=None, layer=0, alpha=255,
+            self, parent, source, resolution=None, layer=0, alpha=255,
             fullscreen=True, window=None, crop=None, rotation=0, vflip=False,
             hflip=False):
         super(PiOverlayRenderer, self).__init__(
@@ -377,10 +377,12 @@ class PiOverlayRenderer(PiRenderer):
 
         # Copy format from camera's preview port, then adjust the encoding to
         # RGB888 and optionally adjust the resolution and size
-        self.renderer.inputs[0].copy_from(parent._camera.outputs[parent.CAMERA_PREVIEW_PORT])
         self.renderer.inputs[0].format = mmal.MMAL_ENCODING_RGB24
-        if size is not None:
-            self.renderer.inputs[0].framesize = size
+        if resolution is not None:
+            self.renderer.inputs[0].framesize = resolution
+        else:
+            self.renderer.inputs[0].framesize = parent.resolution
+        self.renderer.inputs[0].framerate = 0
         self.renderer.inputs[0].commit()
         # The following callback is required to prevent the mmalobj layer
         # automatically passing buffers back to the port
@@ -416,12 +418,74 @@ class PiPreviewRenderer(PiRenderer):
     """
 
     def __init__(
-            self, parent, source, layer=2, alpha=255, fullscreen=True,
-            window=None, crop=None, rotation=0, vflip=False, hflip=False):
+            self, parent, source, resolution=None, layer=2, alpha=255,
+            fullscreen=True, window=None, crop=None, rotation=0, vflip=False,
+            hflip=False):
         super(PiPreviewRenderer, self).__init__(
             parent, layer, alpha, fullscreen, window, crop,
             rotation, vflip, hflip)
+        self._parent = parent
+        if resolution is not None:
+            parent._camera.outputs[parent.CAMERA_PREVIEW_PORT].framesize = resolution
         self.renderer.connect(source)
+
+    def _get_resolution(self):
+        result = self._parent._camera.outputs[self._parent.CAMERA_PREVIEW_PORT].framesize
+        if result != self._parent.resolution:
+            return result
+        else:
+            return None
+    def _set_resolution(self, value):
+        if value is not None:
+            value = mo.to_resolution(value)
+        if (
+                value.width > self._parent.resolution.width or
+                value.height > self._parent.resolution.height
+                ):
+            raise PiCameraValueError(
+                'preview resolution cannot exceed camera resolution')
+        self.renderer.connection.enabled = False
+        if value is None:
+            value = self._parent.resolution
+        self._parent._camera.outputs[self._parent.CAMERA_PREVIEW_PORT].framesize = value
+        self._parent._camera.outputs[self._parent.CAMERA_PREVIEW_PORT].commit()
+        self.renderer.connection.enabled = True
+    resolution = property(_get_resolution, _set_resolution, doc="""\
+        Retrieves or sets the resolution of the preview renderer.
+
+        By default, the preview's resolution matches the camera's resolution.
+        However, particularly high resolutions (such as the maximum resolution
+        of the V2 camera module) can cause issues. In this case, you may wish
+        to set a lower resolution for the preview that the camera's resolution.
+
+        When queried, the :attr:`resolution` property returns ``None`` if the
+        preview's resolution is derived from the camera's. In this case, changing
+        the camera's resolution will also cause the preview's resolution to
+        change. Otherwise, it returns the current preview resolution as a
+        tuple.
+
+        .. note::
+
+            The preview resolution cannot be greater than the camera's
+            resolution (in either access). If you set a preview resolution,
+            then change the camera's resolution below the preview's resolution,
+            this property will silently revert to ``None``, meaning the
+            preview's resolution will follow the camera's resolution.
+
+        When set, the property reconfigures the preview renderer with the new
+        resolution.  As a special case, setting the property to ``None`` will
+        cause the preview to follow the camera's resolution once more. The
+        property can be set while recordings are in progress. The default is
+        ``None``.
+
+        .. note::
+
+            This property only affects the renderer; it has no bearing on image
+            captures or recordings (unlike the :attr:`~PiCamera.resolution`
+            property of the :class:`PiCamera` class).
+
+        .. versionadded:: 1.11
+        """)
 
 
 class PiNullSink(object):
