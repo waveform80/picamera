@@ -31,6 +31,9 @@ includes a major re-write of picamera's core:
   firmware (``sudo rpi-update``) if you are performing unencoded captures,
   unencoded video recording, motion estimation vector sampling, or manual
   sensor mode setting.
+* Added property to control preview's :attr:`~PiPreviewRenderer.resolution`
+  separately from the camera's :attr:`~PiCamera.resolution` (required for
+  maximum resolution previews on the V2 module - `#296`_).
 
 There are also several bug fixes:
 
@@ -56,6 +59,7 @@ requests from me in the last couple of months!
 .. _#236: https://github.com/waveform80/picamera/issues/236
 .. _#264: https://github.com/waveform80/picamera/issues/264
 .. _#281: https://github.com/waveform80/picamera/issues/281
+.. _#296: https://github.com/waveform80/picamera/issues/296
 
 
 Release 1.10 (2015-03-31)
