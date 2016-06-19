@@ -250,8 +250,8 @@ gain, and a long exposure time to allow the camera to gather as much light as
 possible. However, the :attr:`~PiCamera.shutter_speed` attribute is constrained
 by the camera's :attr:`~PiCamera.framerate` so the first thing we need to do is
 set a very slow framerate. The following script captures an image with a 6
-second exposure time (the maximum the Pi's camera module is currently capable
-of)::
+second exposure time (the maximum the Pi's V1 camera module is capable of; the
+V2 camera module can manage 10 second exposures)::
 
     from picamera import PiCamera
     from time import sleep
