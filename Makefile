@@ -55,8 +55,8 @@ SUBDIRS:=
 DIST_EGG=dist/$(NAME)-$(VER)-$(PYVER).egg
 DIST_TAR=dist/$(NAME)-$(VER).tar.gz
 DIST_ZIP=dist/$(NAME)-$(VER).zip
-DIST_DEB=dist/python-$(NAME)_$(VER)$(DEB_SUFFIX)_all.deb \
-	dist/python3-$(NAME)_$(VER)$(DEB_SUFFIX)_all.deb \
+DIST_DEB=dist/python-$(NAME)_$(VER)$(DEB_SUFFIX)_armhf.deb \
+	dist/python3-$(NAME)_$(VER)$(DEB_SUFFIX)_armhf.deb \
 	dist/python-$(NAME)-docs_$(VER)$(DEB_SUFFIX)_all.deb \
 	dist/$(NAME)_$(VER)$(DEB_SUFFIX)_$(DEB_ARCH).changes
 DIST_DSC=dist/$(NAME)_$(VER)$(DEB_SUFFIX).tar.gz \
