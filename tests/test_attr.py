@@ -366,6 +366,32 @@ def test_preview_window(camera, previewing):
         camera.preview.window = (0, 0, 1920, 1080)
         assert camera.preview.window == (0, 0, 1920, 1080)
 
+def test_preview_resolution(camera, previewing):
+    if previewing:
+        save_resolution = camera.resolution
+        try:
+            camera.resolution = (640, 480)
+            assert camera.preview.resolution is None
+            camera.preview.resolution = (320, 240)
+            assert camera.preview.resolution == (320, 240)
+            assert camera._camera.outputs[0].framesize == (320, 240)
+            assert camera._camera.outputs[2].framesize == (640, 480)
+            camera.resolution = (320, 240)
+            assert camera.preview.resolution is None
+            assert camera._camera.outputs[0].framesize == (320, 240)
+            assert camera._camera.outputs[2].framesize == (320, 240)
+            camera.resolution = (1280, 720)
+            assert camera.resolution == (1280, 720)
+            assert camera.preview.resolution is None
+            assert camera._camera.outputs[0].framesize == (1280, 720)
+            assert camera._camera.outputs[2].framesize == (1280, 720)
+            with pytest.raises(picamera.PiCameraValueError):
+                camera.preview.resolution = (1281, 720)
+            with pytest.raises(picamera.PiCameraValueError):
+                camera.preview.resolution = (1280, 721)
+        finally:
+            camera.resolution = save_resolution
+
 def test_preview_rotation(camera, previewing):
     if previewing:
         save_value = camera.preview.rotation

@@ -426,7 +426,8 @@ class PiPreviewRenderer(PiRenderer):
             rotation, vflip, hflip)
         self._parent = parent
         if resolution is not None:
-            parent._camera.outputs[parent.CAMERA_PREVIEW_PORT].framesize = resolution
+            resolution = mo.to_resolution(value)
+            source.framesize = resolution
         self.renderer.connect(source)
 
     def _get_resolution(self):

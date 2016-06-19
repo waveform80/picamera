@@ -1963,65 +1963,84 @@ class PiCamera(object):
         (specifically that we don't try to set the sensor mode when both old
         and new modes are 0 or automatic).
         """
+        old_cc = mmal.MMAL_PARAMETER_CAMERA_CONFIG_T.from_buffer_copy(self._camera_config)
+        old_ports = [
+            (port.framesize, port.framerate, port.params[mmal.MMAL_PARAMETER_FPS_RANGE])
+            for port in self._camera.outputs
+            ]
         if old_sensor_mode != 0 and sensor_mode != 0:
             self._camera.control.params[mmal.MMAL_PARAMETER_CAMERA_CUSTOM_SENSOR_CONFIG] = sensor_mode
         if not self._camera.control.enabled:
+            # Initial setup
             self._camera.control.enable(self._control_callback)
-
-        cc = self._camera_config
-        cc.max_stills_w = resolution.width
-        cc.max_stills_h = resolution.height
-        cc.stills_yuv422 = 0
-        cc.one_shot_stills = 1
-        cc.max_preview_video_w = resolution.width
-        cc.max_preview_video_h = resolution.height
-        cc.num_preview_video_frames = max(3, framerate // 10)
-        cc.stills_capture_circular_buffer_height = 0
-        cc.fast_preview_resume = 0
-        cc.use_stc_timestamp = clock_mode
-        self._camera.control.params[mmal.MMAL_PARAMETER_CAMERA_CONFIG] = cc
-
-        # Determine the FPS range for the requested framerate
-        if framerate >= 1.0:
-            fps_low = 1
-            fps_high = framerate
-        elif framerate >= 0.166:
-            fps_low = Fraction(166, 1000)
-            fps_high = Fraction(999, 1000)
-        else:
-            fps_low = Fraction(50, 1000)
-            fps_high = Fraction(166, 1000)
-        mp = mmal.MMAL_PARAMETER_FPS_RANGE_T(
-            mmal.MMAL_PARAMETER_HEADER_T(
-                mmal.MMAL_PARAMETER_FPS_RANGE,
-                ct.sizeof(mmal.MMAL_PARAMETER_FPS_RANGE_T)
-            ),
-            fps_low=mo.to_rational(fps_low),
-            fps_high=mo.to_rational(fps_high),
-            )
-        if (
+            preview_resolution = resolution
+        elif (
                 self._camera.outputs[self.CAMERA_PREVIEW_PORT].framesize ==
                 self._camera.outputs[self.CAMERA_VIDEO_PORT].framesize
                 ):
             preview_resolution = resolution
         else:
             preview_resolution = self._camera.outputs[self.CAMERA_PREVIEW_PORT].framesize
-        if (
-                preview_resolution.width > resolution.width or
-                preview_resolution.height > resolution.height
-                ):
-            preview_resolution = resolution
-        for port in self._camera.outputs:
-            port.params[mmal.MMAL_PARAMETER_FPS_RANGE] = mp
-            if port.index == self.CAMERA_PREVIEW_PORT:
-                port.framesize = preview_resolution
+        try:
+            cc = self._camera_config
+            cc.max_stills_w = resolution.width
+            cc.max_stills_h = resolution.height
+            cc.stills_yuv422 = 0
+            cc.one_shot_stills = 1
+            cc.max_preview_video_w = resolution.width
+            cc.max_preview_video_h = resolution.height
+            cc.num_preview_video_frames = max(3, framerate // 10)
+            cc.stills_capture_circular_buffer_height = 0
+            cc.fast_preview_resume = 0
+            cc.use_stc_timestamp = clock_mode
+            self._camera.control.params[mmal.MMAL_PARAMETER_CAMERA_CONFIG] = cc
+
+            # Determine the FPS range for the requested framerate
+            if framerate >= 1.0:
+                fps_low = 1
+                fps_high = framerate
+            elif framerate >= 0.166:
+                fps_low = Fraction(166, 1000)
+                fps_high = Fraction(999, 1000)
             else:
-                port.framesize = resolution
-            if framerate < 1:
-                port.framerate = 0
-            else:
-                port.framerate = framerate
-            port.commit()
+                fps_low = Fraction(50, 1000)
+                fps_high = Fraction(166, 1000)
+            mp = mmal.MMAL_PARAMETER_FPS_RANGE_T(
+                mmal.MMAL_PARAMETER_HEADER_T(
+                    mmal.MMAL_PARAMETER_FPS_RANGE,
+                    ct.sizeof(mmal.MMAL_PARAMETER_FPS_RANGE_T)
+                ),
+                fps_low=mo.to_rational(fps_low),
+                fps_high=mo.to_rational(fps_high),
+                )
+            if (
+                    preview_resolution.width > resolution.width or
+                    preview_resolution.height > resolution.height
+                    ):
+                preview_resolution = resolution
+            for port in self._camera.outputs:
+                port.params[mmal.MMAL_PARAMETER_FPS_RANGE] = mp
+                if port.index == self.CAMERA_PREVIEW_PORT:
+                    port.framesize = preview_resolution
+                else:
+                    port.framesize = resolution
+                if framerate < 1:
+                    port.framerate = 0
+                else:
+                    port.framerate = framerate
+                port.commit()
+        except:
+            # If anything goes wrong, restore original resolution and
+            # framerate otherwise the camera can be left in unusual states
+            # (camera config not matching ports, etc).
+            self._camera.control.params[mmal.MMAL_PARAMETER_CAMERA_CONFIG] = old_cc
+            self._camera_config = old_cc
+            for port, (res, fps, fps_range) in zip(self._camera.outputs, old_ports):
+                port.framesize = res
+                port.framerate = fps
+                port.params[mmal.MMAL_PARAMETER_FPS_RANGE] = fps_range
+                port.commit()
+            raise
 
     def _get_framerate(self):
         self._check_camera_open()
@@ -2301,6 +2320,10 @@ class PiCamera(object):
             camera.framerate_delta = 1 / 2 # in python 3
             camera.framerate_delta = Fraction(1, 2)
             camera.framerate_delta = (1, 2) # deprecated
+
+        .. note::
+
+            This property is reset to 0 when :attr:`framerate` is set.
         """)
 
     def _get_still_stats(self):
