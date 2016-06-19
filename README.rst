@@ -22,7 +22,7 @@ Links
 .. _Raspberry Pi: http://www.raspberrypi.org/
 .. _camera: http://www.raspberrypi.org/camera
 .. _PyPI: http://pypi.python.org/pypi/picamera/
-.. _documentation: http://picamera.readthedocs.org/
+.. _documentation: http://picamera.readthedocs.io/
 .. _source code: https://github.com/waveform80/picamera
 .. _bug tracker: https://github.com/waveform80/picamera/issues
 .. _BSD license: http://opensource.org/licenses/BSD-3-Clause
