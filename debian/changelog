@@ -1,3 +1,32 @@
+picamera (1.11) stable; urgency=low
+
+  * Direct capture to buffer-protocol objects, such as numpy arrays (#241)
+  * Add PiCamera.request_key_frame method to permit manual request of an
+    I-frame during H264 recording; this is now used implicitly by
+    PiCamera.split_recording (#257)
+  * Added PiCamera.timestamp attribute to query camera's clock (#212)
+  * Added PiCamera.framerate_delta to permit small adjustments to the camera's
+    framerate to be performed "live" (#279)
+  * Added PiCameraCircularIO.clear and PiCameraCircularIO.copy_to methods to
+    PiCameraCircularIO (#216)
+  * Prevent setting attributes on the main PiCamera class to ease debugging in
+    educational settings (#240)
+  * Due to the core re-writes in this version, you may require cutting edge
+    firmware (sudo rpi-update) if you are performing unencoded captures,
+    unencoded video recording, motion estimation vector sampling, or manual
+    sensor mode setting.
+  * Added property to control preview's PiPreviewRenderer.resolution
+    separately from the camera's PiCamera.resolution (required for maximum
+    resolution previews on the V2 module - #296).
+  * Fixed basic stereoscopic operation on compute module (#218)
+  * Fixed accessing framerate as a tuple (#228)
+  * Fixed hang when invalid file format is specified (#236)
+  * Fixed multiple bayer captures with PiCamera.capture_sequence and
+    PiCamera.capture_continuous (#264)
+  * Fixed usage of "falsy" custom outputs with motion_output (#281)
+
+ -- Dave Jones <dave@waveform.org.uk>  Sun, 19 Jun 2016 22:30:59 +0100
+
 picamera (1.10-1) stable; urgency=low
 
   * The major enhancement is the addition of support for the camera's flash
