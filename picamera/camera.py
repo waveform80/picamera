@@ -563,7 +563,9 @@ class PiCamera(object):
         a MIME type from the extension. If *output* has no filename, an error
         is raised.
         """
-        if isinstance(output, (bytes, str)):
+        if isinstance(output, bytes):
+            filename = output.decode('utf-8')
+        elif isinstance(output, str):
             filename = output
         else:
             try:
@@ -588,6 +590,8 @@ class PiCamera(object):
         :meth:`_get_output_format` will be called to attempt to determine
         format from the *output* object.
         """
+        if isinstance(format, bytes):
+            format = format.decode('utf-8')
         format = format or self._get_output_format(output)
         format = (
             format[6:] if format.startswith('image/') else
@@ -609,6 +613,8 @@ class PiCamera(object):
         then :meth:`_get_output_format` will be called to attempt to determine
         format from the *output* object.
         """
+        if isinstance(format, bytes):
+            format = format.decode('utf-8')
         format = format or self._get_output_format(output)
         format = (
             format[6:]  if format.startswith('video/') else

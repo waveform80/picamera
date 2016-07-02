@@ -250,3 +250,10 @@ def test_capture_bad_burst(camera):
         camera.capture_sequence(['test.jpg'], use_video_port=True, burst=True)
     with pytest.raises(picamera.PiCameraValueError):
         camera.capture('test.jpg', use_video_port=True, burst=True)
+
+def test_capture_bytes_filename(camera, tmpdir):
+    camera.capture(str(tmpdir.join('test.jpg')).encode('utf-8'))
+
+def test_capture_bytes_format(camera, tmpdir):
+    camera.capture(tmpdir.join('test.jpg'), b'jpeg')
+
