@@ -147,6 +147,8 @@ def test_motion_array1(camera, mode):
     resolution, framerate = mode
     if resolution == (2592, 1944):
         pytest.xfail('Cannot encode video at max resolution')
+    elif framerate == 5 and camera.exif_tags['IFD0.Model'].upper() == 'RP_IMX219':
+        pytest.xfail('Motion vectors fail at low framerate on V2 camera module')
     with picamera.array.PiMotionArray(camera) as stream:
         camera.start_recording('/dev/null', 'h264', motion_output=stream)
         camera.wait_recording(1)
@@ -161,6 +163,8 @@ def test_motion_array1(camera, mode):
 
 def test_motion_array2(camera, mode):
     resolution, framerate = mode
+    if framerate == 5 and camera.exif_tags['IFD0.Model'].upper() == 'RP_IMX219':
+        pytest.xfail('Motion vectors fail at low framerate on V2 camera module')
     if resolution == (2592, 1944):
         resize = (640, 480)
     else:

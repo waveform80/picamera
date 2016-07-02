@@ -371,7 +371,7 @@ class PiCamera(object):
                 'IFD0.Make': 'RaspberryPi',
                 }
             if camera_info.info_rev > 1:
-                self._exif_tags['IFD0.Model'] = 'RP_%s' % info.cameras[camera_num].camera_name
+                self._exif_tags['IFD0.Model'] = 'RP_%s' % info.cameras[camera_num].camera_name.decode('ascii')
             if PiCamera.MAX_RESOLUTION is PiCameraMaxResolution:
                 PiCamera.MAX_RESOLUTION = mo.PiCameraResolution(
                         info.cameras[camera_num].max_width,
