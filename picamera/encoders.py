@@ -531,7 +531,7 @@ class PiRawMixin(PiEncoder):
         # port format is set (height is aligned too, simply for consistency
         # with old picamera versions). Warn the user as they're not going to
         # get the resolution they expect
-        if not resize and format != 'yuv' and input_port.name.startswith('vc.ril.video_splitter'):
+        if not resize and format != 'yuv' and input_port.name.startswith(b'vc.ril.video_splitter'):
             # Workaround: Expected frame size is rounded to 16x16 when splitter
             # port with no resizer is used and format is not YUV
             fwidth = mmal.VCOS_ALIGN_UP(width, 16)
