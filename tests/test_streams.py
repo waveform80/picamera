@@ -68,7 +68,7 @@ def test_init():
 def test_seek_tell():
     stream = CircularIO(10)
     assert stream.tell() == 0
-    stream.write('defghijklm')
+    stream.write(b'defghijklm')
     assert stream.tell() == 10
     stream.seek(0)
     assert stream.tell() == 0
@@ -81,8 +81,8 @@ def test_seek_tell():
 
 def test_read():
     stream = CircularIO(10)
-    stream.write('abcdef')
-    stream.write('ghijklm')
+    stream.write(b'abcdef')
+    stream.write(b'ghijklm')
     stream.seek(0)
     assert stream.read(1) == b'd'
     assert stream.read(4) == b'efgh'
@@ -94,8 +94,8 @@ def test_read():
 
 def test_read1():
     stream = CircularIO(10)
-    stream.write('abcdef')
-    stream.write('ghijklm')
+    stream.write(b'abcdef')
+    stream.write(b'ghijklm')
     stream.seek(0)
     assert stream.read1() == b'def'
     stream.seek(0)
@@ -130,8 +130,8 @@ def test_write():
 
 def test_truncate():
     stream = CircularIO(10)
-    stream.write('abcdef')
-    stream.write('ghijklm')
+    stream.write(b'abcdef')
+    stream.write(b'ghijklm')
     stream.seek(8)
     stream.truncate()
     stream.seek(0, io.SEEK_END)
@@ -154,7 +154,7 @@ def generate_frames(s, index=0):
     for data in s:
         if data == 'k':
             pos += 1
-            yield data, PiVideoFrame(
+            yield data.encode('ascii'), PiVideoFrame(
                 index=index,
                 frame_type=PiVideoFrameType.key_frame,
                 frame_size=1,
@@ -163,7 +163,7 @@ def generate_frames(s, index=0):
                 timestamp=timestamp,
                 complete=False)
         pos += 1
-        yield data, PiVideoFrame(
+        yield data.encode('ascii'), PiVideoFrame(
             index=index,
             frame_type={
                 'f': PiVideoFrameType.frame,
