@@ -7,6 +7,21 @@ Change log
 .. currentmodule:: picamera
 
 
+Release 1.12 (2016-07-03)
+=========================
+
+1.12 is almost entirely a bug fix release:
+
+* Fixed issue with unencoded captures in Python 3 (`#297`_)
+* Fixed several Python 3 bytes/unicode issues that were related to `#297`_ (I'd
+  erroneously run the picamera test suite twice against Python 2 instead of 2
+  and 3 when releasing 1.11, which is how these snuck in)
+* Fixed multi-dimensional arrays for overlays under Python 3
+* Finished alternate CIE constructors for the :class:`Color` class
+
+.. _#297: https://github.com/waveform80/picamera/issues/297
+
+
 Release 1.11 (2016-06-19)
 =========================
 
