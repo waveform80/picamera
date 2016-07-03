@@ -1106,6 +1106,8 @@ class MMALBuffer(object):
             Some buffer objects *cannot* be modified without consequence (for
             example, buffers returned by an encoder's output port).
         """
+        if isinstance(data, memoryview) and (data.ndim > 1 or data.itemsize > 1):
+            data = data.cast('B')
         bp = ct.c_uint8 * len(data)
         try:
             sp = bp.from_buffer(data)
