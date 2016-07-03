@@ -359,7 +359,11 @@ class Saturation(float):
 
 clamp_float = lambda v: max(0.0, min(1.0, v))
 clamp_bytes = lambda v: max(0, min(255, v))
-make_linear = lambda c: c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+to_srgb = lambda c: 12.92 * c if c <= 0.0031308 else (1.055 * c ** (1/2.4) - 0.055)
+from_srgb = lambda c: c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+D65 = (0.95047, 1.0, 1.08883)
+U = lambda x, y, z: 4 * x / (x + 15 * y + 3 * z)
+V = lambda x, y, z: 9 * y / (x + 15 * y + 3 * z)
 matrix_mult = lambda m, n: (
         sum(mval * nval for mval, nval in zip(mrow, n))
         for mrow in m
@@ -430,6 +434,15 @@ class Color(namedtuple('Color', ('red', 'green', 'blue'))):
     +------------------------------+                                          |
     | Three named parameters       |                                          |
     | "hue", "saturation", "value" |                                          |
+    +------------------------------+------------------------------------------+
+    | Three named parameters,      | Equivalent to calling                    |
+    | "x", "y", "z"                | :meth:`Color.from_cie_xyz`               |
+    +------------------------------+------------------------------------------+
+    | Three named parameters,      | Equivalent to calling                    |
+    | "l", "a", "b"                | :meth:`Color.from_cie_lab`               |
+    +------------------------------+------------------------------------------+
+    | Three named parameters,      | Equivalent to calling                    |
+    | "l", "u", "v"                | :meth:`Color.from_cie_luv`               |
     +------------------------------+------------------------------------------+
 
     If the constructor parameters do not conform to any of the variants in the
@@ -509,6 +522,9 @@ class Color(namedtuple('Color', ('red', 'green', 'blue'))):
                     frozenset('yiq'):   cls.from_yiq,
                     frozenset('hls'):   cls.from_hls,
                     frozenset('hsv'):   cls.from_hsv,
+                    frozenset('xyz'):   cls.from_cie_xyz,
+                    frozenset('lab'):   cls.from_cie_lab,
+                    frozenset('luv'):   cls.from_cie_luv,
                     frozenset(('red', 'green', 'blue')):
                         lambda red, green, blue: from_rgb(red, green, blue),
                     frozenset(('hue', 'lightness', 'saturation')):
@@ -637,6 +653,63 @@ class Color(namedtuple('Color', ('red', 'green', 'blue'))):
         between 0.0 and 1.0.
         """
         return super(Color, cls).__new__(cls, *colorsys.hsv_to_rgb(h, s, v))
+
+    @classmethod
+    def from_cie_xyz(cls, x, y, z):
+        """
+        Construct a :class:`Color` from (X, Y, Z) float values representing
+        a color in the `CIE 1931 color space`_. The conversion assumes the
+        sRGB working space with reference white D65.
+
+        .. _CIE 1931 color space: https://en.wikipedia.org/wiki/CIE_1931_color_space
+        """
+        m = matrix_mult(
+            (( 3.2404542, -1.5371385, -0.4985314),
+             (-0.9692660,  1.8760108,  0.0415560),
+             ( 0.0556434, -0.2040259,  1.0572252),
+             ),
+            (x,
+             y,
+             z,
+             ))
+        return super(Color, cls).__new__(cls, *(to_srgb(c) for c in m))
+
+    @classmethod
+    def from_cie_lab(cls, l, a, b):
+        """
+        Construct a :class:`Color` from (L*, a*, b*) float values representing
+        a color in the `CIE Lab color space`_. The conversion assumes the
+        sRGB working space with reference white D65.
+
+        .. _CIE Lab color space: https://en.wikipedia.org/wiki/Lab_color_space
+        """
+        theta = Fraction(6, 29)
+        fy = (l + 16) / 116
+        fx = fy + a / 500
+        fz = fy - b / 200
+        xyz = (
+            n ** 3 if n > theta else 3 * theta ** 2 * (n - Fraction(4, 29))
+            for n in (fx, fy, fz)
+            )
+        return cls.from_cie_xyz(*(n * m for n, m in zip(xyz, D65)))
+
+    @classmethod
+    def from_cie_luv(cls, l, u, v):
+        """
+        Construct a :class:`Color` from (L*, u*, v*) float values representing
+        a color in the `CIE Luv color space`_. The conversion assumes the sRGB
+        working space with reference white D65.
+
+        .. _CIE Luv color space: https://en.wikipedia.org/wiki/CIELUV
+        """
+        uw = U(*D65)
+        vw = V(*D65)
+        u_p = u / (13 * l) + uw
+        v_p = v / (13 * l) + vw
+        y = D65[1] * (l * Fraction(3, 29) ** 3 if l <= 8 else ((l + 16) / 116) ** 3)
+        x = y * (9 * u_p) / (4 * v_p)
+        z = y * (12 - 3 * u_p - 20 * v_p) / (4 * v_p)
+        return cls.from_cie_xyz(x, y, z)
 
     def __add__(self, other):
         if isinstance(other, Red):
@@ -798,7 +871,8 @@ class Color(namedtuple('Color', ('red', 'green', 'blue'))):
     def cie_xyz(self):
         """
         Returns a 3-tuple of (X, Y, Z) float values representing the color in
-        the `CIE 1931 color space`.
+        the `CIE 1931 color space`_. The conversion assumes the sRGB working
+        space, with reference white D65.
 
         .. _CIE 1931 color space: https://en.wikipedia.org/wiki/CIE_1931_color_space
         """
@@ -807,9 +881,9 @@ class Color(namedtuple('Color', ('red', 'green', 'blue'))):
              (0.2126729, 0.7151522, 0.0721750),
              (0.0193339, 0.1191920, 0.9503041),
              ),
-            (make_linear(self.red),
-             make_linear(self.green),
-             make_linear(self.blue)
+            (from_srgb(self.red),
+             from_srgb(self.green),
+             from_srgb(self.blue)
              )
              ))
 
@@ -817,14 +891,13 @@ class Color(namedtuple('Color', ('red', 'green', 'blue'))):
     def cie_lab(self):
         """
         Returns a 3-tuple of (L*, a*, b*) float values representing the color
-        in the `CIE Lab color space` with the `D65 standard illuminant`_.
+        in the `CIE Lab color space`_ with the `D65 standard illuminant`_.
 
         .. _CIE Lab color space: https://en.wikipedia.org/wiki/Lab_color_space
         .. _D65 standard illuminant: https://en.wikipedia.org/wiki/Illuminant_D65
         """
         K = Fraction(1, 3) * Fraction(29, 6) ** 2
         e = Fraction(6, 29) ** 3
-        D65 = (0.95047, 1.0, 1.08883)
         x, y, z = (n / m for n, m in zip(self.cie_xyz, D65))
         fx, fy, fz = (
             n ** Fraction(1, 3) if n > e else K * n + Fraction(4, 29)
@@ -836,16 +909,12 @@ class Color(namedtuple('Color', ('red', 'green', 'blue'))):
     def cie_luv(self):
         """
         Returns a 3-tuple of (L*, u*, v*) float values representing the color
-        in the `CIE Luv color space` with the `D65 standard illuminant`_.
+        in the `CIE Luv color space`_ with the `D65 standard illuminant`_.
 
         .. _CIE Luv color space: https://en.wikipedia.org/wiki/CIELUV
         """
-        U = lambda x, y, z: 4 * x / (x + 15 * y + 3 * z)
-        V = lambda x, y, z: 9 * y / (x + 15 * y + 3 * z)
-
         K = Fraction(29, 3) ** 3
         e = Fraction(6, 29) ** 3
-        D65 = (0.95047, 1.0, 1.08883)
         XYZ = self.cie_xyz
         yr = XYZ[1] / D65[1]
         L = 116 * yr ** Fraction(1, 3) - 16 if yr > e else K * yr
@@ -918,7 +987,7 @@ class Color(namedtuple('Color', ('red', 'green', 'blue'))):
         """
         return Saturation(self.hls[2])
 
-    def difference(self, other, method='cie1976'):
+    def difference(self, other, method='euclid'):
         """
         Determines the difference between this color and *other* using the
         specified *method*. The *method* is specified as a string, and the
@@ -956,6 +1025,8 @@ class Color(namedtuple('Color', ('red', 'green', 'blue'))):
         .. _CIE 1994: https://en.wikipedia.org/wiki/Color_difference#CIE94
         .. _CIEDE 2000: https://en.wikipedia.org/wiki/Color_difference#CIEDE2000
         """
+        if isinstance(method, bytes):
+            method = method.decode('ascii')
         if method == 'euclid':
             return sqrt(sum((Cs - Co) ** 2 for Cs, Co in zip(self, other)))
         elif method == 'cie1976':
