@@ -307,7 +307,7 @@ class PiBayerArray(PiArrayOutput):
     This custom output class is intended to be used with the
     :meth:`~picamera.PiCamera.capture` method, with the *bayer* parameter set
     to ``True``, to include raw Bayer data in the JPEG output.  The class
-    strips out the raw data, constructing a 3-dimensional numpy array organized
+    strips out the raw data, constructing a 2-dimensional numpy array organized
     as (rows, columns, colors). The resulting data is accessed via the
     :attr:`~PiArrayOutput.array` attribute::
 
@@ -377,23 +377,26 @@ class PiBayerArray(PiArrayOutput):
         data = data.astype(np.uint16) << 2
         for byte in range(4):
             data[:, byte::5] |= ((data[:, 4::5] >> ((4 - byte) * 2)) & 3)
-        data = np.delete(data, np.s_[4::5], 1)
-        # XXX Should test camera's vflip and hflip settings here and adjust
-        self.array = np.zeros(data.shape + (3,), dtype=data.dtype)
-        self.array[1::2, 0::2, 0] = data[1::2, 0::2] # Red
-        self.array[0::2, 0::2, 1] = data[0::2, 0::2] # Green
-        self.array[1::2, 1::2, 1] = data[1::2, 1::2] # Green
-        self.array[0::2, 1::2, 2] = data[0::2, 1::2] # Blue
+        # Create a new array from the unpacked data
+        self.array = np.zeros((data.shape[0], data.shape[1]*(4.0/5)), dtype = np.uint16)
+        for i in range(4):
+            self.array[:, i::4] = data[:, i::5]
 
     def demosaic(self):
         if self._demo is None:
             # XXX Again, should take into account camera's vflip and hflip here
             # Construct representation of the bayer pattern
-            bayer = np.zeros(self.array.shape, dtype=np.uint8)
-            bayer[1::2, 0::2, 0] = 1 # Red
-            bayer[0::2, 0::2, 1] = 1 # Green
-            bayer[1::2, 1::2, 1] = 1 # Green
-            bayer[0::2, 1::2, 2] = 1 # Blue
+            expandedArray = np.zeros(self.array.shape + (3,), dtype=self.array.dtype)
+            expandedArray[1::2, 1::2, 0] = self.array[1::2, 1::2] # Red
+            expandedArray[1::2, 0::2, 1] = self.array[1::2, 0::2] # Green
+            expandedArray[0::2, 1::2, 1] = self.array[0::2, 1::2] # Green
+            expandedArray[0::2, 0::2, 2] = self.array[0::2, 0::2] # Blue
+            # Construct representation of the bayer pattern
+            bayer = np.zeros(expandedArray.shape, dtype=np.uint8)
+            bayer[1::2, 1::2, 0] = 1 # Red
+            bayer[0::2, 1::2, 1] = 1 # Green
+            bayer[1::2, 0::2, 1] = 1 # Green
+            bayer[0::2, 0::2, 2] = 1 # Blue
             # Allocate output array with same shape as data and set up some
             # constants to represent the weighted average window
             window = (3, 3)
@@ -403,17 +406,17 @@ class PiBayerArray(PiArrayOutput):
             # unavailable on the version of numpy shipped with Raspbian at the
             # time of writing)
             rgb = np.zeros((
-                self.array.shape[0] + borders[0],
-                self.array.shape[1] + borders[1],
-                self.array.shape[2]), dtype=self.array.dtype)
+                expandedArray.shape[0] + borders[0],
+                expandedArray.shape[1] + borders[1],
+                expandedArray.shape[2]), dtype=self.array.dtype)
             rgb[
                 border[0]:rgb.shape[0] - border[0],
                 border[1]:rgb.shape[1] - border[1],
-                :] = self.array
+                :] = expandedArray
             bayer_pad = np.zeros((
-                self.array.shape[0] + borders[0],
-                self.array.shape[1] + borders[1],
-                self.array.shape[2]), dtype=bayer.dtype)
+                expandedArray.shape[0] + borders[0],
+                expandedArray.shape[1] + borders[1],
+                expandedArray.shape[2]), dtype=bayer.dtype)
             bayer_pad[
                 border[0]:bayer_pad.shape[0] - border[0],
                 border[1]:bayer_pad.shape[1] - border[1],
@@ -422,7 +425,7 @@ class PiBayerArray(PiArrayOutput):
             # For each plane in the RGB data, construct a view over the plane
             # of 3x3 matrices. Then do the same for the bayer array and use
             # Einstein summation to get the weighted average
-            self._demo = np.empty(self.array.shape, dtype=self.array.dtype)
+            self._demo = np.empty(expandedArray.shape, dtype=expandedArray.dtype)
             for plane in range(3):
                 p = rgb[..., plane]
                 b = bayer[..., plane]
@@ -436,6 +439,7 @@ class PiBayerArray(PiArrayOutput):
                 bsum = np.einsum('ijkl->ij', bview)
                 self._demo[..., plane] = psum // bsum
         return self._demo
+
 
 
 class PiMotionArray(PiArrayOutput):
