@@ -107,7 +107,7 @@ def bytes_to_rgb(data, resolution):
     # Workaround: output from the video splitter is rounded to 16x16 instead
     # of 32x16 (but only for RGB, and only when a resizer is not used)
     if len(data) != (fwidth * fheight * 3):
-        fwidth, fheith = raw_resolution(resolution, splitter=True)
+        fwidth, fheight = raw_resolution(resolution, splitter=True)
         if len(data) != (fwidth * fheight * 3):
             raise PiCameraValueError(
                 'Incorrect buffer length for resolution %dx%d' % (width, height))
