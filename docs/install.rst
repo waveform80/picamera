@@ -12,30 +12,53 @@ Installation
 Raspbian installation
 =====================
 
-If you are using the `Raspbian`_ distro, it is best to install picamera using
-the system's package manager: apt. This will ensure that picamera is easy to
-keep up to date, and easy to remove should you wish to do so. It will also make
-picamera available for all users on the system. To install picamera using apt
-simply::
+If you are using the `Raspbian`_ distro, you probably have picamera installed
+by default. You can find out simply by starting Python and trying to import
+picamera:
+
+.. code-block:: console
+
+    $ python -c "import picamera"
+    $ python3 -c "import picamera"
+
+If you get no error, you've already got picamera installed! Just continue to
+:ref:`quickstart`. If you don't have picamera installed you'll see something
+like the following:
+
+.. code-block:: console
+
+    $ python -c "import picamera"
+    Traceback (most recent call last):
+      File "<string>", line 1, in <module>
+    ImportError: No module named picamera
+    $ python3 -c "import picamera"
+    Traceback (most recent call last):
+      File "<string>", line 1, in <module>
+    ImportError: No module named 'picamera'
+
+To install picamera on Raspbian, it is best to use the system's package
+manager: apt. This will ensure that picamera is easy to keep up to date, and
+easy to remove should you wish to do so. It will also make picamera available
+for all users on the system. To install picamera using apt simply run:
+
+.. code-block:: console
 
     $ sudo apt-get update
     $ sudo apt-get install python-picamera python3-picamera
 
 To upgrade your installation when new releases are made you can simply use
-apt's normal upgrade procedure::
+apt's normal upgrade procedure:
+
+.. code-block:: console
 
     $ sudo apt-get update
     $ sudo apt-get upgrade
 
-If you ever need to remove your installation::
+If you ever need to remove your installation:
+
+.. code-block:: console
 
     $ sudo apt-get remove python-picamera python3-picamera
-
-.. note::
-
-    If you are using a recent installation of Raspbian, you may find that the
-    python-picamera package is already installed (it is included by default
-    in recent versions).
 
 .. _Raspbian: http://www.raspbian.org/
 
@@ -46,21 +69,35 @@ Alternate distro installation
 =============================
 
 On distributions other than Raspbian, it is probably simplest to install system
-wide using Python's ``pip`` tool::
+wide using Python's ``pip`` tool:
+
+.. code-block:: console
 
     $ sudo pip install picamera
 
 If you wish to use the classes in the :mod:`picamera.array` module then specify
-the "array" option which will pull in numpy as a dependency (be warned that
-building numpy takes a *long* time on a Pi)::
+the "array" option which will pull in numpy as a dependency:
+
+.. code-block:: console
 
     $ sudo pip install "picamera[array]"
 
-To upgrade your installation when new releases are made::
+.. warning::
+
+    Be warned that older versions of pip will attempt to build numpy from
+    source. This will take a *very* long time on a Pi (several hours on slower
+    models). Modern versions of pip will download and install a pre-built
+    numpy "wheel" instead which is much faster.
+
+To upgrade your installation when new releases are made:
+
+.. code-block:: console
 
     $ sudo pip install -U picamera
 
-If you ever need to remove your installation::
+If you ever need to remove your installation:
+
+.. code-block:: console
 
     $ sudo pip uninstall picamera
 
@@ -80,11 +117,15 @@ firmware. As an example, the :attr:`~PiCamera.annotate_text` attribute relies
 on a recent firmware; older firmwares lacked the functionality.
 
 You can determine the revision of your current firmware with the following
-command::
+command:
+
+.. code-block:: console
 
     $ uname -a
 
-The firmware revision is the number after the ``#``::
+The firmware revision is the number after the ``#``:
+
+.. code-block:: text
 
     Linux kermit 3.12.26+ #707 PREEMPT Sat Aug 30 17:39:19 BST 2014 armv6l GNU/Linux
                             /
@@ -92,7 +133,9 @@ The firmware revision is the number after the ``#``::
       firmware revision --+
 
 On Raspbian, the standard upgrade procedure should keep your firmware
-up to date::
+up to date:
+
+.. code-block:: console
 
     $ sudo apt-get update
     $ sudo apt-get upgrade
@@ -119,77 +162,4 @@ up to date::
 
 .. _PiTFT: http://www.adafruit.com/product/1601
 
-
-.. _dev_install:
-
-Development installation
-========================
-
-If you wish to develop picamera itself, it is easiest to obtain the source by
-cloning the GitHub repository and then use the “develop” target of the Makefile
-which will install the package as a link to the cloned repository allowing
-in-place development (it also builds a tags file for use with vim/emacs with
-Exuberant’s ctags utility). The following example demonstrates this method
-within a virtual Python environment::
-
-    $ sudo apt-get install lsb-release build-essential git git-core \
-        exuberant-ctags python-virtualenv python3-virtualenv python-dev \
-        python3-dev libjpeg8-dev zlib1g-dev libav-tools \
-        texlive-latex-recommended texlive-latex-extra texlive-fonts-recommended
-    $ virtualenv -p /usr/bin/python3 sandbox
-    $ source sandbox/bin/activate
-    (sandbox) $ git clone https://github.com/waveform80/picamera.git
-    (sandbox) $ cd picamera
-    (sandbox) $ make develop
-
-To pull the latest changes from git into your clone and update your
-installation::
-
-    $ source sandbox/bin/activate
-    (sandbox) $ cd picamera
-    (sandbox) $ git pull
-    (sandbox) $ make develop
-
-To remove your installation blow away the sandbox and the clone::
-
-    $ rm -fr ~/sandbox/ ~/picamera/
-
-For anybody wishing to hack on the project, I would strongly recommend reading
-through the :class:`PiCamera` class' source, to get a handle on using the
-``mmalobj`` layer. This is a layer introduced in picamera 1.11 to ease the
-usage of ``libmmal`` (the underlying library that picamera, ``raspistill``,
-and ``raspivid`` all rely upon).
-
-Beneath ``mmalobj`` is a :mod:`ctypes` translation of the ``libmmal`` headers
-but my hope is that most developers will never need to deal with this
-directly (thus, a working knowledge of C is hopefully no longer necessary to
-hack on picamera).
-
-Various classes for specialized applications also exist
-(:class:`PiCameraCircularIO`, :class:`~array.PiBayerArray`, etc.)
-
-Even if you don’t feel up to hacking on the code, I’d love to hear suggestions
-from people of what you’d like the API to look like (even if the code itself
-isn’t particularly pythonic, the interface should be)!
-
-
-.. _test_suite:
-
-Test suite
-==========
-
-If you wish to run the picamera test suite, follow the instructions in
-:ref:`dev_install` above and then make the "test" target within the sandbox::
-
-    $ source sandbox/bin/activate
-    (sandbox) $ cd picamera
-    (sandbox) $ make test
-
-.. warning::
-
-    The test suite takes a *very* long time to execute (at least 1 hour on an
-    overclocked Pi 3). Depending on configuration, it can also lockup the
-    camera requiring a reboot to reset, so ensure you are familiar with SSH or
-    using alternate TTYs to access a command line in the event you need to
-    reboot.
 

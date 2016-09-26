@@ -16,6 +16,7 @@ Table of Contents
    recipes2
    faq
    fov
+   development
    deprecated
    api_camera
    api_streams
