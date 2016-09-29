@@ -995,7 +995,7 @@ without going to the bother of a full :ref:`custom encoder <custom_encoders>`.
 However, one should bear in mind that because the ``write`` method is called so
 frequently, its implementation must be sufficiently rapid that it doesn't stall
 the encoder (it must perform its processing and return before the next write is
-due to arrive).
+due to arrive if you wish to avoid dropping frames).
 
 The following trivial example demonstrates an incredibly simple custom output
 which simply throws away the output while counting the number of bytes that
@@ -1030,8 +1030,8 @@ arrives in several separate chunks). The output object doesn't actually write
 the motion data anywhere; instead it loads it into a numpy array and analyses
 whether there are any significantly large vectors in the data, printing a
 message to the console if there are. As we are not concerned with keeping the
-actual video output in this example, we use ``/dev/null`` as the destination
-for the video data::
+actual video output in this example, we use :file:`/dev/null` as the
+destination for the video data::
 
     from __future__ import division
 
@@ -1111,6 +1111,66 @@ much of the boiler plate code from the recipe above::
 
 
 .. versionadded:: 1.5
+
+
+.. _weird_outputs:
+
+Unconventional file outputs
+===========================
+
+As noted in prior sections, picamera accepts a wide variety of things as an
+output:
+
+* A string, which will be treated as a filename.
+* A file-like object, e.g. as returned by :func:`open`.
+* A :ref:`custom output <custom_outputs>`.
+* Any mutable object that implements the buffer interface.
+
+The simplest of these, the filename, hides a certain amount of complexity. It
+can be important to understand exactly how picamera treats files, especially
+when dealing with "unconventional" files (e.g. pipes, FIFOs, etc.)
+
+When given a filename, picamera does the following:
+
+1. Opens the specified file with the ``'wb'`` mode, i.e. open for writing,
+   truncating the file first, in binary mode.
+
+2. The file is opened with a larger-than-normal buffer size, specifically 64Kb.
+   A large buffer size is utilized because it improves performance and system
+   load with the majority use-case, i.e. sequentially writing video to the
+   disk.
+
+3. The requested data (image captures, video recording, etc.) is written to the
+   open file.
+
+4. Finally, the file is flushed and closed. Note that this is the only
+   circumstance in which picamera will presume to close the output for you,
+   because picamera opened the output for you.
+
+As noted above, this fits the majority use case (sequentially writing video to
+a file) very well. However, if you are piping data to another process via a
+FIFO (which picamera will simply treat as any other file), you may wish to
+avoid all the buffering. In this case, you can simply open the output yourself
+with no buffering. As noted above, you will then be responsible for closing the
+output when you are finished with it (you opened it, so the responsibility for
+closing it is yours as well).
+
+For example::
+
+    import io
+    import os
+    import picamera
+
+    with picamera.PiCamera(resolution='VGA') as camera:
+        os.mkfifo('video_fifo')
+        f = io.open('video_fifo', 'wb', buffering=0)
+        try:
+            camera.start_recording(f, format='h264')
+            camera.wait_recording(10)
+            camera.stop_recording()
+        finally:
+            f.close()
+            os.unlink('video_fifo')
 
 
 .. _custom_encoders:
