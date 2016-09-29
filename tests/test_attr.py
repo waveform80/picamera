@@ -412,7 +412,6 @@ def test_preview_hflip(camera, previewing):
     if previewing:
         boolean_attr(camera.preview, 'hflip')
 
-@pytest.mark.xfail(reason="Fails when camera init uses mode 0")
 def test_sensor_mode(camera, previewing):
     save_mode = camera.sensor_mode
     try:

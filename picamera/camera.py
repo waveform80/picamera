@@ -1974,7 +1974,7 @@ class PiCamera(object):
             (port.framesize, port.framerate, port.params[mmal.MMAL_PARAMETER_FPS_RANGE])
             for port in self._camera.outputs
             ]
-        if old_sensor_mode != 0 and sensor_mode != 0:
+        if old_sensor_mode != 0 or sensor_mode != 0:
             self._camera.control.params[mmal.MMAL_PARAMETER_CAMERA_CUSTOM_SENSOR_CONFIG] = sensor_mode
         if not self._camera.control.enabled:
             # Initial setup
