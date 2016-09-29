@@ -397,6 +397,13 @@ class PiOverlayRenderer(PiRenderer):
         used to create the overlay. There is currently no method for changing
         the size of an existing overlay (remove and recreate the overlay if you
         require this).
+
+        .. note::
+
+            If you repeatedly update an overlay renderer, you must make sure
+            that you do so at a rate equal to, or slower than, the camera's
+            framerate. Going faster will rapidly starve the renderer's pool of
+            buffers leading to a runtime error.
         """
         buf = self.renderer.inputs[0].pool.get_buffer()
         buf.update(source)
