@@ -39,7 +39,7 @@ Development installation
 ========================
 
 If you wish to develop picamera itself, it is easiest to obtain the source by
-cloning the GitHub repository and then use the “develop” target of the Makefile
+cloning the GitHub repository and then use the "develop" target of the Makefile
 which will install the package as a link to the cloned repository allowing
 in-place development (it also builds a tags file for use with vim/emacs with
 Exuberant’s ctags utility). The following example demonstrates this method
@@ -49,9 +49,7 @@ within a virtual Python environment:
 
     $ sudo apt-get install lsb-release build-essential git git-core \
         exuberant-ctags virtualenvwrapper python-virtualenv python3-virtualenv \
-        python-dev python3-dev libjpeg8-dev zlib1g-dev libav-tools \
-        texlive-latex-recommended texlive-latex-extra texlive-fonts-recommended \
-        graphviz inkscape
+        python-dev python3-dev libjpeg8-dev zlib1g-dev libav-tools
     $ cd
     $ mkvirtualenv -p /usr/bin/python3 picamera
     $ workon picamera
@@ -80,6 +78,32 @@ To remove your installation, destroy the sandbox and the clone:
     $ rm -fr ~/picamera
 
 
+Building the docs
+=================
+
+If you wish to build the docs, you'll need a few more dependencies. Inkscape
+is used for conversion of SVGs to other formats, Graphviz is used for rendering
+certain charts, and TeX Live is required for building PDF output. The following
+command should install all required dependencies:
+
+.. code-block:: console
+
+    $ sudo apt-get install texlive-latex-recommended texlive-latex-extra \
+        texlive-fonts-recommended graphviz inkscape
+
+Once these are installed, you can use the "doc" target to build the
+documentation:
+
+.. code-block:: console
+
+    $ workon picamera
+    (picamera) $ cd ~/picamera
+    (picamera) $ make doc
+
+The HTML output is written to :file:`docs/_build/html` while the PDF output
+goes to :file:`docs/_build/latex`.
+
+
 .. _test_suite:
 
 Test suite
@@ -91,8 +115,8 @@ If you wish to run the picamera test suite, follow the instructions in
 .. code-block:: console
 
     $ workon picamera
-    (sandbox) $ cd ~/picamera
-    (sandbox) $ make test
+    (picamera) $ cd ~/picamera
+    (picamera) $ make test
 
 .. warning::
 
