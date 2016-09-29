@@ -1,8 +1,10 @@
 digraph G {
-    graph [rankdir="BT"];
+    graph [rankdir=RL];
+    node [shape=rect,style=filled,fontname=Sans,fontsize=12];
+    edge [];
 
     /* Abstract classes */
-    node [shape=rect,style=filled,color="#000000",fillcolor="#ffffff",fontname=Arial,fontsize=12.0];
+    node [color="#9ec6e0",fontcolor="#000000"];
     PiEncoder           [target="_top", URL="../api.html#picamera.PiEncoder"];
     PiImageEncoder      [target="_top", URL="../api.html#picamera.PiImageEncoder"];
     PiVideoEncoder      [target="_top", URL="../api.html#picamera.PiVideoEncoder"];
@@ -12,7 +14,7 @@ digraph G {
     PiRawImageMixin     [target="_top", URL="../api.html#picamera.PiRawImageMixin"];
 
     /* Concrete classes */
-    node [shape=rect,style=filled,color="#000000",fillcolor="#99aadd",fontname=Arial,fontsize=12.0];
+    node [color="#2980b9",fontcolor="#ffffff"];
     PiRawOneImageEncoder      [target="_top", URL="../api.html#picamera.PiRawOneImageEncoder"];
     PiRawMultiImageEncoder    [target="_top", URL="../api.html#picamera.PiRawMultiImageEncoder"];
     PiRawVideoEncoder         [target="_top", URL="../api.html#picamera.PiRawVideoEncoder"];
