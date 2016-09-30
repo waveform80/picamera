@@ -395,7 +395,7 @@ captures a "burst" of 5 images::
             'image3.jpg',
             'image4.jpg',
             'image5.jpg',
-            ])
+            ], use_video_port=True)
 
 We can refine this slightly by using a generator expression to provide the
 filenames for processing instead of specifying every single filename manually::
@@ -437,9 +437,7 @@ provide the list of filenames (or more usefully, streams) to the
             yield 'image%02d.jpg' % frame
             frame += 1
 
-    with picamera.PiCamera() as camera:
-        camera.resolution = (1024, 768)
-        camera.framerate = 30
+    with picamera.PiCamera(resolution='720p', framerate=30) as camera:
         camera.start_preview()
         # Give the camera some warm-up time
         time.sleep(2)
@@ -460,37 +458,67 @@ long (before exhausting the disk cache).
 
 If you are intending to perform processing on the frames after capture, you may
 be better off just capturing video and decoding frames from the resulting file
-rather than dealing with individual JPEG captures. Alternatively, you may wish
-to investigate sending the data over the network (which typically has more
-bandwidth available than the SD card interface) and having another machine
-perform any required processing. However, if you can perform your processing
-fast enough, you may not need to involve the disk or network at all. Using a
-generator function, we can maintain a queue of objects to store the captures,
-and have parallel threads accept and process the streams as captures come in.
-Provided the processing runs at a faster frame rate than the captures, the
-encoder won't stall::
+rather than dealing with individual JPEG captures. Thankfully this is
+relatively easy as the JPEG format has a well designed `magic number`_ (FF D8)
+which cannot appear anywhere else in the JPEG data. This means we can use a
+:ref:`custom output <custom_outputs>` to separate the frames out of an MJPEG
+video recording by inspecting the first two bytes of each buffer::
+
+    import io
+    import time
+    import picamera
+
+    class SplitFrames(object):
+        def __init__(self):
+            self.frame_num = 0
+            self.output = None
+
+        def write(self, buf):
+            if buf.startswith(b'\xff\xd8'):
+                # Start of new frame; close the old one (if any) and
+                # open a new output
+                if self.output:
+                    self.output.close()
+                self.frame_num += 1
+                self.output = io.open('image%02d.jpg' % self.frame_num, 'wb')
+            self.output.write(buf)
+
+    with picamera.PiCamera(resolution='720p', framerate=30) as camera:
+        camera.start_preview()
+        # Give the camera some warm-up time
+        time.sleep(2)
+        output = SplitFrames()
+        start = time.time()
+        camera.start_recording(output, format='mjpeg')
+        camera.wait_recording(2)
+        camera.stop_recording()
+        finish = time.time()
+    print('Captured %d frames at %.2ffps' % (
+        output.frame_num,
+        output.frame_num / (finish - start)))
+
+So far, we've just saved the captured frames to disk. This is fine if you're
+intending to process later with another script, but what if we want to perform
+all processing within the current script? In this case, we may not need to
+involve the disk (or network) at all. We can set up a pool of parallel threads
+to accept and process image streams as captures come in::
 
     import io
     import time
     import threading
     import picamera
 
-    # Create a pool of image processors
-    done = False
-    lock = threading.Lock()
-    pool = []
-
     class ImageProcessor(threading.Thread):
-        def __init__(self):
+        def __init__(self, owner):
             super(ImageProcessor, self).__init__()
             self.stream = io.BytesIO()
             self.event = threading.Event()
             self.terminated = False
+            self.owner = owner
             self.start()
 
         def run(self):
             # This method runs in a separate thread
-            global done
             while not self.terminated:
                 # Wait for an image to be written to the stream
                 if self.event.wait(1):
@@ -502,44 +530,68 @@ encoder won't stall::
                         #...
                         # Set done to True if you want the script to terminate
                         # at some point
-                        #done=True
+                        #self.owner.done=True
                     finally:
                         # Reset the stream and event
                         self.stream.seek(0)
                         self.stream.truncate()
                         self.event.clear()
-                        # Return ourselves to the pool
-                        with lock:
-                            pool.append(self)
+                        # Return ourselves to the available pool
+                        with self.owner.lock:
+                            self.owner.pool.append(self)
 
-    def streams():
-        while not done:
-            with lock:
-                if pool:
-                    processor = pool.pop()
-                else:
-                    processor = None
-            if processor:
-                yield processor.stream
-                processor.event.set()
-            else:
-                # When the pool is starved, wait a while for it to refill
-                time.sleep(0.1)
+    class ProcessOutput(object):
+        def __init__(self):
+            self.done = False
+            # Construct a pool of 4 image processors along with a lock
+            # to control access between threads
+            self.lock = threading.Lock()
+            self.pool = [ImageProcessor(self) for i in range(4)]
+            self.processor = None
 
-    with picamera.PiCamera() as camera:
-        pool = [ImageProcessor() for i in range(4)]
-        camera.resolution = (640, 480)
-        camera.framerate = 30
+        def write(self, buf):
+            if buf.startswith(b'\xff\xd8'):
+                # New frame; set the current processor going and grab
+                # a spare one
+                if self.processor:
+                    self.processor.event.set()
+                with self.lock:
+                    if self.pool:
+                        self.processor = self.pool.pop()
+                    else:
+                        # No processor's available, we'll have to skip
+                        # this frame; you may want to print a warning
+                        # here to see whether you hit this case
+                        self.processor = None
+            if self.processor:
+                self.processor.stream.write(buf)
+
+        def flush(self):
+            # When told to flush (this indicates end of recording), shut
+            # down in an orderly fashion. First, add the current processor
+            # back to the pool
+            if self.processor:
+                with self.lock:
+                    self.pool.append(self.processor)
+                    self.processor = None
+            # Now, empty the pool, joining each thread as we go
+            while True:
+                with self.lock:
+                    try:
+                        proc = self.pool.pop()
+                    except IndexError:
+                        pass # pool is empty
+                proc.terminated = True
+                proc.join()
+
+    with picamera.PiCamera(resolution='VGA') as camera:
         camera.start_preview()
         time.sleep(2)
-        camera.capture_sequence(streams(), use_video_port=True)
-
-    # Shut down the processors in an orderly fashion
-    while pool:
-        with lock:
-            processor = pool.pop()
-        processor.terminated = True
-        processor.join()
+        output = ProcessOutput()
+        camera.start_recording(output, format='mjpeg')
+        while not output.done:
+            camera.wait_recording(1)
+        camera.stop_recording()
 
 
 .. _rapid_streaming:
@@ -547,7 +599,7 @@ encoder won't stall::
 Rapid capture and streaming
 ===========================
 
-Following on from :ref:`rapid_capture`, we can combine the video-port capture
+Following on from :ref:`rapid_capture`, we can combine the video capture
 technique with :ref:`streaming_capture`. The server side script doesn't change
 (it doesn't really care what capture technique is being used - it just reads
 JPEGs off the wire). The changes to the client side script can be minimal at
@@ -569,6 +621,7 @@ first - just set *use_video_port* to ``True`` in the
             camera.framerate = 30
             time.sleep(2)
             start = time.time()
+            count = 0
             stream = io.BytesIO()
             # Use the video-port for captures...
             for foo in camera.capture_continuous(stream, 'jpeg',
@@ -577,6 +630,7 @@ first - just set *use_video_port* to ``True`` in the
                 connection.flush()
                 stream.seek(0)
                 connection.write(stream.read())
+                count += 1
                 if time.time() - start > 30:
                     break
                 stream.seek(0)
@@ -585,106 +639,62 @@ first - just set *use_video_port* to ``True`` in the
     finally:
         connection.close()
         client_socket.close()
+        finish = time.time()
+    print('Sent %d images in %d seconds at %.2ffps' % (
+        count, finish-start, count / (finish-start)))
 
-Using this technique, the author can manage about 10fps of streaming at 640x480
-on firmware #685. One deficiency of the script above is that it interleaves
-capturing images with sending them over the wire (although we deliberately
-don't flush on sending the image data). Potentially, it would be more efficient
-to permit image capture to occur simultaneously with image transmission. We can
-attempt to do this by utilizing the background threading techniques from the
-final example in :ref:`rapid_capture`::
+Using this technique, the author can manage about 19fps of streaming at 640x480
+on firmware #685. However, utilizing the MJPEG splitting demonstrated in
+:ref:`rapid_capture` we can manage much faster::
 
     import io
     import socket
     import struct
     import time
-    import threading
     import picamera
 
+    class SplitFrames(object):
+        def __init__(self, connection):
+            self.connection = connection
+            self.stream = io.BytesIO()
+            self.count = 0
+
+        def write(self, buf):
+            if buf.startswith(b'\xff\xd8'):
+                # Start of new frame; send the old one's length
+                # then the data
+                size = self.stream.tell()
+                if size > 0:
+                    self.connection.write(struct.pack('<L', size))
+                    self.connection.flush()
+                    self.stream.seek(0)
+                    self.connection.write(self.stream.read(size))
+                    self.count += 1
+                    self.stream.seek(0)
+            self.stream.write(buf)
+
     client_socket = socket.socket()
-    client_socket.connect(('spider', 8000))
+    client_socket.connect(('my_server', 8000))
     connection = client_socket.makefile('wb')
     try:
-        connection_lock = threading.Lock()
-        pool_lock = threading.Lock()
-        pool = []
-
-        class ImageStreamer(threading.Thread):
-            def __init__(self):
-                super(ImageStreamer, self).__init__()
-                self.stream = io.BytesIO()
-                self.event = threading.Event()
-                self.terminated = False
-                self.start()
-
-            def run(self):
-                # This method runs in a background thread
-                while not self.terminated:
-                    # Wait for the image to be written to the stream
-                    if self.event.wait(1):
-                        try:
-                            with connection_lock:
-                                connection.write(struct.pack('<L', self.stream.tell()))
-                                connection.flush()
-                                self.stream.seek(0)
-                                connection.write(self.stream.read())
-                        finally:
-                            self.stream.seek(0)
-                            self.stream.truncate()
-                            self.event.clear()
-                            with pool_lock:
-                                pool.append(self)
-
-        count = 0
-        start = time.time()
-        finish = time.time()
-
-        def streams():
-            global count, finish
-            while finish - start < 30:
-                with pool_lock:
-                    if pool:
-                        streamer = pool.pop()
-                    else:
-                        streamer = None
-                if streamer:
-                    yield streamer.stream
-                    streamer.event.set()
-                    count += 1
-                else:
-                    # When the pool is starved, wait a while for it to refill
-                    time.sleep(0.1)
-                finish = time.time()
-
-        with picamera.PiCamera() as camera:
-            pool = [ImageStreamer() for i in range(4)]
-            camera.resolution = (640, 480)
-            camera.framerate = 30
+        output = SplitFrames(connection)
+        with picamera.PiCamera(resolution='VGA', framerate=30) as camera:
             time.sleep(2)
             start = time.time()
-            camera.capture_sequence(streams(), 'jpeg', use_video_port=True)
-
-        # Shut down the streamers in an orderly fashion
-        while pool:
-            streamer = pool.pop()
-            streamer.terminated = True
-            streamer.join()
-
-        # Write the terminating 0-length to the connection to let the server
-        # know we're done
-        with connection_lock:
+            camera.start_recording(output, format='mjpeg')
+            camera.wait_recording(30)
+            camera.stop_recording()
+            # Write the terminating 0-length to the connection to let the
+            # server know we're done
             connection.write(struct.pack('<L', 0))
-
     finally:
         connection.close()
         client_socket.close()
-
+        finish = time.time()
     print('Sent %d images in %d seconds at %.2ffps' % (
-        count, finish-start, count / (finish-start)))
+        output.count, finish-start, output.count / (finish-start)))
 
-On the same firmware, the above script achieves about 15fps. It is possible the
-new high framerate modes may achieve more (the fact that 15fps is half of the
-specified 30fps framerate suggests some stall on every other frame).
+The above script achieves 30fps with ease.
 
 
 .. _record_and_capture:
@@ -1731,4 +1741,5 @@ acts as a flash LED with the Python script above.
 .. _flash metering: http://en.wikipedia.org/wiki/Through-the-lens_metering#Through_the_lens_flash_metering
 .. _Broadcom pin numbers: http://raspberrypi.stackexchange.com/questions/12966/what-is-the-difference-between-board-and-bcm-for-gpio-pin-numbering
 .. _OpenCV: http://opencv.org/
+.. _magic number: https://en.wikipedia.org/wiki/Magic_number_(programming)#Magic_numbers_in_files
 
