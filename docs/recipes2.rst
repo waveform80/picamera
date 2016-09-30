@@ -1876,4 +1876,5 @@ acts as a flash LED with the Python script above.
 .. _Broadcom pin numbers: http://raspberrypi.stackexchange.com/questions/12966/what-is-the-difference-between-board-and-bcm-for-gpio-pin-numbering
 .. _OpenCV: http://opencv.org/
 .. _magic number: https://en.wikipedia.org/wiki/Magic_number_(programming)#Magic_numbers_in_files
+.. _pistreaming: https://github.com/waveform80/pistreaming/
 
