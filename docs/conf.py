@@ -69,6 +69,7 @@ sys.modules['numpy.lib.stride_tricks'] = sys.modules['numpy'].lib.stride_tricks
 
 # -- General configuration ------------------------------------------------
 
+needs_sphinx = '1.4.3'
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.viewcode', 'sphinx.ext.intersphinx', 'sphinx.ext.imgmath']
 templates_path = ['_templates']
 source_suffix = '.rst'
