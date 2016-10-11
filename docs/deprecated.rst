@@ -93,7 +93,9 @@ from tight loops. With this change, the script looks like this::
         stream = io.BytesIO()
         camera.capture(stream, 'raw', use_video_port=True)
 
-And produces the following output on the console when run::
+And produces the following output on the console when run:
+
+.. code-block:: text
 
     /usr/share/pyshared/picamera/camera.py:149: DeprecationWarning: Setting framerate or gains as a tuple is deprecated; please use one of Python's many numeric classes like int, float, Decimal, or Fraction instead
       "Setting framerate or gains as a tuple is deprecated; "
@@ -133,7 +135,9 @@ full stack trace::
         stream = io.BytesIO()
         camera.capture(stream, 'raw', use_video_port=True)
 
-Now when we run the script it produces the following::
+Now when we run the script it produces the following:
+
+.. code-block:: pycon
 
     Traceback (most recent call last):
       File "test_deprecated.py", line 10, in <module>
@@ -146,7 +150,9 @@ Now when we run the script it produces the following::
 
 This tells us that line 10 of our script is using deprecated functionality, and
 provides a hint of how to fix it. We change line 10 to use an int instead of a
-tuple for the framerate. Now we run again, and this time get the following::
+tuple for the framerate. Now we run again, and this time get the following:
+
+.. code-block:: pycon
 
     Traceback (most recent call last):
       File "test_deprecated.py", line 12, in <module>
