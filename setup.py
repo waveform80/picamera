@@ -84,6 +84,10 @@ __extra_requires__ = {
     'array': ['numpy'],
     }
 
+if os.environ.get('READTHEDOCS', None) == 'True':
+    # If we're running on RTD, force a newer sphinx version to be installed
+    __requires__.append('sphinx>=1.4.3')
+
 if sys.version_info[:2] == (3, 2):
     __extra_requires__['doc'].extend([
         # Particular versions are required for Python 3.2 compatibility. The

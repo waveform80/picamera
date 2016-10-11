@@ -31,6 +31,7 @@
 import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
 import setup as _setup
 
 # Mock out certain modules while building documentation
@@ -105,9 +106,16 @@ intersphinx_mapping = {
 
 # -- Options for HTML output ----------------------------------------------
 
-html_theme = 'default'
-#html_theme_options = {}
-#html_theme_path = []
+if on_rtd:
+    html_theme = 'sphinx_rtd_theme'
+    #html_theme_options = {}
+    #html_theme_path = []
+    #html_sidebars = {}
+else:
+    html_theme = 'default'
+    #html_theme_options = {}
+    #html_theme_path = []
+    #html_sidebars = {}
 #html_title = None
 #html_short_title = None
 #html_logo = None
@@ -116,7 +124,6 @@ html_static_path = ['_static']
 #html_extra_path = []
 #html_last_updated_fmt = '%b %d, %Y'
 #html_use_smartypants = True
-#html_sidebars = {}
 #html_additional_pages = {}
 #html_domain_indices = True
 #html_use_index = True
