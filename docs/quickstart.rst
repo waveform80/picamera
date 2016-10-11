@@ -22,7 +22,7 @@ cable in place. If done properly you should be able to easily lift the Pi by
 the camera's cable without it falling out. The following illustrations show
 a well-seated camera cable with the correct orientation:
 
-.. image:: good_connection.jpg
+.. image:: images/good_connection.jpg
     :width: 640px
     :align: center
 
@@ -30,12 +30,14 @@ Make sure the camera module isn't sat on anything conductive (e.g. the Pi's
 USB ports or its GPIO pins). Now, apply power to your Pi. Once booted, start
 the Raspberry Pi Configuration utility and enable the camera module:
 
-.. image:: enable_camera.png
+.. image:: images/enable_camera.png
     :align: center
 
 You will need to reboot after doing this (but this is one-time setup so you
 won't need to do it again unless you re-install your operating system or switch
-SD cards). Once rebooted, start a terminal and try the following command::
+SD cards). Once rebooted, start a terminal and try the following command:
+
+.. code-block:: bash
 
     raspistill -o image.jpg
 

@@ -60,7 +60,6 @@ If you ever need to remove your installation:
 
     $ sudo apt-get remove python-picamera python3-picamera
 
-.. _Raspbian: http://www.raspbian.org/
 
 
 .. _non_raspbian_install:
@@ -160,6 +159,6 @@ up to date:
     official firmware and at the time of writing lacks several features
     including long exposures and text overlays.
 
+
+.. _Raspbian: http://www.raspberrypi.org/downloads/raspbian/
 .. _PiTFT: http://www.adafruit.com/product/1601
-
-

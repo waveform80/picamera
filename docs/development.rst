@@ -57,9 +57,7 @@ within a virtual Python environment:
     (picamera) $ cd picamera
     (picamera) $ make develop
 
-The additional dependencies (like texlive, graphviz, inkscape, libjpeg, and
-libav-tools) are required for building the documentation and running the test
-suite. To pull the latest changes from git into your clone and update your
+To pull the latest changes from git into your clone and update your
 installation:
 
 .. code-block:: console

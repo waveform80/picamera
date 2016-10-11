@@ -31,18 +31,9 @@ directly to the object. The target object must fulfil various requirements
 4. (Python 2.x only) The buffer object must have byte-sized items.
 
 For example, to capture directly to a three-dimensional numpy
-:class:`~numpy.ndarray` (Python 3.x only)::
+:class:`~numpy.ndarray` (Python 3.x only):
 
-    import time
-    import picamera
-    import numpy as np
-
-    with picamera.PiCamera() as camera:
-        camera.resolution = (320, 240)
-        camera.framerate = 24
-        time.sleep(2)
-        output = np.empty((240, 320, 3), dtype=np.uint8)
-        camera.capture(output, 'rgb')
+.. literalinclude:: examples/array_capture_py3.py
 
 It is also important to note that when outputting to unencoded formats, the
 camera rounds the requested resolution. The horizontal resolution is rounded up
@@ -53,20 +44,10 @@ of data, but pixels beyond 100x100 will be uninitialized.
 
 So, to capture a 100x100 image we first need to provide a 128x112 array,
 then strip off the uninitialized pixels afterward. The following example
-demonstrates this along with the re-shaping necessary under Python 2.x::
+demonstrates this along with the re-shaping necessary under Python 2.x:
 
-    import time
-    import picamera
-    import numpy as np
+.. literalinclude:: examples/array_capture_py2.py
 
-    with picamera.PiCamera() as camera:
-        camera.resolution = (100, 100)
-        camera.framerate = 24
-        time.sleep(2)
-        output = np.empty((112 * 128 * 3,), dtype=np.uint8)
-        camera.capture(output, 'rgb')
-        output = output.reshape((112, 128, 3))
-        output = output[:100, :100, :]
 
 .. warning::
 
@@ -84,19 +65,9 @@ Capturing to an OpenCV object
 
 This is a variation on :ref:`array_capture`. `OpenCV`_ uses numpy arrays as
 images and defaults to colors in planar BGR. Hence, the following is all that's
-required to capture an OpenCV compatible image (under Python 3.x)::
+required to capture an OpenCV compatible image (under Python 3.x):
 
-    import time
-    import picamera
-    import numpy as np
-    import cv2
-
-    with picamera.PiCamera() as camera:
-        camera.resolution = (320, 240)
-        camera.framerate = 24
-        time.sleep(2)
-        image = np.empty((240, 320, 3), dtype=np.uint8)
-        camera.capture(image, 'bgr')
+.. literalinclude:: examples/opencv_capture.py
 
 .. versionchanged:: 1.11
     Replaced recipe with direct array capture example.
@@ -111,16 +82,9 @@ If you want images captured without loss of detail (due to JPEG's lossy
 compression), you are probably better off exploring PNG as an alternate image
 format (PNG uses lossless compression). However, some applications
 (particularly scientific ones) simply require the image data in numeric form.
-For this, the ``'yuv'`` format is provided::
+For this, the ``'yuv'`` format is provided:
 
-    import time
-    import picamera
-
-    with picamera.PiCamera() as camera:
-        camera.resolution = (100, 100)
-        camera.start_preview()
-        time.sleep(2)
-        camera.capture('image.data', 'yuv')
+.. literalinclude:: examples/yuv_capture1.py
 
 The specific `YUV`_ format used is `YUV420`_ (planar). This means that the Y
 (luminance) values occur first in the resulting data and have full resolution
@@ -130,7 +94,7 @@ values have one quarter the resolution of the Y components (4 1-byte Y values
 in a square for each 1-byte U and 1-byte V value). This is illustrated in the
 diagram below:
 
-.. image:: yuv420.*
+.. image:: images/yuv420.*
     :align: center
 
 It is also important to note that when outputting to unencoded formats, the
@@ -145,8 +109,18 @@ Given that the `YUV420`_ format contains 1.5 bytes worth of data for each pixel
 and taking into account the resolution rounding, the size of a 100x100 YUV
 capture will be:
 
-.. image:: yuv_math.*
-    :align: center
+.. math::
+    :nowrap:
+
+    \begin{equation}
+    \begin{array}[b]{rl}
+        128.0 & \text{100 rounded up to nearest multiple of 32} \\
+        \times \quad 112.0 & \text{100 rounded up to nearest multiple of 16} \\
+        \times \qquad 1.5 & \text{bytes of data per pixel in YUV420 format} \\
+        \hline
+        21504.0 & \text{bytes total}
+    \end{array}
+    \end{equation}
 
 The first 14336 bytes of the data (128*112) will be Y values, the next 3584
 bytes (128*112/4) will be U values, and the final 3584 bytes will be the V
@@ -154,52 +128,9 @@ values.
 
 The following code demonstrates capturing YUV image data, loading the data into
 a set of `numpy`_ arrays, and converting the data to RGB format in an efficient
-manner::
+manner:
 
-    from __future__ import division
-
-    import time
-    import picamera
-    import numpy as np
-
-    width = 100
-    height = 100
-    stream = open('image.data', 'w+b')
-    # Capture the image in YUV format
-    with picamera.PiCamera() as camera:
-        camera.resolution = (width, height)
-        camera.start_preview()
-        time.sleep(2)
-        camera.capture(stream, 'yuv')
-    # Rewind the stream for reading
-    stream.seek(0)
-    # Calculate the actual image size in the stream (accounting for rounding
-    # of the resolution)
-    fwidth = (width + 31) // 32 * 32
-    fheight = (height + 15) // 16 * 16
-    # Load the Y (luminance) data from the stream
-    Y = np.fromfile(stream, dtype=np.uint8, count=fwidth*fheight).\
-            reshape((fheight, fwidth))
-    # Load the UV (chrominance) data from the stream, and double its size
-    U = np.fromfile(stream, dtype=np.uint8, count=(fwidth//2)*(fheight//2)).\
-            reshape((fheight//2, fwidth//2)).\
-            repeat(2, axis=0).repeat(2, axis=1)
-    V = np.fromfile(stream, dtype=np.uint8, count=(fwidth//2)*(fheight//2)).\
-            reshape((fheight//2, fwidth//2)).\
-            repeat(2, axis=0).repeat(2, axis=1)
-    # Stack the YUV channels together, crop the actual resolution, convert to
-    # floating point for later calculations, and apply the standard biases
-    YUV = np.dstack((Y, U, V))[:height, :width, :].astype(np.float)
-    YUV[:, :, 0]  = YUV[:, :, 0]  - 16   # Offset Y by 16
-    YUV[:, :, 1:] = YUV[:, :, 1:] - 128  # Offset UV by 128
-    # YUV conversion matrix from ITU-R BT.601 version (SDTV)
-    #              Y       U       V
-    M = np.array([[1.164,  0.000,  1.596],    # R
-                  [1.164, -0.392, -0.813],    # G
-                  [1.164,  2.017,  0.000]])   # B
-    # Take the dot product with the matrix to produce RGB output, clamp the
-    # results to byte range and convert to bytes
-    RGB = YUV.dot(M.T).clip(0, 255).astype(np.uint8)
+.. literalinclude:: examples/yuv_capture2.py
 
 .. note::
 
@@ -208,22 +139,9 @@ manner::
     :func:`numpy.fromfile` method annoyingly only accepts "real" file objects.
 
 This recipe is now encapsulated in the :class:`~array.PiYUVArray` class in the
-:mod:`picamera.array` module, which means the same can be achieved as follows::
+:mod:`picamera.array` module, which means the same can be achieved as follows:
 
-    import time
-    import picamera
-    import picamera.array
-
-    with picamera.PiCamera() as camera:
-        with picamera.array.PiYUVArray(camera) as stream:
-            camera.resolution = (100, 100)
-            camera.start_preview()
-            time.sleep(2)
-            camera.capture(stream, 'yuv')
-            # Show size of YUV data
-            print(stream.array.shape)
-            # Show size of RGB converted data
-            print(stream.rgb_array.shape)
+.. literalinclude:: examples/yuv_capture3.py
 
 As of 1.11 you can also capture directly to numpy arrays (see
 :ref:`array_capture`). Due to the difference in resolution of the Y and UV
@@ -232,23 +150,9 @@ you're better off using :class:`~array.PiYUVArray` as this rescales the UV
 components for convenience). However, if you only require the Y plane you can
 provide a buffer just large enough for this plane and ignore the error that
 occurs when writing to the buffer (picamera will deliberately write as much as
-it can to the buffer before raising an exception to support this use-case)::
+it can to the buffer before raising an exception to support this use-case):
 
-    import time
-    import picamera
-    import picamera.array
-    import numpy as np
-
-    with picamera.PiCamera() as camera:
-        camera.resolution = (100, 100)
-        time.sleep(2)
-        y_data = np.empty((112, 128), dtype=np.uint8)
-        try:
-            camera.capture(y_data, 'yuv')
-        except IOError:
-            pass
-        y_data = y_data[:100, :100]
-        # y_data now contains the Y-plane only
+.. literalinclude:: examples/yuv_capture4.py
 
 Alternatively, see :ref:`rgb_capture` for a method of having the camera output
 RGB data directly.
@@ -282,16 +186,9 @@ Unencoded image capture (RGB format)
 The RGB format is rather larger than the `YUV`_ format discussed in the section
 above, but is more useful for most analyses. To have the camera produce output
 in `RGB`_ format, you simply need to specify ``'rgb'`` as the format for the
-:meth:`~PiCamera.capture` method instead::
+:meth:`~PiCamera.capture` method instead:
 
-    import time
-    import picamera
-
-    with picamera.PiCamera() as camera:
-        camera.resolution = (100, 100)
-        camera.start_preview()
-        time.sleep(2)
-        camera.capture('image.data', 'rgb')
+.. literalinclude:: examples/rgb_capture1.py
 
 The size of `RGB`_ data can be calculated similarly to `YUV`_ captures.
 Firstly round the resolution appropriately (see :ref:`yuv_capture` for the
@@ -299,8 +196,18 @@ specifics), then multiply the number of pixels by 3 (1 byte of red, 1 byte of
 green, and 1 byte of blue intensity). Hence, for a 100x100 capture, the amount
 of data produced is:
 
-.. image:: rgb_math.*
-    :align: center
+.. math::
+    :nowrap:
+
+    \begin{equation}
+    \begin{array}[b]{rl}
+        128.0 & \text{100 rounded up to nearest multiple of 32} \\
+        \times \quad 112.0 & \text{100 rounded up to nearest multiple of 16} \\
+        \times \qquad 3.0 & \text{bytes of data per pixel in RGB format} \\
+        \hline
+        43008.0 & \text{bytes total}
+    \end{array}
+    \end{equation}
 
 .. warning::
 
@@ -317,19 +224,9 @@ and so on.
 
 As the planes in `RGB`_ data are all equally sized (in contrast to `YUV420`_)
 it is trivial to capture directly into a numpy array (Python 3.x only; see
-:ref:`array_capture` for Python 2.x instructions)::
+:ref:`array_capture` for Python 2.x instructions):
 
-    import time
-    import picamera
-    import picamera.array
-    import numpy as np
-
-    with picamera.PiCamera() as camera:
-        camera.resolution = (100, 100)
-        time.sleep(2)
-        image = np.empty((128, 112, 3), dtype=np.uint8)
-        camera.capture(image, 'rgb')
-        image = image[:100, :100]
+.. literalinclude:: examples/rgb_capture2.py
 
 .. note::
 
@@ -347,774 +244,6 @@ it is trivial to capture directly into a numpy array (Python 3.x only; see
 
 .. versionchanged:: 1.11
     Added instructions for direct array capture.
-
-
-.. _rapid_capture:
-
-Rapid capture and processing
-============================
-
-The camera is capable of capturing a sequence of images extremely rapidly by
-utilizing its video-capture capabilities with a JPEG encoder (via the
-*use_video_port* parameter). However, there are several things to note about
-using this technique:
-
-* When using video-port based capture only the video recording area is
-  captured; in some cases this may be smaller than the normal image capture
-  area (see discussion in :ref:`camera_modes`).
-
-* No Exif information is embedded in JPEG images captured through the
-  video-port.
-
-* Captures typically appear "grainier" with this technique. Captures from the
-  still port use a slower, more intensive denoise algorithm.
-
-All capture methods support the *use_video_port* option, but the methods differ
-in their ability to rapidly capture sequential frames. So, whilst
-:meth:`~PiCamera.capture` and :meth:`~PiCamera.capture_continuous` both support
-*use_video_port*, :meth:`~PiCamera.capture_sequence` is by far the fastest
-method (because it does not re-initialize an encoder prior to each capture).
-Using this method, the author has managed 30fps JPEG captures at a resolution
-of 1024x768.
-
-By default, :meth:`~PiCamera.capture_sequence` is particularly suited to
-capturing a fixed number of frames rapidly, as in the following example which
-captures a "burst" of 5 images::
-
-    import time
-    import picamera
-
-    with picamera.PiCamera() as camera:
-        camera.resolution = (1024, 768)
-        camera.framerate = 30
-        camera.start_preview()
-        time.sleep(2)
-        camera.capture_sequence([
-            'image1.jpg',
-            'image2.jpg',
-            'image3.jpg',
-            'image4.jpg',
-            'image5.jpg',
-            ], use_video_port=True)
-
-We can refine this slightly by using a generator expression to provide the
-filenames for processing instead of specifying every single filename manually::
-
-    import time
-    import picamera
-
-    frames = 60
-
-    with picamera.PiCamera() as camera:
-        camera.resolution = (1024, 768)
-        camera.framerate = 30
-        camera.start_preview()
-        # Give the camera some warm-up time
-        time.sleep(2)
-        start = time.time()
-        camera.capture_sequence([
-            'image%02d.jpg' % i
-            for i in range(frames)
-            ], use_video_port=True)
-        finish = time.time()
-    print('Captured %d frames at %.2ffps' % (
-        frames,
-        frames / (finish - start)))
-
-However, this still doesn't let us capture an arbitrary number of frames until
-some condition is satisfied. To do this we need to use a generator function to
-provide the list of filenames (or more usefully, streams) to the
-:meth:`~PiCamera.capture_sequence` method::
-
-    import time
-    import picamera
-
-    frames = 60
-
-    def filenames():
-        frame = 0
-        while frame < frames:
-            yield 'image%02d.jpg' % frame
-            frame += 1
-
-    with picamera.PiCamera(resolution='720p', framerate=30) as camera:
-        camera.start_preview()
-        # Give the camera some warm-up time
-        time.sleep(2)
-        start = time.time()
-        camera.capture_sequence(filenames(), use_video_port=True)
-        finish = time.time()
-    print('Captured %d frames at %.2ffps' % (
-        frames,
-        frames / (finish - start)))
-
-The major issue with capturing this rapidly is firstly that the Raspberry Pi's
-IO bandwidth is extremely limited and secondly that, as a format, JPEG is
-considerably less efficient than the H.264 video format (which is to say that,
-for the same number of bytes, H.264 will provide considerably better quality
-over the same number of frames). At higher resolutions (beyond 800x600) you are
-likely to find you cannot sustain 30fps captures to the Pi's SD card for very
-long (before exhausting the disk cache).
-
-If you are intending to perform processing on the frames after capture, you may
-be better off just capturing video and decoding frames from the resulting file
-rather than dealing with individual JPEG captures. Thankfully this is
-relatively easy as the JPEG format has a well designed `magic number`_ (FF D8)
-which cannot appear anywhere else in the JPEG data. This means we can use a
-:ref:`custom output <custom_outputs>` to separate the frames out of an MJPEG
-video recording by inspecting the first two bytes of each buffer::
-
-    import io
-    import time
-    import picamera
-
-    class SplitFrames(object):
-        def __init__(self):
-            self.frame_num = 0
-            self.output = None
-
-        def write(self, buf):
-            if buf.startswith(b'\xff\xd8'):
-                # Start of new frame; close the old one (if any) and
-                # open a new output
-                if self.output:
-                    self.output.close()
-                self.frame_num += 1
-                self.output = io.open('image%02d.jpg' % self.frame_num, 'wb')
-            self.output.write(buf)
-
-    with picamera.PiCamera(resolution='720p', framerate=30) as camera:
-        camera.start_preview()
-        # Give the camera some warm-up time
-        time.sleep(2)
-        output = SplitFrames()
-        start = time.time()
-        camera.start_recording(output, format='mjpeg')
-        camera.wait_recording(2)
-        camera.stop_recording()
-        finish = time.time()
-    print('Captured %d frames at %.2ffps' % (
-        output.frame_num,
-        output.frame_num / (finish - start)))
-
-So far, we've just saved the captured frames to disk. This is fine if you're
-intending to process later with another script, but what if we want to perform
-all processing within the current script? In this case, we may not need to
-involve the disk (or network) at all. We can set up a pool of parallel threads
-to accept and process image streams as captures come in::
-
-    import io
-    import time
-    import threading
-    import picamera
-
-    class ImageProcessor(threading.Thread):
-        def __init__(self, owner):
-            super(ImageProcessor, self).__init__()
-            self.stream = io.BytesIO()
-            self.event = threading.Event()
-            self.terminated = False
-            self.owner = owner
-            self.start()
-
-        def run(self):
-            # This method runs in a separate thread
-            while not self.terminated:
-                # Wait for an image to be written to the stream
-                if self.event.wait(1):
-                    try:
-                        self.stream.seek(0)
-                        # Read the image and do some processing on it
-                        #Image.open(self.stream)
-                        #...
-                        #...
-                        # Set done to True if you want the script to terminate
-                        # at some point
-                        #self.owner.done=True
-                    finally:
-                        # Reset the stream and event
-                        self.stream.seek(0)
-                        self.stream.truncate()
-                        self.event.clear()
-                        # Return ourselves to the available pool
-                        with self.owner.lock:
-                            self.owner.pool.append(self)
-
-    class ProcessOutput(object):
-        def __init__(self):
-            self.done = False
-            # Construct a pool of 4 image processors along with a lock
-            # to control access between threads
-            self.lock = threading.Lock()
-            self.pool = [ImageProcessor(self) for i in range(4)]
-            self.processor = None
-
-        def write(self, buf):
-            if buf.startswith(b'\xff\xd8'):
-                # New frame; set the current processor going and grab
-                # a spare one
-                if self.processor:
-                    self.processor.event.set()
-                with self.lock:
-                    if self.pool:
-                        self.processor = self.pool.pop()
-                    else:
-                        # No processor's available, we'll have to skip
-                        # this frame; you may want to print a warning
-                        # here to see whether you hit this case
-                        self.processor = None
-            if self.processor:
-                self.processor.stream.write(buf)
-
-        def flush(self):
-            # When told to flush (this indicates end of recording), shut
-            # down in an orderly fashion. First, add the current processor
-            # back to the pool
-            if self.processor:
-                with self.lock:
-                    self.pool.append(self.processor)
-                    self.processor = None
-            # Now, empty the pool, joining each thread as we go
-            while True:
-                with self.lock:
-                    try:
-                        proc = self.pool.pop()
-                    except IndexError:
-                        pass # pool is empty
-                proc.terminated = True
-                proc.join()
-
-    with picamera.PiCamera(resolution='VGA') as camera:
-        camera.start_preview()
-        time.sleep(2)
-        output = ProcessOutput()
-        camera.start_recording(output, format='mjpeg')
-        while not output.done:
-            camera.wait_recording(1)
-        camera.stop_recording()
-
-
-.. _rapid_streaming:
-
-Rapid capture and streaming
-===========================
-
-Following on from :ref:`rapid_capture`, we can combine the video capture
-technique with :ref:`streaming_capture`. The server side script doesn't change
-(it doesn't really care what capture technique is being used - it just reads
-JPEGs off the wire). The changes to the client side script can be minimal at
-first - just set *use_video_port* to ``True`` in the
-:meth:`~PiCamera.capture_continuous` call::
-
-    import io
-    import socket
-    import struct
-    import time
-    import picamera
-
-    client_socket = socket.socket()
-    client_socket.connect(('my_server', 8000))
-    connection = client_socket.makefile('wb')
-    try:
-        with picamera.PiCamera() as camera:
-            camera.resolution = (640, 480)
-            camera.framerate = 30
-            time.sleep(2)
-            start = time.time()
-            count = 0
-            stream = io.BytesIO()
-            # Use the video-port for captures...
-            for foo in camera.capture_continuous(stream, 'jpeg',
-                                                 use_video_port=True):
-                connection.write(struct.pack('<L', stream.tell()))
-                connection.flush()
-                stream.seek(0)
-                connection.write(stream.read())
-                count += 1
-                if time.time() - start > 30:
-                    break
-                stream.seek(0)
-                stream.truncate()
-        connection.write(struct.pack('<L', 0))
-    finally:
-        connection.close()
-        client_socket.close()
-        finish = time.time()
-    print('Sent %d images in %d seconds at %.2ffps' % (
-        count, finish-start, count / (finish-start)))
-
-Using this technique, the author can manage about 19fps of streaming at 640x480
-on firmware #685. However, utilizing the MJPEG splitting demonstrated in
-:ref:`rapid_capture` we can manage much faster::
-
-    import io
-    import socket
-    import struct
-    import time
-    import picamera
-
-    class SplitFrames(object):
-        def __init__(self, connection):
-            self.connection = connection
-            self.stream = io.BytesIO()
-            self.count = 0
-
-        def write(self, buf):
-            if buf.startswith(b'\xff\xd8'):
-                # Start of new frame; send the old one's length
-                # then the data
-                size = self.stream.tell()
-                if size > 0:
-                    self.connection.write(struct.pack('<L', size))
-                    self.connection.flush()
-                    self.stream.seek(0)
-                    self.connection.write(self.stream.read(size))
-                    self.count += 1
-                    self.stream.seek(0)
-            self.stream.write(buf)
-
-    client_socket = socket.socket()
-    client_socket.connect(('my_server', 8000))
-    connection = client_socket.makefile('wb')
-    try:
-        output = SplitFrames(connection)
-        with picamera.PiCamera(resolution='VGA', framerate=30) as camera:
-            time.sleep(2)
-            start = time.time()
-            camera.start_recording(output, format='mjpeg')
-            camera.wait_recording(30)
-            camera.stop_recording()
-            # Write the terminating 0-length to the connection to let the
-            # server know we're done
-            connection.write(struct.pack('<L', 0))
-    finally:
-        connection.close()
-        client_socket.close()
-        finish = time.time()
-    print('Sent %d images in %d seconds at %.2ffps' % (
-        output.count, finish-start, output.count / (finish-start)))
-
-The above script achieves 30fps with ease.
-
-
-.. _web_streaming:
-
-Web streaming
-=============
-
-Streaming video over the web is surprisingly complicated. At the time of
-writing, there are still no video standards that are universally supported by
-all web browsers on all platforms. Furthermore, HTTP was originally designed as
-a one-shot protocol for serving web-pages. Since its invention, various
-additions have bolted on to cater for its ever increasing use cases (file
-downloads, resumption, streaming, etc.) but the fact remains there's no
-"simple" solution for video streaming at the moment.
-
-If you want to have a play with streaming a "real" video format (specifically,
-MPEG1) you may want to have a look at the `pistreaming`_ demo. However, for the
-purposes of this recipe we'll be using a much simpler format: MJPEG. The
-following script uses Python's built-in :mod:`http.server` module to make a
-simple video streaming server::
-
-    import io
-    import picamera
-    import socketserver
-    from threading import Lock
-    from http import server
-
-    PAGE="""\
-    <html>
-    <head>
-    <title>picamera MJPEG streaming demo</title>
-    </head>
-    <body>
-    <h1>PiCamera MJPEG Streaming Demo</h1>
-    <img src="stream.mjpg" width="640" height="480" />
-    </body>
-    </html>
-    """
-
-    class StreamingOutput(object):
-        def __init__(self):
-            self.lock = Lock()
-            self.frame = io.BytesIO()
-            self.clients = []
-
-        def write(self, buf):
-            died = []
-            if buf.startswith(b'\xff\xd8'):
-                # New frame, send old frame to all connected clients
-                size = self.frame.tell()
-                if size > 0:
-                    self.frame.seek(0)
-                    data = self.frame.read(size)
-                    self.frame.seek(0)
-                    with self.lock:
-                        for client in self.clients:
-                            try:
-                                client.wfile.write(b'--FRAME\r\n')
-                                client.send_header('Content-Type', 'image/jpeg')
-                                client.send_header('Content-Length', size)
-                                client.end_headers()
-                                client.wfile.write(data)
-                                client.wfile.write(b'\r\n')
-                            except Exception as e:
-                                died.append(client)
-            self.frame.write(buf)
-            if died:
-                self.remove_clients(died)
-
-        def flush(self):
-            with self.lock:
-                for client in self.clients:
-                    client.wfile.close()
-
-        def add_client(self, client):
-            print('Adding streaming client %s:%d' % client.client_address)
-            with self.lock:
-                self.clients.append(client)
-
-        def remove_clients(self, clients):
-            with self.lock:
-                for client in clients:
-                    try:
-                        print('Removing streaming client %s:%d' % client.client_address)
-                        self.clients.remove(client)
-                    except ValueError:
-                        pass # already removed
-
-    class StreamingHandler(server.BaseHTTPRequestHandler):
-        def do_GET(self):
-            if self.path == '/':
-                self.send_response(301)
-                self.send_header('Location', '/index.html')
-                self.end_headers()
-            elif self.path == '/index.html':
-                content = PAGE.encode('utf-8')
-                self.send_response(200)
-                self.send_header('Content-Type', 'text/html')
-                self.send_header('Content-Length', len(content))
-                self.end_headers()
-                self.wfile.write(content)
-            elif self.path == '/stream.mjpg':
-                self.close_connection = False
-                self.send_response(200)
-                self.send_header('Age', 0)
-                self.send_header('Cache-Control', 'no-cache, private')
-                self.send_header('Pragma', 'no-cache')
-                self.send_header('Content-Type', 'multipart/x-mixed-replace; boundary=--FRAME')
-                self.end_headers()
-                output.add_client(self)
-            else:
-                self.send_error(404)
-                self.end_headers()
-
-    class StreamingServer(socketserver.ThreadingMixIn, server.HTTPServer):
-        pass
-
-    with picamera.PiCamera(resolution='640x480', framerate=24) as camera:
-        output = StreamingOutput()
-        camera.start_recording(output, format='mjpeg')
-        try:
-            address = ('', 8000)
-            server = StreamingServer(address, StreamingHandler)
-            server.serve_forever()
-        finally:
-            camera.stop_recording()
-
-Once the script is running, visit ``http://your-pi-address:8000/`` with your
-web-browser to view the video stream.
-
-.. note::
-
-    This recipe assumes Python 3.x (the ``http.server`` module was named
-    ``SimpleHTTPServer`` in Python 2.x)
-
-
-.. _record_and_capture:
-
-Capturing images whilst recording
-=================================
-
-The camera is capable of capturing still images while it is recording video.
-However, if one attempts this using the stills capture mode, the resulting
-video will have dropped frames during the still image capture. This is because
-images captured via the still port require a mode change, causing the dropped
-frames (this is the flicker to a higher resolution that one sees when capturing
-while a preview is running).
-
-However, if the *use_video_port* parameter is used to force a video-port based
-image capture (see :ref:`rapid_capture`) then the mode change does not occur,
-and the resulting video should not have dropped frames, assuming the image can
-be produced before the next video frame is due::
-
-    import picamera
-
-    with picamera.PiCamera() as camera:
-        camera.resolution = (800, 600)
-        camera.start_preview()
-        camera.start_recording('foo.h264')
-        camera.wait_recording(10)
-        camera.capture('foo.jpg', use_video_port=True)
-        camera.wait_recording(10)
-        camera.stop_recording()
-
-The above code should produce a 20 second video with no dropped frames, and a
-still frame from 10 seconds into the video. Higher resolutions or non-JPEG
-image formats may still cause dropped frames (only JPEG encoding is hardware
-accelerated).
-
-
-.. _multi_res_record:
-
-Recording at multiple resolutions
-=================================
-
-The camera is capable of recording multiple streams at different resolutions
-simultaneously by use of the video splitter. This is probably most useful for
-performing analysis on a low-resolution stream, while simultaneously recording
-a high resolution stream for storage or viewing.
-
-The following simple recipe demonstrates using the *splitter_port* parameter of
-the :meth:`~PiCamera.start_recording` method to begin two simultaneous
-recordings, each with a different resolution::
-
-    import picamera
-
-    with picamera.PiCamera() as camera:
-        camera.resolution = (1024, 768)
-        camera.framerate = 30
-        camera.start_recording('highres.h264')
-        camera.start_recording('lowres.h264', splitter_port=2, resize=(320, 240))
-        camera.wait_recording(30)
-        camera.stop_recording(splitter_port=2)
-        camera.stop_recording()
-
-There are 4 splitter ports in total that can be used (numbered 0, 1, 2, and 3).
-The video recording methods default to using splitter port 1, while the image
-capture methods default to splitter port 0 (when the *use_video_port* parameter
-is also True). A splitter port cannot be simultaneously used for video
-recording and image capture so you are advised to avoid splitter port 0 for
-video recordings unless you never intend to capture images whilst recording.
-
-.. versionadded:: 1.3
-
-
-.. _motion_data_output:
-
-Recording motion vector data
-============================
-
-The Pi's camera is capable of outputting the motion vector estimates that the
-camera's H.264 encoder calculates while generating compressed video. These can
-be directed to a separate output file (or file-like object) with the
-*motion_output* parameter of the :meth:`~PiCamera.start_recording` method. Like
-the normal *output* parameter this accepts a string representing a filename, or
-a file-like object::
-
-    import picamera
-
-    with picamera.PiCamera() as camera:
-        camera.resolution = (640, 480)
-        camera.framerate = 30
-        camera.start_recording('motion.h264', motion_output='motion.data')
-        camera.wait_recording(10)
-        camera.stop_recording()
-
-Motion data is calculated at the `macro-block`_ level (an MPEG macro-block
-represents a 16x16 pixel region of the frame), and includes one extra column of
-data. Hence, if the camera's resolution is 640x480 (as in the example above)
-there will be 41 columns of motion data ((640 / 16) + 1), in 30 rows (480 /
-16).
-
-Motion data values are 4-bytes long, consisting of a signed 1-byte x vector, a
-signed 1-byte y vector, and an unsigned 2-byte SAD (`Sum of Absolute
-Differences`_) value for each macro-block.  Hence in the example above, each
-frame will generate 4920 bytes of motion data (41 * 30 * 4). Assuming the data
-contains 300 frames (in practice it may contain a few more) the motion data
-should be 1,476,000 bytes in total.
-
-The following code demonstrates loading the motion data into a
-three-dimensional numpy array. The first dimension represents the frame, with
-the latter two representing rows and finally columns. A structured data-type
-is used for the array permitting easy access to x, y, and SAD values::
-
-    from __future__ import division
-
-    import numpy as np
-
-    width = 640
-    height = 480
-    cols = (width + 15) // 16
-    cols += 1 # there's always an extra column
-    rows = (height + 15) // 16
-
-    motion_data = np.fromfile(
-        'motion.data', dtype=[
-            ('x', 'i1'),
-            ('y', 'i1'),
-            ('sad', 'u2'),
-            ])
-    frames = motion_data.shape[0] // (cols * rows)
-    motion_data = motion_data.reshape((frames, rows, cols))
-
-    # Access the data for the first frame
-    motion_data[0]
-
-    # Access just the x-vectors from the fifth frame
-    motion_data[4]['x']
-
-    # Access SAD values for the tenth frame
-    motion_data[9]['sad']
-
-You can calculate the amount of motion the vector represents simply by
-calculating the `magnitude of the vector`_ with Pythagoras' theorem. The SAD
-(`Sum of Absolute Differences`_) value can be used to determine how well the
-encoder thinks the vector represents the original reference frame.
-
-The following code extends the example above to use PIL to produce a PNG image
-from the magnitude of each frame's motion vectors::
-
-    from __future__ import division
-
-    import numpy as np
-    from PIL import Image
-
-    width = 640
-    height = 480
-    cols = (width + 15) // 16
-    cols += 1
-    rows = (height + 15) // 16
-
-    m = np.fromfile(
-        'motion.data', dtype=[
-            ('x', 'i1'),
-            ('y', 'i1'),
-            ('sad', 'u2'),
-            ])
-    frames = m.shape[0] // (cols * rows)
-    m = m.reshape((frames, rows, cols))
-
-    for frame in range(frames):
-        data = np.sqrt(
-            np.square(m[frame]['x'].astype(np.float)) +
-            np.square(m[frame]['y'].astype(np.float))
-            ).clip(0, 255).astype(np.uint8)
-        img = Image.fromarray(data)
-        filename = 'frame%03d.png' % frame
-        print('Writing %s' % filename)
-        img.save(filename)
-
-You may wish to investigate the :class:`~array.PiMotionArray` class in the
-:mod:`picamera.array` module which simplifies the above recipes to the
-following::
-
-    import numpy as np
-    import picamera
-    import picamera.array
-    from PIL import Image
-
-    with picamera.PiCamera() as camera:
-        with picamera.array.PiMotionArray(camera) as stream:
-            camera.resolution = (640, 480)
-            camera.framerate = 30
-            camera.start_recording('/dev/null', format='h264', motion_output=stream)
-            camera.wait_recording(10)
-            camera.stop_recording()
-            for frame in range(stream.array.shape[0]):
-                data = np.sqrt(
-                    np.square(stream.array[frame]['x'].astype(np.float)) +
-                    np.square(stream.array[frame]['y'].astype(np.float))
-                    ).clip(0, 255).astype(np.uint8)
-                img = Image.fromarray(data)
-                filename = 'frame%03d.png' % frame
-                print('Writing %s' % filename)
-                img.save(filename)
-
-Finally, the following command line can be used to generate an animation from
-the generated PNGs with ffmpeg (this will take a *very* long time on the Pi so
-you may wish to transfer the images to a faster machine for this step)::
-
-    avconv -r 30 -i frame%03d.png -filter:v scale=640:480 -c:v libx264 motion.mp4
-
-.. versionadded:: 1.5
-
-
-.. _circular_record2:
-
-Splitting to/from a circular stream
-===================================
-
-This example builds on the one in :ref:`circular_record1` and the one in
-:ref:`record_and_capture` to demonstrate the beginnings of a security
-application. As before, a :class:`PiCameraCircularIO` instance is used to keep
-the last few seconds of video recorded in memory.  While the video is being
-recorded, video-port-based still captures are taken to provide a motion
-detection routine with some input (the actual motion detection algorithm is
-left as an exercise for the reader).
-
-Once motion is detected, the last 10 seconds of video are written to disk, and
-video recording is split to another disk file to proceed until motion is no
-longer detected. Once motion is no longer detected, we split the recording back
-to the in-memory ring-buffer::
-
-    import io
-    import random
-    import picamera
-    from PIL import Image
-
-    prior_image = None
-
-    def detect_motion(camera):
-        global prior_image
-        stream = io.BytesIO()
-        camera.capture(stream, format='jpeg', use_video_port=True)
-        stream.seek(0)
-        if prior_image is None:
-            prior_image = Image.open(stream)
-            return False
-        else:
-            current_image = Image.open(stream)
-            # Compare current_image to prior_image to detect motion. This is
-            # left as an exercise for the reader!
-            result = random.randint(0, 10) == 0
-            # Once motion detection is done, make the prior image the current
-            prior_image = current_image
-            return result
-
-    with picamera.PiCamera() as camera:
-        camera.resolution = (1280, 720)
-        stream = picamera.PiCameraCircularIO(camera, seconds=10)
-        camera.start_recording(stream, format='h264')
-        try:
-            while True:
-                camera.wait_recording(1)
-                if detect_motion(camera):
-                    print('Motion detected!')
-                    # As soon as we detect motion, split the recording to
-                    # record the frames "after" motion
-                    camera.split_recording('after.h264')
-                    # Write the 10 seconds "before" motion to disk as well
-                    stream.copy_to('before.h264', seconds=10)
-                    stream.clear()
-                    # Wait until motion is no longer detected, then split
-                    # recording back to the in-memory circular buffer
-                    while detect_motion(camera):
-                        camera.wait_recording(1)
-                    print('Motion stopped!')
-                    camera.split_recording(stream)
-        finally:
-            camera.stop_recording()
-
-This example also demonstrates using the *seconds* parameter of the
-:meth:`~PiCameraCircularIO.copy_to` method to limit the before file to 10
-seconds of data (given that the circular buffer may contain considerably more
-than this).
-
-.. versionadded:: 1.0
-
-.. versionchanged:: 1.11
-    Added use of :meth:`~PiCameraCircularIO.copy_to`
 
 
 .. _custom_outputs:
@@ -1143,28 +272,9 @@ due to arrive if you wish to avoid dropping frames).
 
 The following trivial example demonstrates an incredibly simple custom output
 which simply throws away the output while counting the number of bytes that
-would have been written and prints this at the end of the output::
+would have been written and prints this at the end of the output:
 
-    from __future__ import print_function
-
-    import picamera
-
-    class MyOutput(object):
-        def __init__(self):
-            self.size = 0
-
-        def write(self, s):
-            self.size += len(s)
-
-        def flush(self):
-            print('%d bytes would have been written' % self.size)
-
-    with picamera.PiCamera() as camera:
-        camera.resolution = (640, 480)
-        camera.framerate = 60
-        camera.start_recording(MyOutput(), format='h264')
-        camera.wait_recording(10)
-        camera.stop_recording()
+.. literalinclude:: examples/custom_outputs_count.py
 
 The following example shows how to use a custom output to construct a crude
 motion detection system. We construct a custom output object which is used as
@@ -1175,84 +285,16 @@ the motion data anywhere; instead it loads it into a numpy array and analyses
 whether there are any significantly large vectors in the data, printing a
 message to the console if there are. As we are not concerned with keeping the
 actual video output in this example, we use :file:`/dev/null` as the
-destination for the video data::
+destination for the video data:
 
-    from __future__ import division
-
-    import picamera
-    import numpy as np
-
-    motion_dtype = np.dtype([
-        ('x', 'i1'),
-        ('y', 'i1'),
-        ('sad', 'u2'),
-        ])
-
-    class MyMotionDetector(object):
-        def __init__(self, camera):
-            width, height = camera.resolution
-            self.cols = (width + 15) // 16
-            self.cols += 1 # there's always an extra column
-            self.rows = (height + 15) // 16
-
-        def write(self, s):
-            # Load the motion data from the string to a numpy array
-            data = np.fromstring(s, dtype=motion_dtype)
-            # Re-shape it and calculate the magnitude of each vector
-            data = data.reshape((self.rows, self.cols))
-            data = np.sqrt(
-                np.square(data['x'].astype(np.float)) +
-                np.square(data['y'].astype(np.float))
-                ).clip(0, 255).astype(np.uint8)
-            # If there're more than 10 vectors with a magnitude greater
-            # than 60, then say we've detected motion
-            if (data > 60).sum() > 10:
-                print('Motion detected!')
-            # Pretend we wrote all the bytes of s
-            return len(s)
-
-    with picamera.PiCamera() as camera:
-        camera.resolution = (640, 480)
-        camera.framerate = 30
-        camera.start_recording(
-            # Throw away the video data, but make sure we're using H.264
-            '/dev/null', format='h264',
-            # Record motion data to our custom output object
-            motion_output=MyMotionDetector(camera)
-            )
-        camera.wait_recording(30)
-        camera.stop_recording()
+.. literalinclude:: examples/custom_outputs_motion_detector.py
 
 You may wish to investigate the classes in the :mod:`picamera.array` module
 which implement several custom outputs for analysis of data with numpy. In
 particular, the :class:`~array.PiMotionAnalysis` class can be used to remove
-much of the boiler plate code from the recipe above::
+much of the boiler plate code from the recipe above:
 
-    import picamera
-    import picamera.array
-    import numpy as np
-
-    class MyMotionDetector(picamera.array.PiMotionAnalysis):
-        def analyse(self, a):
-            a = np.sqrt(
-                np.square(a['x'].astype(np.float)) +
-                np.square(a['y'].astype(np.float))
-                ).clip(0, 255).astype(np.uint8)
-            # If there're more than 10 vectors with a magnitude greater
-            # than 60, then say we've detected motion
-            if (a > 60).sum() > 10:
-                print('Motion detected!')
-
-    with picamera.PiCamera() as camera:
-        camera.resolution = (640, 480)
-        camera.framerate = 30
-        camera.start_recording(
-            '/dev/null', format='h264',
-            motion_output=MyMotionDetector(camera)
-            )
-        camera.wait_recording(30)
-        camera.stop_recording()
-
+.. literalinclude:: examples/custom_outputs_motion_analysis.py
 
 .. versionadded:: 1.5
 
@@ -1299,22 +341,291 @@ with no buffering. As noted above, you will then be responsible for closing the
 output when you are finished with it (you opened it, so the responsibility for
 closing it is yours as well).
 
-For example::
+For example:
 
-    import io
-    import os
-    import picamera
+.. literalinclude:: examples/weird_outputs.py
 
-    with picamera.PiCamera(resolution='VGA') as camera:
-        os.mkfifo('video_fifo')
-        f = io.open('video_fifo', 'wb', buffering=0)
-        try:
-            camera.start_recording(f, format='h264')
-            camera.wait_recording(10)
-            camera.stop_recording()
-        finally:
-            f.close()
-            os.unlink('video_fifo')
+
+.. _rapid_capture:
+
+Rapid capture and processing
+============================
+
+The camera is capable of capturing a sequence of images extremely rapidly by
+utilizing its video-capture capabilities with a JPEG encoder (via the
+*use_video_port* parameter). However, there are several things to note about
+using this technique:
+
+* When using video-port based capture only the video recording area is
+  captured; in some cases this may be smaller than the normal image capture
+  area (see discussion in :ref:`camera_modes`).
+
+* No Exif information is embedded in JPEG images captured through the
+  video-port.
+
+* Captures typically appear "grainier" with this technique. Captures from the
+  still port use a slower, more intensive denoise algorithm.
+
+All capture methods support the *use_video_port* option, but the methods differ
+in their ability to rapidly capture sequential frames. So, whilst
+:meth:`~PiCamera.capture` and :meth:`~PiCamera.capture_continuous` both support
+*use_video_port*, :meth:`~PiCamera.capture_sequence` is by far the fastest
+method (because it does not re-initialize an encoder prior to each capture).
+Using this method, the author has managed 30fps JPEG captures at a resolution
+of 1024x768.
+
+By default, :meth:`~PiCamera.capture_sequence` is particularly suited to
+capturing a fixed number of frames rapidly, as in the following example which
+captures a "burst" of 5 images:
+
+.. literalinclude:: examples/rapid_capture_sequence.py
+
+We can refine this slightly by using a generator expression to provide the
+filenames for processing instead of specifying every single filename manually:
+
+.. literalinclude:: examples/rapid_capture_generator.py
+
+However, this still doesn't let us capture an arbitrary number of frames until
+some condition is satisfied. To do this we need to use a generator function to
+provide the list of filenames (or more usefully, streams) to the
+:meth:`~PiCamera.capture_sequence` method:
+
+.. literalinclude:: examples/rapid_capture_yield.py
+
+The major issue with capturing this rapidly is firstly that the Raspberry Pi's
+IO bandwidth is extremely limited and secondly that, as a format, JPEG is
+considerably less efficient than the H.264 video format (which is to say that,
+for the same number of bytes, H.264 will provide considerably better quality
+over the same number of frames). At higher resolutions (beyond 800x600) you are
+likely to find you cannot sustain 30fps captures to the Pi's SD card for very
+long (before exhausting the disk cache).
+
+If you are intending to perform processing on the frames after capture, you may
+be better off just capturing video and decoding frames from the resulting file
+rather than dealing with individual JPEG captures. Thankfully this is
+relatively easy as the JPEG format has a well designed `magic number`_ (FF D8)
+which cannot appear anywhere else in the JPEG data. This means we can use a
+:ref:`custom output <custom_outputs>` to separate the frames out of an MJPEG
+video recording by inspecting the first two bytes of each buffer:
+
+.. literalinclude:: examples/rapid_capture_mjpeg.py
+
+So far, we've just saved the captured frames to disk. This is fine if you're
+intending to process later with another script, but what if we want to perform
+all processing within the current script? In this case, we may not need to
+involve the disk (or network) at all. We can set up a pool of parallel threads
+to accept and process image streams as captures come in:
+
+.. literalinclude:: examples/rapid_capture_threading.py
+
+
+.. _rgb_recording:
+
+Unencoded video capture
+=======================
+
+Just as unencoded RGB data can be captured as images, the Pi's camera module
+can also an unencoded stream of RGB (or YUV) video data. Combining this with
+the methods presented in :ref:`custom_outputs` (via the classes from
+:mod:`picamera.array`), we can produce a fairly rapid color detection script:
+
+.. literalinclude:: examples/rgb_recording.py
+
+
+.. _rapid_streaming:
+
+Rapid capture and streaming
+===========================
+
+Following on from :ref:`rapid_capture`, we can combine the video capture
+technique with :ref:`streaming_capture`. The server side script doesn't change
+(it doesn't really care what capture technique is being used - it just reads
+JPEGs off the wire). The changes to the client side script can be minimal at
+first - just set *use_video_port* to ``True`` in the
+:meth:`~PiCamera.capture_continuous` call:
+
+.. literalinclude:: examples/rapid_streaming.py
+
+Using this technique, the author can manage about 19fps of streaming at 640x480
+on firmware #685. However, utilizing the MJPEG splitting demonstrated in
+:ref:`rapid_capture` we can manage much faster:
+
+.. literalinclude:: examples/rapid_streaming_mjpeg.py
+
+The above script achieves 30fps with ease.
+
+
+.. _web_streaming:
+
+Web streaming
+=============
+
+Streaming video over the web is surprisingly complicated. At the time of
+writing, there are still no video standards that are universally supported by
+all web browsers on all platforms. Furthermore, HTTP was originally designed as
+a one-shot protocol for serving web-pages. Since its invention, various
+additions have bolted on to cater for its ever increasing use cases (file
+downloads, resumption, streaming, etc.) but the fact remains there's no
+"simple" solution for video streaming at the moment.
+
+If you want to have a play with streaming a "real" video format (specifically,
+MPEG1) you may want to have a look at the `pistreaming`_ demo. However, for the
+purposes of this recipe we'll be using a much simpler format: MJPEG. The
+following script uses Python's built-in :mod:`http.server` module to make a
+simple video streaming server:
+
+.. literalinclude:: examples/web_streaming.py
+
+Once the script is running, visit ``http://your-pi-address:8000/`` with your
+web-browser to view the video stream.
+
+.. note::
+
+    This recipe assumes Python 3.x (the ``http.server`` module was named
+    ``SimpleHTTPServer`` in Python 2.x)
+
+
+.. _record_and_capture:
+
+Capturing images whilst recording
+=================================
+
+The camera is capable of capturing still images while it is recording video.
+However, if one attempts this using the stills capture mode, the resulting
+video will have dropped frames during the still image capture. This is because
+images captured via the still port require a mode change, causing the dropped
+frames (this is the flicker to a higher resolution that one sees when capturing
+while a preview is running).
+
+However, if the *use_video_port* parameter is used to force a video-port based
+image capture (see :ref:`rapid_capture`) then the mode change does not occur,
+and the resulting video should not have dropped frames, assuming the image can
+be produced before the next video frame is due:
+
+.. literalinclude:: examples/record_and_capture.py
+
+The above code should produce a 20 second video with no dropped frames, and a
+still frame from 10 seconds into the video. Higher resolutions or non-JPEG
+image formats may still cause dropped frames (only JPEG encoding is hardware
+accelerated).
+
+
+.. _multi_res_record:
+
+Recording at multiple resolutions
+=================================
+
+The camera is capable of recording multiple streams at different resolutions
+simultaneously by use of the video splitter. This is probably most useful for
+performing analysis on a low-resolution stream, while simultaneously recording
+a high resolution stream for storage or viewing.
+
+The following simple recipe demonstrates using the *splitter_port* parameter of
+the :meth:`~PiCamera.start_recording` method to begin two simultaneous
+recordings, each with a different resolution:
+
+.. literalinclude:: examples/multi_res_record.py
+
+There are 4 splitter ports in total that can be used (numbered 0, 1, 2, and 3).
+The video recording methods default to using splitter port 1, while the image
+capture methods default to splitter port 0 (when the *use_video_port* parameter
+is also True). A splitter port cannot be simultaneously used for video
+recording and image capture so you are advised to avoid splitter port 0 for
+video recordings unless you never intend to capture images whilst recording.
+
+.. versionadded:: 1.3
+
+
+.. _motion_data_output:
+
+Recording motion vector data
+============================
+
+The Pi's camera is capable of outputting the motion vector estimates that the
+camera's H.264 encoder calculates while generating compressed video. These can
+be directed to a separate output file (or file-like object) with the
+*motion_output* parameter of the :meth:`~PiCamera.start_recording` method. Like
+the normal *output* parameter this accepts a string representing a filename, or
+a file-like object:
+
+.. literalinclude:: examples/motion_data1.py
+
+Motion data is calculated at the `macro-block`_ level (an MPEG macro-block
+represents a 16x16 pixel region of the frame), and includes one extra column of
+data. Hence, if the camera's resolution is 640x480 (as in the example above)
+there will be 41 columns of motion data ((640 / 16) + 1), in 30 rows (480 /
+16).
+
+Motion data values are 4-bytes long, consisting of a signed 1-byte x vector, a
+signed 1-byte y vector, and an unsigned 2-byte SAD (`Sum of Absolute
+Differences`_) value for each macro-block.  Hence in the example above, each
+frame will generate 4920 bytes of motion data (41 * 30 * 4). Assuming the data
+contains 300 frames (in practice it may contain a few more) the motion data
+should be 1,476,000 bytes in total.
+
+The following code demonstrates loading the motion data into a
+three-dimensional numpy array. The first dimension represents the frame, with
+the latter two representing rows and finally columns. A structured data-type
+is used for the array permitting easy access to x, y, and SAD values:
+
+.. literalinclude:: examples/motion_data2.py
+
+You can calculate the amount of motion the vector represents simply by
+calculating the `magnitude of the vector`_ with Pythagoras' theorem. The SAD
+(`Sum of Absolute Differences`_) value can be used to determine how well the
+encoder thinks the vector represents the original reference frame.
+
+The following code extends the example above to use PIL to produce a PNG image
+from the magnitude of each frame's motion vectors:
+
+.. literalinclude:: examples/motion_data3.py
+
+You may wish to investigate the :class:`~array.PiMotionArray` class in the
+:mod:`picamera.array` module which simplifies the above recipes to the
+following:
+
+.. literalinclude:: examples/motion_data4.py
+
+Finally, the following command line can be used to generate an animation from
+the generated PNGs with ffmpeg (this will take a *very* long time on the Pi so
+you may wish to transfer the images to a faster machine for this step):
+
+.. code-block:: bash
+
+    avconv -r 30 -i frame%03d.png -filter:v scale=640:480 -c:v libx264 motion.mp4
+
+.. versionadded:: 1.5
+
+
+.. _circular_record2:
+
+Splitting to/from a circular stream
+===================================
+
+This example builds on the one in :ref:`circular_record1` and the one in
+:ref:`record_and_capture` to demonstrate the beginnings of a security
+application. As before, a :class:`PiCameraCircularIO` instance is used to keep
+the last few seconds of video recorded in memory.  While the video is being
+recorded, video-port-based still captures are taken to provide a motion
+detection routine with some input (the actual motion detection algorithm is
+left as an exercise for the reader).
+
+Once motion is detected, the last 10 seconds of video are written to disk, and
+video recording is split to another disk file to proceed until motion is no
+longer detected. Once motion is no longer detected, we split the recording back
+to the in-memory ring-buffer:
+
+.. literalinclude:: examples/circular_record2.py
+
+This example also demonstrates using the *seconds* parameter of the
+:meth:`~PiCameraCircularIO.copy_to` method to limit the before file to 10
+seconds of data (given that the circular buffer may contain considerably more
+than this).
+
+.. versionadded:: 1.0
+
+.. versionchanged:: 1.11
+    Added use of :meth:`~PiCameraCircularIO.copy_to`
 
 
 .. _custom_encoders:
@@ -1343,7 +654,7 @@ The encoder classes defined by picamera form the following hierarchy (shaded
 classes are actually instantiated by the implementation in picamera, white
 classes implement base functionality but aren't technically "abstract"):
 
-.. image:: encoder_classes.*
+.. image:: images/encoder_classes.*
     :align: center
 
 The following table details which :class:`PiCamera` methods use which encoder
@@ -1371,53 +682,9 @@ modifications.
 
 In the following example recipe we will extend the
 :class:`PiCookedVideoEncoder` class to store how many I-frames and P-frames are
-captured (the camera's encoder doesn't use B-frames)::
+captured (the camera's encoder doesn't use B-frames):
 
-    import picamera
-    import picamera.mmal as mmal
-
-
-    # Override PiVideoEncoder to keep track of the number of each type of frame
-    class MyEncoder(picamera.PiCookedVideoEncoder):
-        def start(self, output, motion_output=None):
-            self.parent.i_frames = 0
-            self.parent.p_frames = 0
-            super(MyEncoder, self).start(output, motion_output)
-
-        def _callback_write(self, buf):
-            # Only count when buffer indicates it's the end of a frame, and
-            # it's not an SPS/PPS header (..._CONFIG)
-            if (
-                    (buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_FRAME_END) and
-                    not (buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_CONFIG)
-                ):
-                if buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_KEYFRAME:
-                    self.parent.i_frames += 1
-                else:
-                    self.parent.p_frames += 1
-            # Remember to return the result of the parent method!
-            return super(MyEncoder, self)._callback_write(buf)
-
-
-    # Override PiCamera to use our custom encoder for video recording
-    class MyCamera(picamera.PiCamera):
-        def __init__(self):
-            super(MyCamera, self).__init__()
-            self.i_frames = 0
-            self.p_frames = 0
-
-        def _get_video_encoder(
-                self, camera_port, output_port, format, resize, **options):
-            return MyEncoder(
-                    self, camera_port, output_port, format, resize, **options)
-
-
-    with MyCamera() as camera:
-        camera.start_recording('foo.h264')
-        camera.wait_recording(10)
-        camera.stop_recording()
-        print('Recording contains %d I-frames and %d P-frames' % (
-                camera.i_frames, camera.p_frames))
+.. literalinclude:: examples/custom_encoders.py
 
 Please note that the above recipe is flawed: PiCamera is capable of
 initiating :ref:`multiple simultaneous recordings <multi_res_record>`. If this
@@ -1460,7 +727,7 @@ etc. This also means:
   values are organized as 4 8-bit values, followed by the low-order 2-bits of
   the 4 values packed into a fifth byte.
 
-.. image:: bayer_bytes.*
+.. image:: images/bayer_bytes.*
     :align: center
 
 * Bayer data is organized in a BGGR pattern (a minor variation of the common
@@ -1468,7 +735,7 @@ etc. This also means:
   or blue and if viewed "raw" will look distinctly strange (too dark, too
   green, and with zippering effects along any straight edges).
 
-.. image:: bayer_pattern.*
+.. image:: images/bayer_pattern.*
     :align: center
 
 * To make a "normal" looking image from raw Bayer data you will need to
@@ -1481,206 +748,14 @@ including the raw Bayer data. It then proceeds to unpack the Bayer data into a
 a rudimentary de-mosaic step with weighted averages. A couple of numpy tricks
 are used to improve performance but bear in mind that all processing is
 happening on the CPU and will be considerably slower than normal image
-captures::
+captures:
 
-    from __future__ import (
-        unicode_literals,
-        absolute_import,
-        print_function,
-        division,
-        )
-
-
-    import io
-    import time
-    import picamera
-    import numpy as np
-    from numpy.lib.stride_tricks import as_strided
-
-    stream = io.BytesIO()
-    with picamera.PiCamera() as camera:
-        # Let the camera warm up for a couple of seconds
-        time.sleep(2)
-        # Capture the image, including the Bayer data
-        camera.capture(stream, format='jpeg', bayer=True)
-        ver = {
-            'RP_ov5647': 1,
-            'RP_imx219': 2,
-            }[camera.exif_tags['IFD0.Model']]
-
-    # Extract the raw Bayer data from the end of the stream, check the
-    # header and strip if off before converting the data into a numpy array
-
-    offset = {
-        1: 6404096,
-        2: 10270208,
-        }[ver]
-    data = stream.getvalue()[-offset:]
-    assert data[:4] == 'BRCM'
-    data = data[32768:]
-    data = np.fromstring(data, dtype=np.uint8)
-
-    # For the V1 module, the data consists of 1952 rows of 3264 bytes of data.
-    # The last 8 rows of data are unused (they only exist because the maximum
-    # resolution of 1944 rows is rounded up to the nearest 16).
-    #
-    # For the V2 module, the data consists of 2480 rows of 4128 bytes of data.
-    # There's actually 2464 rows of data, but the sensor's raw size is 2466
-    # rows, rounded up to the nearest multiple of 16: 2480.
-    #
-    # Likewise, the last few bytes of each row are unused (why?). Here we
-    # reshape the data and strip off the unused bytes.
-
-    reshape, crop = {
-        1: ((1952, 3264), (1944, 3240)),
-        2: ((2480, 4128), (2464, 4100)),
-        }[ver]
-    data = data.reshape(reshape)[:crop[0], :crop[1]]
-
-    # Horizontally, each row consists of 10-bit values. Every four bytes are
-    # the high 8-bits of four values, and the 5th byte contains the packed low
-    # 2-bits of the preceding four values. In other words, the bits of the
-    # values A, B, C, D and arranged like so:
-    #
-    #  byte 1   byte 2   byte 3   byte 4   byte 5
-    # AAAAAAAA BBBBBBBB CCCCCCCC DDDDDDDD AABBCCDD
-    #
-    # Here, we convert our data into a 16-bit array, shift all values left by
-    # 2-bits and unpack the low-order bits from every 5th byte in each row,
-    # then remove the columns containing the packed bits
-
-    data = data.astype(np.uint16) << 2
-    for byte in range(4):
-        data[:, byte::5] |= ((data[:, 4::5] >> ((4 - byte) * 2)) & 0b11)
-    data = np.delete(data, np.s_[4::5], 1)
-
-    # Now to split the data up into its red, green, and blue components. The
-    # Bayer pattern of the OV5647 sensor is BGGR. In other words the first
-    # row contains alternating green/blue elements, the second row contains
-    # alternating red/green elements, and so on as illustrated below:
-    #
-    # GBGBGBGBGBGBGB
-    # RGRGRGRGRGRGRG
-    # GBGBGBGBGBGBGB
-    # RGRGRGRGRGRGRG
-    #
-    # Please note that if you use vflip or hflip to change the orientation
-    # of the capture, you must flip the Bayer pattern accordingly
-
-    rgb = np.zeros(data.shape + (3,), dtype=data.dtype)
-    rgb[1::2, 0::2, 0] = data[1::2, 0::2] # Red
-    rgb[0::2, 0::2, 1] = data[0::2, 0::2] # Green
-    rgb[1::2, 1::2, 1] = data[1::2, 1::2] # Green
-    rgb[0::2, 1::2, 2] = data[0::2, 1::2] # Blue
-
-    # At this point we now have the raw Bayer data with the correct values
-    # and colors but the data still requires de-mosaicing and
-    # post-processing. If you wish to do this yourself, end the script here!
-    #
-    # Below we present a fairly naive de-mosaic method that simply
-    # calculates the weighted average of a pixel based on the pixels
-    # surrounding it. The weighting is provided by a byte representation of
-    # the Bayer filter which we construct first:
-
-    bayer = np.zeros(rgb.shape, dtype=np.uint8)
-    bayer[1::2, 0::2, 0] = 1 # Red
-    bayer[0::2, 0::2, 1] = 1 # Green
-    bayer[1::2, 1::2, 1] = 1 # Green
-    bayer[0::2, 1::2, 2] = 1 # Blue
-
-    # Allocate an array to hold our output with the same shape as the input
-    # data. After this we define the size of window that will be used to
-    # calculate each weighted average (3x3). Then we pad out the rgb and
-    # bayer arrays, adding blank pixels at their edges to compensate for the
-    # size of the window when calculating averages for edge pixels.
-
-    output = np.empty(rgb.shape, dtype=rgb.dtype)
-    window = (3, 3)
-    borders = (window[0] - 1, window[1] - 1)
-    border = (borders[0] // 2, borders[1] // 2)
-
-    rgb_pad = np.zeros((
-        rgb.shape[0] + borders[0],
-        rgb.shape[1] + borders[1],
-        rgb.shape[2]), dtype=rgb.dtype)
-    rgb_pad[
-        border[0]:rgb_pad.shape[0] - border[0],
-        border[1]:rgb_pad.shape[1] - border[1],
-        :] = rgb
-    rgb = rgb_pad
-
-    bayer_pad = np.zeros((
-        bayer.shape[0] + borders[0],
-        bayer.shape[1] + borders[1],
-        bayer.shape[2]), dtype=bayer.dtype)
-    bayer_pad[
-        border[0]:bayer_pad.shape[0] - border[0],
-        border[1]:bayer_pad.shape[1] - border[1],
-        :] = bayer
-    bayer = bayer_pad
-
-    # In numpy >=1.7.0 just use np.pad (version in Raspbian is 1.6.2 at the
-    # time of writing...)
-    #
-    #rgb = np.pad(rgb, [
-    #    (border[0], border[0]),
-    #    (border[1], border[1]),
-    #    (0, 0),
-    #    ], 'constant')
-    #bayer = np.pad(bayer, [
-    #    (border[0], border[0]),
-    #    (border[1], border[1]),
-    #    (0, 0),
-    #    ], 'constant')
-
-    # For each plane in the RGB data, we use a nifty numpy trick
-    # (as_strided) to construct a view over the plane of 3x3 matrices. We do
-    # the same for the bayer array, then use Einstein summation on each
-    # (np.sum is simpler, but copies the data so it's slower), and divide
-    # the results to get our weighted average:
-
-    for plane in range(3):
-        p = rgb[..., plane]
-        b = bayer[..., plane]
-        pview = as_strided(p, shape=(
-            p.shape[0] - borders[0],
-            p.shape[1] - borders[1]) + window, strides=p.strides * 2)
-        bview = as_strided(b, shape=(
-            b.shape[0] - borders[0],
-            b.shape[1] - borders[1]) + window, strides=b.strides * 2)
-        psum = np.einsum('ijkl->ij', pview)
-        bsum = np.einsum('ijkl->ij', bview)
-        output[..., plane] = psum // bsum
-
-    # At this point output should contain a reasonably "normal" looking
-    # image, although it still won't look as good as the camera's normal
-    # output (as it lacks vignette compensation, AWB, etc).
-    #
-    # If you want to view this in most packages (like GIMP) you'll need to
-    # convert it to 8-bit RGB data. The simplest way to do this is by
-    # right-shifting everything by 2-bits (yes, this makes all that
-    # unpacking work at the start rather redundant...)
-
-    output = (output >> 2).astype(np.uint8)
-    with open('image.data', 'wb') as f:
-        output.tofile(f)
+.. literalinclude:: examples/bayer_data.py
 
 This recipe is also encapsulated in the :class:`~PiBayerArray` class in the
-:mod:`picamera.array` module, which means the same can be achieved as follows::
+:mod:`picamera.array` module, which means the same can be achieved as follows:
 
-    import time
-    import picamera
-    import picamera.array
-    import numpy as np
-
-    with picamera.PiCamera() as camera:
-        with picamera.array.PiBayerArray(camera) as stream:
-            camera.capture(stream, 'jpeg', bayer=True)
-            # Demosaic data and write to output (just use stream.array if you
-            # want to skip the demosaic step)
-            output = (stream.demosaic() >> 2).astype(np.uint8)
-            with open('image.data', 'wb') as f:
-                output.tofile(f)
+.. literalinclude:: examples/bayer_array.py
 
 .. versionadded:: 1.3
 
@@ -1706,7 +781,9 @@ pins:
 
 These pins are configured by updating the `VideoCore device tree blob`_.
 Firstly, install the device tree compiler, then grab a copy of the default
-device tree source::
+device tree source:
+
+.. code-block:: console
 
     $ sudo apt-get install device-tree-compiler
     $ wget http://www.raspberrypi.org/documentation/configuration/images/dt-blob.dts
@@ -1740,7 +817,9 @@ pins.
 
 For example, to configure GPIO 17 as the flash pin, leaving the privacy
 indicator pin absent, on a Raspberry Pi Model B revision 2 you would add the
-following line under the ``/videocore/pins_rev2/pin_config`` section::
+following line under the ``/videocore/pins_rev2/pin_config`` section:
+
+.. code-block:: text
 
     pin@p17 { function = "output"; termination = "pull_down"; };
 
@@ -1748,7 +827,9 @@ Please note that GPIO pins will be numbered according to the `Broadcom pin
 numbers`_ (BCM mode in the RPi.GPIO library, *not* BOARD mode). Then change the
 following section under ``/videocore/pins_rev2/pin_defines``. Specifically,
 change the type from "absent" to "internal", and add a number property defining
-the flash pin as GPIO 17::
+the flash pin as GPIO 17:
+
+.. code-block:: text
 
     pin-define@FLASH_0_ENABLE {
         type = "internal";
@@ -1756,7 +837,9 @@ the flash pin as GPIO 17::
     };
 
 With the device tree source updated, you now need to compile it into a binary
-blob for the firmware to read. This is done with the following command line::
+blob for the firmware to read. This is done with the following command line:
+
+.. code-block:: console
 
     $ dtc -I dts -O dtb dt-blob.dts -o dt-blob.bin
 
@@ -1772,7 +855,9 @@ Dissecting this command line, the following components are present:
 
 * ``-o dt-blob.bin`` - The output filename
 
-This should output the following::
+This should output the following:
+
+.. code-block:: text
 
     DTC: dts->dtb  on file "dt-blob.dts"
 
@@ -1783,12 +868,16 @@ terminated for example), and try again.
 
 Now the device tree binary blob has been produced, it needs to be placed on the
 first partition of the SD card. In the case of non-NOOBS Raspbian installs,
-this is generally the partition mounted as ``/boot``::
+this is generally the partition mounted as ``/boot``:
+
+.. code-block:: console
 
     $ sudo cp dt-blob.bin /boot/
 
 However, in the case of NOOBS Raspbian installs, this is the recovery
-partition, which is not mounted by default::
+partition, which is not mounted by default:
+
+.. code-block:: console
 
     $ sudo mkdir /mnt/recovery
     $ sudo mount /dev/mmcblk0p1 /mnt/recovery
@@ -1829,7 +918,9 @@ anything to the ``pin_config`` section (the camera's LED pin is already defined
 to use pull down termination), but you do need to set ``CAMERA_0_LED`` to
 absent, and ``FLASH_0_ENABLE`` to the old ``CAMERA_0_LED`` definition (this
 will be pin 5 in the case of ``pins_rev1`` and ``pins_rev2``, and pin 32 in the
-case of ``pins_bplus``). For example, change::
+case of ``pins_bplus``). For example, change:
+
+.. code-block:: text
 
     pin_define@CAMERA_0_LED {
         type = "internal";
@@ -1839,7 +930,9 @@ case of ``pins_bplus``). For example, change::
         type = "absent";
     };
 
-into this::
+into this:
+
+.. code-block:: text
 
     pin_define@CAMERA_0_LED {
         type = "absent";

@@ -208,14 +208,14 @@ of FoV limiting, and `binning`_ is used to achieve the requested resolution.
 The image below illustrates the difference between full and partial field of
 view for the V1 camera:
 
-.. image:: sensor_area_1.png
+.. image:: images/sensor_area_1.png
     :width: 640px
     :align: center
 
 While the various fields of view for the V2 camera are illustrated in the
 following image:
 
-.. image:: sensor_area_2.png
+.. image:: images/sensor_area_2.png
     :width: 640px
     :align: center
 
@@ -369,7 +369,7 @@ Encoders are connected directly to the still port. For example, when capturing
 a picture using the still port, the camera's state conceptually moves through
 these states:
 
-.. image:: still_port_capture.*
+.. image:: images/still_port_capture.*
     :align: center
 
 As you have probably noticed in the diagram above, the video port is a little
@@ -379,13 +379,13 @@ video port by picamera, and encoders are in turn attached to one of its four
 output ports (numbered 0, 1, 2, and 3). Hence, when recording video the
 camera's setup looks like this:
 
-.. image:: video_port_record.*
+.. image:: images/video_port_record.*
     :align: center
 
 And when simultaneously capturing images via the video port whilst recording,
 the camera's configuration moves through the following states:
 
-.. image:: video_port_capture.*
+.. image:: images/video_port_capture.*
     :align: center
 
 When the ``resize`` parameter is passed to one of the aforementioned methods, a
@@ -396,7 +396,7 @@ resolution input (the GPU hardware can only handle frame widths up to 1920
 pixels). Hence, when performing full frame video recording, the camera's setup
 looks like this:
 
-.. image:: video_fullfov_record.*
+.. image:: images/video_fullfov_record.*
     :align: center
 
 Finally, when performing unencoded captures an encoder is (naturally) not
@@ -415,7 +415,7 @@ alpha bytes off the data.
 Recent firmwares fix the buffer size check, so with these picamera will
 simply configure the still port for RGB output (since 1.11):
 
-.. image:: still_raw_capture.*
+.. image:: images/still_raw_capture.*
     :align: center
 
 Encodings

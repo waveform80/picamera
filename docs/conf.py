@@ -69,7 +69,7 @@ sys.modules['numpy.lib.stride_tricks'] = sys.modules['numpy'].lib.stride_tricks
 
 # -- General configuration ------------------------------------------------
 
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.viewcode', 'sphinx.ext.intersphinx']
+extensions = ['sphinx.ext.autodoc', 'sphinx.ext.viewcode', 'sphinx.ext.intersphinx', 'sphinx.ext.imgmath']
 templates_path = ['_templates']
 source_suffix = '.rst'
 #source_encoding = 'utf-8-sig'
@@ -88,6 +88,7 @@ exclude_patterns = ['_build']
 pygments_style = 'sphinx'
 #modindex_common_prefix = []
 #keep_warnings = False
+imgmath_image_format = 'svg'
 
 # -- Autodoc configuration ------------------------------------------------
 

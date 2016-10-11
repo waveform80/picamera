@@ -14,7 +14,7 @@ for :ref:`custom_encoders`.
 
 The inheritance diagram for the following classes is displayed below:
 
-.. image:: encoder_classes.*
+.. image:: images/encoder_classes.*
     :align: center
 
 
