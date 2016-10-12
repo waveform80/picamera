@@ -580,19 +580,28 @@ from the magnitude of each frame's motion vectors:
 
 .. literalinclude:: examples/motion_data3.py
 
-You may wish to investigate the :class:`~array.PiMotionArray` class in the
-:mod:`picamera.array` module which simplifies the above recipes to the
-following:
+You may wish to investigate the :class:`~array.PiMotionArray` and
+:class:`~array.PiMotionAnalysis` classes in the :mod:`picamera.array` module
+which simplifies the above recipes to the following:
 
 .. literalinclude:: examples/motion_data4.py
 
-Finally, the following command line can be used to generate an animation from
-the generated PNGs with ffmpeg (this will take a *very* long time on the Pi so
-you may wish to transfer the images to a faster machine for this step):
+The following command line can be used to generate an animation from the
+generated PNGs with ffmpeg (this will take a *very* long time on the Pi so you
+may wish to transfer the images to a faster machine for this step):
 
 .. code-block:: bash
 
     avconv -r 30 -i frame%03d.png -filter:v scale=640:480 -c:v libx264 motion.mp4
+
+Finally, as a demonstration of what can be accomplished with motion vectors,
+here's a gesture detection system:
+
+.. literalinclude:: examples/gesture_detect.py
+
+Within a few inches of the camera, move your hand up, down, left, and right,
+parallel to the camera and you should see the direction displayed on the
+console.
 
 .. versionadded:: 1.5
 
