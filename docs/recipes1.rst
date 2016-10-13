@@ -115,12 +115,11 @@ attributes.  For :attr:`~PiCamera.iso`, a simple rule of thumb is that 100 and
 light. To determine a reasonable value for :attr:`~PiCamera.shutter_speed` you
 can query the :attr:`~PiCamera.exposure_speed` attribute.  For exposure gains,
 it's usually enough to wait until :attr:`~PiCamera.analog_gain` is greater than
-1 (the default, which will produce entirely black frames) before
-:attr:`~PiCamera.exposure_mode` is set to ``'off'``.  Finally, to determine
-reasonable values for :attr:`~PiCamera.awb_gains` simply query the property
-while :attr:`~PiCamera.awb_mode` is set to something other than ``'off'``.
-Again, this will tell you the camera's white balance gains as determined by the
-auto-white-balance algorithm.
+1 before :attr:`~PiCamera.exposure_mode` is set to ``'off'``.  Finally, to
+determine reasonable values for :attr:`~PiCamera.awb_gains` simply query the
+property while :attr:`~PiCamera.awb_mode` is set to something other than
+``'off'``.  Again, this will tell you the camera's white balance gains as
+determined by the auto-white-balance algorithm.
 
 The following script provides a brief example of configuring these settings:
 
