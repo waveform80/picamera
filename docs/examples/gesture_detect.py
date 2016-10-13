@@ -11,6 +11,7 @@ class GestureDetector(PiMotionAnalysis):
         super(GestureDetector, self).__init__(camera)
         self.x_queue = np.zeros(self.QUEUE_SIZE, dtype=np.float)
         self.y_queue = np.zeros(self.QUEUE_SIZE, dtype=np.float)
+        self.last_move = ''
 
     def analyze(self, a):
         # Roll the queues and overwrite the first element with a new
@@ -30,11 +31,14 @@ class GestureDetector(PiMotionAnalysis):
             'right')
         y_move = (
             '' if abs(y_mean) < self.THRESHOLD else
-            'up' if y_mean < 0.0 else
-            'down')
+            'down' if y_mean < 0.0 else
+            'up')
         # Update the display
-        if x_move or y_move:
-            print('%s %s' % (x_move, y_move))
+        movement = ('%s %s' % (x_move, y_move)).strip()
+        if movement != self.last_move:
+            self.last_move = movement
+            if movement:
+                print(movement)
 
 with picamera.PiCamera(resolution='VGA', framerate=24) as camera:
     with GestureDetector(camera) as detector:
