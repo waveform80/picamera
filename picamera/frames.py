@@ -165,6 +165,8 @@ class PiVideoFrame(namedtuple('PiVideoFrame', (
         Added the :attr:`complete` attribute.
     """
 
+    __slots__ = () # workaround python issue #24931
+
     @property
     def position(self):
         """
