@@ -253,6 +253,38 @@ only want the camera to output the H264 stream so you can mux it with, say, an
 AAC stream recorded from the microphone input and wrap the result into a full
 MP4 file.
 
+To convert the H264 NAL stream to a full MP4 file, there are a couple of
+options. The simplest is to use the ``MP4Box`` utility from the ``gpac``
+package on Raspbian. Unfortunately this only works with files; it cannot accept
+redirected streams:
+
+.. code-block:: console
+
+    $ sudo apt-get install gpac
+    ...
+    $ MP4Box -add input.h264 output.mp4
+
+Alternatively you can use the console version of VLC to handle the conversion.
+This is a more complex command line, but a lot more powerful (it'll handle
+redirected streams and can be used with a vast array of outputs including
+HTTP, RTP, etc.):
+
+.. code-block:: console
+
+    $ sudo apt-get install vlc
+    ...
+    $ cvlc --play-and-exit --sout \
+    > '#standard{access=file,mux=mp4,dst=output.mp4}' :demux=h264 \
+    > input.h264
+
+Or to read from stdin:
+
+.. code-block:: console
+
+    $ raspivid -t 5000 -o - | cvlc --play-and-exit --sout \
+    > '#standard{access=file,mux=mp4,dst=output.mp4}' :demux=h264 \
+    > stream:///dev/stdin
+
 Out of resources at full resolution on a V2 module
 ==================================================
 
