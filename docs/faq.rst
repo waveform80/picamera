@@ -273,17 +273,16 @@ HTTP, RTP, etc.):
 
     $ sudo apt-get install vlc
     ...
-    $ cvlc --play-and-exit --sout \
+    $ cvlc input.h264 --play-and-exit --sout \
     > '#standard{access=file,mux=mp4,dst=output.mp4}' :demux=h264 \
-    > input.h264
 
 Or to read from stdin:
 
 .. code-block:: console
 
-    $ raspivid -t 5000 -o - | cvlc --play-and-exit --sout \
+    $ raspivid -t 5000 -o - | cvlc stream:///dev/stdin \
+    > --play-and-exit --sout \
     > '#standard{access=file,mux=mp4,dst=output.mp4}' :demux=h264 \
-    > stream:///dev/stdin
 
 Out of resources at full resolution on a V2 module
 ==================================================
