@@ -60,6 +60,11 @@ graphics_get_display_size = _lib.graphics_get_display_size
 graphics_get_display_size.argtypes = [ct.c_uint16, ct.POINTER(ct.c_uint32), ct.POINTER(ct.c_uint32)]
 graphics_get_display_size.restype = ct.c_int32
 
+# vchi.h #####################################################################
+
+VCHI_INSTANCE_T = ct.c_void_p
+VCHI_CONNECTION_T = ct.c_void_p
+
 # vcos_platform.h ############################################################
 
 VCOS_UNSIGNED = ct.c_uint32
@@ -199,7 +204,7 @@ VC_IMAGE_BAYER_FORMAT_T = ct.c_uint32 # enum
    VC_IMAGE_BAYER_RAW14L,
    VC_IMAGE_BAYER_RAW16_BIG_ENDIAN,
    VC_IMAGE_BAYER_RAW4,
-) = range(16)
+) = range(15)
 
 # vc_display_types.h #########################################################
 
@@ -365,15 +370,15 @@ class DISPMANX_MODEINFO_T(ct.Structure):
         ('width',        ct.c_int32),
         ('height',       ct.c_int32),
         ('transform',    DISPMANX_TRANSFORM_T),
-        ('input_format', DISPAY_INPUT_FORMAT_T),
+        ('input_format', DISPLAY_INPUT_FORMAT_T),
         ('display_num',  ct.c_uint32),
         ]
 
-DISPMANX_CALLBACK_FUNC_T = ct.FUNCTYPE(
+DISPMANX_CALLBACK_FUNC_T = ct.CFUNCTYPE(
     None,
     DISPMANX_UPDATE_HANDLE_T, ct.c_void_p)
 
-DISPMANX_PROGRESS_CALLBACK_FUNC_T = ct.FUNCTYPE(
+DISPMANX_PROGRESS_CALLBACK_FUNC_T = ct.CFUNCTYPE(
     None,
     DISPMANX_UPDATE_HANDLE_T, ct.c_uint32, ct.c_void_p)
 
@@ -480,7 +485,7 @@ vc_dispmanx_resource_get_image_handle.argtypes = [DISPMANX_RESOURCE_HANDLE_T]
 vc_dispmanx_resource_get_image_handle.restype = ct.c_uint32
 
 vc_vchi_dispmanx_init = _lib.vc_vchi_dispmanx_init
-vc_vchi_dispmanx_init.argtypes = [VCHI_INSTANCE_T, ct.POINTER(ct.POINTER(VCHI_CONNECTION_T)), ct.c_uint32]
+vc_vchi_dispmanx_init.argtypes = [VCHI_INSTANCE_T, ct.POINTER(VCHI_CONNECTION_T), ct.c_uint32]
 vc_vchi_dispmanx_init.restype = None
 
 vc_dispmanx_snapshot = _lib.vc_dispmanx_snapshot
