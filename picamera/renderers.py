@@ -34,7 +34,7 @@ from __future__ import (
     absolute_import,
     )
 
-# Make Py2's str and range equivalent to Py3's
+# Make Py2's str equivalent to Py3's
 str = type('')
 
 import ctypes as ct

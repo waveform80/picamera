@@ -44,17 +44,9 @@ str = type('')
 import ctypes as ct
 import warnings
 
+from .bcm_host import VCOS_UNSIGNED
+
 _lib = ct.CDLL('libmmal.so')
-
-# vcos_platform.h ############################################################
-
-VCOS_UNSIGNED = ct.c_uint32
-
-# vcos_types.h ###############################################################
-
-def VCOS_ALIGN_UP(value, round_to):
-    # Note: this function assumes round_to is some power of 2.
-    return (value + (round_to - 1)) & ~(round_to - 1)
 
 # mmal.h #####################################################################
 
@@ -124,7 +116,7 @@ MMAL_STATUS_T = ct.c_uint32 # enum
     MMAL_ENOTCONN,
     MMAL_EAGAIN,
     MMAL_EFAULT,
-) = range(0, 16)
+) = range(16)
 MMAL_STATUS_MAX = 0x7FFFFFFF
 
 class MMAL_RECT_T(ct.Structure):
