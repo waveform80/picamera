@@ -93,13 +93,13 @@ def VCOS_ALIGN_DOWN(value, round_to):
 
 class VC_RECT_T(ct.Structure):
     _fields_ = [
-        ('x', ct.c_int32_t),
-        ('y', ct.c_int32_t),
-        ('width', ct.c_int32_t),
-        ('height', ct.c_int32_t),
+        ('x', ct.c_int32),
+        ('y', ct.c_int32),
+        ('width', ct.c_int32),
+        ('height', ct.c_int32),
         ]
 
-VC_IMAGE_TYPE_T = ct.c_uint32_t # enum
+VC_IMAGE_TYPE_T = ct.c_uint32 # enum
 (
    VC_IMAGE_MIN,
    VC_IMAGE_RGB565,
@@ -164,7 +164,7 @@ TRANSFORM_HFLIP = 1 << 0
 TRANSFORM_VFLIP = 1 << 1
 TRANSFORM_TRANSPOSE = 1 << 2
 
-VC_IMAGE_TRANSFORM_T = ct.c_uint32_t # enum
+VC_IMAGE_TRANSFORM_T = ct.c_uint32 # enum
 VC_IMAGE_ROT0          = 0
 VC_IMAGE_MIRROR_ROT0   = TRANSFORM_HFLIP
 VC_IMAGE_MIRROR_ROT180 = TRANSFORM_VFLIP
@@ -174,7 +174,7 @@ VC_IMAGE_ROT270        = TRANSFORM_TRANSPOSE | TRANSFORM_HFLIP
 VC_IMAGE_ROT90         = TRANSFORM_TRANSPOSE | TRANSFORM_VFLIP
 VC_IMAGE_MIRROR_ROT270 = TRANSFORM_TRANSPOSE | TRANSFORM_HFLIP | TRANSFORM_VFLIP
 
-VC_IMAGE_BAYER_ORDER_T = ct.c_uint32_t # enum
+VC_IMAGE_BAYER_ORDER_T = ct.c_uint32 # enum
 (
    VC_IMAGE_BAYER_RGGB,
    VC_IMAGE_BAYER_GBRG,
@@ -182,7 +182,7 @@ VC_IMAGE_BAYER_ORDER_T = ct.c_uint32_t # enum
    VC_IMAGE_BAYER_GRBG,
 ) = range(4)
 
-VC_IMAGE_BAYER_FORMAT_T = ct.c_uint32_t # enum
+VC_IMAGE_BAYER_FORMAT_T = ct.c_uint32 # enum
 (
    VC_IMAGE_BAYER_RAW6,
    VC_IMAGE_BAYER_RAW7,
@@ -203,7 +203,7 @@ VC_IMAGE_BAYER_FORMAT_T = ct.c_uint32_t # enum
 
 # vc_display_types.h #########################################################
 
-VCOS_DISPLAY_INPUT_FORMAT_T = ct.c_uint32_t # enum
+VCOS_DISPLAY_INPUT_FORMAT_T = ct.c_uint32 # enum
 (
    VCOS_DISPLAY_INPUT_FORMAT_INVALID,
    VCOS_DISPLAY_INPUT_FORMAT_RGB888,
@@ -215,7 +215,7 @@ DISPLAY_INPUT_FORMAT_RGB888  = VCOS_DISPLAY_INPUT_FORMAT_RGB888
 DISPLAY_INPUT_FORMAT_RGB565  = VCOS_DISPLAY_INPUT_FORMAT_RGB565
 DISPLAY_INPUT_FORMAT_T = VCOS_DISPLAY_INPUT_FORMAT_T
 
-DISPLAY_3D_FORMAT_T = ct.c_uint32_t # enum
+DISPLAY_3D_FORMAT_T = ct.c_uint32 # enum
 (
    DISPLAY_3D_UNSUPPORTED,
    DISPLAY_3D_INTERLEAVED,
@@ -227,7 +227,7 @@ DISPLAY_3D_FORMAT_T = ct.c_uint32_t # enum
    DISPLAY_3D_FORMAT_MAX,
 ) = range(8)
 
-DISPLAY_INTERFACE_T = ct.c_uint32_t # enum
+DISPLAY_INTERFACE_T = ct.c_uint32 # enum
 (
    DISPLAY_INTERFACE_MIN,
    DISPLAY_INTERFACE_SMI,
@@ -237,7 +237,7 @@ DISPLAY_INTERFACE_T = ct.c_uint32_t # enum
    DISPLAY_INTERFACE_MAX,
 ) = range(6)
 
-DISPLAY_DITHER_T = ct.c_uint32_t # enum
+DISPLAY_DITHER_T = ct.c_uint32 # enum
 (
    DISPLAY_DITHER_NONE,
    DISPLAY_DITHER_RGB666,
@@ -249,28 +249,28 @@ DISPLAY_DITHER_T = ct.c_uint32_t # enum
 class DISPLAY_INFO_T(ct.Structure):
     _fields_ = [
         ('type',             DISPLAY_INTERFACE_T),
-        ('width',            uint32_t),
-        ('height',           uint32_t),
+        ('width',            ct.c_uint32),
+        ('height',           ct.c_uint32),
         ('input_format',     DISPLAY_INPUT_FORMAT_T),
-        ('interlaced',       uint32_t),
+        ('interlaced',       ct.c_uint32),
         ('output_dither',    DISPLAY_DITHER_T),
-        ('pixel_freq',       uint32_t),
-        ('line_rate',        uint32_t),
+        ('pixel_freq',       ct.c_uint32),
+        ('line_rate',        ct.c_uint32),
         ('format_3d',        DISPLAY_3D_FORMAT_T),
-        ('use_pixelvalve_1', uint32_t),
-        ('dsi_video_mode',   uint32_t),
-        ('hvs_channel',      uint32_t),
+        ('use_pixelvalve_1', ct.c_uint32),
+        ('dsi_video_mode',   ct.c_uint32),
+        ('hvs_channel',      ct.c_uint32),
         ]
 
 # vc_dispmanx_types.h ########################################################
 
-DISPMANX_DISPLAY_HANDLE_T = ct.c_uint32_t
-DISPMANX_UPDATE_HANDLE_T = ct.c_uint32_t
-DISPMANX_ELEMENT_HANDLE_T = ct.c_uint32_t
-DISPMANX_RESOURCE_HANDLE_T = ct.c_uint32_t
-DISPMANX_PROTECTION_T = ct.c_uint32_t
+DISPMANX_DISPLAY_HANDLE_T = ct.c_uint32
+DISPMANX_UPDATE_HANDLE_T = ct.c_uint32
+DISPMANX_ELEMENT_HANDLE_T = ct.c_uint32
+DISPMANX_RESOURCE_HANDLE_T = ct.c_uint32
+DISPMANX_PROTECTION_T = ct.c_uint32
 
-DISPMANX_TRANSFORM_T = ct.c_uint32_t # enum
+DISPMANX_TRANSFORM_T = ct.c_uint32 # enum
 DISPMANX_NO_ROTATE              = 0
 DISPMANX_ROTATE_90              = 1
 DISPMANX_ROTATE_180             = 2
@@ -300,18 +300,18 @@ DISPMANX_FLAGS_ALPHA_MIX               = 1 << 17
 class DISPMANX_ALPHA_T(ct.Structure):
     _fields_ = [
         ('flags',   DISPMANX_FLAGS_ALPHA_T),
-        ('opacity', ct.c_uint32_t),
+        ('opacity', ct.c_uint32),
         ('mask',    ct.c_void_p),
         ]
 
 class VC_DISPMANX_ALPHA_T(ct.Structure):
     _fields_ = [
         ('flags',   DISPMANX_FLAGS_ALPHA_T),
-        ('opacity', ct.c_uint32_t),
+        ('opacity', ct.c_uint32),
         ('mask',    DISPMANX_RESOURCE_HANDLE_T),
         ]
 
-DISPMANX_FLAGS_CLAMP_T = ct.c_uint32_t # enum
+DISPMANX_FLAGS_CLAMP_T = ct.c_uint32 # enum
 (
   DISPMANX_FLAGS_CLAMP_NONE,
   DISPMANX_FLAGS_CLAMP_LUMA_TRANSPARENT,
@@ -319,7 +319,7 @@ DISPMANX_FLAGS_CLAMP_T = ct.c_uint32_t # enum
   DISPMANX_FLAGS_CLAMP_REPLACE,
 ) = range(4)
 
-DISPMANX_FLAGS_KEYMASK_T = ct.c_uint32_t # enum
+DISPMANX_FLAGS_KEYMASK_T = ct.c_uint32 # enum
 DISPMANX_FLAGS_KEYMASK_OVERRIDE = 1
 DISPMANX_FLAGS_KEYMASK_SMOOTH   = 1 << 1
 DISPMANX_FLAGS_KEYMASK_CR_INV   = 1 << 2
@@ -328,22 +328,22 @@ DISPMANX_FLAGS_KEYMASK_YY_INV   = 1 << 4
 
 class _YUV(ct.Structure):
     _fields_ = [
-        ('yy_upper', ct.c_uint8_t),
-        ('yy_lower', ct.c_uint8_t),
-        ('cr_upper', ct.c_uint8_t),
-        ('cr_lower', ct.c_uint8_t),
-        ('cb_upper', ct.c_uint8_t),
-        ('cb_lower', ct.c_uint8_t),
+        ('yy_upper', ct.c_uint8),
+        ('yy_lower', ct.c_uint8),
+        ('cr_upper', ct.c_uint8),
+        ('cr_lower', ct.c_uint8),
+        ('cb_upper', ct.c_uint8),
+        ('cb_lower', ct.c_uint8),
         ]
 
 class _RGB(ct.Structure):
     _fields_ = [
-        ('red_upper',   ct.c_uint8_t),
-        ('red_lower',   ct.c_uint8_t),
-        ('green_upper', ct.c_uint8_t),
-        ('green_lower', ct.c_uint8_t),
-        ('blue_upper',  ct.c_uint8_t),
-        ('blue_lower',  ct.c_uint8_t),
+        ('red_upper',   ct.c_uint8),
+        ('red_lower',   ct.c_uint8),
+        ('green_upper', ct.c_uint8),
+        ('green_lower', ct.c_uint8),
+        ('blue_upper',  ct.c_uint8),
+        ('blue_lower',  ct.c_uint8),
         ]
 
 class DISPMANX_CLAMP_KEYS_T(ct.Union):
@@ -357,16 +357,16 @@ class DISPMANX_CLAMP_T(ct.Structure):
         ('mode',          DISPMANX_FLAGS_CLAMP_T),
         ('key_mask',      DISPMANX_FLAGS_KEYMASK_T),
         ('key_value',     DISPMANX_CLAMP_KEYS_T),
-        ('replace_value', ct.c_uint32_t),
+        ('replace_value', ct.c_uint32),
         ]
 
 class DISPMANX_MODEINFO_T(ct.Structure):
     _fields_ = [
-        ('width',        ct.c_int32_t),
-        ('height',       ct.c_int32_t),
+        ('width',        ct.c_int32),
+        ('height',       ct.c_int32),
         ('transform',    DISPMANX_TRANSFORM_T),
         ('input_format', DISPAY_INPUT_FORMAT_T),
-        ('display_num',  ct.c_uint32_t),
+        ('display_num',  ct.c_uint32),
         ]
 
 DISPMANX_CALLBACK_FUNC_T = ct.FUNCTYPE(
@@ -375,7 +375,7 @@ DISPMANX_CALLBACK_FUNC_T = ct.FUNCTYPE(
 
 DISPMANX_PROGRESS_CALLBACK_FUNC_T = ct.FUNCTYPE(
     None,
-    DISPMANX_UPDATE_HANDLE_T, ct.c_uint32_t, ct.c_void_p)
+    DISPMANX_UPDATE_HANDLE_T, ct.c_uint32, ct.c_void_p)
 
 # vc_dispmanx.h ##############################################################
 
@@ -384,11 +384,11 @@ vc_dispmanx_stop.argtypes = []
 vc_dispmanx_stop.restype = None
 
 vc_dispmanx_rect_set = _lib.vc_dispmanx_rect_set
-vc_dispmanx_rect_set.argtypes = [ct.POINTER(VC_RECT_T), ct.c_uint32_t, ct.c_uint32_t, ct.c_uint32_t, ct.c_uint32_t]
+vc_dispmanx_rect_set.argtypes = [ct.POINTER(VC_RECT_T), ct.c_uint32, ct.c_uint32, ct.c_uint32, ct.c_uint32]
 vc_dispmanx_rect_set.restype = ct.c_int
 
 vc_dispmanx_resource_create = _lib.vc_dispmanx_resource_create
-vc_dispmanx_resource_create.argtypes = [VC_IMAGE_TYPE_T, ct.c_uint32_t, ct.c_uint32_t, ct.POINTER(ct.c_uint32_t)]
+vc_dispmanx_resource_create.argtypes = [VC_IMAGE_TYPE_T, ct.c_uint32, ct.c_uint32, ct.POINTER(ct.c_uint32)]
 vc_dispmanx_resource_create.restype = DISPMANX_RESOURCE_HANDLE_T
 
 vc_dispmanx_resource_write_data = _lib.vc_dispmanx_resource_write_data
@@ -396,7 +396,7 @@ vc_dispmanx_resource_write_data.argtypes = [DISPMANX_RESOURCE_HANDLE_T, VC_IMAGE
 vc_dispmanx_resource_write_data.restype = ct.c_int
 
 vc_dispmanx_resource_read_data = _lib.vc_dispmanx_resource_read_data
-vc_dispmanx_resource_read_data.argtypes = [DISPMANX_RESOURCE_HANDLE_T, ct.POINTER(VC_RECT_T), ct.c_void_p, ct.c_uint32_t]
+vc_dispmanx_resource_read_data.argtypes = [DISPMANX_RESOURCE_HANDLE_T, ct.POINTER(VC_RECT_T), ct.c_void_p, ct.c_uint32]
 vc_dispmanx_resource_read_data.restype = ct.c_int
 
 vc_dispmanx_resource_delete = _lib.vc_dispmanx_resource_delete
@@ -404,11 +404,11 @@ vc_dispmanx_resource_delete.argtypes = [DISPMANX_RESOURCE_HANDLE_T]
 vc_dispmanx_resource_delete.restype = ct.c_int
 
 vc_dispmanx_display_open = _lib.vc_dispmanx_display_open
-vc_dispmanx_display_open.argtypes = [ct.c_uint32_t]
+vc_dispmanx_display_open.argtypes = [ct.c_uint32]
 vc_dispmanx_display_open.restype = DISPMANX_DISPLAY_HANDLE_T
 
 vc_dispmanx_display_open_mode = _lib.vc_dispmanx_display_open_mode
-vc_dispmanx_display_open_mode.argtypes = [ct.c_uint32_t, ct.c_uint32_t]
+vc_dispmanx_display_open_mode.argtypes = [ct.c_uint32, ct.c_uint32]
 vc_dispmanx_display_open_mode.restype = DISPMANX_DISPLAY_HANDLE_T
 
 vc_dispmanx_display_open_offscreen = _lib.vc_dispmanx_display_open_offscreen
@@ -416,7 +416,7 @@ vc_dispmanx_display_open_offscreen.argtypes = [DISPMANX_RESOURCE_HANDLE_T, DISPM
 vc_dispmanx_display_open_offscreen.restype = DISPMANX_DISPLAY_HANDLE_T
 
 vc_dispmanx_display_reconfigure = _lib.vc_dispmanx_display_reconfigure
-vc_dispmanx_display_reconfigure.argtypes = [DISPMANX_DISPLAY_HANDLE_T, ct.c_uint32_t]
+vc_dispmanx_display_reconfigure.argtypes = [DISPMANX_DISPLAY_HANDLE_T, ct.c_uint32]
 vc_dispmanx_display_reconfigure.restype = ct.c_int
 
 vc_dispmanx_display_set_destination = _lib.vc_dispmanx_display_set_destination
@@ -424,7 +424,7 @@ vc_dispmanx_display_set_destination.argtypes = [DISPMANX_DISPLAY_HANDLE_T, DISPM
 vc_dispmanx_display_set_destination.restype = ct.c_int
 
 vc_dispmanx_display_set_background = _lib.vc_dispmanx_display_set_background
-vc_dispmanx_display_set_background.argtypes = [DISPMANX_UPDATE_HANDLE_T, DISPMANX_DISPLAY_HANDLE_T, ct.c_uint8_t, ct.c_uint8_t, ct.c_uint8_t]
+vc_dispmanx_display_set_background.argtypes = [DISPMANX_UPDATE_HANDLE_T, DISPMANX_DISPLAY_HANDLE_T, ct.c_uint8, ct.c_uint8, ct.c_uint8]
 vc_dispmanx_display_set_background.restype = ct.c_int
 
 vc_dispmanx_display_get_info = _lib.vc_dispmanx_display_get_info
@@ -436,11 +436,11 @@ vc_dispmanx_display_close.argtypes = [DISPMANX_DISPLAY_HANDLE_T]
 vc_dispmanx_display_close.restype = ct.c_int
 
 vc_dispmanx_update_start = _lib.vc_dispmanx_update_start
-vc_dispmanx_update_start.argtypes = [ct.c_int32_t]
+vc_dispmanx_update_start.argtypes = [ct.c_int32]
 vc_dispmanx_update_start.restype = DISPMANX_UPDATE_HANDLE_T
 
 vc_dispmanx_element_add = _lib.vc_dispmanx_element_add
-vc_dispmanx_element_add.argtypes = [DISPMANX_UPDATE_HANDLE_T, DISPMANX_DISPLAY_HANDLE_T, ct.c_int32_t, ct.POINTER(VC_RECT_T), DISPMANX_RESOURCE_HANDLE_T, ct.POINTER(VC_RECT_T), DISPMANX_PROTECTION_T, VC_DISPMANX_ALPHA_T, DISPMANX_CLAMP_T, DISPMANX_TRANSFORM_T]
+vc_dispmanx_element_add.argtypes = [DISPMANX_UPDATE_HANDLE_T, DISPMANX_DISPLAY_HANDLE_T, ct.c_int32, ct.POINTER(VC_RECT_T), DISPMANX_RESOURCE_HANDLE_T, ct.POINTER(VC_RECT_T), DISPMANX_PROTECTION_T, VC_DISPMANX_ALPHA_T, DISPMANX_CLAMP_T, DISPMANX_TRANSFORM_T]
 vc_dispmanx_element_add.restype = DISPMANX_ELEMENT_HANDLE_T
 
 vc_dispmanx_element_change_source = _lib.vc_dispmanx_element_change_source
@@ -448,7 +448,7 @@ vc_dispmanx_element_change_source.argtypes = [DISPMANX_UPDATE_HANDLE_T, DISPMANX
 vc_dispmanx_element_change_source.restype = ct.c_int
 
 vc_dispmanx_element_change_layer = _lib.vc_dispmanx_element_change_layer
-vc_dispmanx_element_change_layer.argtypes = [DISPMANX_UPDATE_HANDLE_T, DISPMANX_ELEMENT_HANDLE_T, ct.c_int32_t]
+vc_dispmanx_element_change_layer.argtypes = [DISPMANX_UPDATE_HANDLE_T, DISPMANX_ELEMENT_HANDLE_T, ct.c_int32]
 vc_dispmanx_element_change_layer.restype = ct.c_int
 
 vc_dispmanx_element_modified = _lib.vc_dispmanx_element_modified
@@ -468,19 +468,19 @@ vc_dispmanx_update_submit_sync.argtypes = [DISPMANX_UPDATE_HANDLE_T]
 vc_dispmanx_update_submit_sync.restype = ct.c_int
 
 vc_dispmanx_query_image_formats = _lib.vc_dispmanx_query_image_formats
-vc_dispmanx_query_image_formats.argtypes = [ct.POINTER(ct.c_uint32_t)]
+vc_dispmanx_query_image_formats.argtypes = [ct.POINTER(ct.c_uint32)]
 vc_dispmanx_query_image_formats.restype = ct.c_int
 
 vc_dispmanx_element_change_attributes = _lib.vc_dispmanx_element_change_attributes
-vc_dispmanx_element_change_attributes.argtypes = [DISPMANX_UPDATE_HANDLE_T, DISPMANX_ELEMENT_HANDLE_T, ct.c_uint32_t, ct.c_int32_t, ct.c_uint8_t, ct.POINTER(VC_RECT_T), ct.POINTER(VC_RECT_T), DISPMANX_RESOURCE_HANDLE_T, DISPMANX_TRANSFORM_T]
+vc_dispmanx_element_change_attributes.argtypes = [DISPMANX_UPDATE_HANDLE_T, DISPMANX_ELEMENT_HANDLE_T, ct.c_uint32, ct.c_int32, ct.c_uint8, ct.POINTER(VC_RECT_T), ct.POINTER(VC_RECT_T), DISPMANX_RESOURCE_HANDLE_T, DISPMANX_TRANSFORM_T]
 vc_dispmanx_element_change_attributes.restype = ct.c_int
 
 vc_dispmanx_resource_get_image_handle = _lib.vc_dispmanx_resource_get_image_handle
 vc_dispmanx_resource_get_image_handle.argtypes = [DISPMANX_RESOURCE_HANDLE_T]
-vc_dispmanx_resource_get_image_handle.restype = ct.c_uint32_t
+vc_dispmanx_resource_get_image_handle.restype = ct.c_uint32
 
 vc_vchi_dispmanx_init = _lib.vc_vchi_dispmanx_init
-vc_vchi_dispmanx_init.argtypes = [VCHI_INSTANCE_T, ct.POINTER(ct.POINTER(VCHI_CONNECTION_T)), ct.c_uint32_t]
+vc_vchi_dispmanx_init.argtypes = [VCHI_INSTANCE_T, ct.POINTER(ct.POINTER(VCHI_CONNECTION_T)), ct.c_uint32]
 vc_vchi_dispmanx_init.restype = None
 
 vc_dispmanx_snapshot = _lib.vc_dispmanx_snapshot
