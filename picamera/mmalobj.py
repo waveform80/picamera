@@ -485,14 +485,14 @@ class MMALComponent(MMALObject):
         if self._component[0].input_num != len(self.opaque_input_subformats):
             raise PiCameraRuntimeError(
                 'Expected %d inputs but found %d on component %s' % (
-                    input_count,
-                    self._components[0].input_num,
+                    len(self.opaque_input_subformats),
+                    self._component[0].input_num,
                     self.component_type))
         if self._component[0].output_num != len(self.opaque_output_subformats):
             raise PiCameraRuntimeError(
-                'Expected %d inputs but found %d on component %s' % (
-                    output_count,
-                    self._components[0].input_num,
+                'Expected %d outputs but found %d on component %s' % (
+                    len(self.opaque_output_subformats),
+                    self._component[0].output_num,
                     self.component_type))
         self._control = MMALControlPort(self._component[0].control)
         port_class = {
