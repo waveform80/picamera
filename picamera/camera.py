@@ -369,7 +369,7 @@ class PiCamera(object):
             if camera_info.info_rev > 1:
                 self._exif_tags['IFD0.Model'] = 'RP_%s' % info.cameras[camera_num].camera_name.decode('ascii')
             if PiCamera.MAX_RESOLUTION is PiCameraMaxResolution:
-                PiCamera.MAX_RESOLUTION = mo.PiCameraResolution(
+                PiCamera.MAX_RESOLUTION = mo.PiResolution(
                         info.cameras[camera_num].max_width,
                         info.cameras[camera_num].max_height,
                         )
@@ -388,7 +388,7 @@ class PiCamera(object):
                 else:
                     w = int(w.value)
                     h = int(h.value)
-                resolution = mo.PiCameraResolution(w, h)
+                resolution = mo.PiResolution(w, h)
             elif resolution is PiCameraMaxResolution:
                 resolution = PiCamera.MAX_RESOLUTION
             else:
@@ -2203,7 +2203,7 @@ class PiCamera(object):
 
     def _get_resolution(self):
         self._check_camera_open()
-        return mo.PiCameraResolution(
+        return mo.PiResolution(
             int(self._camera_config.max_stills_w),
             int(self._camera_config.max_stills_h)
             )

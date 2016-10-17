@@ -229,7 +229,7 @@ class PiCameraFraction(Fraction):
         return value in (self.numerator, self.denominator)
 
 
-class PiCameraResolution(namedtuple('PiCameraResolution', ('width', 'height'))):
+class PiResolution(namedtuple('PiResolution', ('width', 'height'))):
     """
     A :func:`~collections.namedtuple` derivative which represents a resolution
     with a :attr:`width` and :attr:`height`.
@@ -255,17 +255,29 @@ class PiCameraResolution(namedtuple('PiCameraResolution', ('width', 'height'))):
 
         .. code-block:: pycon
 
-            >>> PiCameraResolution(1920, 1080).pad()
-            PiCameraResolution(width=1920, height=1088)
-            >>> PiCameraResolution(100, 100).pad(16, 16)
-            PiCameraResolution(width=128, height=112)
-            >>> PiCameraResolution(100, 100).pad(16, 16)
-            PiCameraResolution(width=112, height=112)
+            >>> PiResolution(1920, 1080).pad()
+            PiResolution(width=1920, height=1088)
+            >>> PiResolution(100, 100).pad(16, 16)
+            PiResolution(width=128, height=112)
+            >>> PiResolution(100, 100).pad(16, 16)
+            PiResolution(width=112, height=112)
         """
-        return PiCameraResolution(
+        return PiResolution(
             width=((self.width + (width - 1)) // width) * width,
             height=((self.height + (height - 1)) // height) * height,
             )
+
+    def transpose(self):
+        """
+        Returns the resolution with the width and height transposed. For
+        example:
+
+        .. code-block:: pycon
+
+            >>> PiResolution(1920, 1080).transpose()
+            PiResolution(width=1080, height=1920)
+        """
+        return PiResolution(self.height, self.width)
 
     def __str__(self):
         return '%dx%d' % (self.width, self.height)
@@ -301,7 +313,7 @@ def to_resolution(value):
             w, h = value
         except (TypeError, ValueError):
             raise PiCameraValueError("Invalid resolution tuple: %r" % value)
-    return PiCameraResolution(w, h)
+    return PiResolution(w, h)
 
 
 def to_fraction(value, den_limit=65536):
@@ -888,7 +900,7 @@ class MMALVideoPort(MMALPort):
     """
 
     def _get_framesize(self):
-        return PiCameraResolution(
+        return PiResolution(
             self._port[0].format[0].es[0].video.crop.width,
             self._port[0].format[0].es[0].video.crop.height,
             )
@@ -1585,4 +1597,102 @@ class MMALNullSink(MMALDownstreamComponent):
     """
     component_type = mmal.MMAL_COMPONENT_DEFAULT_NULL_SINK
     opaque_input_subformats = ('OPQV-single',)
+
+
+class MMALFakePort(object):
+    """
+    Fakes an output port for :class:`MMALFakeSource`.
+    """
+    def __init__(self, owner):
+        self._owner = owner
+        self._format = mmal.MMAL_ES_FORMAT_T()
+
+    def _get_bitrate(self):
+        return self._format[0].bitrate
+    def _set_bitrate(self, value):
+        self._format[0].bitrate = value
+    bitrate = property(_get_bitrate, _set_bitrate, doc="""\
+        Retrieves or sets the bitrate limit for the port's format.
+        """)
+
+    def _get_format(self):
+        return self._format[0].encoding
+    def _set_format(self, value):
+        self._format[0].encoding = value
+        if value == mmal.MMAL_ENCODING_OPAQUE:
+            self._format[0].encoding_variant = mmal.MMAL_ENCODING_I420
+    format = property(_get_format, _set_format, doc="""\
+        Retrieves or sets the encoding format of the port. Setting this
+        attribute implicitly sets the encoding variant to a sensible value
+        (I420 in the case of OPAQUE).
+        """)
+
+    def _get_framesize(self):
+        return PiResolution(
+            self._format[0].es[0].video.crop.width,
+            self._format[0].es[0].video.crop.height,
+            )
+    def _set_framesize(self, value):
+        value = to_resolution(value)
+        video = self._format[0].es[0].video
+        video.width = mmal.VCOS_ALIGN_UP(value.width, 32)
+        video.height = mmal.VCOS_ALIGN_UP(value.height, 16)
+        video.crop.width = value.width
+        video.crop.height = value.height
+    framesize = property(_get_framesize, _set_framesize, doc="""\
+        Retrieves or sets the size of the source's video frames as a (width,
+        height) tuple. This attribute implicitly handles scaling the given
+        size up to the block size of the camera (32x16).
+        """)
+
+    def _get_framerate(self):
+        video = self._format[0].es[0].video
+        try:
+            return Fraction(
+                video.frame_rate.num,
+                video.frame_rate.den)
+        except ZeroDivisionError:
+            return Fraction(0, 1)
+    def _set_framerate(self, value):
+        value = to_fraction(value)
+        video = self._format[0].es[0].video
+        video.frame_rate.num = value.numerator
+        video.frame_rate.den = value.denominator
+    framerate = property(_get_framerate, _set_framerate, doc="""\
+        Retrieves or sets the framerate of the port's video frames in fps.
+        """)
+
+    def copy_from(self, source):
+        """
+        Copies the port's :attr:`format` from the *source*
+        :class:`MMALControlPort`.
+        """
+        mmal.mmal_format_copy(self._port[0].format, source._port[0].format)
+
+    def commit(self):
+        """
+        Commits the port's configuration and automatically updates the number
+        and size of associated buffers. This is typically called after
+        adjusting the port's format and/or associated settings (like width and
+        height for video ports).
+        """
+        pass # no op on fake source
+
+
+class MMALFakeSource(object):
+    """
+    Fakes an input port for an :class:`MMALDownstreamComponent`. This class
+    primarily exists to permit arbitrary inputs to the classes in
+    :mod:`picamera.encoders` without a major re-write of them.
+    """
+    def __init__(self):
+        self._outputs = (MMALFakePort(self),)
+
+    @property
+    def outputs(self):
+        """
+        A sequence of :class:`MMALPort` objects representing the outputs
+        of the component.
+        """
+        return self._outputs
 
