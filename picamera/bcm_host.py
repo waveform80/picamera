@@ -483,10 +483,6 @@ vc_dispmanx_element_change_attributes = _lib.vc_dispmanx_element_change_attribut
 vc_dispmanx_element_change_attributes.argtypes = [DISPMANX_UPDATE_HANDLE_T, DISPMANX_ELEMENT_HANDLE_T, ct.c_uint32, ct.c_int32, ct.c_uint8, ct.POINTER(VC_RECT_T), ct.POINTER(VC_RECT_T), DISPMANX_RESOURCE_HANDLE_T, DISPMANX_TRANSFORM_T]
 vc_dispmanx_element_change_attributes.restype = ct.c_int
 
-vc_dispmanx_resource_get_image_handle = _lib.vc_dispmanx_resource_get_image_handle
-vc_dispmanx_resource_get_image_handle.argtypes = [DISPMANX_RESOURCE_HANDLE_T]
-vc_dispmanx_resource_get_image_handle.restype = ct.c_uint32
-
 vc_vchi_dispmanx_init = _lib.vc_vchi_dispmanx_init
 vc_vchi_dispmanx_init.argtypes = [VCHI_INSTANCE_T, ct.POINTER(VCHI_CONNECTION_T), ct.c_uint32]
 vc_vchi_dispmanx_init.restype = None
