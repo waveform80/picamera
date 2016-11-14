@@ -12,10 +12,10 @@ class MyEncoder(picamera.PiCookedVideoEncoder):
         # Only count when buffer indicates it's the end of a frame, and
         # it's not an SPS/PPS header (..._CONFIG)
         if (
-                (buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_FRAME_END) and
-                not (buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_CONFIG)
+                (buf.flags & mmal.MMAL_BUFFER_HEADER_FLAG_FRAME_END) and
+                not (buf.flags & mmal.MMAL_BUFFER_HEADER_FLAG_CONFIG)
             ):
-            if buf[0].flags & mmal.MMAL_BUFFER_HEADER_FLAG_KEYFRAME:
+            if buf.flags & mmal.MMAL_BUFFER_HEADER_FLAG_KEYFRAME:
                 self.parent.i_frames += 1
             else:
                 self.parent.p_frames += 1
