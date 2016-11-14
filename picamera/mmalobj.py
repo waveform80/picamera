@@ -48,7 +48,7 @@ from collections import namedtuple
 from fractions import Fraction
 from itertools import cycle
 
-from . import mmal
+from . import bcm_host, mmal
 from .exc import (
     mmal_check,
     PiCameraValueError,
@@ -890,8 +890,8 @@ class MMALVideoPort(MMALPort):
     def _set_framesize(self, value):
         value = to_resolution(value)
         video = self._port[0].format[0].es[0].video
-        video.width = mmal.VCOS_ALIGN_UP(value.width, 32)
-        video.height = mmal.VCOS_ALIGN_UP(value.height, 16)
+        video.width = bcm_host.VCOS_ALIGN_UP(value.width, 32)
+        video.height = bcm_host.VCOS_ALIGN_UP(value.height, 16)
         video.crop.width = value.width
         video.crop.height = value.height
     framesize = property(_get_framesize, _set_framesize, doc="""\

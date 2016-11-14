@@ -43,7 +43,7 @@ import threading
 import warnings
 import ctypes as ct
 
-from . import mmal, mmalobj as mo
+from . import bcm_host, mmal, mmalobj as mo
 from .frames import PiVideoFrame, PiVideoFrameType
 from .streams import BufferIO
 from .exc import (
@@ -530,10 +530,10 @@ class PiRawMixin(PiEncoder):
         if not resize and format != 'yuv' and input_port.name.startswith(b'vc.ril.video_splitter'):
             # Workaround: Expected frame size is rounded to 16x16 when splitter
             # port with no resizer is used and format is not YUV
-            fwidth = mmal.VCOS_ALIGN_UP(width, 16)
+            fwidth = bcm_host.VCOS_ALIGN_UP(width, 16)
         else:
-            fwidth = mmal.VCOS_ALIGN_UP(width, 32)
-        fheight = mmal.VCOS_ALIGN_UP(height, 16)
+            fwidth = bcm_host.VCOS_ALIGN_UP(width, 32)
+        fheight = bcm_host.VCOS_ALIGN_UP(height, 16)
         if fwidth != width or fheight != height:
             warnings.warn(
                 PiCameraResolutionRounded(
@@ -629,8 +629,8 @@ class PiVideoEncoder(PiEncoder):
         if format == 'h264':
             limit = 522240 if level == '4.2' else 245760
             w, h = self.output_port.framesize
-            w = mmal.VCOS_ALIGN_UP(w, 16) >> 4
-            h = mmal.VCOS_ALIGN_UP(h, 16) >> 4
+            w = bcm_host.VCOS_ALIGN_UP(w, 16) >> 4
+            h = bcm_host.VCOS_ALIGN_UP(h, 16) >> 4
             if w * h * (self.parent.framerate + self.parent.framerate_delta) > limit:
                 raise PiCameraValueError(
                     'too many macroblocks/s requested; reduce resolution or '

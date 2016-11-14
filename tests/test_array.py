@@ -40,6 +40,7 @@ str = type('')
 import numpy as np
 import picamera
 import picamera.array
+import picamera.bcm_host as bcm_host
 import picamera.mmal as mmal
 import pytest
 import mock
@@ -263,8 +264,8 @@ def test_overlay_array1(camera, mode):
     resolution, framerate = mode
     # Draw a cross overlay
     w, h = resolution
-    w = mmal.VCOS_ALIGN_UP(w, 32)
-    h = mmal.VCOS_ALIGN_UP(h, 16)
+    w = bcm_host.VCOS_ALIGN_UP(w, 32)
+    h = bcm_host.VCOS_ALIGN_UP(h, 16)
     a = np.zeros((h, w, 3), dtype=np.uint8)
     a[resolution[1] // 2, :, :] = 0xff
     a[:, resolution[0] // 2, :] = 0xff
