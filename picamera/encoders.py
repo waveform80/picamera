@@ -369,7 +369,13 @@ class PiEncoder(object):
         """
         Returns ``True`` if the MMAL encoder exists and is enabled.
         """
-        return bool(self.output_port and self.output_port.enabled)
+        try:
+            return bool(self.output_port.enabled)
+        except AttributeError:
+            # If active is accessed prior to encoder component construction,
+            # output_port can be None; avoid a (demonstrated) race condition
+            # by catching AttributeError
+            return False
 
     def start(self, output):
         """
