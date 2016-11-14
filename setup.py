@@ -30,9 +30,11 @@
 
 """A pure Python interface for the Raspberry Pi camera module."""
 
+import io
 import os
 import sys
 from setuptools import setup, find_packages
+from setuptools.command.install import install
 
 if sys.version_info[0] == 2:
     if not sys.version_info >= (2, 7):
@@ -41,7 +43,7 @@ elif sys.version_info[0] == 3:
     if not sys.version_info >= (3, 2):
         raise ValueError('This package requires Python 3.2 or above')
 else:
-    raise ValueError('What version of Python is this?!')
+    raise ValueError('Unrecognized major version of Python')
 
 HERE = os.path.abspath(os.path.dirname(__file__))
 
@@ -96,8 +98,27 @@ __entry_points__ = {
     }
 
 
+class CustomInstallCommand(install):
+    def run(self):
+        # Make sure we're installing on a Raspberry Pi
+        try:
+            with io.open('/proc/cpuinfo', 'r') as cpuinfo:
+                found = False
+                for line in cpuinfo:
+                    if line.startswith('Hardware'):
+                        found = True
+                        label, value = line.strip().split(':', 1)
+                        value = value.strip()
+                        if value not in ('BCM2708', 'BCM2709', 'BCM2835', 'BCM2836'):
+                            raise ValueError('This system does not appear to be a Raspberry Pi')
+                if not found:
+                    raise ValueError('Unable to determine if this system is a Raspberry Pi')
+        except IOError:
+            raise ValueError('Unable to open /proc/cpuinfo')
+        install.run(self)
+
+
 def main():
-    import io
     with io.open(os.path.join(HERE, 'README.rst'), 'r') as readme:
         setup(
             name                 = __project__,
@@ -120,6 +141,7 @@ def main():
             install_requires     = __requires__,
             extras_require       = __extra_requires__,
             entry_points         = __entry_points__,
+            cmdclass             = {'install': CustomInstallCommand},
             )
 
 if __name__ == '__main__':
