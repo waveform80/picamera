@@ -126,7 +126,7 @@ class PiCameraMMALError(PiCameraError):
         self.status = status
         PiCameraError.__init__(self, "%s%s%s" % (prefix, ": " if prefix else "", {
             mmal.MMAL_ENOMEM:    "Out of memory",
-            mmal.MMAL_ENOSPC:    "Out of resources (other than memory)",
+            mmal.MMAL_ENOSPC:    "Out of resources",
             mmal.MMAL_EINVAL:    "Argument is invalid",
             mmal.MMAL_ENOSYS:    "Function not implemented",
             mmal.MMAL_ENOENT:    "No such file or directory",

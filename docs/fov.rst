@@ -291,7 +291,12 @@ image and video processing:
 * However, H264 high profile level 4.2 has slightly higher limits and may
   succeed with higher resolutions.
 
-* The maximum resolution of the V2 camera can cause issues with previews.
+* The maximum resolution of the V2 camera may require additional GPU memory
+  when operating at low framerates (<1fps). Increase ``gpu_mem`` in
+  ``/boot/config.txt`` if you encounter "out of resources" errors when
+  attempting long-exposure captures with a V2 module.
+
+* The maximum resolution of the V2 camera can also cause issues with previews.
   Currently, picamera runs previews at the same resolution as captures
   (equivalent to ``-fp`` in ``raspistill``).  You may need to increase
   ``gpu_mem`` in ``/boot/config.txt`` to achieve full resolution operation with
