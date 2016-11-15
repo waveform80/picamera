@@ -795,27 +795,42 @@ device tree source:
 .. code-block:: console
 
     $ sudo apt-get install device-tree-compiler
-    $ wget http://www.raspberrypi.org/documentation/configuration/images/dt-blob.dts
+    $ wget https://github.com/raspberrypi/firmware/raw/master/extra/dt-blob.dts
 
 The device tree source contains a number of sections enclosed in curly braces,
 which form a hierarchy of definitions. The section to edit will depend on which
-revision of Raspberry Pi you have:
+revision of Raspberry Pi you have (check the silk-screen writing on the board
+for the revision number if you are unsure):
 
-+---------------------------------+---------------------------+
-| Model                           | Section                   |
-+=================================+===========================+
-| Raspberry Pi Model B revision 1 | ``/videocore/pins_rev1``  |
-+---------------------------------+---------------------------+
-| Raspberry Pi Model A            | ``/videocore/pins_rev2``  |
-|                                 |                           |
-| Raspberry Pi Model B revision 2 |                           |
-+---------------------------------+---------------------------+
-| Raspberry Pi Model A+           | ``/videocore/pins_bplus`` |
-|                                 |                           |
-| Raspberry Pi Model B+           |                           |
-|                                 |                           |
-| Raspberry Pi 2 Model B          |                           |
-+---------------------------------+---------------------------+
++--------------------------------+----------------------------+
+| Model                          | Section                    |
++================================+============================+
+| Raspberry Pi Model B rev 1     | ``/videocore/pins_rev1``   |
++--------------------------------+----------------------------+
+| Raspberry Pi Model A           | ``/videocore/pins_rev2``   |
+|                                |                            |
+| Raspberry Pi Model B rev 2     |                            |
++--------------------------------+----------------------------+
+| Raspberry Pi Model A+          | ``/videocore/pins_aplus``  |
++--------------------------------+----------------------------+
+| Raspberry Pi Model B+ rev 1.1  | ``/videocore/pins_bplus1`` |
++--------------------------------+----------------------------+
+| Raspberry Pi Model B+ rev 1.2  | ``/videocore/pins_bplus2`` |
++--------------------------------+----------------------------+
+| Raspberry Pi 2 Model B rev 1.0 | ``/videocore/pins_2b1``    |
++--------------------------------+----------------------------+
+| Raspberry Pi 2 Model B rev 1.1 | ``/videocore/pins_2b2``    |
+|                                |                            |
+| Raspberry Pi 2 Model B rev 1.2 |                            |
++--------------------------------+----------------------------+
+| Raspberry Pi 3 Model B rev 1.0 | ``/videocore/pins_3b1``    |
++--------------------------------+----------------------------+
+| Raspberry Pi 3 Model B rev 1.2 | ``/videocore/pins_3b2``    |
++--------------------------------+----------------------------+
+| Raspberry Pi Zero rev 1.2      | ``/videocore/pins_pi0``    |
+|                                |                            |
+| Raspberry Pi Zero rev 1.3      |                            |
++--------------------------------+----------------------------+
 
 Under the section for your particular model of Pi you will find ``pin_config``
 and ``pin_defines`` sections. Under the ``pin_config`` section you need to
@@ -825,8 +840,8 @@ to associate those pins with the ``FLASH_0_ENABLE`` and ``FLASH_0_INDICATOR``
 pins.
 
 For example, to configure GPIO 17 as the flash pin, leaving the privacy
-indicator pin absent, on a Raspberry Pi Model B revision 2 you would add the
-following line under the ``/videocore/pins_rev2/pin_config`` section:
+indicator pin absent, on a Raspberry Pi 2 Model B rev 1.1 you would add the
+following line under the ``/videocore/pins_2b2/pin_config`` section:
 
 .. code-block:: text
 
@@ -834,7 +849,7 @@ following line under the ``/videocore/pins_rev2/pin_config`` section:
 
 Please note that GPIO pins will be numbered according to the `Broadcom pin
 numbers`_ (BCM mode in the RPi.GPIO library, *not* BOARD mode). Then change the
-following section under ``/videocore/pins_rev2/pin_defines``. Specifically,
+following section under ``/videocore/pins_2b2/pin_defines``. Specifically,
 change the type from "absent" to "internal", and add a number property defining
 the flash pin as GPIO 17:
 
@@ -927,7 +942,7 @@ anything to the ``pin_config`` section (the camera's LED pin is already defined
 to use pull down termination), but you do need to set ``CAMERA_0_LED`` to
 absent, and ``FLASH_0_ENABLE`` to the old ``CAMERA_0_LED`` definition (this
 will be pin 5 in the case of ``pins_rev1`` and ``pins_rev2``, and pin 32 in the
-case of ``pins_bplus``). For example, change:
+case of everything else). For example, change:
 
 .. code-block:: text
 
