@@ -464,7 +464,7 @@ Streaming video over the web is surprisingly complicated. At the time of
 writing, there are still no video standards that are universally supported by
 all web browsers on all platforms. Furthermore, HTTP was originally designed as
 a one-shot protocol for serving web-pages. Since its invention, various
-additions have bolted on to cater for its ever increasing use cases (file
+additions have been bolted on to cater for its ever increasing use cases (file
 downloads, resumption, streaming, etc.) but the fact remains there's no
 "simple" solution for video streaming at the moment.
 
@@ -659,8 +659,8 @@ most of the information (I-frame, P-frame, motion information, etc.) would be
 accessible from the :attr:`~PiCamera.frame` attribute which you could access
 from your custom output's ``write`` method.
 
-The encoder classes defined by picamera form the following hierarchy (shaded
-classes are actually instantiated by the implementation in picamera, white
+The encoder classes defined by picamera form the following hierarchy (dark
+classes are actually instantiated by the implementation in picamera, light
 classes implement base functionality but aren't technically "abstract"):
 
 .. image:: images/encoder_classes.*

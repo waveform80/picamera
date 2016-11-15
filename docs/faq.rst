@@ -301,3 +301,22 @@ example::
     camera = PiCamera()
     camera.resolution = camera.MAX_RESOLUTION
     camera.start_preview(resolution=(1024, 768))
+
+Camera locks up with multiprocessing
+====================================
+
+The camera firmware is designed to be used by a *single* process at a time.
+Attempting to use the camera from multiple processes simultaneously will fail
+in a variety of ways (from simple errors to the process locking up).
+
+Python's :mod:`multiprocessing` module creates multiple copies of a Python
+process (usually via :func:`os.fork`) for the purpose of parallel processing.
+Whilst you can use :mod:`multiprocessing` with picamera, you must ensure that
+only a *single* process creates a :class:`PiCamera` instance at any given time.
+
+The following script demonstrates an approach with one process that owns the
+camera, which handles disseminating captured frames to other processes via a
+:class:`~multiprocessing.Queue`:
+
+.. literalinclude:: examples/multiproc_camera.py
+
