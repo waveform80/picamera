@@ -406,7 +406,7 @@ def print_pipeline(port):
     under_comp = False
     for obj in reversed(list(debug_pipeline(port))):
         if isinstance(obj, MMALComponent):
-            rows[0].append(obj.name)
+            rows[0].append(obj.name.decode('ascii'))
             under_comp = True
         elif isinstance(obj, MMALVideoPort):
             rows[0].append('[%d]' % obj._port[0].index)
