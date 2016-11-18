@@ -396,17 +396,26 @@ def debug_pipeline(port):
                     return obj
         raise IndexError('unable to locate component with address %x' % addr)
 
-    assert isinstance(port, MMALControlPort)
+    assert isinstance(port, (MMALControlPort, MMALFakePort))
     while True:
         yield port
-        comp = find_component(ct.addressof(port._port[0].component[0]))
+        if isinstance(port, MMALFakePort):
+            comp = port._owner
+        else:
+            comp = find_component(ct.addressof(port._port[0].component[0]))
         yield comp
         if not isinstance(comp, MMALDownstreamComponent):
             break
-        port = find_port(ct.addressof(comp.connection._connection[0].in_[0]))
+        if isinstance(comp.connection, MMALFakeConnection):
+            port = comp.connection._target
+        else:
+            port = find_port(ct.addressof(comp.connection._connection[0].in_[0]))
         yield port
         yield comp.connection
-        port = find_port(ct.addressof(comp.connection._connection[0].out[0]))
+        if isinstance(comp.connection, MMALFakeConnection):
+            port = comp.connection._source
+        else:
+            port = find_port(ct.addressof(comp.connection._connection[0].out[0]))
 
 
 def print_pipeline(port):
@@ -417,7 +426,7 @@ def print_pipeline(port):
     rows = [[], [], [], [], []]
     under_comp = False
     for obj in reversed(list(debug_pipeline(port))):
-        if isinstance(obj, MMALComponent):
+        if isinstance(obj, (MMALComponent, MMALFakeSource)):
             rows[0].append(obj.name)
             under_comp = True
         elif isinstance(obj, MMALVideoPort):
@@ -441,7 +450,25 @@ def print_pipeline(port):
                 obj._port[0].format[0].es[0].video.width,
                 obj._port[0].format[0].es[0].video.height,
                 obj.framerate))
-        elif isinstance(obj, MMALConnection):
+        elif isinstance(obj, MMALFakePort):
+            rows[0].append('[0]')
+            if under_comp:
+                rows[1].append('encoding')
+            if obj.format == mmal.MMAL_ENCODING_OPAQUE:
+                rows[1].append(obj.opaque_subformat)
+            else:
+                rows[1].append(str(obj._format[0].encoding))
+            if under_comp:
+                rows[2].append('buf')
+            rows[2].append('%dx%d' % (obj.buffer_count, obj.buffer_size))
+            if under_comp:
+                rows[3].append('frame')
+                under_comp = False
+            rows[3].append('%dx%d@%sfps' % (
+                obj._format[0].es[0].video.width,
+                obj._format[0].es[0].video.height,
+                obj.framerate))
+        elif isinstance(obj, (MMALConnection, MMALFakeConnection)):
             rows[0].append('')
             rows[1].append('')
             rows[2].append('-->')
@@ -789,7 +816,10 @@ class MMALPort(MMALControlPort):
         Copies the port's :attr:`format` from the *source*
         :class:`MMALControlPort`.
         """
-        mmal.mmal_format_copy(self._port[0].format, source._port[0].format)
+        if isinstance(source, MMALFakePort):
+            mmal.mmal_format_copy(self._port[0].format, source._format)
+        else:
+            mmal.mmal_format_copy(self._port[0].format, source._port[0].format)
 
     def commit(self):
         """
@@ -1146,7 +1176,7 @@ class MMALBuffer(object):
         finally:
             mmal.mmal_buffer_header_mem_unlock(self._buf)
 
-    def update(self, data):
+    def update(self, data, flags=None, command=None):
         """
         Overwrites the :attr:`data` in the buffer. The *data* parameter is an
         object supporting the buffer protocol which contains up to
@@ -1159,13 +1189,20 @@ class MMALBuffer(object):
         """
         if isinstance(data, memoryview) and (data.ndim > 1 or data.itemsize > 1):
             data = data.cast('B')
-        bp = ct.c_uint8 * len(data)
-        try:
-            sp = bp.from_buffer(data)
-        except TypeError:
-            sp = bp.from_buffer_copy(data)
-        ct.memmove(self._buf[0].data, sp, len(data))
-        self._buf[0].length = len(data)
+        data_len = len(data)
+        if data_len:
+            assert data_len <= self.size
+            bp = ct.c_uint8 * data_len
+            try:
+                sp = bp.from_buffer(data)
+            except TypeError:
+                sp = bp.from_buffer_copy(data)
+            ct.memmove(self._buf[0].data, sp, data_len)
+        self._buf[0].length = data_len
+        if flags is not None:
+            self._buf[0].flags = flags
+        if command is not None:
+            self._buf[0].cmd = command
 
     def copy(self, data=None):
         """
@@ -1515,7 +1552,10 @@ class MMALDownstreamComponent(MMALComponent):
     def connect(self, source):
         if self.connection:
             self.disconnect()
-        self._connection = MMALConnection(source, self.inputs[0])
+        if isinstance(source, MMALFakePort):
+            self._connection = MMALFakeConnection(source, self.inputs[0])
+        else:
+            self._connection = MMALConnection(source, self.inputs[0])
 
     def disconnect(self):
         if self.connection:
@@ -1599,13 +1639,16 @@ class MMALNullSink(MMALDownstreamComponent):
     opaque_input_subformats = ('OPQV-single',)
 
 
-class MMALFakePort(object):
+class MMALFakePort(MMALObject):
     """
     Fakes an output port for :class:`MMALFakeSource`.
     """
     def __init__(self, owner):
         self._owner = owner
-        self._format = mmal.MMAL_ES_FORMAT_T()
+        self._format = ct.pointer(mmal.MMAL_ES_FORMAT_T(
+            type=mmal.MMAL_ES_TYPE_VIDEO,
+            encoding=mmal.MMAL_ENCODING_RGB24,
+            es=ct.pointer(mmal.MMAL_ES_SPECIFIC_FORMAT_T())))
 
     def _get_bitrate(self):
         return self._format[0].bitrate
@@ -1635,8 +1678,8 @@ class MMALFakePort(object):
     def _set_framesize(self, value):
         value = to_resolution(value)
         video = self._format[0].es[0].video
-        video.width = mmal.VCOS_ALIGN_UP(value.width, 32)
-        video.height = mmal.VCOS_ALIGN_UP(value.height, 16)
+        video.width = bcm_host.VCOS_ALIGN_UP(value.width, 32)
+        video.height = bcm_host.VCOS_ALIGN_UP(value.height, 16)
         video.crop.width = value.width
         video.crop.height = value.height
     framesize = property(_get_framesize, _set_framesize, doc="""\
@@ -1662,12 +1705,30 @@ class MMALFakePort(object):
         Retrieves or sets the framerate of the port's video frames in fps.
         """)
 
+    @property
+    def buffer_count(self):
+        return 1
+
+    @property
+    def buffer_size(self):
+        video = self._format[0].es[0].video
+        return {
+            'I420': 1.5,
+            'RGB3': 3,
+            'RGBA': 4,
+            'BGR3': 3,
+            'BGRA': 4,
+            }[str(self.format)] * video.width * video.height
+
     def copy_from(self, source):
         """
         Copies the port's :attr:`format` from the *source*
         :class:`MMALControlPort`.
         """
-        mmal.mmal_format_copy(self._port[0].format, source._port[0].format)
+        if isinstance(source, MMALFakePort):
+            mmal.mmal_format_copy(self._format, source._format)
+        else:
+            mmal.mmal_format_copy(self._format, source._port[0].format)
 
     def commit(self):
         """
@@ -1678,15 +1739,51 @@ class MMALFakePort(object):
         """
         pass # no op on fake source
 
+    @property
+    def name(self):
+        return 'fake:out:0'
 
-class MMALFakeSource(object):
+    def __repr__(self):
+        return '<MMALFakePort "%s": format=%r buffers=%dx%d frames=%s@%sfps>' % (
+            self.name, self.format, self.buffer_count, self.buffer_size, self.framesize, self.framerate)
+
+
+class MMALFakeSource(MMALObject):
     """
     Fakes an input port for an :class:`MMALDownstreamComponent`. This class
     primarily exists to permit arbitrary inputs to the classes in
     :mod:`picamera.encoders` without a major re-write of them.
     """
     def __init__(self):
+        self._inputs = ()
         self._outputs = (MMALFakePort(self),)
+        self._connection = None
+
+    def close(self):
+        """
+        Close the component and release all its resources. After this is
+        called, most methods will raise exceptions if called.
+        """
+        if self._connection:
+            self._connection.close()
+        if self._outputs:
+            self._outputs = ()
+
+    @property
+    def control(self):
+        """
+        The :class:`MMALControlPort` control port of the component which can be
+        used to configure most aspects of the component's behaviour.
+        """
+        return None
+
+    @property
+    def inputs(self):
+        """
+        A sequence of :class:`MMALPort` objects representing the inputs
+        of the component.
+        """
+        return self._inputs
 
     @property
     def outputs(self):
@@ -1695,4 +1792,80 @@ class MMALFakeSource(object):
         of the component.
         """
         return self._outputs
+
+    def send(self, data, flags=None):
+        """
+        Emit data from the fake source to whatever component it is connected
+        to.
+        """
+        try:
+            self._connection.send(data, flags)
+        except AttributeError:
+            raise PiCameraRuntimeError('source is not connected to anything')
+
+    @property
+    def name(self):
+        return 'fake.source'
+
+    def __repr__(self):
+        if self._outputs:
+            return '<MMALFakeSource "%s": %d inputs %d outputs>' % (
+                self.name, len(self.inputs), len(self.outputs))
+        else:
+            return '<MMALFakeSource closed>'
+
+
+class MMALFakeConnection(MMALObject):
+    """
+    Fakes a connection between an MMALFakeSource and a
+    :class:`MMALDownstreamComponent`.
+    """
+    def __init__(self, source, target):
+        if not isinstance(source, MMALFakePort):
+            raise PiCameraValueError('source must be a MMALFakePort')
+        if not isinstance(target, MMALPort):
+            raise PiCameraValueError('target must be a MMALPort')
+        self._enabled = False
+        self._source = source
+        self._target = target
+        self._target.copy_from(self._source)
+        self._target.commit()
+        self._source._owner._connection = self
+
+    def close(self):
+        try:
+            self.enabled = False
+            self._source._owner._connection = None
+        except AttributeError:
+            pass
+
+    @property
+    def name(self):
+        return 'fake:connection'
+
+    def _get_enabled(self):
+        return self._enabled
+    def _set_enabled(self, value):
+        if not self._enabled and value:
+            self._target.enable(lambda port, buf: True)
+            self._enabled = True
+        elif self._enabled and not value:
+            self._target.disable()
+            self._enabled = False
+    enabled = property(_get_enabled, _set_enabled)
+
+    def send(self, data, flags):
+        self.enabled = True
+        buf = self._target.pool.get_buffer()
+        buf.update(data, flags)
+        self._target.send_buffer(buf)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_tb):
+        self.close()
+
+    def __repr__(self):
+        return '<MMALFakeConnection>'
 

@@ -183,7 +183,7 @@ class PiEncoder(object):
         self.exception = None
         self.event = threading.Event()
         try:
-            if parent.closed:
+            if parent and parent.closed:
                 raise PiCameraRuntimeError("Camera is closed")
             if resize:
                 self._create_resizer(*resize)
@@ -372,7 +372,6 @@ class PiEncoder(object):
         try:
             return bool(self.output_port.enabled)
         except AttributeError:
-            # If active is accessed prior to encoder component construction,
             # output_port can be None; avoid a (demonstrated) race condition
             # by catching AttributeError
             return False
@@ -424,21 +423,14 @@ class PiEncoder(object):
         can potentially be called in the middle of image capture to terminate
         the capture.
         """
-        # The check below is not a race condition; we ignore the EINVAL error
-        # in the case the port turns out to be disabled when we disable below.
-        # The check exists purely to prevent stderr getting spammed by our
-        # continued attempts to disable an already disabled port. Lock
-        # acquisition must occur after the check to avoid re-acquiring a
-        # non-re-entrant lock in certain conditions (e.g. encoder destruction
-        # from __init__, when the lock is held by the same thread)
-        if self.active:
+        if self.parent and self.camera_port:
             with self.parent._encoders_lock:
                 self.parent._stop_capture(self.camera_port)
-                try:
-                    self.output_port.disable()
-                except PiCameraMMALError as e:
-                    if e.status != mmal.MMAL_EINVAL:
-                        raise
+        try:
+            self.output_port.disable()
+        except PiCameraMMALError as e:
+            if e.status != mmal.MMAL_EINVAL:
+                raise
         self.event.set()
         self._close_output()
 
@@ -501,7 +493,7 @@ class PiRawMixin(PiEncoder):
             except PiCameraMMALError as e:
                 if e.status != mmal.MMAL_EINVAL:
                     raise
-                resize = parent.resolution
+                resize = input_port.framesize
                 warnings.warn(
                     PiCameraResizerEncoding(
                         "using a resizer to perform non-YUV encoding; "
@@ -527,7 +519,7 @@ class PiRawMixin(PiEncoder):
             except KeyError:
                 pass
         else:
-            width, height = parent.resolution
+            width, height = input_port.framesize
         # Workaround (#83): when the resizer is used the width must be aligned
         # (both the frame and crop values) to avoid an error when the output
         # port format is set (height is aligned too, simply for consistency
@@ -637,7 +629,11 @@ class PiVideoEncoder(PiEncoder):
             w, h = self.output_port.framesize
             w = bcm_host.VCOS_ALIGN_UP(w, 16) >> 4
             h = bcm_host.VCOS_ALIGN_UP(h, 16) >> 4
-            if w * h * (self.parent.framerate + self.parent.framerate_delta) > limit:
+            if self.parent:
+                framerate = self.parent.framerate + self.parent.framerate_delta
+            else:
+                framerate = self.input_port.framerate
+            if w * h * framerate > limit:
                 raise PiCameraValueError(
                     'too many macroblocks/s requested; reduce resolution or '
                     'framerate')
@@ -763,7 +759,11 @@ class PiVideoEncoder(PiEncoder):
         # ensure the timeout is deliberately excessive, and clamp the minimum
         # timeout to 10 seconds (otherwise unencoded formats tend to fail
         # presumably due to I/O capacity)
-        timeout = max(10.0, float(self._intra_period / self.parent.framerate) * 3.0)
+        if self.parent:
+            framerate = self.parent.framerate + self.parent.framerate_delta
+        else:
+            framerate = self.input_port.framerate
+        timeout = max(10.0, float(self._intra_period / framerate) * 3.0)
         if self._intra_period > 1:
             self.request_key_frame()
         if not self.event.wait(timeout):
@@ -982,6 +982,15 @@ class PiCookedOneImageEncoder(PiOneImageEncoder):
 
     exif_encoding = 'ascii'
 
+    def __init__(
+            self, parent, camera_port, input_port, format, resize, **options):
+        super(PiCookedOneImageEncoder, self).__init__(
+                parent, camera_port, input_port, format, resize, **options)
+        if parent:
+            self.exif_tags = self.parent.exif_tags
+        else:
+            self.exif_tags = {}
+
     def _add_exif_tag(self, tag, value):
         # Format the tag and value into an appropriate bytes string, encoded
         # with the Exif encoding (ASCII)
@@ -1018,9 +1027,9 @@ class PiCookedOneImageEncoder(PiOneImageEncoder):
         # above, but the user may choose to override the value in the
         # exif_tags mapping
         for tag in timestamp_tags:
-            self._add_exif_tag(tag, self.parent.exif_tags.get(tag, timestamp))
+            self._add_exif_tag(tag, self.exif_tags.get(tag, timestamp))
         # All other tags are just copied in verbatim
-        for tag, value in self.parent.exif_tags.items():
+        for tag, value in self.exif_tags.items():
             if not tag in timestamp_tags:
                 self._add_exif_tag(tag, value)
         super(PiCookedOneImageEncoder, self).start(output)
