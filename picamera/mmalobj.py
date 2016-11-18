@@ -402,11 +402,11 @@ def print_pipeline(port):
     Prints a human readable representation of the pipeline feeding the
     specified :class:`MMALVideoPort` *port*.
     """
-    rows = [[], [], [], []]
+    rows = [[], [], [], [], []]
     under_comp = False
     for obj in reversed(list(debug_pipeline(port))):
         if isinstance(obj, MMALComponent):
-            rows[0].append(obj.name.decode('ascii'))
+            rows[0].append(obj.name)
             under_comp = True
         elif isinstance(obj, MMALVideoPort):
             rows[0].append('[%d]' % obj._port[0].index)
@@ -420,21 +420,26 @@ def print_pipeline(port):
                 rows[2].append('buf')
             rows[2].append('%dx%d' % (obj._port[0].buffer_num, obj._port[0].buffer_size))
             if under_comp:
-                rows[3].append('frame')
+                rows[3].append('bitrate')
+            rows[3].append('%dbps' % (obj._port[0].format[0].bitrate))
+            if under_comp:
+                rows[4].append('frame')
                 under_comp = False
-            rows[3].append('%dx%d@%sfps' % (
+            rows[4].append('%dx%d@%sfps' % (
                 obj._port[0].format[0].es[0].video.width,
                 obj._port[0].format[0].es[0].video.height,
                 obj.framerate))
         elif isinstance(obj, MMALConnection):
             rows[0].append('')
-            rows[1].append('-->')
-            rows[2].append('')
+            rows[1].append('')
+            rows[2].append('-->')
             rows[3].append('')
+            rows[4].append('')
     if under_comp:
         rows[1].append('encoding')
         rows[2].append('buf')
-        rows[3].append('frame')
+        rows[3].append('bitrate')
+        rows[4].append('frame')
     cols = list(zip(*rows))
     max_lens = [max(len(s) for s in col) + 2 for col in cols]
     rows = [
@@ -525,7 +530,7 @@ class MMALComponent(MMALObject):
 
     @property
     def name(self):
-        return self._component[0].name
+        return self._component[0].name.decode('ascii')
 
     @property
     def control(self):
@@ -666,7 +671,7 @@ class MMALControlPort(MMALObject):
 
     @property
     def name(self):
-        return self._port[0].name
+        return self._port[0].name.decode('ascii')
 
     @property
     def params(self):
@@ -910,6 +915,7 @@ class MMALVideoPort(MMALPort):
                 video.frame_rate.num,
                 video.frame_rate.den)
         except ZeroDivisionError:
+            assert video.frame_rate.num == 0
             return Fraction(0, 1)
     def _set_framerate(self, value):
         value = to_fraction(value)
@@ -1332,7 +1338,7 @@ class MMALConnection(MMALObject):
 
     @property
     def name(self):
-        return self._connection[0].name
+        return self._connection[0].name.decode('ascii')
 
     def __enter__(self):
         return self

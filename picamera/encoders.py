@@ -387,13 +387,13 @@ class PiEncoder(object):
         encoders), or an iterable of filenames or file-like objects (for
         multi-image encoders).
         """
-        if self.DEBUG > 0:
-            mo.print_pipeline(self.output_port)
         self.event.clear()
         self.exception = None
         self._open_output(output)
         with self.parent._encoders_lock:
             self.output_port.enable(self._callback)
+            if self.DEBUG > 0:
+                mo.print_pipeline(self.output_port)
             self.parent._start_capture(self.camera_port)
 
     def wait(self, timeout=None):
