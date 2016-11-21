@@ -1937,6 +1937,7 @@ class MMALFakeConnection(MMALObject):
             raise PiCameraValueError('target must be a MMALPort')
         self._enabled = False
         self._source = source
+        self._source.commit()
         self._target = target
         self._target.copy_from(self._source)
         self._target.commit()

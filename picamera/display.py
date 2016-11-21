@@ -175,6 +175,8 @@ class PiDisplay(object):
 
     def capture(self, output, format=None, resize=None, **options):
         format = self._get_image_format(output, format)
+        if format == 'yuv':
+            raise PiCameraValueError('YUV format is unsupported at this time')
         res = self.resolution
         if (self._info.transform & bcm_host.DISPMANX_ROTATE_90) or (
                 self._info.transform & bcm_host.DISPMANX_ROTATE_270):
