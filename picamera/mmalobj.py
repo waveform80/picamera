@@ -1649,6 +1649,13 @@ class MMALFakePort(MMALObject):
     """
     Fakes an output port for :class:`MMALFakeSource`.
     """
+    _FORMAT_BPP = {
+        'RGB3': 3,
+        'RGBA': 4,
+        'BGR3': 3,
+        'BGRA': 4,
+        }
+
     def __init__(self, owner):
         self._enabled = False
         self._owner = owner
@@ -1725,12 +1732,7 @@ class MMALFakePort(MMALObject):
     @property
     def buffer_size(self):
         video = self._format[0].es[0].video
-        return {
-            'RGB3': 3,
-            'RGBA': 4,
-            'BGR3': 3,
-            'BGRA': 4,
-            }[str(self.format)] * video.width * video.height
+        return self._FORMAT_BPP[str(self.format)] * video.width * video.height
 
     def copy_from(self, source):
         """
@@ -1749,12 +1751,7 @@ class MMALFakePort(MMALObject):
         adjusting the port's format and/or associated settings (like width and
         height for video ports).
         """
-        if self._format not in (
-                mmal.MMAL_ENCODING_RGB24,
-                mmal.MMAL_ENCODING_RGBA,
-                mmal.MMAL_ENCODING_BGR24,
-                mmal.MMAL_ENCODING_BGRA,
-                ):
+        if str(self.format) not in self._FORMAT_BPP:
             raise PiCameraMMALError(mmal.MMAL_EINVAL, 'bad format')
 
     @property
@@ -1837,7 +1834,7 @@ class MMALFakePortPool(MMALPool):
     """
 
     def __init__(self, port):
-        super(MMALFakePortPool).__init__(
+        super(MMALFakePortPool, self).__init__(
             mmal.mmal_pool_create(port.buffer_count, port.buffer_size))
         self._port = port
 
@@ -1945,6 +1942,7 @@ class MMALFakeConnection(MMALObject):
         self._target.commit()
         self._source._owner._connection = self
         self._source.enable()
+        self.enabled = True
 
     def close(self):
         try:
@@ -1970,7 +1968,6 @@ class MMALFakeConnection(MMALObject):
     enabled = property(_get_enabled, _set_enabled)
 
     def send(self, data, flags):
-        self.enabled = True
         buf = self._target.pool.get_buffer()
         buf.update(data, flags)
         self._target.send_buffer(buf)

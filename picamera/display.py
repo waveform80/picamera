@@ -43,7 +43,7 @@ import ctypes as ct
 from functools import reduce
 from operator import or_
 
-from . import bcm_host, mmalobj as mo
+from . import bcm_host, mmalobj as mo, mmal
 from .encoders import PiCookedOneImageEncoder, PiRawOneImageEncoder
 from .exc import PiCameraRuntimeError, PiCameraValueError
 from .streams import BufferIO
@@ -54,6 +54,7 @@ class PiDisplay(object):
         '_display',
         '_info',
         '_transform',
+        '_exif_tags',
         )
 
     _ROTATIONS = {
@@ -75,6 +76,7 @@ class PiDisplay(object):
 
     def __init__(self, display_num=0):
         bcm_host.bcm_host_init()
+        self._exif_tags = {}
         self._display = bcm_host.vc_dispmanx_display_open(display_num)
         self._transform = bcm_host.DISPMANX_NO_ROTATE
         if not self._display:
@@ -85,6 +87,11 @@ class PiDisplay(object):
 
     def close(self):
         bcm_host.vc_dispmanx_display_close(self._display)
+        self._display = None
+
+    @property
+    def closed(self):
+        return self._display is None
 
     def __enter__(self):
         return self
@@ -202,12 +209,18 @@ class PiDisplay(object):
                     rect = bcm_host.VC_RECT_T(0, 0, res.width, res.height)
                     if bcm_host.vc_dispmanx_resource_read_data(resource, rect, buf._buf[0].data, pitch):
                         raise PiCameraRuntimeError('failed to read snapshot')
+                    buf._buf[0].length = pitch * res.height
+                    buf._buf[0].flags = (
+                        mmal.MMAL_BUFFER_HEADER_FLAG_EOS |
+                        mmal.MMAL_BUFFER_HEADER_FLAG_FRAME_END
+                        )
                 finally:
                     bcm_host.vc_dispmanx_resource_delete(resource)
                 source.outputs[0].send_buffer(buf)
+                # XXX Anything more intelligent than a 10 second default?
                 encoder.wait(10)
             finally:
-                encoder.close()
+                encoder.stop()
         finally:
             encoder.close()
 
@@ -298,3 +311,10 @@ class PiDisplay(object):
             display itself. To rotate the display itself, modify the
             ``display_rotate`` value in :file:`/boot/config.txt`.
         """)
+
+    def _get_exif_tags(self):
+        return self._exif_tags
+    def _set_exif_tags(self, value):
+        self._exif_tags = {k: v for k, v in value.items()}
+    exif_tags = property(_get_exif_tags, _set_exif_tags)
+
