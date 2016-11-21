@@ -692,22 +692,6 @@ class MMALControlPort(MMALObject):
                 prefix="Unable to disable port %s" % self.name)
             self._wrapper = None
 
-    def send_buffer(self, buf):
-        """
-        Send :class:`MMALBuffer` *buf* to the port.
-        """
-        mmal_check(
-            mmal.mmal_port_send_buffer(self._port, buf._buf),
-            prefix="unable to send the buffer to port %s" % self.name)
-
-    def flush(self):
-        """
-        Flush the port.
-        """
-        mmal_check(
-            mmal.mmal_port_flush(self._port),
-            prefix="Unable to flush port %s" % self.name)
-
     @property
     def name(self):
         return self._port[0].name.decode('ascii')
@@ -845,6 +829,28 @@ class MMALPort(MMALControlPort):
         Returns the :class:`MMALPool` associated with the buffer, if any.
         """
         return self._pool
+
+    def get_buffer(self):
+        """
+        Returns a :class:`MMALBuffer` from the associated :attr:`pool`.
+        """
+        return self.pool.get_buffer()
+
+    def send_buffer(self, buf):
+        """
+        Send :class:`MMALBuffer` *buf* to the port.
+        """
+        mmal_check(
+            mmal.mmal_port_send_buffer(self._port, buf._buf),
+            prefix="unable to send the buffer to port %s" % self.name)
+
+    def flush(self):
+        """
+        Flush the port.
+        """
+        mmal_check(
+            mmal.mmal_port_flush(self._port),
+            prefix="Unable to flush port %s" % self.name)
 
     @property
     def buffer_count(self):
@@ -1644,7 +1650,9 @@ class MMALFakePort(MMALObject):
     Fakes an output port for :class:`MMALFakeSource`.
     """
     def __init__(self, owner):
+        self._enabled = False
         self._owner = owner
+        self._pool = None
         self._format = ct.pointer(mmal.MMAL_ES_FORMAT_T(
             type=mmal.MMAL_ES_TYPE_VIDEO,
             encoding=mmal.MMAL_ENCODING_RGB24,
@@ -1662,8 +1670,6 @@ class MMALFakePort(MMALObject):
         return self._format[0].encoding
     def _set_format(self, value):
         self._format[0].encoding = value
-        if value == mmal.MMAL_ENCODING_OPAQUE:
-            self._format[0].encoding_variant = mmal.MMAL_ENCODING_I420
     format = property(_get_format, _set_format, doc="""\
         Retrieves or sets the encoding format of the port. Setting this
         attribute implicitly sets the encoding variant to a sensible value
@@ -1706,6 +1712,13 @@ class MMALFakePort(MMALObject):
         """)
 
     @property
+    def pool(self):
+        """
+        Returns the :class:`MMALPool` associated with the buffer, if any.
+        """
+        return self._pool
+
+    @property
     def buffer_count(self):
         return 1
 
@@ -1713,7 +1726,6 @@ class MMALFakePort(MMALObject):
     def buffer_size(self):
         video = self._format[0].es[0].video
         return {
-            'I420': 1.5,
             'RGB3': 3,
             'RGBA': 4,
             'BGR3': 3,
@@ -1737,7 +1749,76 @@ class MMALFakePort(MMALObject):
         adjusting the port's format and/or associated settings (like width and
         height for video ports).
         """
-        pass # no op on fake source
+        if self._format not in (
+                mmal.MMAL_ENCODING_RGB24,
+                mmal.MMAL_ENCODING_RGBA,
+                mmal.MMAL_ENCODING_BGR24,
+                mmal.MMAL_ENCODING_BGRA,
+                ):
+            raise PiCameraMMALError(mmal.MMAL_EINVAL, 'bad format')
+
+    @property
+    def enabled(self):
+        """
+        Returns a :class:`bool` indicating whether the port is currently
+        enabled. Unlike other classes, this is a read-only property. Use
+        :meth:`enable` and :meth:`disable` to modify the value.
+        """
+        return self._enabled
+
+    def enable(self, callback=None):
+        """
+        Enable the port with the specified callback function (this must be
+        ``None`` for connected ports, and a callable for disconnected ports).
+
+        The callback function must accept two parameters which will be this
+        :class:`MMALControlPort` (or descendent) and an :class:`MMALBuffer`
+        instance. Any return value will be ignored.
+        """
+        if self._owner._connection:
+            if callback is not None:
+                raise PiCameraRuntimeError(
+                    'connected ports must be enabled without callback')
+        else:
+            if callback is None:
+                raise PiCameraRuntimeError(
+                    'unconnected ports must be enabled with callback')
+            self._pool = MMALFakePortPool(self)
+        self._callback = callback
+        self._enabled = True
+
+    def disable(self):
+        """
+        Disable the port.
+        """
+        if self._pool:
+            self._pool.close()
+            self._pool = None
+        self._callback = None
+        self._enabled = False
+
+    def get_buffer(self):
+        """
+        Returns a :class:`MMALBuffer` from the associated :attr:`pool`.
+        """
+        if not self._enabled:
+            raise PiCameraRuntimeError('cannot get buffers from disabled port')
+        if self._callback:
+            return self._pool.get_buffer()
+        else:
+            return self._owner._connection._target.get_buffer()
+
+    def send_buffer(self, buf):
+        """
+        Send :class:`MMALBuffer` *buf* to the port.
+        """
+        if not self._enabled:
+            raise PiCameraRuntimeError('cannot send buffers via disabled port')
+        if self._callback:
+            # XXX Do something with the return value?
+            self._callback(self, buf)
+        else:
+            self._owner._connection._target.send_buffer(buf)
 
     @property
     def name(self):
@@ -1746,6 +1827,38 @@ class MMALFakePort(MMALObject):
     def __repr__(self):
         return '<MMALFakePort "%s": format=%r buffers=%dx%d frames=%s@%sfps>' % (
             self.name, self.format, self.buffer_count, self.buffer_size, self.framesize, self.framerate)
+
+
+class MMALFakePortPool(MMALPool):
+    """
+    Creates a pool of buffer headers for an :class:`MMALFakePort`. This is only
+    used when a fake port is used without a corresponding
+    :class:`MMALFakeConnection`.
+    """
+
+    def __init__(self, port):
+        super(MMALFakePortPool).__init__(
+            mmal.mmal_pool_create(port.buffer_count, port.buffer_size))
+        self._port = port
+
+    @property
+    def port(self):
+        return self._port
+
+    def send_buffer(self):
+        """
+        Get a buffer from the pool and send it to the port the pool is
+        associated with.
+        """
+        self._port.send_buffer(self.get_buffer())
+
+    def send_all_buffers(self, port):
+        """
+        Send all buffers from the pool to the port the pool is associated
+        with.
+        """
+        for i in range(mmal.mmal_queue_length(self._pool[0].queue)):
+            self._port.send_buffer(self.get_buffer())
 
 
 class MMALFakeSource(MMALObject):
@@ -1817,7 +1930,7 @@ class MMALFakeSource(MMALObject):
 
 class MMALFakeConnection(MMALObject):
     """
-    Fakes a connection between an MMALFakeSource and a
+    Fakes a connection between an :class:`MMALFakeSource` and a
     :class:`MMALDownstreamComponent`.
     """
     def __init__(self, source, target):
@@ -1831,11 +1944,13 @@ class MMALFakeConnection(MMALObject):
         self._target.copy_from(self._source)
         self._target.commit()
         self._source._owner._connection = self
+        self._source.enable()
 
     def close(self):
         try:
             self.enabled = False
             self._source._owner._connection = None
+            self._source.disable()
         except AttributeError:
             pass
 

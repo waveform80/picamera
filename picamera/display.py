@@ -44,6 +44,7 @@ from functools import reduce
 from operator import or_
 
 from . import bcm_host, mmalobj as mo
+from .encoders import PiCookedOneImageEncoder, PiRawOneImageEncoder
 from .exc import PiCameraRuntimeError, PiCameraValueError
 from .streams import BufferIO
 
@@ -63,6 +64,14 @@ class PiDisplay(object):
         }
     _ROTATIONS_R = {v: k for k, v in _ROTATIONS.items()}
     _ROTATIONS_MASK = reduce(or_, _ROTATIONS.keys(), 0)
+
+    RAW_FORMATS = {
+        'yuv',
+        'rgb',
+        'rgba',
+        'bgr',
+        'bgra',
+        }
 
     def __init__(self, display_num=0):
         bcm_host.bcm_host_init()
@@ -128,72 +137,79 @@ class PiDisplay(object):
             format = 'bmp'
         return format
 
-    def _open_output(self, output):
+    def _get_image_encoder(self, output_port, format, resize, **options):
         """
-        Opens *output* and returns a `(file, close)` tuple consisting of the
-        file-like object representing the output, and a bool indicating whether
-        it needs closing.
+        Construct an image encoder for the requested parameters.
 
-        If *output* is a string, this method opens it as a filename and returns
-        ``True`` as the close bool (indicating the object eventually needs
-        closing).  Otherwise, if *output* has a ``write`` method it is assumed
-        to be a file-like object and it is used verbatim. If *output* is
-        neither a string, nor an object with a ``write`` method it is assumed
-        to be a writeable object supporting the buffer protocol (this is
-        wrapped in a :class:`BufferIO` stream to simplify writing). In both
-        latter cases the close bool will be ``False``.
+        This method is called by :meth:`capture`. The *output_port* parameter
+        gives the MMAL port that the encoder should read output from. The
+        *format* parameter indicates the image format and will be one of:
+
+        * ``'jpeg'``
+        * ``'png'``
+        * ``'gif'``
+        * ``'bmp'``
+        * ``'yuv'``
+        * ``'rgb'``
+        * ``'rgba'``
+        * ``'bgr'``
+        * ``'bgra'``
+
+        The *resize* parameter indicates the size that the encoder should
+        resize the output to (presumably by including a resizer in the
+        pipeline). Finally, *options* includes extra keyword arguments that
+        should be passed verbatim to the encoder.
         """
-        opened = isinstance(output, (bytes, str))
-        if opened:
-            # Open files in binary mode with a decent buffer size
-            output = io.open(output, 'wb', buffering=65536)
-        else:
-            try:
-                output.write
-            except AttributeError:
-                # If there's no write method, try and treat the output as a
-                # writeable buffer
-                opened = True
-                output = BufferIO(output)
-        return (output, opened)
+        encoder_class = (
+                PiRawOneImageEncoder if format in self.RAW_FORMATS else
+                PiCookedOneImageEncoder)
+        return encoder_class(
+                self, None, output_port, format, resize, **options)
 
-    def capture(self, output, format=None):
+    def capture(self, output, format=None, resize=None, **options):
         format = self._get_image_format(output, format)
-        if format not in ('rgb', 'bgr'):
-            raise PiCameraValueError(
-                'display capture format %s is not currently supported' % format)
-        output, close = self._open_output(output)
+        res = self.resolution
+        if (self._info.transform & bcm_host.DISPMANX_ROTATE_90) or (
+                self._info.transform & bcm_host.DISPMANX_ROTATE_270):
+            res = res.transpose()
+        transform = self._transform
+        if (transform & bcm_host.DISPMANX_ROTATE_90) or (
+                transform & bcm_host.DISPMANX_ROTATE_270):
+            res = res.transpose()
+        source = mo.MMALFakeSource()
+        source.outputs[0].format = mmal.MMAL_ENCODING_RGB24
+        if format == 'bgr':
+            source.outputs[0].format = mmal.MMAL_ENCODING_BGR24
+            transform |= bcm_host.DISPMANX_SNAPSHOT_SWAP_RED_BLUE
+        source.outputs[0].framesize = res
+        source.outputs[0].commit()
+        encoder = self._get_image_encoder(
+            source.outputs[0], format, resize, **options)
         try:
-            res = self.resolution
-            if (self._info.transform & bcm_host.DISPMANX_ROTATE_90) or (
-                    self._info.transform & bcm_host.DISPMANX_ROTATE_270):
-                res = res.transpose()
-            transform = self._transform
-            if (transform & bcm_host.DISPMANX_ROTATE_90) or (
-                    transform & bcm_host.DISPMANX_ROTATE_270):
-                res = res.transpose()
-            pitch = res.pad(width=16).width * 3
-            buf = ct.create_string_buffer(pitch * res.height)
-            image_ptr = ct.c_uint32()
-            resource = bcm_host.vc_dispmanx_resource_create(
-                bcm_host.VC_IMAGE_RGB888, res.width, res.height, image_ptr)
-            if not resource:
-                raise PiCameraRuntimeError(
-                    'unable to allocate resource for capture')
+            encoder.start(output)
             try:
-                if format == 'bgr':
-                    transform |= bcm_host.DISPMANX_SNAPSHOT_SWAP_RED_BLUE
-                if bcm_host.vc_dispmanx_snapshot(self._display, resource, transform):
-                    raise PiCameraRuntimeError('failed to capture snapshot')
-                rect = bcm_host.VC_RECT_T(0, 0, res.width, res.height)
-                if bcm_host.vc_dispmanx_resource_read_data(resource, rect, buf, pitch):
-                    raise PiCameraRuntimeError('failed to read snapshot')
-                output.write(buf.raw)
+                pitch = res.pad(width=16).width * 3
+                image_ptr = ct.c_uint32()
+                resource = bcm_host.vc_dispmanx_resource_create(
+                    bcm_host.VC_IMAGE_RGB888, res.width, res.height, image_ptr)
+                if not resource:
+                    raise PiCameraRuntimeError(
+                        'unable to allocate resource for capture')
+                try:
+                    buf = source.outputs[0].get_buffer()
+                    if bcm_host.vc_dispmanx_snapshot(self._display, resource, transform):
+                        raise PiCameraRuntimeError('failed to capture snapshot')
+                    rect = bcm_host.VC_RECT_T(0, 0, res.width, res.height)
+                    if bcm_host.vc_dispmanx_resource_read_data(resource, rect, buf._buf[0].data, pitch):
+                        raise PiCameraRuntimeError('failed to read snapshot')
+                finally:
+                    bcm_host.vc_dispmanx_resource_delete(resource)
+                source.outputs[0].send_buffer(buf)
+                encoder.wait(10)
             finally:
-                bcm_host.vc_dispmanx_resource_delete(resource)
+                encoder.close()
         finally:
-            if close:
-                output.close()
+            encoder.close()
 
     def _calculate_transform(self):
         """

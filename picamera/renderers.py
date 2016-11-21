@@ -405,7 +405,7 @@ class PiOverlayRenderer(PiRenderer):
             framerate. Going faster will rapidly starve the renderer's pool of
             buffers leading to a runtime error.
         """
-        buf = self.renderer.inputs[0].pool.get_buffer()
+        buf = self.renderer.inputs[0].get_buffer()
         buf.update(source)
         self.renderer.inputs[0].send_buffer(buf)
 
