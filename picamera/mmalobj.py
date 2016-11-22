@@ -2136,7 +2136,14 @@ class MMALPythonConnection(MMALObject):
     def _set_enabled(self, value):
         if not self._enabled and value:
             self._target.enable(self._callback)
-            self._source.enable(self._transfer)
+            if isinstance(self._source, MMALPythonPort):
+                # Connected python output ports are nothing more than thin
+                # proxies for the target input port; no callback required
+                self._source.enable()
+            else:
+                # Connected MMAL output ports are made to transfer their
+                # data to the Python input port
+                self._source.enable(self._transfer)
             self._enabled = True
         elif self._enabled and not value:
             self._source.disable()
