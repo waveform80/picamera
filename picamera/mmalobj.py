@@ -2040,7 +2040,7 @@ class MMALPythonSource(MMALPythonObject):
         return 'py.source'
 
 
-class MMALPythonTransform(MMALObject):
+class MMALPythonTransform(MMALPythonObject):
     """
     Provides a Python-implemented transformation component for MMAL pipelines.
     """
@@ -2068,7 +2068,7 @@ class MMALPythonTransform(MMALObject):
         if self.connection:
             self.disconnect()
         self._connection_in = MMALPythonConnection(
-            source, self.inputs[0], callback=self.transform)
+            source, self.inputs[0], callback=self._callback)
 
     def disconnect(self):
         if self._connection_in:
@@ -2083,8 +2083,15 @@ class MMALPythonTransform(MMALObject):
     def connection(self):
         return self._connection_in
 
-    def transform(self, port, buf):
-        pass
+    def _callback(self, port, buf):
+        """
+        Stub for descendents to override. This will be called with each buffer
+        from the input port that requires transformation. The method is
+        expected to fetch a buffer from the component's output port, write the
+        data into it and send the buffer. Return values are as for normal port
+        callbacks (True when no more buffers are expected, False otherwise).
+        """
+        return False
 
 
 class MMALPythonConnection(MMALObject):

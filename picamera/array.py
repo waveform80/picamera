@@ -48,6 +48,7 @@ import warnings
 import numpy as np
 from numpy.lib.stride_tricks import as_strided
 
+from . import mmalobj as mo, mmal
 from .exc import PiCameraValueError, PiCameraDeprecated
 
 
@@ -687,4 +688,56 @@ class PiMotionAnalysis(PiAnalysisOutput):
                 np.frombuffer(b, dtype=motion_dtype).\
                 reshape((self.rows, self.cols)))
         return result
+
+
+class MMALBufferNumpy(mo.MMALBuffer):
+    __slots__ = ('_array', '_count', '_shape')
+
+    def __init__(self, buf, width, height, bpp):
+        super(MMALBufferNumpy, self).__init__(buf)
+        self._array = None
+        self._count = width * height * bpp
+        self._shape = (height, width, bpp)
+
+    def lock(self):
+        mmal_check(
+            mmal.mmal_buffer_header_mem_lock(self._buf),
+            prefix='unable to lock buffer header memory')
+        self._array = np.frombuffer(
+            self._buf[0].data[0], dtype=np.uint8,
+            count=self._count).reshape(self._shape)
+
+    def unlock(self):
+        self._array = None
+        mmal.mmal_buffer_header_mem_unlock(self._buf)
+
+    def __enter__(self):
+        self.lock()
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_tb):
+        self.unlock()
+
+    @property
+    def array(self):
+        return self._array
+
+
+class PiArrayTransform(mo.MMALPythonTransform):
+    __slots__ = ('_width', '_height', '_bpp')
+
+    def connect(self, source):
+        self._width = port._format[0].es[0].video.width
+        self._height = port._format[0].es[0].video.height
+        self._bpp = port._FORMAT_BPP[str(port.format)]
+        super(PiArrayTransform, self).connect(source)
+
+    def _callback(self, port, source_buf):
+        target_buf = self.outputs[0].get_buffer(False)
+        with MMALBufferNumpy(source_buf._buf, self._width, self._height, self._bpp) as source, \
+                MMALBufferNumpy(target_buf._buf, self._width, self._height, self._bpp) as target:
+            return self.transform(source, target)
+
+    def transform(self, source, target):
+        return False
 
