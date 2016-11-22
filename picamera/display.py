@@ -185,7 +185,7 @@ class PiDisplay(object):
         if (transform & bcm_host.DISPMANX_ROTATE_90) or (
                 transform & bcm_host.DISPMANX_ROTATE_270):
             res = res.transpose()
-        source = mo.MMALFakeSource()
+        source = mo.MMALPythonSource()
         source.outputs[0].format = mmal.MMAL_ENCODING_RGB24
         if format == 'bgr':
             source.outputs[0].format = mmal.MMAL_ENCODING_BGR24

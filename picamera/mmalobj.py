@@ -44,6 +44,8 @@ str = type('')
 import ctypes as ct
 import warnings
 import weakref
+from threading import Thread
+from queue import Queue, Empty
 from collections import namedtuple
 from fractions import Fraction
 from itertools import cycle
@@ -396,23 +398,23 @@ def debug_pipeline(port):
                     return obj
         raise IndexError('unable to locate component with address %x' % addr)
 
-    assert isinstance(port, (MMALControlPort, MMALFakePort))
+    assert isinstance(port, (MMALControlPort, MMALPythonPort))
     while True:
         yield port
-        if isinstance(port, MMALFakePort):
+        if isinstance(port, MMALPythonPort):
             comp = port._owner
         else:
             comp = find_component(ct.addressof(port._port[0].component[0]))
         yield comp
         if not isinstance(comp, MMALDownstreamComponent):
             break
-        if isinstance(comp.connection, MMALFakeConnection):
+        if isinstance(comp.connection, MMALPythonConnection):
             port = comp.connection._target
         else:
             port = find_port(ct.addressof(comp.connection._connection[0].in_[0]))
         yield port
         yield comp.connection
-        if isinstance(comp.connection, MMALFakeConnection):
+        if isinstance(comp.connection, MMALPythonConnection):
             port = comp.connection._source
         else:
             port = find_port(ct.addressof(comp.connection._connection[0].out[0]))
@@ -426,7 +428,7 @@ def print_pipeline(port):
     rows = [[], [], [], [], []]
     under_comp = False
     for obj in reversed(list(debug_pipeline(port))):
-        if isinstance(obj, (MMALComponent, MMALFakeSource)):
+        if isinstance(obj, (MMALComponent, MMALPythonSource)):
             rows[0].append(obj.name)
             under_comp = True
         elif isinstance(obj, MMALVideoPort):
@@ -450,7 +452,7 @@ def print_pipeline(port):
                 obj._port[0].format[0].es[0].video.width,
                 obj._port[0].format[0].es[0].video.height,
                 obj.framerate))
-        elif isinstance(obj, MMALFakePort):
+        elif isinstance(obj, MMALPythonPort):
             rows[0].append('[0]')
             if under_comp:
                 rows[1].append('encoding')
@@ -468,7 +470,7 @@ def print_pipeline(port):
                 obj._format[0].es[0].video.width,
                 obj._format[0].es[0].video.height,
                 obj.framerate))
-        elif isinstance(obj, (MMALConnection, MMALFakeConnection)):
+        elif isinstance(obj, (MMALConnection, MMALPythonConnection)):
             rows[0].append('')
             rows[1].append('')
             rows[2].append('-->')
@@ -624,10 +626,11 @@ class MMALComponent(MMALObject):
 
     def __repr__(self):
         if self._component:
-            return '<MMALComponent "%s": %d inputs %d outputs>' % (
-                self.name, len(self.inputs), len(self.outputs))
+            return '<%s "%s": %d inputs %d outputs>' % (
+                self.__class__.__name__, self.name,
+                len(self.inputs), len(self.outputs))
         else:
-            return '<MMALComponent closed>'
+            return '<%s closed>' % self.__class__.__name__
 
 
 class MMALControlPort(MMALObject):
@@ -800,7 +803,7 @@ class MMALPort(MMALControlPort):
         Copies the port's :attr:`format` from the *source*
         :class:`MMALControlPort`.
         """
-        if isinstance(source, MMALFakePort):
+        if isinstance(source, MMALPythonPort):
             mmal.mmal_format_copy(self._port[0].format, source._format)
         else:
             mmal.mmal_format_copy(self._port[0].format, source._port[0].format)
@@ -830,11 +833,13 @@ class MMALPort(MMALControlPort):
         """
         return self._pool
 
-    def get_buffer(self):
+    def get_buffer(self, block=True, timeout=None):
         """
-        Returns a :class:`MMALBuffer` from the associated :attr:`pool`.
+        Returns a :class:`MMALBuffer` from the associated :attr:`pool`. *block*
+        and *timeout* act as they do in the corresponding
+        :meth:`MMALPool.get_buffer`.
         """
-        return self.pool.get_buffer()
+        return self.pool.get_buffer(block, timeout)
 
     def send_buffer(self, buf):
         """
@@ -879,7 +884,7 @@ class MMALPort(MMALControlPort):
             finally:
                 buf.release()
                 if not self._stopped:
-                    self._pool.send_buffer()
+                    self._pool.send_buffer(False)
 
         if not self.enabled:
             # Workaround: There is a bug in the MJPEG encoder that causes a
@@ -904,7 +909,7 @@ class MMALPort(MMALControlPort):
                 # will presumably want to feed buffers to it manually
                 if self._port[0].type == mmal.MMAL_PORT_TYPE_OUTPUT:
                     try:
-                        self._pool.send_all_buffers(self)
+                        self._pool.send_all_buffers(False)
                     except:
                         self._pool.close()
                         self._pool = None
@@ -1182,11 +1187,61 @@ class MMALBuffer(object):
         finally:
             mmal.mmal_buffer_header_mem_unlock(self._buf)
 
+    def copy_from(self, source):
+        """
+        Copies all fields (including data) from the *source*
+        :class:`MMALBuffer`. This buffer much have sufficient :attr:`size` to
+        store :attr:`length` bytes from the *source* buffer.
+
+        .. note::
+
+            This is fundamentally different to the operation of the
+            :meth:`replicate` method.
+        """
+        assert self.alloc_size >= source.length
+        # dirty hack; we could do pointer arithmetic with offset but it's
+        # rather long-winded in Python and this method needs to be *fast*
+        assert source._buf[0].offset == 0
+        mmal_check(
+            mmal.mmal_buffer_header_mem_lock(source._buf),
+            prefix='unable to lock buffer header memory')
+        try:
+            ct.memmove(self._buf[0].data, source._buf[0].data, source._buf[0].length)
+        finally:
+            mmal.mmal_buffer_header_mem_unlock(source._buf)
+        self._buf[0].offset = 0
+        self._buf[0].length = source._buf[0].length
+        self._buf[0].cmd = source._buf[0].cmd
+        self._buf[0].flags = source._buf[0].flags
+        self._buf[0].dts = source._buf[0].dts
+        self._buf[0].pts = source._buf[0].pts
+        self._buf[0].type[0] = source._buf[0].type[0]
+
+    def replicate(self, source):
+        """
+        Replicates the *source* :class:`MMALBuffer`. This copies all fields
+        from the *source* buffer, including the internal :attr:`data` pointer.
+        In other words, after replication this buffer and the *source* buffer
+        will share the same block of memory for *data*.
+
+        The *source* buffer will also be referenced internally by this buffer
+        and will only be recycled once this buffer is released.
+
+        .. note::
+
+            This is fundamentally different to the operation of the
+            :meth:`copy_from` method.
+        """
+        mmal_check(
+            mmal_buffer_replicate(self._buf, source._buf),
+            prefix='unable to replicate buffer')
+
     def update(self, data, flags=None, command=None):
         """
-        Overwrites the :attr:`data` in the buffer. The *data* parameter is an
-        object supporting the buffer protocol which contains up to
-        :attr:`size` bytes.
+        Overwrites the :attr:`data` in the buffer (and optionally the
+        :attr:`flags` and :attr:`command` too). The *data* parameter is an
+        object supporting the buffer protocol which contains up to :attr:`size`
+        bytes.
 
         .. warning::
 
@@ -1209,23 +1264,6 @@ class MMALBuffer(object):
             self._buf[0].flags = flags
         if command is not None:
             self._buf[0].cmd = command
-
-    def copy(self, data=None):
-        """
-        Return a copy of this buffer header, optionally replacing the
-        :attr:`data` attribute with *data* which must be an object supporting
-        the buffer protocol.
-        """
-        result = MMALBuffer(ct.pointer(mmal.MMAL_BUFFER_HEADER_T.from_buffer_copy(self._buf[0])))
-        if data is not None:
-            bp = ct.c_uint8 * len(data)
-            try:
-                sp = bp.from_buffer(data)
-            except TypeError:
-                sp = bp.from_buffer_copy(data)
-            result._buf[0].length = len(data)
-            result._buf[0].data = ct.cast(ct.pointer(sp), ct.POINTER(ct.c_uint8))
-        return result
 
     def acquire(self):
         mmal.mmal_buffer_header_acquire(self._buf)
@@ -1270,27 +1308,42 @@ class MMALPool(object):
             mmal.mmal_pool_destroy(self._pool)
             self._pool = None
 
-    def get_buffer(self):
+    def get_buffer(self, block=True, timeout=None):
         """
-        Get the next buffer from the pool.
+        Get the next buffer from the pool. If *block* is ``True`` (the default)
+        and *timeout* is ``None`` (the default) then the method will block
+        until a buffer is available. Otherwise *timeout* is the maximum time
+        to wait (in ms) for a buffer to become available. If a buffer is not
+        available before the timeout expires a :exc:`PiCameraRuntimeError`
+        is raised.
+
+        Likewise, if *block* is ``False`` and no buffer is immediately
+        available then :exc:`PiCameraRuntimeError` is raised.
         """
-        buf = mmal.mmal_queue_get(self._pool[0].queue)
+        if block and timeout is None:
+            buf = mmal.mmal_queue_wait(self._pool[0].queue)
+        elif block and timeout is not None:
+            buf = mmal.mmal_queue_timedwait(self._pool[0].queue, timeout)
+        else:
+            buf = mmal.mmal_queue_get(self._pool[0].queue)
         if not buf:
             raise PiCameraRuntimeError('failed to get a buffer from the pool')
         return MMALBuffer(buf)
 
-    def send_buffer(self, port):
+    def send_buffer(self, port, block=True, timeout=None):
         """
-        Get a buffer from the pool and send it to *port*.
+        Get a buffer from the pool and send it to *port*. *block* and *timeout*
+        act as they do in :meth:`get_buffer`.
         """
-        port.send_buffer(self.get_buffer())
+        port.send_buffer(self.get_buffer(block, timeout))
 
-    def send_all_buffers(self, port):
+    def send_all_buffers(self, port, block=True, timeout=None):
         """
-        Send all buffers from the pool to *port*.
+        Send all buffers from the pool to *port*. *block* and *timeout* act as
+        they do in :meth:`get_buffer`.
         """
         for i in range(mmal.mmal_queue_length(self._pool[0].queue)):
-            port.send_buffer(self.get_buffer())
+            port.send_buffer(self.get_buffer(block, timeout))
 
 
 class MMALPortPool(MMALPool):
@@ -1318,20 +1371,20 @@ class MMALPortPool(MMALPool):
     def port(self):
         return self._port
 
-    def send_buffer(self):
+    def send_buffer(self, block=True, timeout=None):
         """
         Get a buffer from the pool and send it to the port the pool is
-        associated with.
+        associated with. *block* and *timeout* act as they do in
+        :meth:`MMALPool.get_buffer`.
         """
-        self._port.send_buffer(self.get_buffer())
+        super(MMALPortPool, self).send_buffer(self._port, block, timeout)
 
-    def send_all_buffers(self, port):
+    def send_all_buffers(self, block=True, timeout=None):
         """
-        Send all buffers from the pool to the port the pool is associated
-        with.
+        Send all buffers from the pool to the port the pool is associated with.
+        *block* and *timeout* act as they do in :meth:`MMALPool.get_buffer`.
         """
-        for i in range(mmal.mmal_queue_length(self._pool[0].queue)):
-            self._port.send_buffer(self.get_buffer())
+        super(MMALPortPool, self).send_all_buffers(self._port, block, timeout)
 
 
 class MMALConnection(MMALObject):
@@ -1558,8 +1611,8 @@ class MMALDownstreamComponent(MMALComponent):
     def connect(self, source):
         if self.connection:
             self.disconnect()
-        if isinstance(source, MMALFakePort):
-            self._connection = MMALFakeConnection(source, self.inputs[0])
+        if isinstance(source, MMALPythonPort):
+            self._connection = MMALPythonConnection(source, self.inputs[0])
         else:
             self._connection = MMALConnection(source, self.inputs[0])
 
@@ -1645,10 +1698,21 @@ class MMALNullSink(MMALDownstreamComponent):
     opaque_input_subformats = ('OPQV-single',)
 
 
-class MMALFakePort(MMALObject):
+class MMALPythonPort(MMALObject):
     """
-    Fakes an output port for :class:`MMALFakeSource`.
+    Implements ports for Python-based MMAL components.
     """
+    __slots__ = (
+        '_enabled',
+        '_owner',
+        '_pool',
+        '_inout',
+        '_format',
+        '_callback',
+        '_thread',
+        '_queue',
+        )
+
     _FORMAT_BPP = {
         'RGB3': 3,
         'RGBA': 4,
@@ -1656,10 +1720,14 @@ class MMALFakePort(MMALObject):
         'BGRA': 4,
         }
 
-    def __init__(self, owner):
+    def __init__(self, owner, inout):
         self._enabled = False
         self._owner = owner
         self._pool = None
+        self._callback = None
+        self._thread = None
+        self._queue = Queue() # XXX Max size?
+        self._inout = inout
         self._format = ct.pointer(mmal.MMAL_ES_FORMAT_T(
             type=mmal.MMAL_ES_TYPE_VIDEO,
             encoding=mmal.MMAL_ENCODING_RGB24,
@@ -1739,7 +1807,7 @@ class MMALFakePort(MMALObject):
         Copies the port's :attr:`format` from the *source*
         :class:`MMALControlPort`.
         """
-        if isinstance(source, MMALFakePort):
+        if isinstance(source, MMALPythonPort):
             mmal.mmal_format_copy(self._format, source._format)
         else:
             mmal.mmal_format_copy(self._format, source._port[0].format)
@@ -1772,38 +1840,70 @@ class MMALFakePort(MMALObject):
         :class:`MMALControlPort` (or descendent) and an :class:`MMALBuffer`
         instance. Any return value will be ignored.
         """
-        if self._owner._connection:
-            if callback is not None:
-                raise PiCameraRuntimeError(
-                    'connected ports must be enabled without callback')
+        if self._inout == 'out':
+            if self._owner._connection_out:
+                if callback is not None:
+                    raise PiCameraRuntimeError(
+                        'connected python output ports must be enabled '
+                        'without callback')
+            else:
+                if callback is None:
+                    raise PiCameraRuntimeError(
+                        'unconnected python output ports must be enabled '
+                        'with callback')
+                self._pool = MMALPythonPortPool(self)
         else:
             if callback is None:
                 raise PiCameraRuntimeError(
-                    'unconnected ports must be enabled with callback')
-            self._pool = MMALFakePortPool(self)
+                    'python input ports must be enabled with callback')
+            # The port is an input port; set up a background thread to handle
+            # incoming buffers via the specified callback
+            self._pool = MMALPythonPortPool(self)
+            self._thread = Thread(target=self._callback_run)
         self._callback = callback
         self._enabled = True
+        if self._thread:
+            self._thread.start()
 
     def disable(self):
         """
         Disable the port.
         """
+        self._enabled = False
+        if self._thread:
+            self._thread.join()
+            while not self._queue.empty():
+                self._queue.get()
+            self._thread = None
         if self._pool:
             self._pool.close()
             self._pool = None
         self._callback = None
-        self._enabled = False
 
-    def get_buffer(self):
+    def _callback_run(self):
+        while not self._enabled:
+            try:
+                buf = self._queue.get(timeout=0.1)
+            except Empty:
+                pass
+            else:
+                # XXX Do something with the return value?
+                self._callback(self, buf)
+
+    def get_buffer(self, block=True, timeout=None):
         """
-        Returns a :class:`MMALBuffer` from the associated :attr:`pool`.
+        Returns a :class:`MMALBuffer` from the associated :attr:`pool`. *block*
+        and *timeout* act as they do in the corresponding
+        :meth:`MMALPool.get_buffer`.
         """
         if not self._enabled:
             raise PiCameraRuntimeError('cannot get buffers from disabled port')
         if self._callback:
-            return self._pool.get_buffer()
+            assert self._pool
+            return self._pool.get_buffer(block, timeout)
         else:
-            return self._owner._connection._target.get_buffer()
+            assert self._inout == 'out'
+            return self._owner._connection_out._target.get_buffer(block, timeout)
 
     def send_buffer(self, buf):
         """
@@ -1811,30 +1911,34 @@ class MMALFakePort(MMALObject):
         """
         if not self._enabled:
             raise PiCameraRuntimeError('cannot send buffers via disabled port')
-        if self._callback:
+        if self._thread: # async input port
+            self._queue.put(buf)
+        elif self._callback: # sync output port
             # XXX Do something with the return value?
             self._callback(self, buf)
         else:
-            self._owner._connection._target.send_buffer(buf)
+            assert self._inout == 'out'
+            self._owner._connection_out._target.send_buffer(buf)
 
     @property
     def name(self):
-        return 'fake:out:0'
+        return 'py:%s:0' % self._inout
 
     def __repr__(self):
-        return '<MMALFakePort "%s": format=%r buffers=%dx%d frames=%s@%sfps>' % (
+        return '<MMALPythonPort "%s": format=%r buffers=%dx%d frames=%s@%sfps>' % (
             self.name, self.format, self.buffer_count, self.buffer_size, self.framesize, self.framerate)
 
 
-class MMALFakePortPool(MMALPool):
+class MMALPythonPortPool(MMALPool):
     """
-    Creates a pool of buffer headers for an :class:`MMALFakePort`. This is only
-    used when a fake port is used without a corresponding
-    :class:`MMALFakeConnection`.
+    Creates a pool of buffer headers for an :class:`MMALPythonPort`. This is
+    only used when a fake port is used without a corresponding
+    :class:`MMALPythonConnection`.
     """
+    __slots__ = ('_port',)
 
     def __init__(self, port):
-        super(MMALFakePortPool, self).__init__(
+        super(MMALPythonPortPool, self).__init__(
             mmal.mmal_pool_create(port.buffer_count, port.buffer_size))
         self._port = port
 
@@ -1842,42 +1946,32 @@ class MMALFakePortPool(MMALPool):
     def port(self):
         return self._port
 
-    def send_buffer(self):
+    def send_buffer(self, block=True, timeout=None):
         """
         Get a buffer from the pool and send it to the port the pool is
-        associated with.
+        associated with. *block* and *timeout* operate as they do in
+        :meth:`MMALPool.get_buffer`.
         """
-        self._port.send_buffer(self.get_buffer())
+        super(MMALPythonPortPool, self).send_buffer(self._port, block, timeout)
 
-    def send_all_buffers(self, port):
+    def send_all_buffers(self, block=True, timeout=None):
         """
-        Send all buffers from the pool to the port the pool is associated
-        with.
+        Send all buffers from the pool to the port the pool is associated with.
+        *block* and *timeout* operate as they do in
+        :meth:`MMALPool.get_buffer`.
         """
-        for i in range(mmal.mmal_queue_length(self._pool[0].queue)):
-            self._port.send_buffer(self.get_buffer())
+        super(MMALPythonPortPool, self).send_all_buffers(self._port, block, timeout)
 
 
-class MMALFakeSource(MMALObject):
-    """
-    Fakes an input port for an :class:`MMALDownstreamComponent`. This class
-    primarily exists to permit arbitrary inputs to the classes in
-    :mod:`picamera.encoders` without a major re-write of them.
-    """
-    def __init__(self):
-        self._inputs = ()
-        self._outputs = (MMALFakePort(self),)
-        self._connection = None
+class MMALPythonObject(MMALObject):
+    __slots__ = ()
 
     def close(self):
         """
         Close the component and release all its resources. After this is
         called, most methods will raise exceptions if called.
         """
-        if self._connection:
-            self._connection.close()
-        if self._outputs:
-            self._outputs = ()
+        pass
 
     @property
     def control(self):
@@ -1903,75 +1997,158 @@ class MMALFakeSource(MMALObject):
         """
         return self._outputs
 
+    def __repr__(self):
+        if self._outputs:
+            return '<%s "%s": %d inputs %d outputs>' % (
+                self.__class__.__name__, self.name,
+                len(self.inputs), len(self.outputs))
+        else:
+            return '<%s closed>' % self.__class__.__name__
+
+
+class MMALPythonSource(MMALPythonObject):
+    """
+    Provides a Python-fed input port for an :class:`MMALDownstreamComponent`.
+    """
+    __slots__ = ('_inputs', '_outputs', '_connection_out')
+
+    def __init__(self):
+        self._inputs = ()
+        self._outputs = (MMALPythonPort(self, 'out'),)
+        self._connection_out = None
+
+    def close(self):
+        if self._connection_out:
+            self._connection_out.close()
+        if self._outputs:
+            self._outputs[0].disable()
+            self._outputs = ()
+
     def send(self, data, flags=None):
         """
-        Emit data from the fake source to whatever component it is connected
+        Emit data from the python source to whatever component it is connected
         to.
         """
-        try:
-            self._connection.send(data, flags)
-        except AttributeError:
+        if not self._connection_out:
             raise PiCameraRuntimeError('source is not connected to anything')
+        buf = self._outputs[0].get_buffer(False)
+        buf.update(data, flags)
+        self._outputs[0].send_buffer(buf)
 
     @property
     def name(self):
-        return 'fake.source'
-
-    def __repr__(self):
-        if self._outputs:
-            return '<MMALFakeSource "%s": %d inputs %d outputs>' % (
-                self.name, len(self.inputs), len(self.outputs))
-        else:
-            return '<MMALFakeSource closed>'
+        return 'py.source'
 
 
-class MMALFakeConnection(MMALObject):
+class MMALPythonTransform(MMALObject):
     """
-    Fakes a connection between an :class:`MMALFakeSource` and a
+    Provides a Python-implemented transformation component for MMAL pipelines.
+    """
+    __slots__ = ('_inputs', '_outputs', '_connection_out', '_connection_in')
+
+    def __init__(self):
+        self._inputs = (MMALPythonPort(self, 'in'),)
+        self._outputs = (MMALPythonPort(self, 'out'),)
+        self._connection_in = None
+        self._connection_out = None
+
+    def close(self):
+        if self._connection_in:
+            self._connection_in.close()
+        if self._connection_out:
+            self._connection_out.close()
+        if self._inputs:
+            self._inputs[0].disable()
+            self._inputs = ()
+        if self._outputs:
+            self._outputs[0].disable()
+            self._outputs = ()
+
+    def connect(self, source):
+        if self.connection:
+            self.disconnect()
+        self._connection_in = MMALPythonConnection(
+            source, self.inputs[0], callback=self.transform)
+
+    def disconnect(self):
+        if self._connection_in:
+            self._connection_in.close()
+            self._connection_in = None
+
+    @property
+    def name(self):
+        return 'py.transform'
+
+    @property
+    def connection(self):
+        return self._connection_in
+
+    def transform(self, port, buf):
+        pass
+
+
+class MMALPythonConnection(MMALObject):
+    """
+    Represents a connection between an :class:`MMALPythonSource` and a
     :class:`MMALDownstreamComponent`.
     """
-    def __init__(self, source, target):
-        if not isinstance(source, MMALFakePort):
-            raise PiCameraValueError('source must be a MMALFakePort')
-        if not isinstance(target, MMALPort):
-            raise PiCameraValueError('target must be a MMALPort')
+    __slots__ = ('_enabled', '_callback', '_source', '_target')
+
+    def __init__(self, source, target, callback=None):
+        if not (
+                isinstance(source, MMALPythonPort) or
+                isinstance(target, MMALPythonPort)
+                ):
+            raise PiCameraValueError('use a real MMAL connection')
         self._enabled = False
+        if callback is None:
+            callback = lambda port, buf: True
+        self._callback = callback
         self._source = source
         self._source.commit()
         self._target = target
         self._target.copy_from(self._source)
         self._target.commit()
-        self._source._owner._connection = self
-        self._source.enable()
+        if isinstance(source, MMALPythonPort):
+            source._owner._connection_out = self
+        if isinstance(target, MMALPythonPort):
+            target._owner._connection_in = self
         self.enabled = True
 
     def close(self):
         try:
             self.enabled = False
-            self._source._owner._connection = None
+            if isinstance(source, MMALPythonPort):
+                self._source._owner._connection_out = None
             self._source.disable()
+            if isinstance(target, MMALPythonPort):
+                self._target._owner._connection_in = None
+            self._target.disable()
         except AttributeError:
             pass
 
     @property
     def name(self):
-        return 'fake:connection'
+        return 'py:connection'
 
     def _get_enabled(self):
         return self._enabled
     def _set_enabled(self, value):
         if not self._enabled and value:
-            self._target.enable(lambda port, buf: True)
+            self._target.enable(self._callback)
+            self._source.enable(self._transfer)
             self._enabled = True
         elif self._enabled and not value:
+            self._source.disable()
             self._target.disable()
             self._enabled = False
     enabled = property(_get_enabled, _set_enabled)
 
-    def send(self, data, flags):
-        buf = self._target.pool.get_buffer()
-        buf.update(data, flags)
-        self._target.send_buffer(buf)
+    def _transfer(self, port, buf):
+        dest = self._target.get_buffer()
+        dest.copy_from(buf)
+        self._target.send_buffer(dest)
+        return False
 
     def __enter__(self):
         return self
@@ -1980,5 +2157,5 @@ class MMALFakeConnection(MMALObject):
         self.close()
 
     def __repr__(self):
-        return '<MMALFakeConnection>'
+        return '<MMALPythonConnection>'
 

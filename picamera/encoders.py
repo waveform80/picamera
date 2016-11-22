@@ -458,6 +458,27 @@ class PiEncoder(object):
         self.output_port = None
 
 
+class MMALBufferAlphaStrip(mo.MMALBuffer):
+    """
+    An MMALBuffer descendent that strips alpha bytes from the buffer data. This
+    is used internally by PiRawMixin when it needs to strip alpha bytes itself
+    (e.g. because an appropriate format cannot be selected on an output port).
+    """
+
+    def __init__(self, buf):
+        super(MMALBufferAlphaStrip, self).__init__(buf)
+        self._stripped = bytearray(super(MMALBufferAlphaStrip, self).data)
+        del self._stripped[3::4]
+
+    @property
+    def length(self):
+        return len(self._stripped)
+
+    @property
+    def data(self):
+        return self._stripped
+
+
 class PiRawMixin(PiEncoder):
     """
     Mixin class for "raw" (unencoded) output.
@@ -565,10 +586,7 @@ class PiRawMixin(PiEncoder):
         Overridden to strip alpha bytes when required.
         """
         if self._strip_alpha:
-            s = bytearray(buf.data)
-            del s[3::4]
-            new_buf = buf.copy(s)
-            return super(PiRawMixin, self)._callback_write(new_buf, key)
+            return super(PiRawMixin, self)._callback_write(MMALBufferAlphaStrip(buf._buf), key)
         else:
             return super(PiRawMixin, self)._callback_write(buf, key)
 
