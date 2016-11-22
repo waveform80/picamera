@@ -2118,12 +2118,10 @@ class MMALPythonConnection(MMALObject):
     def close(self):
         try:
             self.enabled = False
-            if isinstance(source, MMALPythonPort):
+            if isinstance(self._source, MMALPythonPort):
                 self._source._owner._connection_out = None
-            self._source.disable()
-            if isinstance(target, MMALPythonPort):
+            if isinstance(self._target, MMALPythonPort):
                 self._target._owner._connection_in = None
-            self._target.disable()
         except AttributeError:
             pass
 
