@@ -2136,7 +2136,7 @@ class MMALPythonTransform(MMALPythonObject):
         self.outputs[0].copy_from(port)
 
     def _commit_output(self, port):
-        if port.format != self.inputs[0].format:
+        if port.format.value != self.inputs[0].format.value:
             raise PiCameraMMALError(mmal.MMAL_EINVAL, 'output format mismatch')
 
     def connect(self, source):
