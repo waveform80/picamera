@@ -722,9 +722,11 @@ class MMALBufferNumpy(mo.MMALBuffer):
     def __exit__(self, exc_type, exc_value, exc_tb):
         self.unlock()
 
-    @property
-    def array(self):
+    def _get_array(self):
         return self._array
+    def _set_array(self, value):
+        self._array[...] = value
+    array = property(_get_array, _set_array)
 
 
 class PiArrayTransform(mo.MMALPythonTransform):
