@@ -500,11 +500,12 @@ class MMALObject(object):
     listing all used MMAL objects.
     """
 
+    __slots__ = ('__weakref__',)
     REGISTRY = weakref.WeakSet()
 
     def __init__(self):
         super(MMALObject, self).__init__()
-        self.REGISTRY.add(self)
+        MMALObject.REGISTRY.add(self)
 
 
 class MMALComponent(MMALObject):
@@ -2085,6 +2086,10 @@ class MMALPythonSource(MMALPythonObject):
             self._outputs[0].disable()
             self._outputs = ()
 
+    def _commit_output(self, port):
+        if port.format == mmal.MMAL_ENCODING_I420:
+            raise PiCameraMMALError(mmal.MMAL_EINVAL, 'bad input format')
+
     def send(self, data, flags=None):
         """
         Emit data from the python source to whatever component it is connected
@@ -2124,6 +2129,15 @@ class MMALPythonTransform(MMALPythonObject):
         if self._outputs:
             self._outputs[0].disable()
             self._outputs = ()
+
+    def _commit_input(self, port):
+        if port.format == mmal.MMAL_ENCODING_I420:
+            raise PiCameraMMALError(mmal.MMAL_EINVAL, 'bad input format')
+        self.outputs[0].copy_from(port)
+
+    def _commit_output(self, port):
+        if port.format != self.inputs[0].format:
+            raise PiCameraMMALError(mmal.MMAL_EINVAL, 'output format mismatch')
 
     def connect(self, source):
         if self.connection:
