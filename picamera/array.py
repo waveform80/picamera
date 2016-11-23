@@ -694,9 +694,12 @@ class PiMotionAnalysis(PiAnalysisOutput):
 class MMALBufferNumpy(mo.MMALBuffer):
     __slots__ = ('_array', '_count', '_shape')
 
-    def __init__(self, buf, width, height, bpp):
+    def __init__(self, port, buf):
         super(MMALBufferNumpy, self).__init__(buf)
         self._array = None
+        width = port._format[0].es[0].video.width
+        height = port._format[0].es[0].video.height
+        bpp = self.length // (width * height)
         self._count = width * height * bpp
         self._shape = (height, width, bpp)
 
@@ -732,11 +735,8 @@ class PiArrayTransform(mo.MMALPythonTransform):
 
     def _callback(self, port, source_buf):
         target_buf = self.outputs[0].get_buffer(False)
-        width = port._format[0].es[0].video.width
-        height = port._format[0].es[0].video.height
-        bpp = port._FORMAT_BPP[str(port.format)]
-        with MMALBufferNumpy(source_buf._buf, width, height, bpp) as source, \
-                MMALBufferNumpy(target_buf._buf, width, height, bpp) as target:
+        with MMALBufferNumpy(port, source_buf._buf) as source, \
+                MMALBufferNumpy(self.outputs[0], target_buf._buf) as target:
             result = self.transform(source, target)
         self.outputs[0].send_buffer(target_buf)
         return result
