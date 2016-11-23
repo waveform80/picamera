@@ -699,7 +699,7 @@ class MMALBufferNumpy(mo.MMALBuffer):
         self._array = None
         width = port._format[0].es[0].video.width
         height = port._format[0].es[0].video.height
-        bpp = self.length // (width * height)
+        bpp = self.size // (width * height)
         self._count = width * height * bpp
         self._shape = (height, width, bpp)
 
