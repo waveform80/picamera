@@ -513,6 +513,7 @@ class MMALComponent(MMALObject):
     the component type, and the OPAQUE sub-formats of each connectable port.
     """
 
+    __slots__ = ('_component', '_control', '_inputs', '_outputs')
     component_type = 'none'
     opaque_input_subformats = ()
     opaque_output_subformats = ()
@@ -637,6 +638,8 @@ class MMALControlPort(MMALObject):
     """
     Represents an MMAL port with properties to configure the port's parameters.
     """
+    __slots__ = ('_port', '_params', '_wrapper')
+
     def __init__(self, port):
         super(MMALControlPort, self).__init__()
         self._port = port
@@ -721,6 +724,8 @@ class MMALPort(MMALControlPort):
     format. This is the base class of :class:`MMALVideoPort`,
     :class:`MMALAudioPort`, and :class:`MMALSubPicturePort`.
     """
+    __slots__ = ('_opaque_subformat', '_pool', '_stopped')
+
     def __init__(self, port, opaque_subformat='OPQV'):
         super(MMALPort, self).__init__(port)
         self.opaque_subformat = opaque_subformat
@@ -939,6 +944,7 @@ class MMALVideoPort(MMALPort):
     """
     Represents an MMAL port used to pass video data.
     """
+    __slots__ = ()
 
     def _get_framesize(self):
         return PiResolution(
@@ -995,6 +1001,7 @@ class MMALAudioPort(MMALPort):
     """
     Represents an MMAL port used to pass audio data.
     """
+    __slots__ = ()
 
     def __repr__(self):
         if self._port:
@@ -1009,6 +1016,7 @@ class MMALSubPicturePort(MMALPort):
     """
     Represents an MMAL port used to pass sub-picture (caption) data.
     """
+    __slots__ = ()
 
     def __repr__(self):
         if self._port:
@@ -1036,6 +1044,8 @@ class MMALPortParams(object):
     Parameters that expect more complex structures will return and expect
     those structures verbatim.
     """
+    __slots__ = ('_port',)
+
     def __init__(self, port):
         super(MMALPortParams, self).__init__()
         self._port = port
@@ -1120,6 +1130,8 @@ class MMALBuffer(object):
     implicitly locks the buffer's memory and returns the data as a bytes
     string.
     """
+    __slots__ = ('_buf',)
+
     def __init__(self, buf):
         super(MMALBuffer, self).__init__()
         self._buf = buf
@@ -1299,6 +1311,8 @@ class MMALPool(object):
     """
     Construct an MMAL pool containing *num* buffer headers of *size* bytes.
     """
+    __slots__ = ('_pool',)
+
     def __init__(self, pool):
         super(MMALPool, self).__init__()
         self._pool = pool
@@ -1351,6 +1365,7 @@ class MMALPortPool(MMALPool):
     Construct an MMAL pool for the number and size of buffers required by
     the :class:`MMALPort` *port*.
     """
+    __slots__ = ('_port',)
 
     def __init__(self, port):
         pool = mmal.mmal_port_pool_create(
@@ -1397,6 +1412,8 @@ class MMALConnection(MMALObject):
     supported by both ports (implicitly handling the incompatibility of some
     OPAQUE sub-formats). See :ref:`under_the_hood` for more information.
     """
+    __slots__ = ('_connection',)
+
     compatible_formats = {
         (f, f) for f in (
             'OPQV-single',
@@ -1456,7 +1473,7 @@ class MMALConnection(MMALObject):
 
     def __repr__(self):
         if self._connection:
-            return '<MMALConnection "%s">' % self._connection[0].name
+            return '<MMALConnection "%s">' % self.name
         else:
             return '<MMALConnection closed>'
 
@@ -1474,6 +1491,7 @@ class MMALCamera(MMALComponent):
 
     * Port 2 is intended for still image capture
     """
+    __slots__ = ()
 
     component_type = mmal.MMAL_COMPONENT_DEFAULT_CAMERA
     opaque_output_subformats = ('OPQV-single', 'OPQV-dual', 'OPQV-strips')
@@ -1548,6 +1566,8 @@ class MMALCameraInfo(MMALComponent):
     """
     Represents the MMAL camera-info component.
     """
+    __slots__ = ()
+
     component_type = mmal.MMAL_COMPONENT_DEFAULT_CAMERA_INFO
 
     info_structs = (
@@ -1603,6 +1623,8 @@ class MMALDownstreamComponent(MMALComponent):
     single input that connects to an upstream source port. This is an asbtract
     base class.
     """
+    __slots__ = ('_connection',)
+
     def __init__(self):
         super(MMALDownstreamComponent, self).__init__()
         assert len(self.opaque_input_subformats) == 1
@@ -1644,6 +1666,7 @@ class MMALSplitter(MMALDownstreamComponent):
     """
     Represents the MMAL splitter component.
     """
+    __slots__ = ()
     component_type = mmal.MMAL_COMPONENT_DEFAULT_VIDEO_SPLITTER
     opaque_input_subformats = ('OPQV-single',)
     opaque_output_subformats = ('OPQV-single',) * 4
@@ -1653,6 +1676,7 @@ class MMALResizer(MMALDownstreamComponent):
     """
     Represents the MMAL resizer component.
     """
+    __slots__ = ()
     component_type = mmal.MMAL_COMPONENT_DEFAULT_RESIZER
     opaque_input_subformats = (None,)
     opaque_output_subformats = (None,)
@@ -1662,12 +1686,14 @@ class MMALEncoder(MMALDownstreamComponent):
     """
     Represents a generic MMAL encoder. This is an abstract base class.
     """
+    __slots__ = ()
 
 
 class MMALVideoEncoder(MMALEncoder):
     """
     Represents the MMAL video encoder component.
     """
+    __slots__ = ()
     component_type = mmal.MMAL_COMPONENT_DEFAULT_VIDEO_ENCODER
     opaque_input_subformats = ('OPQV-dual',)
     opaque_output_subformats = (None,)
@@ -1677,6 +1703,7 @@ class MMALImageEncoder(MMALEncoder):
     """
     Represents the MMAL image encoder component.
     """
+    __slots__ = ()
     component_type = mmal.MMAL_COMPONENT_DEFAULT_IMAGE_ENCODER
     opaque_input_subformats = ('OPQV-strips',)
     opaque_output_subformats = (None,)
@@ -1686,6 +1713,7 @@ class MMALRenderer(MMALDownstreamComponent):
     """
     Represents the MMAL preview renderer component.
     """
+    __slots__ = ()
     component_type = mmal.MMAL_COMPONENT_DEFAULT_VIDEO_RENDERER
     opaque_input_subformats = ('OPQV-single',)
 
@@ -1694,6 +1722,7 @@ class MMALNullSink(MMALDownstreamComponent):
     """
     Represents the MMAL null-sink component.
     """
+    __slots__ = ()
     component_type = mmal.MMAL_COMPONENT_DEFAULT_NULL_SINK
     opaque_input_subformats = ('OPQV-single',)
 
@@ -1707,6 +1736,7 @@ class MMALPythonPort(MMALObject):
         '_owner',
         '_pool',
         '_inout',
+        '_index',
         '_format',
         '_callback',
         '_thread',
@@ -1714,20 +1744,22 @@ class MMALPythonPort(MMALObject):
         )
 
     _FORMAT_BPP = {
+        'I420': 1.5,
         'RGB3': 3,
         'RGBA': 4,
         'BGR3': 3,
         'BGRA': 4,
         }
 
-    def __init__(self, owner, inout):
+    def __init__(self, owner, inout, index):
         self._enabled = False
         self._owner = owner
         self._pool = None
         self._callback = None
         self._thread = None
-        self._queue = Queue() # XXX Max size?
+        self._queue = Queue(maxsize=2) # see send_buffer for maxsize reason
         self._inout = inout
+        self._index = index
         self._format = ct.pointer(mmal.MMAL_ES_FORMAT_T(
             type=mmal.MMAL_ES_TYPE_VIDEO,
             encoding=mmal.MMAL_ENCODING_RGB24,
@@ -1795,12 +1827,12 @@ class MMALPythonPort(MMALObject):
 
     @property
     def buffer_count(self):
-        return 1
+        return 2
 
     @property
     def buffer_size(self):
         video = self._format[0].es[0].video
-        return self._FORMAT_BPP[str(self.format)] * video.width * video.height
+        return int(self._FORMAT_BPP[str(self.format)] * video.width * video.height)
 
     def copy_from(self, source):
         """
@@ -1819,6 +1851,10 @@ class MMALPythonPort(MMALObject):
         adjusting the port's format and/or associated settings (like width and
         height for video ports).
         """
+        if self._inout == 'in':
+            self._owner._commit_input(self)
+        else:
+            self._owner._commit_output(self)
         if str(self.format) not in self._FORMAT_BPP:
             raise PiCameraMMALError(mmal.MMAL_EINVAL, 'bad format')
 
@@ -1911,18 +1947,26 @@ class MMALPythonPort(MMALObject):
         """
         if not self._enabled:
             raise PiCameraRuntimeError('cannot send buffers via disabled port')
-        if self._thread: # async input port
+        if self._thread:
+            # Asynchronous input port case; queue the buffer for processing.
+            # The maximum queue size ensures that this call blocks if the
+            # owning component isn't keeping up. This means upstream components
+            # drop frames if required to keep the pipeline running
             self._queue.put(buf)
-        elif self._callback: # sync output port
+        elif self._callback:
+            # Disconnected output port case; run the port's callback with the
+            # buffer
             # XXX Do something with the return value?
             self._callback(self, buf)
         else:
+            # Connected output port case; forward the buffer to the connected
+            # component's input port
             assert self._inout == 'out'
             self._owner._connection_out._target.send_buffer(buf)
 
     @property
     def name(self):
-        return 'py:%s:0' % self._inout
+        return '%s:%s:%d' % (self._owner.name, self._inout, self._index)
 
     def __repr__(self):
         return '<MMALPythonPort "%s": format=%r buffers=%dx%d frames=%s@%sfps>' % (
@@ -1997,6 +2041,23 @@ class MMALPythonObject(MMALObject):
         """
         return self._outputs
 
+    def _commit_input(self, port):
+        """
+        Called by input ports when their format is committed. Descendents may
+        override this to reconfigure output ports when called, or to raise
+        errors if the new input port configuration is unacceptable.
+        """
+        pass
+
+    def _commit_output(self, port):
+        """
+        Called by output ports when their format is committed. Descendents
+        may override this to raise errors if the new output port configuration
+        is unacceptable. This method must *not* reconfigure input ports when
+        called.
+        """
+        pass
+
     def __repr__(self):
         if self._outputs:
             return '<%s "%s": %d inputs %d outputs>' % (
@@ -2014,7 +2075,7 @@ class MMALPythonSource(MMALPythonObject):
 
     def __init__(self):
         self._inputs = ()
-        self._outputs = (MMALPythonPort(self, 'out'),)
+        self._outputs = (MMALPythonPort(self, 'out', 0),)
         self._connection_out = None
 
     def close(self):
@@ -2047,8 +2108,8 @@ class MMALPythonTransform(MMALPythonObject):
     __slots__ = ('_inputs', '_outputs', '_connection_out', '_connection_in')
 
     def __init__(self):
-        self._inputs = (MMALPythonPort(self, 'in'),)
-        self._outputs = (MMALPythonPort(self, 'out'),)
+        self._inputs = (MMALPythonPort(self, 'in', 0),)
+        self._outputs = (MMALPythonPort(self, 'out', 0),)
         self._connection_in = None
         self._connection_out = None
 
@@ -2168,6 +2229,10 @@ class MMALPythonConnection(MMALObject):
     def __exit__(self, exc_type, exc_value, exc_tb):
         self.close()
 
+    @property
+    def name(self):
+        return '%r/%r' % (self._source, self._target)
+
     def __repr__(self):
-        return '<MMALPythonConnection>'
+        return '<MMALPythonConnection "%s">' % self.name
 
