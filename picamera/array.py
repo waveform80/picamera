@@ -43,13 +43,14 @@ except NameError:
     pass
 
 import io
+import ctypes as ct
 import warnings
 
 import numpy as np
 from numpy.lib.stride_tricks import as_strided
 
 from . import mmalobj as mo, mmal
-from .exc import PiCameraValueError, PiCameraDeprecated
+from .exc import mmal_check, PiCameraValueError, PiCameraDeprecated
 
 
 motion_dtype = np.dtype([
@@ -704,8 +705,8 @@ class MMALBufferNumpy(mo.MMALBuffer):
             mmal.mmal_buffer_header_mem_lock(self._buf),
             prefix='unable to lock buffer header memory')
         self._array = np.frombuffer(
-            self._buf[0].data[0], dtype=np.uint8,
-            count=self._count).reshape(self._shape)
+            ct.cast(self._buf[0].data, ct.POINTER(ct.c_uint8 * self._count))[0],
+            dtype=np.uint8, count=self._count).reshape(self._shape)
 
     def unlock(self):
         self._array = None
@@ -727,16 +728,18 @@ class PiArrayTransform(mo.MMALPythonTransform):
     __slots__ = ('_width', '_height', '_bpp')
 
     def connect(self, source):
-        self._width = port._format[0].es[0].video.width
-        self._height = port._format[0].es[0].video.height
-        self._bpp = port._FORMAT_BPP[str(port.format)]
         super(PiArrayTransform, self).connect(source)
 
     def _callback(self, port, source_buf):
         target_buf = self.outputs[0].get_buffer(False)
-        with MMALBufferNumpy(source_buf._buf, self._width, self._height, self._bpp) as source, \
-                MMALBufferNumpy(target_buf._buf, self._width, self._height, self._bpp) as target:
-            return self.transform(source, target)
+        width = port._format[0].es[0].video.width
+        height = port._format[0].es[0].video.height
+        bpp = port._FORMAT_BPP[str(port.format)]
+        with MMALBufferNumpy(source_buf._buf, width, height, bpp) as source, \
+                MMALBufferNumpy(target_buf._buf, width, height, bpp) as target:
+            result = self.transform(source, target)
+        self.outputs[0].send_buffer(target_buf)
+        return result
 
     def transform(self, source, target):
         return False

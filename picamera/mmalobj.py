@@ -1198,7 +1198,7 @@ class MMALBuffer(object):
             This is fundamentally different to the operation of the
             :meth:`replicate` method.
         """
-        assert self.alloc_size >= source.length
+        assert self.size >= source.length
         # dirty hack; we could do pointer arithmetic with offset but it's
         # rather long-winded in Python and this method needs to be *fast*
         assert source._buf[0].offset == 0
@@ -1881,7 +1881,7 @@ class MMALPythonPort(MMALObject):
         self._callback = None
 
     def _callback_run(self):
-        while not self._enabled:
+        while self._enabled:
             try:
                 buf = self._queue.get(timeout=0.1)
             except Empty:
