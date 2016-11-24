@@ -2227,16 +2227,30 @@ class MMALPythonConnection(MMALObject):
         if callback is None:
             callback = lambda port, buf: True
         self._callback = callback
-        self._source = source
-        self._source.commit()
-        self._target = target
-        self._target.copy_from(self._source)
-        self._target.commit()
-        if isinstance(source, MMALPythonPort):
-            source._owner._connection_out = self
-        if isinstance(target, MMALPythonPort):
-            target._owner._connection_in = self
-        self.enabled = True
+        for format in (
+                # list of formats to try in order of preference
+                mmal.MMAL_ENCODING_I420,
+                mmal.MMAL_ENCODING_RGB24,
+                mmal.MMAL_ENCODING_BGR24,
+                mmal.MMAL_ENCODING_RGBA,
+                mmal.MMAL_ENCODING_BGRA,
+                ):
+            try:
+                self._source = source
+                self._source.commit()
+                self._target = target
+                self._target.copy_from(self._source)
+                self._target.commit()
+            except PiCameraMMALError as e:
+                pass
+            else:
+                if isinstance(source, MMALPythonPort):
+                    source._owner._connection_out = self
+                if isinstance(target, MMALPythonPort):
+                    target._owner._connection_in = self
+                self.enabled = True
+                return
+        raise e
 
     def close(self):
         try:
