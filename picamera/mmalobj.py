@@ -1827,6 +1827,10 @@ class MMALPythonPort(MMALObject):
         return self._pool
 
     @property
+    def opaque_subformat(self):
+        return None
+
+    @property
     def buffer_count(self):
         return 2
 
