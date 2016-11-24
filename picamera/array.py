@@ -691,11 +691,11 @@ class PiMotionAnalysis(PiAnalysisOutput):
         return result
 
 
-class MMALBufferNumpy(mo.MMALBuffer):
+class MMALArrayBuffer(mo.MMALBuffer):
     __slots__ = ('_array', '_count', '_shape')
 
     def __init__(self, port, buf):
-        super(MMALBufferNumpy, self).__init__(buf)
+        super(MMALArrayBuffer, self).__init__(buf)
         self._array = None
         width = port._format[0].es[0].video.width
         height = port._format[0].es[0].video.height
@@ -707,8 +707,10 @@ class MMALBufferNumpy(mo.MMALBuffer):
         mmal_check(
             mmal.mmal_buffer_header_mem_lock(self._buf),
             prefix='unable to lock buffer header memory')
+        assert self._buf[0].offset == 0
+        assert self._buf[0].alloc_size >= self._count
         self._array = np.frombuffer(
-            ct.cast(self._buf[0].data, ct.POINTER(ct.c_uint8 * self._count))[0],
+            self._buf[0].data.contents,
             dtype=np.uint8, count=self._count).reshape(self._shape)
 
     def unlock(self):
@@ -737,8 +739,9 @@ class PiArrayTransform(mo.MMALPythonTransform):
 
     def _callback(self, port, source_buf):
         target_buf = self.outputs[0].get_buffer(False)
-        with MMALBufferNumpy(port, source_buf._buf) as source, \
-                MMALBufferNumpy(self.outputs[0], target_buf._buf) as target:
+        target_buf.copy_meta(source_buf)
+        with MMALArrayBuffer(port, source_buf._buf) as source, \
+                MMALArrayBuffer(self.outputs[0], target_buf._buf) as target:
             result = self.transform(source, target)
         self.outputs[0].send_buffer(target_buf)
         return result

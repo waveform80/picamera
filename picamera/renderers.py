@@ -406,7 +406,7 @@ class PiOverlayRenderer(PiRenderer):
             buffers leading to a runtime error.
         """
         buf = self.renderer.inputs[0].get_buffer()
-        buf.update(source)
+        buf.data = source
         self.renderer.inputs[0].send_buffer(buf)
 
 

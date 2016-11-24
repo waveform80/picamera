@@ -1137,35 +1137,49 @@ class MMALBuffer(object):
         super(MMALBuffer, self).__init__()
         self._buf = buf
 
-    @property
-    def command(self):
-        """
-        Returns the command set in the buffer's meta-data. This is usually 0
-        for buffers returned by an encoder; typically this is only used by
-        buffers sent to the callback of a control port.
-        """
+    def _get_command(self):
         return self._buf[0].cmd
+    def _set_command(self, value):
+        self._buf[0].cmd = value
+    command = property(_get_command, _set_command, doc="""\
+        The command set in the buffer's meta-data. This is usually 0 for
+        buffers returned by an encoder; typically this is only used by buffers
+        sent to the callback of a control port.
+        """)
 
-    @property
-    def flags(self):
-        """
-        Returns the flags set in the buffer's meta-data.
-        """
+    def _get_flags(self):
         return self._buf[0].flags
+    def _set_flags(self, value):
+        self._buf[0].flags = value
+    flags = property(_get_flags, _set_flags, doc="""\
+        The flags set in the buffer's meta-data, returned as a bitmapped
+        integer. Typical flags include:
 
-    @property
-    def pts(self):
-        """
-        Returns the presentation timestamp (PTS) of the buffer.
-        """
+        * ``MMAL_BUFFER_HEADER_FLAG_EOS`` -- end of stream
+        * ``MMAL_BUFFER_HEADER_FLAG_FRAME_START`` -- start of frame data
+        * ``MMAL_BUFFER_HEADER_FLAG_FRAME_END`` -- end of frame data
+        * ``MMAL_BUFFER_HEADER_FLAG_KEYFRAME`` -- frame is a key-frame
+        * ``MMAL_BUFFER_HEADER_FLAG_FRAME`` -- frame data
+        * ``MMAL_BUFFER_HEADER_FLAG_CODECSIDEINFO`` -- motion estimatation data
+        """)
+
+    def _get_pts(self):
         return self._buf[0].pts
+    def _set_pts(self, value):
+        self._buf[0].pts = value
+    pts = property(_get_pts, _set_pts, doc="""\
+        The presentation timestamp (PTS) of the buffer, as an integer number
+        of microseconds or ``MMAL_TIME_UNKNOWN``.
+        """)
 
-    @property
-    def dts(self):
-        """
-        Returns the decoding timestamp (DTS) of the buffer.
-        """
+    def _get_dts(self):
         return self._buf[0].dts
+    def _set_dts(self, value):
+        self._buf[0].dts = value
+    dts = property(_get_dts, _set_dts, doc="""\
+        The decoding timestamp (DTS) of the buffer, as an integer number of
+        microseconds or ``MMAL_TIME_UNKNOWN``.
+        """)
 
     @property
     def size(self):
@@ -1175,60 +1189,68 @@ class MMALBuffer(object):
         """
         return self._buf[0].alloc_size
 
-    @property
-    def length(self):
-        """
-        Returns the length of data held in the buffer. This is equal to calling
-        :func:`len` on :attr:`data` but faster (as retrieving the buffer's data
-        requires memory locks in certain cases).
-        """
-        return self._buf[0].length
+    def _get_offset(self):
+        return self._buf[0].offset
+    def _set_offset(self, value):
+        assert 0 <= value <= self.size
+        self._buf[0].offset = value
+        self.length = min(self.size - self.offset, self.length)
+    offset = property(_get_offset, _set_offset, doc="""\
+        The offset from the start of the buffer at which the data actually
+        begins. Defaults to 0. If this is set to a value which would force the
+        current :attr:`length` off the end of the buffer's :attr:`size`, then
+        :attr:`length` will be decreased automatically.
+        """)
 
-    @property
-    def data(self):
-        """
-        Returns the data held in the buffer as a :class:`bytes` string.
-        """
-        # dirty hack; we could do pointer arithmetic with offset but it's
-        # rather long-winded in Python and this method needs to be *fast*
-        assert self._buf[0].offset == 0
+    def _get_length(self):
+        return self._buf[0].length
+    def _set_length(self, value):
+        assert 0 <= value <= self.size - self.offset
+        self._buf[0].length = value
+    length = property(_get_length, _set_length, doc="""\
+        The length of data held in the buffer. Must be less than or equal to
+        the allocated size of data held in :attr:`size` minus the data
+        :attr:`offset`. This attribute can be used to effectively blank the
+        buffer by setting it to zero.
+        """)
+
+    def _get_data(self):
         mmal_check(
             mmal.mmal_buffer_header_mem_lock(self._buf),
             prefix='unable to lock buffer header memory')
         try:
-            return ct.string_at(self._buf[0].data, self._buf[0].length)
+            return ct.string_at(
+                ct.byref(self._buf[0].data.contents, self._buf[0].offset),
+                self._buf[0].length)
         finally:
             mmal.mmal_buffer_header_mem_unlock(self._buf)
-
-    def copy_from(self, source):
-        """
-        Copies all fields (including data) from the *source*
-        :class:`MMALBuffer`. This buffer much have sufficient :attr:`size` to
-        store :attr:`length` bytes from the *source* buffer.
-
-        .. note::
-
-            This is fundamentally different to the operation of the
-            :meth:`replicate` method.
-        """
-        assert self.size >= source.length
-        # dirty hack; we could do pointer arithmetic with offset but it's
-        # rather long-winded in Python and this method needs to be *fast*
-        assert source._buf[0].offset == 0
-        mmal_check(
-            mmal.mmal_buffer_header_mem_lock(source._buf),
-            prefix='unable to lock buffer header memory')
-        try:
-            ct.memmove(self._buf[0].data, source._buf[0].data, source._buf[0].length)
-        finally:
-            mmal.mmal_buffer_header_mem_unlock(source._buf)
+    def _set_data(self, value):
+        if isinstance(value, memoryview) and (value.ndim > 1 or value.itemsize > 1):
+            value = value.cast('B')
+        data_len = len(value)
+        if data_len:
+            assert data_len <= self.size
+            bp = ct.c_uint8 * data_len
+            try:
+                sp = bp.from_buffer(value)
+            except TypeError:
+                sp = bp.from_buffer_copy(value)
+            ct.memmove(self._buf[0].data, sp, data_len)
         self._buf[0].offset = 0
-        self._buf[0].length = source._buf[0].length
-        self._buf[0].cmd = source._buf[0].cmd
-        self._buf[0].flags = source._buf[0].flags
-        self._buf[0].dts = source._buf[0].dts
-        self._buf[0].pts = source._buf[0].pts
-        self._buf[0].type[0] = source._buf[0].type[0]
+        self._buf[0].length = data_len
+    data = property(_get_data, _set_data, doc="""\
+        The data held in the buffer as a :class:`bytes` string. You can set
+        this attribute to modify the data in the buffer. Acceptable values
+        are anything that supports the buffer protocol, and which contains
+        :attr:`size` bytes or less. Setting this attribute implicitly modifies
+        the :attr:`length` attribute to the length of the specified value and
+        sets :attr:`offset` to zero.
+
+        .. warning::
+
+            Some buffer objects *cannot* be modified without consequence (for
+            example, buffers returned by an encoder's output port).
+        """)
 
     def replicate(self, source):
         """
@@ -1249,34 +1271,47 @@ class MMALBuffer(object):
             mmal_buffer_replicate(self._buf, source._buf),
             prefix='unable to replicate buffer')
 
-    def update(self, data, flags=None, command=None):
+    def copy_from(self, source):
         """
-        Overwrites the :attr:`data` in the buffer (and optionally the
-        :attr:`flags` and :attr:`command` too). The *data* parameter is an
-        object supporting the buffer protocol which contains up to :attr:`size`
-        bytes.
+        Copies all fields (including data) from the *source*
+        :class:`MMALBuffer`. This buffer must have sufficient :attr:`size` to
+        store :attr:`length` bytes from the *source* buffer. This method
+        implicitly sets :attr:`offset` to zero, the :attr:`length` to the
+        number of bytes copied.
 
-        .. warning::
+        .. note::
 
-            Some buffer objects *cannot* be modified without consequence (for
-            example, buffers returned by an encoder's output port).
+            This is fundamentally different to the operation of the
+            :meth:`replicate` method.
         """
-        if isinstance(data, memoryview) and (data.ndim > 1 or data.itemsize > 1):
-            data = data.cast('B')
-        data_len = len(data)
-        if data_len:
-            assert data_len <= self.size
-            bp = ct.c_uint8 * data_len
+        assert self.size >= source.length
+        source_len = source._buf[0].length
+        if source_len:
+            mmal_check(
+                mmal.mmal_buffer_header_mem_lock(source._buf),
+                prefix='unable to lock buffer header memory')
             try:
-                sp = bp.from_buffer(data)
-            except TypeError:
-                sp = bp.from_buffer_copy(data)
-            ct.memmove(self._buf[0].data, sp, data_len)
-        self._buf[0].length = data_len
-        if flags is not None:
-            self._buf[0].flags = flags
-        if command is not None:
-            self._buf[0].cmd = command
+                ct.memmove(
+                    self._buf[0].data,
+                    ct.byref(source._buf[0].data.contents, source._buf[0].offset),
+                    source_len)
+            finally:
+                mmal.mmal_buffer_header_mem_unlock(source._buf)
+        self._buf[0].offset = 0
+        self._buf[0].length = source_len
+        self.copy_meta(source)
+
+    def copy_meta(self, source):
+        """
+        Copy meta-data from the *source* :class:`MMALBuffer`; specifically this
+        copies all buffer fields with the exception of :attr:`data`,
+        :attr:`length` and :attr:`offset`.
+        """
+        self._buf[0].cmd = source._buf[0].cmd
+        self._buf[0].flags = source._buf[0].flags
+        self._buf[0].dts = source._buf[0].dts
+        self._buf[0].pts = source._buf[0].pts
+        self._buf[0].type[0] = source._buf[0].type[0]
 
     def acquire(self):
         mmal.mmal_buffer_header_acquire(self._buf)
@@ -2102,7 +2137,9 @@ class MMALPythonSource(MMALPythonObject):
         if not self._connection_out:
             raise PiCameraRuntimeError('source is not connected to anything')
         buf = self._outputs[0].get_buffer(False)
-        buf.update(data, flags)
+        buf.data = data
+        if flags is not None:
+            buf.flags = flags
         self._outputs[0].send_buffer(buf)
 
     @property
