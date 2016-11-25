@@ -616,8 +616,8 @@ class MMALComponent(MMALObject):
         lambda self, value: self._set_enabled(value),
         doc="""\
         Retrieves or sets whether the component is currently enabled. When a
-        component is disabled it does not produce or consume data. Components
-        may be implicitly enabled by downstream components.
+        component is disabled it does not process data. Components may be
+        implicitly enabled by downstream components.
         """)
 
     def __enter__(self):
@@ -1936,6 +1936,7 @@ class MMALPythonPort(MMALObject):
             # incoming buffers via the specified callback
             self._pool = MMALPythonPortPool(self)
             self._thread = Thread(target=self._callback_run)
+            self._thread.daemon = True
         self._callback = callback
         self._enabled = True
         if self._thread:
@@ -1964,7 +1965,11 @@ class MMALPythonPort(MMALObject):
                 pass
             else:
                 # XXX Do something with the return value?
-                self._callback(self, buf)
+                try:
+                    if self._owner.enabled:
+                        self._callback(self, buf)
+                finally:
+                    buf.release()
 
     def get_buffer(self, block=True, timeout=None):
         """
@@ -1973,7 +1978,8 @@ class MMALPythonPort(MMALObject):
         :meth:`MMALPool.get_buffer`.
         """
         if not self._enabled:
-            raise PiCameraRuntimeError('cannot get buffers from disabled port')
+            raise PiCameraMMALError(
+                mmal.MMAL_EINVAL, 'cannot get buffers from disabled port')
         if self._callback:
             assert self._pool
             return self._pool.get_buffer(block, timeout)
@@ -1986,7 +1992,8 @@ class MMALPythonPort(MMALObject):
         Send :class:`MMALBuffer` *buf* to the port.
         """
         if not self._enabled:
-            raise PiCameraRuntimeError('cannot send buffers via disabled port')
+            raise PiCameraMMALError(
+                mmal.MMAL_EINVAL, 'cannot send buffers via disabled port')
         if self._thread:
             # Asynchronous input port case; queue the buffer for processing.
             # The maximum queue size ensures that this call blocks if the
@@ -2048,7 +2055,25 @@ class MMALPythonPortPool(MMALPool):
 
 
 class MMALPythonObject(MMALObject):
-    __slots__ = ()
+    __slots__ = ('_enabled',)
+
+    def __init__(self):
+        super(MMALPythonObject, self).__init__()
+        self._enabled = False
+
+    def _get_enabled(self):
+        return self._enabled
+    def _set_enabled(self, value):
+        self._enabled = bool(value)
+    enabled = property(
+        # use lambda trick to enable overriding _get_enabled, _set_enabled
+        lambda self: self._get_enabled(),
+        lambda self, value: self._set_enabled(value),
+        doc="""\
+        Retrieves or sets whether the component is currently enabled. When a
+        component is disabled it does not process data. Components may be
+        implicitly enabled by downstream components.
+        """)
 
     def close(self):
         """
@@ -2114,6 +2139,7 @@ class MMALPythonSource(MMALPythonObject):
     __slots__ = ('_inputs', '_outputs', '_connection_out')
 
     def __init__(self):
+        super(MMALPythonSource, self).__init__()
         self._inputs = ()
         self._outputs = (MMALPythonPort(self, 'out', 0),)
         self._connection_out = None
@@ -2136,6 +2162,7 @@ class MMALPythonSource(MMALPythonObject):
         """
         if not self._connection_out:
             raise PiCameraRuntimeError('source is not connected to anything')
+        self.enabled = True
         buf = self._outputs[0].get_buffer(False)
         buf.data = data
         if flags is not None:
@@ -2154,12 +2181,14 @@ class MMALPythonTransform(MMALPythonObject):
     __slots__ = ('_inputs', '_outputs', '_connection_out', '_connection_in')
 
     def __init__(self):
+        super(MMALPythonTransform, self).__init__()
         self._inputs = (MMALPythonPort(self, 'in', 0),)
         self._outputs = (MMALPythonPort(self, 'out', 0),)
         self._connection_in = None
         self._connection_out = None
 
     def close(self):
+        self.enabled = False
         if self._connection_in:
             self._connection_in.close()
         if self._connection_out:
@@ -2227,30 +2256,33 @@ class MMALPythonConnection(MMALObject):
         if callback is None:
             callback = lambda port, buf: True
         self._callback = callback
-        for format in (
-                # list of formats to try in order of preference
-                mmal.MMAL_ENCODING_I420,
-                mmal.MMAL_ENCODING_RGB24,
-                mmal.MMAL_ENCODING_BGR24,
-                mmal.MMAL_ENCODING_RGBA,
-                mmal.MMAL_ENCODING_BGRA,
-                ):
+        self._source = source
+        self._target = target
+        formats = [
+            # list of formats to try in descending order of preference
+            mmal.MMAL_ENCODING_BGRA,
+            mmal.MMAL_ENCODING_RGBA,
+            mmal.MMAL_ENCODING_BGR24,
+            mmal.MMAL_ENCODING_RGB24,
+            mmal.MMAL_ENCODING_I420,
+            ]
+        while True:
             try:
-                self._source = source
                 self._source.commit()
-                self._target = target
                 self._target.copy_from(self._source)
                 self._target.commit()
-            except PiCameraMMALError as e:
-                pass
+            except PiCameraMMALError:
+                try:
+                    self._source.format = formats.pop()
+                except IndexError:
+                    raise PiCameraMMALError(mmal.MMAL_EINVAL, 'failed to negotiate format')
             else:
-                if isinstance(source, MMALPythonPort):
-                    source._owner._connection_out = self
-                if isinstance(target, MMALPythonPort):
-                    target._owner._connection_in = self
-                self.enabled = True
-                return
-        raise e
+                break
+        if isinstance(source, MMALPythonPort):
+            source._owner._connection_out = self
+        if isinstance(target, MMALPythonPort):
+            target._owner._connection_in = self
+        self.enabled = True
 
     def close(self):
         try:
@@ -2275,12 +2307,19 @@ class MMALPythonConnection(MMALObject):
                 # Connected python output ports are nothing more than thin
                 # proxies for the target input port; no callback required
                 self._source.enable()
+                self._source._owner.enabled = True
             else:
                 # Connected MMAL output ports are made to transfer their
                 # data to the Python input port
                 self._source.enable(self._transfer)
+            if isinstance(self._target, MMALPythonPort):
+                self._target._owner.enabled = True
             self._enabled = True
         elif self._enabled and not value:
+            if isinstance(self._target, MMALPythonPort):
+                self._target._owner.enabled = False
+            if isinstance(self._source, MMALPythonPort):
+                self._source._owner.enabled = False
             self._source.disable()
             self._target.disable()
             self._enabled = False
