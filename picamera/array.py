@@ -739,8 +739,8 @@ class MMALArrayBuffer(mo.MMALBuffer):
 
 class PiArrayTransform(mo.MMALPythonTransform):
     """
-    A derivative of :class:`mmalobj.MMALPythonTransform` which eases the
-    construction of custom MMAL transforms by representing buffer data as
+    A derivative of :class:`~picamera.mmalobj.MMALPythonTransform` which eases
+    the construction of custom MMAL transforms by representing buffer data as
     numpy arrays.
 
     Override the :meth:`transform` method to modify buffers sent to the
@@ -785,9 +785,9 @@ class PiArrayTransform(mo.MMALPythonTransform):
         This method will be called for every frame passing through the
         transform.  The *source* and *target* parameters represent buffers from
         the input and output ports of the transform respectively. They will be
-        derivatives of :class:`~mmalobj.MMALBuffer` with an additional
-        ``array`` attribute which will represent the data within the buffer
-        as a modifiable numpy array.
+        derivatives of :class:`~picamera.mmalobj.MMALBuffer` with an additional
+        ``array`` attribute which will represent the data within the buffer as
+        a modifiable numpy array.
 
         The target buffer's meta-data starts out as a copy of the source
         buffer's meta-data, but the target buffer's data starts out

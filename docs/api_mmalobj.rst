@@ -576,7 +576,10 @@ etc). They are instantiated in a similar manner, they have the same sort of
 ports, and they're connected using the same means as ordinary MMAL components.
 
 Let's try this out by placing a transformation between the camera and a preview
-which will draw a cross over the frames going to the preview:
+which will draw a cross over the frames going to the preview. For this we'll
+subclass :class:`array.PiArrayTransform`. This derives from
+:class:`MMALPythonTransform` and provides the useful capability of providing
+the source and target buffers as numpy arrays containing RGB data:
 
 .. code-block:: pycon
 
@@ -589,8 +592,47 @@ which will draw a cross over the frames going to the preview:
     ...         return False
     ...
     >>> transform = Crosshair()
+
+That's all there is to constructing a transform! This one is a bit crude in
+as much as the coordinates are hard-coded, and it's very simplistic, but it
+should illustrate the principle nicely. Let's connect it up between the camera
+and the renderer:
+
+.. code-block:: pycon
+
     >>> transform.connect(camera.outputs[0])
     >>> preview.connect(transform.outputs[0])
+
+At this point we should take a look at the pipeline to see what's been
+configured automatically:
+
+.. code-block:: pycon
+
+    >>> mo.print_pipeline(preview.inputs[0])
+     vc.ril.camera [0]                             [0] py.transform [0]                             [0] vc.ril.video_render
+       encoding    RGB3            -->            RGB3   encoding   RGB3            -->            RGB3      encoding
+          buf      1x921600                   2x921600     buf      2x921600                   2x921600         buf
+         frame     640x480@30fps         640x480@30fps    frame     640x480@30fps         640x480@30fps        frame
+
+Apparently the MMAL camera component is outputting RGB data (which is extremely
+large) to a "py.transform" component, which draws our cross on the buffer and
+passes it onto the renderer again as RGB. This is part of the inefficiency
+alluded to above: RGB is a very large format (compared to I420 which is half
+its size, or OPQV which is tiny) so we're shuttling a *lot* of data around
+here. Expect this to drop frames at higher resolutions or framerates.
+
+The other part of inefficiency isn't obvious from the debug output above which
+gives the impression that the "py.transform" component is actually part of the
+MMAL pipeline. In fact, this is a lie. Under the covers ``mmalobj`` installs an
+output callback on the camera's output port to feed data to the "py.transform"
+input port, uses a background thread to run the transform, then copies the
+results into buffers obtained from the preview's input port. In other words
+there's really *two* (very short) MMAL pipelines with a hunk of Python running
+in between them.
+
+If ``mmalobj`` does its job properly you shouldn't need to worry about this
+implementation detail but it's worth bearing in mind from the perspective of
+performance.
 
 
 .. _YUV420: https://en.wikipedia.org/wiki/YUV#Y.E2.80.B2UV420p_.28and_Y.E2.80.B2V12_or_YV12.29_to_RGB888_conversion
