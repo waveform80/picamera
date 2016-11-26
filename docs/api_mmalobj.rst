@@ -14,8 +14,8 @@ to ease the usage of ``libmmal`` to Python coders unfamiliar with C and also
 works around some of the idiosyncrasies in ``libmmal``.
 
 
-Guided Tour
-===========
+The MMAL Tour
+=============
 
 MMAL operates on the principle of pipelines:
 
@@ -53,11 +53,12 @@ MMAL operates on the principle of pipelines:
   - Finally, all ports (control, input and output) have parameters
     (:attr:`~MMALControlPort.params`) which control their operation.
 
-* Ports can be connected to each other via :class:`MMALConnection`. Connections
-  deal with transferring data from output ports to input ports in an orderly
-  fashion.
+* An output port can have a connection to an input port
+  (:class:`MMALConnection`). Connections ensure the two ports use compatible
+  formats, and handle transferring data from output ports to input ports in an
+  orderly fashion. A port cannot have more than one connection from/to it.
 
-* Data is passed between ports encapsulated in buffers (:class:`MMALBuffer`).
+* Data is written to / read from ports in buffers (:class:`MMALBuffer`).
 
   - Buffers belong to a port and can't be passed arbitrarily between ports.
 
@@ -88,6 +89,10 @@ MMAL operates on the principle of pipelines:
   - Components take buffers from their input port(s), process them, and emit
     buffers from their output port(s).
 
+
+Components
+----------
+
 Now we've got a mental model of what an MMAL pipeline consists of, let's build
 one. For the rest of the tour I strongly recommend using a Pi with a screen (so
 you can see preview output) but controlling it via an SSH session (so the
@@ -104,6 +109,10 @@ alias, then construct a :class:`MMALCamera` component, and a
     >>> from picamera import mmal, mmalobj as mo
     >>> camera = mo.MMALCamera()
     >>> preview = mo.MMALRenderer()
+
+
+Ports
+-----
 
 Before going any further, let's have a look at the various ports on these
 components.
@@ -161,6 +170,10 @@ Note that the changes to the configuration won't actually take effect until
 the :meth:`MMALPort.commit` call. After the port is committed, note that the
 buffer size now looks reasonable: 640 * 480 * 1.5 = 460800.
 
+
+Connections
+-----------
+
 Now we'll try connecting the renderer's input to the camera's output. Don't
 worry about the fact that the port configurations are different. One of the
 nice things about MMAL (and the ``mmalobj`` layer) is that connections try very
@@ -193,6 +206,13 @@ data is actually being shuttled between the components). Note also that the
 connection has automatically copied the port format, frame size and frame-rate
 to the preview's input port.
 
+.. image:: images/preview_pipeline.*
+    :align: center
+
+
+Opaque Format
+-------------
+
 At this point it is worth exploring the differences between the camera's
 three output ports:
 
@@ -216,6 +236,10 @@ layer knows about them and auto-negotiates the most efficient format it can for
 connections. However, they're worth bearing in mind if you're aiming to get the
 most out of the firmware or if you're confused about why a particular format
 has been selected for a connection.
+
+
+Component Configuration
+-----------------------
 
 So far we've seen how to construct components, configure their ports, and
 connect them together in rudimentary pipelines. Now, let's see how to configure
@@ -265,19 +289,23 @@ Things to note:
 * The parameter dictates the type of the information returned (and accepted,
   if the parameter is read-write).
 
-* Many parameters accept a multitude of simple types like :func:`int`,
-  :func:`float`, :class:`~fractions.Fraction`, :func:`str`, etc. However, some
-  parameters use :mod:`ctypes` structures and such parameters only accept the
-  relevant structure.
+* Many parameters accept a multitude of simple types like :class:`int`,
+  :class:`float`, :class:`~fractions.Fraction`, :class:`str`, etc. However,
+  some parameters use :mod:`ctypes` structures and such parameters only accept
+  the relevant structure.
 
 * The easiest way to use such "structured" parameters is to query them first,
   modify the resulting structure, then write it back to the parameter.
 
-Now let's see how we can produce some file output from the camera. First we'll
+
+File Output (RGB capture)
+-------------------------
+
+Let's see how we can produce some file output from the camera. First we'll
 perform a straight unencoded RGB capture from the still port (2). As this is
-unencoded output we don't need to construct anything else. All we need to do
-is configure the port for RGB encoding, select an appropriate resolution,
-then activate the output port:
+unencoded output we don't need to construct anything else. All we need to do is
+configure the port for RGB encoding, select an appropriate resolution, then
+activate the output port:
 
 .. code-block:: pycon
 
@@ -302,7 +330,7 @@ connection requires a callback function to be assigned so that something can be
 done with the data it produces. The callback will take two parameters: the
 :class:`MMALPort` responsible for producing the data, and the
 :class:`MMALBuffer` containing the data. It is expected to return a
-:func:`bool` which will be ``False`` if further data is expected and ``True``
+:class:`bool` which will be ``False`` if further data is expected and ``True``
 if no further data is expected. If ``True`` is returned, the callback will not
 be executed again. In our case we're going to write data out to a file we'll
 open before-hand, and we should return ``True`` when we see a buffer with the
@@ -334,11 +362,21 @@ produce any buffers until their "capture" parameter is enabled:
     >>> output.close()
 
 Congratulations! You've just captured your first image with the MMAL layer.
-However, whilst RGB is a useful format for processing we'd generally prefer
-something like JPEG for output. So, next we'll construct an MMAL JPEG encoder
-and use it to compress our RGB capture. Note that we're not going to connect
-the JPEG encoder to the camera yet; we're just going to construct it standalone
-and feed it data from our capture file, writing the output to another file:
+Given we disconnected the preview above, the current state of the system looks
+something like this:
+
+.. image:: images/rgb_capture_pipeline.*
+    :align: center
+
+
+File Output (JPEG capture)
+--------------------------
+
+Whilst RGB is a useful format for processing we'd generally prefer something
+like JPEG for output. So, next we'll construct an MMAL JPEG encoder and use it
+to compress our RGB capture. Note that we're not going to connect the JPEG
+encoder to the camera yet; we're just going to construct it standalone and feed
+it data from our capture file, writing the output to another file:
 
 .. code-block:: pycon
 
@@ -379,6 +417,10 @@ Let's continue:
     ...
     >>> encoder.outputs[0].enable(image_callback)
 
+
+File Input (JPEG encoding)
+--------------------------
+
 How do we feed data to a component without a connection? We enable its input
 port with a dummy callback (we don't need to "do" anything on data input). Then
 we request buffers from its input port, fill them with data and send them back
@@ -398,7 +440,14 @@ to the input port:
     >>> rgb_data.close()
 
 Congratulations again! You've just produced a hardware-accelerated JPEG
-encoding.  Now let's repeat the process but with the encoder attached to the
+encoding. The following illustrates the state of the system at the moment (note
+the camera and renderer still exist; they're just not connected to anything at
+the moment):
+
+.. image:: images/jpeg_encode_pipeline.*
+    :align: center
+
+Now let's repeat the process but with the encoder attached to the
 still port on the camera directly. We can re-use our ``image_callback`` routine
 from earlier and just assign a different output file to ``jpg_data``:
 
@@ -416,7 +465,16 @@ from earlier and just assign a different output file to ``jpg_data``:
     >>> camera.outputs[2].disable()
     >>> jpg_data.close()
 
-Now the one issue you may have noted is that ``image_callback`` is running in a
+Now the state of our system looks like this:
+
+.. image:: images/jpeg_capture_pipeline.*
+    :align: center
+
+
+Threads & Synchronization
+-------------------------
+
+The one issue you may have noted is that ``image_callback`` is running in a
 background thread. If we were running our capture extremely fast our main
 thread might disable the capture before our callback had run. Ideally we want
 to activate capture, wait on some signal indicating that the callback has
@@ -450,14 +508,28 @@ with the communications primitives from the standard :mod:`threading` module:
 
 The above example has several rough edges: globals, no proper clean-up in the
 case of an exception, etc. but by now you should be getting a pretty good idea
-of how picamera operates under the hood. The major difference between picamera
-and a "typical" MMAL setup is that upon construction, the
-:class:`~picamera.PiCamera` class constructs both a :class:`MMALCamera`
-(accessible as ``_camera``) *and* and a :class:`MMALSplitter` (accessible as
-``_splitter``). The splitter remains permanently attached to the camera's video
-port (output port 1). Encoders are constructed and destroyed as required by
-calls to :meth:`~picamera.PiCamera.capture`,
-:meth:`~picamera.PiCamera.start_recording`, etc.
+of how picamera operates under the hood.
+
+The major difference between picamera and a "typical" MMAL setup is that upon
+construction, the :class:`~picamera.PiCamera` class constructs both a
+:class:`MMALCamera` (accessible as ``_camera``) *and* and a
+:class:`MMALSplitter` (accessible as ``_splitter``). The splitter remains
+permanently attached to the camera's video port (output port 1). Furthermore,
+there's *always* something connected to the camera's preview port; by default
+it's a :class:`MMALNullSink` component which is switched with a
+:class:`MMALRenderer` when the preview is started.
+
+Encoders are constructed and destroyed as required by calls to
+:meth:`~picamera.PiCamera.capture`, :meth:`~picamera.PiCamera.start_recording`,
+etc. The following illustrates a typical picamera pipeline whilst video
+recording without a preview:
+
+.. image:: images/picamera_pipeline.*
+    :align: center
+
+
+Debugging Facilities
+--------------------
 
 Before we move onto the pure Python components it's worth mentioning the
 debugging capabilities built into ``mmalobj``. Firstly, most objects have
@@ -565,7 +637,8 @@ Python Extensions
 
 .. autoclass:: MMALPythonPort
 
-.. autoclass:: MMALPythonObject
+.. autoclass:: MMALPythonComponent
+    :private-members: _commit_input, _commit_output
 
 .. autoclass:: MMALPythonConnection
 
@@ -574,6 +647,7 @@ Python Extensions
 
 .. autoclass:: MMALPythonTransform
     :show-inheritance:
+    :private-members: _callback
 
 
 Debugging

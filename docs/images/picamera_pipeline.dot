@@ -1,0 +1,31 @@
+digraph G {
+    graph [rankdir=LR];
+    node [shape=record, style=filled, fontname="Sans", fontsize=10, fillcolor="#77bbee", color="#447777"];
+    edge [fontname="Sans", fontsize=10, color="#447777"];
+
+    MMALCamera [label="{MMALCamera|{<preview>0|<video>1|<still>2}}"];
+    MMALSplitter [label="{<input>0|MMALSplitter|{<output0>0|<output1>1|<output2>2|<output3>3}}"];
+    MMALNullSink [label="{<input>0|MMALNullSink}"];
+    MMALVideoEncoder [label="{<input>0|MMALVideoEncoder|<output>0}"];
+    OutputFile [label="video.h264", shape=note];
+
+    MMALCamera:preview->MMALNullSink:input [
+        headlabel="OPQV\n1280x720",
+        label="MMALConnection",
+        taillabel="OPQV\n1280x720"
+        ];
+    MMALCamera:video->MMALSplitter:input [
+        headlabel="OPQV\n1280x720",
+        label="MMALConnection",
+        taillabel="OPQV\n1280x720"
+        ];
+    MMALSplitter:output0->MMALVideoEncoder:input [
+        headlabel="OPQV\n1280x720",
+        label="MMALConnection",
+        taillabel="OPQV\n1280x720"
+        ];
+    MMALVideoEncoder:output->OutputFile [
+        taillabel="H264\n1280x720",
+        label="callback fn"
+        ];
+}

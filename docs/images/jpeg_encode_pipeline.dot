@@ -1,0 +1,20 @@
+digraph G {
+    graph [rankdir=LR];
+    node [shape=record, style=filled, fontname="Sans", fontsize=10, fillcolor="#77bbee", color="#447777"];
+    edge [fontname="Sans", fontsize=10, color="#447777"];
+
+    MMALCamera [label="{MMALCamera|{<preview>0|<video>1|<still>2}}"];
+    MMALImageEncoder [label="{<input>0|MMALImageEncoder|<output>0}"];
+    MMALRenderer [label="{<input>0|MMALRenderer}"];
+    FileInput [label="image.data", shape=note];
+    FileOutput [label="image.jpg", shape=note];
+
+    FileInput->MMALImageEncoder:input [
+        headlabel="RGB3\n640x480",
+        label="send_buffer"
+        ];
+    MMALImageEncoder:output->FileOutput [
+        taillabel="JPEG\n640x480",
+        label="callback fn"
+        ];
+}

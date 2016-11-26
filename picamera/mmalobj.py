@@ -1350,7 +1350,8 @@ class MMALBuffer(object):
 
 class MMALPool(object):
     """
-    Construct an MMAL pool containing *num* buffer headers of *size* bytes.
+    Represents an MMAL pool containing :class:`MMALBuffer` objects. All active
+    ports are associated with a pool of buffers.
     """
     __slots__ = ('_pool',)
 
@@ -1367,13 +1368,13 @@ class MMALPool(object):
         """
         Get the next buffer from the pool. If *block* is ``True`` (the default)
         and *timeout* is ``None`` (the default) then the method will block
-        until a buffer is available. Otherwise *timeout* is the maximum time
-        to wait (in ms) for a buffer to become available. If a buffer is not
-        available before the timeout expires a :exc:`PiCameraRuntimeError`
-        is raised.
+        until a buffer is available. Otherwise *timeout* is the maximum time to
+        wait (in ms) for a buffer to become available. If a buffer is not
+        available before the timeout expires a
+        :exc:`~picamera.PiCameraMMALError` is raised.
 
         Likewise, if *block* is ``False`` and no buffer is immediately
-        available then :exc:`PiCameraRuntimeError` is raised.
+        available then :exc:`~picamera.PiCameraMMALError` is raised.
         """
         if block and timeout is None:
             buf = mmal.mmal_queue_wait(self._pool[0].queue)
@@ -1382,7 +1383,7 @@ class MMALPool(object):
         else:
             buf = mmal.mmal_queue_get(self._pool[0].queue)
         if not buf:
-            raise PiCameraRuntimeError('failed to get a buffer from the pool')
+            raise PiCameraMMALError(mmal.MMAL_EAGAIN, 'failed to get a buffer from the pool')
         return MMALBuffer(buf)
 
     def send_buffer(self, port, block=True, timeout=None):
@@ -1412,7 +1413,8 @@ class MMALPortPool(MMALPool):
         pool = mmal.mmal_port_pool_create(
             port._port, port._port[0].buffer_num, port._port[0].buffer_size)
         if not pool:
-            raise PiCameraRuntimeError(
+            raise PiCameraMMALError(
+                mmal.MMAL_ENOSPC,
                 'failed to create buffer header pool for port %s' % port.name)
         super(MMALPortPool, self).__init__(pool)
         self._port = port
@@ -1955,18 +1957,21 @@ class MMALPythonPort(MMALObject):
         if self._inout == 'out':
             if self._owner._connection_out:
                 if callback is not None:
-                    raise PiCameraRuntimeError(
+                    raise PiCameraMMALError(
+                        mmal.MMAL_EINVAL,
                         'connected python output ports must be enabled '
                         'without callback')
             else:
                 if callback is None:
-                    raise PiCameraRuntimeError(
+                    raise PiCameraMMALError(
+                        mmal.MMAL_EINVAL,
                         'unconnected python output ports must be enabled '
                         'with callback')
                 self._pool = MMALPythonPortPool(self)
         else:
             if callback is None:
-                raise PiCameraRuntimeError(
+                raise PiCameraMMALError(
+                    mmal.MMAL_EINVAL,
                     'python input ports must be enabled with callback')
             # The port is an input port; set up a background thread to handle
             # incoming buffers via the specified callback
@@ -2090,11 +2095,11 @@ class MMALPythonPortPool(MMALPool):
         super(MMALPythonPortPool, self).send_all_buffers(self._port, block, timeout)
 
 
-class MMALPythonObject(MMALObject):
+class MMALPythonComponent(MMALObject):
     __slots__ = ('_enabled',)
 
     def __init__(self):
-        super(MMALPythonObject, self).__init__()
+        super(MMALPythonComponent, self).__init__()
         self._enabled = False
 
     def _get_enabled(self):
@@ -2168,7 +2173,7 @@ class MMALPythonObject(MMALObject):
             return '<%s closed>' % self.__class__.__name__
 
 
-class MMALPythonSource(MMALPythonObject):
+class MMALPythonSource(MMALPythonComponent):
     """
     Provides a Python-fed input port for an :class:`MMALDownstreamComponent`.
     """
@@ -2197,7 +2202,8 @@ class MMALPythonSource(MMALPythonObject):
         to.
         """
         if not self._connection_out:
-            raise PiCameraRuntimeError('source is not connected to anything')
+            raise PiCameraMMALError(
+                mmal.MMAL_ENOTCONN, 'source is not connected to anything')
         self.enabled = True
         buf = self._outputs[0].get_buffer(False)
         buf.data = data
@@ -2210,7 +2216,7 @@ class MMALPythonSource(MMALPythonObject):
         return 'py.source'
 
 
-class MMALPythonTransform(MMALPythonObject):
+class MMALPythonTransform(MMALPythonComponent):
     """
     Provides a Python-implemented transformation component for MMAL pipelines.
     """
@@ -2246,12 +2252,22 @@ class MMALPythonTransform(MMALPythonObject):
             raise PiCameraMMALError(mmal.MMAL_EINVAL, 'output format mismatch')
 
     def connect(self, source):
+        """
+        Connect this component's sole input port to the specified *source*
+        :class:`MMALPort`. The type and configuration of the connection will
+        be automatically selected, and the connection will be automatically
+        enabled.
+        """
         if self.connection:
             self.disconnect()
         self._connection_in = MMALPythonConnection(
             source, self.inputs[0], callback=self._callback)
 
     def disconnect(self):
+        """
+        Destroy the connection between this component's input port and the
+        upstream component.
+        """
         if self._connection_in:
             self._connection_in.close()
             self._connection_in = None
@@ -2277,8 +2293,8 @@ class MMALPythonTransform(MMALPythonObject):
 
 class MMALPythonConnection(MMALObject):
     """
-    Represents a connection between an :class:`MMALPythonSource` and a
-    :class:`MMALDownstreamComponent`.
+    Represents a connection between an :class:`MMALPythonComponent` and a
+    :class:`MMALComponent` or another :class:`MMALPythonComponent`.
     """
     __slots__ = ('_enabled', '_callback', '_source', '_target')
 
