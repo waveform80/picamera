@@ -45,7 +45,10 @@ import ctypes as ct
 import warnings
 import weakref
 from threading import Thread
-from queue import Queue, Empty
+try:
+    from queue import Queue, Empty
+except ImportError:
+    from Queue import Queue, Empty
 from collections import namedtuple
 from fractions import Fraction
 from itertools import cycle
@@ -786,8 +789,8 @@ class MMALPort(MMALControlPort):
 
         .. warning::
 
-            This property does not work on the camera's still port
-            (``MMALCamera.outputs[2]``) due to an underlying firmware bug.
+            On older firmwares, property does not work on the camera's still
+            port (``MMALCamera.outputs[2]``) due to an underlying bug.
         """
         mp = self.params[mmal.MMAL_PARAMETER_SUPPORTED_ENCODINGS]
         return [
@@ -1291,6 +1294,8 @@ class MMALBuffer(object):
                 mmal.mmal_buffer_header_mem_lock(source._buf),
                 prefix='unable to lock buffer header memory')
             try:
+                # TODO When Python 3.5 becomes standard; add a branch here for
+                # memoryview assignment - it's *much* faster than memmove
                 ct.memmove(
                     self._buf[0].data,
                     ct.byref(source._buf[0].data.contents, source._buf[0].offset),
@@ -1516,16 +1521,18 @@ class MMALConnection(MMALObject):
 
 class MMALCamera(MMALComponent):
     """
-    Represents the MMAL camera component.
-
-    The intended use of the output ports (which in turn determines the
-    behaviour of those ports) is as follows:
+    Represents the MMAL camera component. This component has 0 input ports and
+    3 output ports. The intended use of the output ports (which in turn
+    determines the behaviour of those ports) is as follows:
 
     * Port 0 is intended for preview renderers
 
     * Port 1 is intended for video recording
 
     * Port 2 is intended for still image capture
+
+    Use the ``MMAL_PARAMETER_CAMERA_CONFIG`` parameter on the control port to
+    obtain and manipulate the camera's configuration.
     """
     __slots__ = ()
 
@@ -1600,7 +1607,9 @@ class MMALCamera(MMALComponent):
 
 class MMALCameraInfo(MMALComponent):
     """
-    Represents the MMAL camera-info component.
+    Represents the MMAL camera-info component. Query the
+    ``MMAL_PARAMETER_CAMERA_INFO`` parameter on the control port to obtain
+    information about the connected camera module.
     """
     __slots__ = ()
 
@@ -1667,6 +1676,12 @@ class MMALDownstreamComponent(MMALComponent):
         self._connection = None
 
     def connect(self, source):
+        """
+        Connect this component's sole input port to the specified *source*
+        :class:`MMALPort`. The type and configuration of the connection will
+        be automatically selected, and the connection will be automatically
+        enabled.
+        """
         if self.connection:
             self.disconnect()
         if isinstance(source, MMALPythonPort):
@@ -1675,6 +1690,10 @@ class MMALDownstreamComponent(MMALComponent):
             self._connection = MMALConnection(source, self.inputs[0])
 
     def disconnect(self):
+        """
+        Destroy the connection between this component's input port and the
+        upstream component.
+        """
         if self.connection:
             self.connection.close()
             self._connection = None
@@ -1695,12 +1714,18 @@ class MMALDownstreamComponent(MMALComponent):
 
     @property
     def connection(self):
+        """
+        The :class:`MMALConnection` or :class:`MMALPythonConnection` object
+        linking this component to the upstream component.
+        """
         return self._connection
 
 
 class MMALSplitter(MMALDownstreamComponent):
     """
-    Represents the MMAL splitter component.
+    Represents the MMAL splitter component. This component has 1 input port
+    and 4 output ports which all generate duplicates of buffers passed to the
+    input port.
     """
     __slots__ = ()
     component_type = mmal.MMAL_COMPONENT_DEFAULT_VIDEO_SPLITTER
@@ -1710,7 +1735,9 @@ class MMALSplitter(MMALDownstreamComponent):
 
 class MMALResizer(MMALDownstreamComponent):
     """
-    Represents the MMAL resizer component.
+    Represents the MMAL resizer component. This component has 1 input port and
+    1 output port. The output port can (and usually should) have a different
+    frame size to the input port.
     """
     __slots__ = ()
     component_type = mmal.MMAL_COMPONENT_DEFAULT_RESIZER
@@ -1727,7 +1754,9 @@ class MMALEncoder(MMALDownstreamComponent):
 
 class MMALVideoEncoder(MMALEncoder):
     """
-    Represents the MMAL video encoder component.
+    Represents the MMAL video encoder component. This component has 1 input
+    port and 1 output port. The output port is usually configured with
+    ``MMAL_ENCODING_H264`` or ``MMAL_ENCODING_MJPEG``.
     """
     __slots__ = ()
     component_type = mmal.MMAL_COMPONENT_DEFAULT_VIDEO_ENCODER
@@ -1737,7 +1766,10 @@ class MMALVideoEncoder(MMALEncoder):
 
 class MMALImageEncoder(MMALEncoder):
     """
-    Represents the MMAL image encoder component.
+    Represents the MMAL image encoder component. This component has 1 input
+    port and 1 output port. The output port is typically configured with
+    ``MMAL_ENCODING_JPEG`` but can also use ``MMAL_ENCODING_PNG``,
+    ``MMAL_ENCODING_GIF``, etc.
     """
     __slots__ = ()
     component_type = mmal.MMAL_COMPONENT_DEFAULT_IMAGE_ENCODER
@@ -1747,7 +1779,8 @@ class MMALImageEncoder(MMALEncoder):
 
 class MMALRenderer(MMALDownstreamComponent):
     """
-    Represents the MMAL preview renderer component.
+    Represents the MMAL renderer component. This component has 1 input port and
+    0 output ports. It is used to implement the camera preview and overlays.
     """
     __slots__ = ()
     component_type = mmal.MMAL_COMPONENT_DEFAULT_VIDEO_RENDERER
@@ -1756,7 +1789,10 @@ class MMALRenderer(MMALDownstreamComponent):
 
 class MMALNullSink(MMALDownstreamComponent):
     """
-    Represents the MMAL null-sink component.
+    Represents the MMAL null-sink component. This component has 1 input port
+    and 0 output ports. It is used to keep the preview port "alive" (and thus
+    calculating white-balance and exposure) when the camera preview is not
+    required.
     """
     __slots__ = ()
     component_type = mmal.MMAL_COMPONENT_DEFAULT_NULL_SINK

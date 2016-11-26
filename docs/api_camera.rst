@@ -33,7 +33,7 @@ PiVideoFrame
 .. autoclass:: PiVideoFrame(index, frame_type, frame_size, video_size, split_size, timestamp)
 
 
-PiCameraResolution
+PiResolution
 ==================
 
-.. autoclass:: PiCameraResolution(width, height)
+.. autoclass:: PiResolution(width, height)
