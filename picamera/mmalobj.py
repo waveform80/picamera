@@ -403,13 +403,14 @@ def debug_pipeline(port):
 
     assert isinstance(port, (MMALControlPort, MMALPythonPort))
     while True:
-        yield port
+        if port.type == 'output':
+            yield port
         if isinstance(port, MMALPythonPort):
             comp = port._owner
         else:
             comp = find_component(ct.addressof(port._port[0].component[0]))
         yield comp
-        if not isinstance(comp, MMALDownstreamComponent):
+        if not isinstance(comp, (MMALDownstreamComponent, MMALPythonDownstreamComponent)):
             break
         if isinstance(comp.connection, MMALPythonConnection):
             port = comp.connection._target
@@ -431,7 +432,7 @@ def print_pipeline(port):
     rows = [[], [], [], [], []]
     under_comp = False
     for obj in reversed(list(debug_pipeline(port))):
-        if isinstance(obj, (MMALComponent, MMALPythonSource)):
+        if isinstance(obj, (MMALComponent, MMALPythonComponent)):
             rows[0].append(obj.name)
             under_comp = True
         elif isinstance(obj, MMALVideoPort):
@@ -705,6 +706,19 @@ class MMALControlPort(MMALObject):
     @property
     def name(self):
         return self._port[0].name.decode('ascii')
+
+    @property
+    def type(self):
+        """
+        The type of the port as a string. One of "control", "clock", "input",
+        or "output".
+        """
+        return {
+            mmal.MMAL_PORT_TYPE_OUTPUT:  'output',
+            mmal.MMAL_PORT_TYPE_INPUT:   'input',
+            mmal.MMAL_PORT_TYPE_CONTROL: 'control',
+            mmal.MMAL_PORT_TYPE_CLOCK:   'clock',
+            }[self._port[0].type]
 
     @property
     def params(self):
@@ -1809,7 +1823,7 @@ class MMALPythonPort(MMALObject):
         '_enabled',
         '_owner',
         '_pool',
-        '_inout',
+        '_type',
         '_index',
         '_format',
         '_callback',
@@ -1825,14 +1839,14 @@ class MMALPythonPort(MMALObject):
         'BGRA': 4,
         }
 
-    def __init__(self, owner, inout, index):
+    def __init__(self, owner, port_type, index):
         self._enabled = False
         self._owner = owner
         self._pool = None
         self._callback = None
         self._thread = None
         self._queue = Queue(maxsize=2) # see send_buffer for maxsize reason
-        self._inout = inout
+        self._type = port_type
         self._index = index
         self._format = ct.pointer(mmal.MMAL_ES_FORMAT_T(
             type=mmal.MMAL_ES_TYPE_VIDEO,
@@ -1929,7 +1943,7 @@ class MMALPythonPort(MMALObject):
         adjusting the port's format and/or associated settings (like width and
         height for video ports).
         """
-        if self._inout == 'in':
+        if self.type == 'input':
             self._owner._commit_input(self)
         else:
             self._owner._commit_output(self)
@@ -1954,7 +1968,7 @@ class MMALPythonPort(MMALObject):
         :class:`MMALControlPort` (or descendent) and an :class:`MMALBuffer`
         instance. Any return value will be ignored.
         """
-        if self._inout == 'out':
+        if self.type == 'output':
             if self._owner._connection_out:
                 if callback is not None:
                     raise PiCameraMMALError(
@@ -2025,7 +2039,7 @@ class MMALPythonPort(MMALObject):
             assert self._pool
             return self._pool.get_buffer(block, timeout)
         else:
-            assert self._inout == 'out'
+            assert self.type == 'output'
             return self._owner._connection_out._target.get_buffer(block, timeout)
 
     def send_buffer(self, buf):
@@ -2049,12 +2063,20 @@ class MMALPythonPort(MMALObject):
         else:
             # Connected output port case; forward the buffer to the connected
             # component's input port
-            assert self._inout == 'out'
+            assert self.type == 'output'
             self._owner._connection_out._target.send_buffer(buf)
 
     @property
     def name(self):
-        return '%s:%s:%d' % (self._owner.name, self._inout, self._index)
+        return '%s:%s:%d' % (self._owner.name, self.type, self._index)
+
+    @property
+    def type(self):
+        """
+        The type of the port as a string. One of "control", "clock", "input",
+        or "output".
+        """
+        return self._type
 
     def __repr__(self):
         return '<MMALPythonPort "%s": format=%r buffers=%dx%d frames=%s@%sfps>' % (
@@ -2182,7 +2204,7 @@ class MMALPythonSource(MMALPythonComponent):
     def __init__(self):
         super(MMALPythonSource, self).__init__()
         self._inputs = ()
-        self._outputs = (MMALPythonPort(self, 'out', 0),)
+        self._outputs = (MMALPythonPort(self, 'output', 0),)
         self._connection_out = None
 
     def close(self):
@@ -2216,40 +2238,13 @@ class MMALPythonSource(MMALPythonComponent):
         return 'py.source'
 
 
-class MMALPythonTransform(MMALPythonComponent):
-    """
-    Provides a Python-implemented transformation component for MMAL pipelines.
-    """
-    __slots__ = ('_inputs', '_outputs', '_connection_out', '_connection_in')
+class MMALPythonDownstreamComponent(MMALPythonComponent):
+    __slots__ = ('_connection_out', '_connection_in')
 
     def __init__(self):
-        super(MMALPythonTransform, self).__init__()
-        self._inputs = (MMALPythonPort(self, 'in', 0),)
-        self._outputs = (MMALPythonPort(self, 'out', 0),)
+        super(MMALPythonDownstreamComponent, self).__init__()
         self._connection_in = None
         self._connection_out = None
-
-    def close(self):
-        self.enabled = False
-        if self._connection_in:
-            self._connection_in.close()
-        if self._connection_out:
-            self._connection_out.close()
-        if self._inputs:
-            self._inputs[0].disable()
-            self._inputs = ()
-        if self._outputs:
-            self._outputs[0].disable()
-            self._outputs = ()
-
-    def _commit_input(self, port):
-        if port.format == mmal.MMAL_ENCODING_I420:
-            raise PiCameraMMALError(mmal.MMAL_EINVAL, 'bad input format')
-        self.outputs[0].copy_from(port)
-
-    def _commit_output(self, port):
-        if port.format.value != self.inputs[0].format.value:
-            raise PiCameraMMALError(mmal.MMAL_EINVAL, 'output format mismatch')
 
     def connect(self, source):
         """
@@ -2273,12 +2268,44 @@ class MMALPythonTransform(MMALPythonComponent):
             self._connection_in = None
 
     @property
-    def name(self):
-        return 'py.transform'
+    def connection(self):
+        """
+        The :class:`MMALConnection` or :class:`MMALPythonConnection` object
+        linking this component to the upstream component.
+        """
+        return self._connection_in
+
+    def close(self):
+        if self._connection_in:
+            self._connection_in.close()
+        if self._connection_out:
+            self._connection_out.close()
+
+
+class MMALPythonTransform(MMALPythonDownstreamComponent):
+    """
+    Provides a Python-implemented transformation component for MMAL pipelines.
+    """
+    __slots__ = ('_inputs', '_outputs')
+
+    def __init__(self):
+        super(MMALPythonTransform, self).__init__()
+        self._inputs = (MMALPythonPort(self, 'input', 0),)
+        self._outputs = (MMALPythonPort(self, 'output', 0),)
+
+    def close(self):
+        self.enabled = False
+        super(MMALPythonTransform, self).close()
+        if self._inputs:
+            self._inputs[0].disable()
+            self._inputs = ()
+        if self._outputs:
+            self._outputs[0].disable()
+            self._outputs = ()
 
     @property
-    def connection(self):
-        return self._connection_in
+    def name(self):
+        return 'py.transform'
 
     def _callback(self, port, buf):
         """

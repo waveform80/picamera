@@ -557,6 +557,42 @@ output:
          frame     640x480@0fps         640x480@0fps        frame        0x0@0fps
 
 
+Python Components
+-----------------
+
+So far all the components we've looked at have been "real" MMAL components
+which is to say that they're implemented in C, and all talk to bits of the
+firmware running on the GPU. However, a frequent request has been to be able to
+modify frames from the camera before they reach the image or video encoder.
+The Python components are an attempt to make this request relatively simple to
+achieve from within Python.
+
+However, the means by which this is achieved are inefficient (to say the least)
+so don't expect this to work with high resolutions or framerates. The
+``mmalobj`` layer in picamera includes the concept of a "Python MMAL"
+component. To the user these components look a lot like the MMAL components
+you've been playing with above (:class:`MMALCamera`, :class:`MMALImageEncoder`,
+etc). They are instantiated in a similar manner, they have the same sort of
+ports, and they're connected using the same means as ordinary MMAL components.
+
+Let's try this out by placing a transformation between the camera and a preview
+which will draw a cross over the frames going to the preview:
+
+.. code-block:: pycon
+
+    >>> from picamera import array
+    >>> class Crosshair(array.PiArrayTransform):
+    ...     def transform(self, source, target):
+    ...         target.array = source.array
+    ...         target.array[240, :, :] = 0xff
+    ...         target.array[:, 320, :] = 0xff
+    ...         return False
+    ...
+    >>> transform = Crosshair()
+    >>> transform.connect(camera.outputs[0])
+    >>> preview.connect(transform.outputs[0])
+
+
 .. _YUV420: https://en.wikipedia.org/wiki/YUV#Y.E2.80.B2UV420p_.28and_Y.E2.80.B2V12_or_YV12.29_to_RGB888_conversion
 
 Components
@@ -635,10 +671,19 @@ Buffers
 Python Extensions
 =================
 
+.. warning::
+
+    This part of the API (the Python extension classes) is still experimental
+    and subject to change in future versions. Backwards compatibility is not
+    (yet) guaranteed.
+
 .. autoclass:: MMALPythonPort
 
 .. autoclass:: MMALPythonComponent
     :private-members: _commit_input, _commit_output
+
+.. autoclass:: MMALPythonDownstreamComponent
+    :show-inheritance:
 
 .. autoclass:: MMALPythonConnection
 

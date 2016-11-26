@@ -80,3 +80,10 @@ PiMotionAnalysis
 .. autoclass:: PiMotionAnalysis
     :no-members:
 
+
+PiArrayTransform
+================
+
+.. autoclass:: PiArrayTrasform
+    :private-members: _commit_input, _commit_output
+
