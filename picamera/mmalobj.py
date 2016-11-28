@@ -1147,6 +1147,15 @@ class MMALBuffer(object):
     the buffer's data a bit simpler; accessing the :attr:`data` attribute
     implicitly locks the buffer's memory and returns the data as a bytes
     string.
+
+    To work with the buffer memory directly as a ctypes object, using the
+    instance as a context manager will lock the buffer's memory and return the
+    :mod:`ctypes` buffer object itself::
+
+        def callback(port, buf):
+            with buf as data:
+                # data is a ctypes uint8 array with size entries
+                print(len(data))
     """
     __slots__ = ('_buf',)
 
@@ -1232,15 +1241,10 @@ class MMALBuffer(object):
         """)
 
     def _get_data(self):
-        mmal_check(
-            mmal.mmal_buffer_header_mem_lock(self._buf),
-            prefix='unable to lock buffer header memory')
-        try:
+        with self as buf:
             return ct.string_at(
-                ct.byref(self._buf[0].data.contents, self._buf[0].offset),
+                ct.byref(buf, self._buf[0].offset),
                 self._buf[0].length)
-        finally:
-            mmal.mmal_buffer_header_mem_unlock(self._buf)
     def _set_data(self, value):
         if isinstance(value, memoryview) and (value.ndim > 1 or value.itemsize > 1):
             value = value.cast('B')
@@ -1252,7 +1256,8 @@ class MMALBuffer(object):
                 sp = bp.from_buffer(value)
             except TypeError:
                 sp = bp.from_buffer_copy(value)
-            ct.memmove(self._buf[0].data, sp, data_len)
+            with self as buf:
+                ct.memmove(buf, sp, data_len)
         self._buf[0].offset = 0
         self._buf[0].length = data_len
     data = property(_get_data, _set_data, doc="""\
@@ -1263,10 +1268,12 @@ class MMALBuffer(object):
         the :attr:`length` attribute to the length of the specified value and
         sets :attr:`offset` to zero.
 
-        .. warning::
+        .. note::
 
-            Some buffer objects *cannot* be modified without consequence (for
-            example, buffers returned by an encoder's output port).
+            Accessing a buffer's data via this attribute is relatively slow
+            (as it copies the buffer's data to/from Python objects). See the
+            :class:`MMALBuffer` documentation for details of a faster (but
+            more complex) method.
         """)
 
     def replicate(self, source):
@@ -1304,18 +1311,8 @@ class MMALBuffer(object):
         assert self.size >= source.length
         source_len = source._buf[0].length
         if source_len:
-            mmal_check(
-                mmal.mmal_buffer_header_mem_lock(source._buf),
-                prefix='unable to lock buffer header memory')
-            try:
-                # TODO When Python 3.5 becomes standard; add a branch here for
-                # memoryview assignment - it's *much* faster than memmove
-                ct.memmove(
-                    self._buf[0].data,
-                    ct.byref(source._buf[0].data.contents, source._buf[0].offset),
-                    source_len)
-            finally:
-                mmal.mmal_buffer_header_mem_unlock(source._buf)
+            with self as target_buf, source as source_buf:
+                ct.memmove(target_buf, ct.byref(source_buf, source.offset), source_len)
         self._buf[0].offset = 0
         self._buf[0].length = source_len
         self.copy_meta(source)
@@ -1333,20 +1330,40 @@ class MMALBuffer(object):
         self._buf[0].type[0] = source._buf[0].type[0]
 
     def acquire(self):
+        """
+        Acquire a reference to the buffer. This will prevent the buffer from
+        being recycled until :meth:`release` is called. This method can be
+        called multiple times in which case an equivalent number of calls
+        to :meth:`release` must be made before the buffer will actually be
+        released.
+        """
         mmal.mmal_buffer_header_acquire(self._buf)
 
     def release(self):
+        """
+        Release a reference to the buffer. This is the opposing call to
+        :meth:`acquire`. Once all references have been released, the buffer
+        will be recycled.
+        """
         mmal.mmal_buffer_header_release(self._buf)
 
     def reset(self):
+        """
+        Resets all buffer header fields to default values.
+        """
         mmal.mmal_buffer_header_reset(self._buf)
 
     def __enter__(self):
-        self.acquire()
-        return self
+        mmal_check(
+            mmal.mmal_buffer_header_mem_lock(self._buf),
+            prefix='unable to lock buffer header memory')
+        return ct.cast(
+            self._buf[0].data,
+            ct.POINTER(ct.c_uint8 * self._buf[0].alloc_size)).contents
 
-    def __exit__(self, exc_type, exc_value, exc_tb):
-        self.release()
+    def __exit__(self, *exc):
+        mmal.mmal_buffer_header_mem_unlock(self._buf)
+        return False
 
     def __repr__(self):
         if self._buf:

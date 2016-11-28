@@ -697,11 +697,10 @@ class PiMotionAnalysis(PiAnalysisOutput):
 
 
 class MMALArrayBuffer(mo.MMALBuffer):
-    __slots__ = ('_array', '_shape', '_ptype')
+    __slots__ = ('_shape', '_ptype')
 
     def __init__(self, port, buf):
         super(MMALArrayBuffer, self).__init__(buf)
-        self._array = None
         width = port._format[0].es[0].video.width
         height = port._format[0].es[0].video.height
         bpp = self.size // (width * height)
@@ -710,31 +709,18 @@ class MMALArrayBuffer(mo.MMALBuffer):
         self._shape = (height, width, bpp)
         self._ptype = ct.POINTER(ct.c_uint8 * self.size)
 
-    def lock(self):
+    def __enter__(self):
         mmal_check(
             mmal.mmal_buffer_header_mem_lock(self._buf),
             prefix='unable to lock buffer header memory')
         assert self.offset == 0
-        self._array = np.frombuffer(
+        return np.frombuffer(
             ct.cast(self._buf[0].data, self._ptype).contents,
             dtype=np.uint8, count=self.length).reshape(self._shape)
 
-    def unlock(self):
-        self._array = None
+    def __exit__(self, *exc):
         mmal.mmal_buffer_header_mem_unlock(self._buf)
-
-    def __enter__(self):
-        self.lock()
-        return self
-
-    def __exit__(self, exc_type, exc_value, exc_tb):
-        self.unlock()
-
-    def _get_array(self):
-        return self._array
-    def _set_array(self, value):
-        self._array[...] = value
-    array = property(_get_array, _set_array)
+        return False
 
 
 class PiArrayTransform(mo.MMALPythonTransform):
@@ -751,9 +737,9 @@ class PiArrayTransform(mo.MMALPythonTransform):
     def _callback(self, port, source_buf):
         target_buf = self.outputs[0].get_buffer()
         target_buf.copy_meta(source_buf)
-        with MMALArrayBuffer(port, source_buf._buf) as source, \
-                MMALArrayBuffer(self.outputs[0], target_buf._buf) as target:
-            result = self.transform(source, target)
+        result = self.transform(
+            MMALArrayBuffer(port, source_buf._buf),
+            MMALArrayBuffer(self.outputs[0], target_buf._buf))
         try:
             self.outputs[0].send_buffer(target_buf)
         except PiCameraMMALError as e:
@@ -769,9 +755,19 @@ class PiArrayTransform(mo.MMALPythonTransform):
         This method will be called for every frame passing through the
         transform.  The *source* and *target* parameters represent buffers from
         the input and output ports of the transform respectively. They will be
-        derivatives of :class:`~picamera.mmalobj.MMALBuffer` with an additional
-        ``array`` attribute which will represent the data within the buffer as
-        a modifiable numpy array.
+        derivatives of :class:`~picamera.mmalobj.MMALBuffer` which return a
+        3-dimensional numpy array when used as context managers. For example::
+
+            def transform(self, source, target):
+                with source as source_array, target as target_array:
+                    # Copy the source array data to the target
+                    target_array[...] = source_array
+                    # Draw a box around the edges
+                    target_array[0, :, :] = 0xff
+                    target_array[-1, :, :] = 0xff
+                    target_array[:, 0, :] = 0xff
+                    target_array[:, -1, :] = 0xff
+                    return False
 
         The target buffer's meta-data starts out as a copy of the source
         buffer's meta-data, but the target buffer's data starts out
