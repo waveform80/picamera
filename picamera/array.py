@@ -747,10 +747,6 @@ class PiArrayTransform(mo.MMALPythonTransform):
     component, then place it in your MMAL pipeline as you would a normal
     encoder.
     """
-    __slots__ = ('_width', '_height', '_bpp')
-
-    def connect(self, source):
-        super(PiArrayTransform, self).connect(source)
 
     def _callback(self, port, source_buf):
         target_buf = self.outputs[0].get_buffer()
@@ -758,27 +754,15 @@ class PiArrayTransform(mo.MMALPythonTransform):
         with MMALArrayBuffer(port, source_buf._buf) as source, \
                 MMALArrayBuffer(self.outputs[0], target_buf._buf) as target:
             result = self.transform(source, target)
-        self.outputs[0].send_buffer(target_buf)
+        try:
+            self.outputs[0].send_buffer(target_buf)
+        except PiCameraMMALError as e:
+            if e.status != mmal.MMAL_EINVAL:
+                raise
+            # MMAL_EINVAL here means we're sending to a disabled port which
+            # also means we're about to shut down so disable further callbacks
+            return True
         return result
-
-    def _commit_input(self, port):
-        """
-        Overridden to deny YUV420 formatting (leaving RGB, BGR, RGBA, and BGRA
-        as accepted formats), and to copy the input port's configuration to the
-        output port.
-        """
-        if port.format == mmal.MMAL_ENCODING_I420:
-            raise PiCameraMMALError(mmal.MMAL_EINVAL, 'bad input format')
-        self.outputs[0].copy_from(port)
-
-    def _commit_output(self, port):
-        """
-        Overridden to raise an exception if the output port configuration does
-        not match the input port's. Override this if your transformation alters
-        the shape of the resulting frame.
-        """
-        if port.format.value != self.inputs[0].format.value:
-            raise PiCameraMMALError(mmal.MMAL_EINVAL, 'output format mismatch')
 
     def transform(self, source, target):
         """

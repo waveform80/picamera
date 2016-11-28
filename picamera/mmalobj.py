@@ -2285,13 +2285,22 @@ class MMALPythonDownstreamComponent(MMALPythonComponent):
 class MMALPythonTransform(MMALPythonDownstreamComponent):
     """
     Provides a Python-implemented transformation component for MMAL pipelines.
+    The optional *outputs* parameter specifies the number of outputs the
+    component has (default 1).
+
+    Override the :math:`_callback` method to implement the transformation,
+    and the :meth:`_commit_input` and :meth:`_commit_output` method to
+    control the formats and framesizes that the transformation works with.
     """
     __slots__ = ('_inputs', '_outputs')
 
-    def __init__(self):
+    def __init__(self, outputs=1):
         super(MMALPythonTransform, self).__init__()
         self._inputs = (MMALPythonPort(self, 'input', 0),)
-        self._outputs = (MMALPythonPort(self, 'output', 0),)
+        self._outputs = tuple(
+            MMALPythonPort(self, 'output', n)
+            for n in range(outputs)
+            )
 
     def close(self):
         self.enabled = False
@@ -2300,20 +2309,42 @@ class MMALPythonTransform(MMALPythonDownstreamComponent):
             self._inputs[0].disable()
             self._inputs = ()
         if self._outputs:
-            self._outputs[0].disable()
+            for output in self._outputs:
+                output.disable()
             self._outputs = ()
 
     @property
     def name(self):
         return 'py.transform'
 
+    def _commit_input(self, port):
+        """
+        Overridden to deny YUV420 formatting (leaving RGB, BGR, RGBA, and BGRA
+        as accepted formats), and to copy the input port's configuration to the
+        output port(s).
+        """
+        if port.format == mmal.MMAL_ENCODING_I420:
+            raise PiCameraMMALError(mmal.MMAL_EINVAL, 'bad input format')
+        for output in self.outputs:
+            output.copy_from(port)
+
+    def _commit_output(self, port):
+        """
+        Overridden to raise an exception if the output port configuration does
+        not match the input port's. Override this if your transformation alters
+        the shape of the resulting frame.
+        """
+        if port.format.value != self.inputs[0].format.value:
+            raise PiCameraMMALError(mmal.MMAL_EINVAL, 'output format mismatch')
+
     def _callback(self, port, buf):
         """
         Stub for descendents to override. This will be called with each buffer
         from the input port that requires transformation. The method is
-        expected to fetch a buffer from the component's output port, write the
-        data into it and send the buffer. Return values are as for normal port
-        callbacks (True when no more buffers are expected, False otherwise).
+        expected to fetch a buffer from the component's output port(s), write
+        the data into it and send the buffer. Return values are as for normal
+        port callbacks (True when no more buffers are expected, False
+        otherwise).
         """
         return False
 

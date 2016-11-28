@@ -734,7 +734,7 @@ Python Extensions
 
 .. autoclass:: MMALPythonTransform
     :show-inheritance:
-    :private-members: _callback
+    :private-members: _callback, _commit_input, _commit_output
 
 
 Debugging
