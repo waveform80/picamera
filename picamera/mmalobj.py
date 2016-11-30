@@ -412,6 +412,8 @@ def debug_pipeline(port):
         yield comp
         if not isinstance(comp, (MMALDownstreamComponent, MMALPythonDownstreamComponent)):
             break
+        if comp.connection is None:
+            break
         if isinstance(comp.connection, MMALPythonConnection):
             port = comp.connection._target
         else:
