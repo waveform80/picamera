@@ -403,7 +403,7 @@ def debug_pipeline(port):
 
     assert isinstance(port, (MMALControlPort, MMALPythonPort))
     while True:
-        if port.type == 'output':
+        if port.type == 'out':
             yield port
         if isinstance(port, MMALPythonPort):
             comp = port._owner
@@ -715,12 +715,12 @@ class MMALControlPort(MMALObject):
     @property
     def type(self):
         """
-        The type of the port as a string. One of "control", "clock", "input",
-        or "output".
+        The type of the port as a string. One of "control", "clock", "in",
+        or "out".
         """
         return {
-            mmal.MMAL_PORT_TYPE_OUTPUT:  'output',
-            mmal.MMAL_PORT_TYPE_INPUT:   'input',
+            mmal.MMAL_PORT_TYPE_OUTPUT:  'out',
+            mmal.MMAL_PORT_TYPE_INPUT:   'in',
             mmal.MMAL_PORT_TYPE_CONTROL: 'control',
             mmal.MMAL_PORT_TYPE_CLOCK:   'clock',
             }[self._port[0].type]
@@ -2035,7 +2035,7 @@ class MMALPythonPort(MMALObject):
         :class:`MMALControlPort` (or descendent) and an :class:`MMALBuffer`
         instance. Any return value will be ignored.
         """
-        if self.type == 'output':
+        if self.type == 'out':
             if self._owner._connection_out:
                 if callback is not None:
                     raise PiCameraMMALError(
@@ -2106,7 +2106,7 @@ class MMALPythonPort(MMALObject):
             assert self._pool
             return self._pool.get_buffer(block, timeout)
         else:
-            assert self.type == 'output'
+            assert self.type == 'out'
             return self._owner._connection_out._target.get_buffer(block, timeout)
 
     def send_buffer(self, buf):
@@ -2130,7 +2130,7 @@ class MMALPythonPort(MMALObject):
         else:
             # Connected output port case; forward the buffer to the connected
             # component's input port
-            assert self.type == 'output'
+            assert self.type == 'out'
             self._owner._connection_out._target.send_buffer(buf)
 
     @property
@@ -2294,7 +2294,7 @@ class MMALPythonSource(MMALPythonComponent):
     def __init__(self):
         super(MMALPythonSource, self).__init__()
         self._inputs = ()
-        self._outputs = (MMALPythonPort(self, 'output', 0),)
+        self._outputs = (MMALPythonPort(self, 'out', 0),)
         self._connection_out = None
 
     def close(self):
@@ -2335,7 +2335,7 @@ class MMALPythonDownstreamComponent(MMALPythonComponent):
 
     def __init__(self):
         super(MMALPythonDownstreamComponent, self).__init__()
-        self._inputs = (MMALPythonPort(self, 'input', 0),)
+        self._inputs = (MMALPythonPort(self, 'in', 0),)
         self._connection_in = None
         self._connection_out = None
 
@@ -2394,7 +2394,7 @@ class MMALPythonTransform(MMALPythonDownstreamComponent):
     def __init__(self, outputs=1):
         super(MMALPythonTransform, self).__init__()
         self._outputs = tuple(
-            MMALPythonPort(self, 'output', n)
+            MMALPythonPort(self, 'out', n)
             for n in range(outputs)
             )
 
@@ -2416,7 +2416,7 @@ class MMALPythonTransform(MMALPythonDownstreamComponent):
         the input port's format.
         """
         super(MMALPythonTransform, self)._commit_port(port)
-        if port.type == 'input':
+        if port.type == 'in':
             for output in self.outputs:
                 output.copy_from(port)
         elif port.format.value != self.inputs[0].format.value:
