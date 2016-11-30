@@ -24,10 +24,10 @@ The MMAL Tour
 
 MMAL operates on the principle of pipelines:
 
-* A pipeline consists of one or more MMAL components (:class:`MMALComponent`)
+* A pipeline consists of one or more MMAL components (:class:`MMALBaseComponent`)
   connected together in series.
 
-* A component (:class:`MMALComponent`) has one or more ports.
+* A component (:class:`MMALBaseComponent`) has one or more ports.
 
 * A port (:class:`MMALControlPort` and derivatives) is either a control port,
   an input port or an output port (there are also clock ports but you generally
@@ -191,7 +191,7 @@ worry about the input port.
 The renderer is what ``mmalobj`` terms a "downstream component". This is a
 component with a single input that typically sits downstream from some feeder
 component (like a camera). All such components have the
-:meth:`MMALDownstreamComponent.connect` method which can be used to connect the
+:meth:`MMALComponent.connect` method which can be used to connect the
 sole input to the specified output port:
 
 .. code-block:: pycon
@@ -586,8 +586,8 @@ ports, and they're connected using the same means as ordinary MMAL components.
 Let's try this out by placing a transformation between the camera and a preview
 which will draw a cross over the frames going to the preview. For this we'll
 subclass :class:`array.PiArrayTransform`. This derives from
-:class:`MMALPythonTransform` and provides the useful capability of providing
-the source and target buffers as numpy arrays containing RGB data:
+:class:`MMALPythonComponent` and provides the useful capability of
+providing the source and target buffers as numpy arrays containing RGB data:
 
 .. code-block:: pycon
 
@@ -648,7 +648,7 @@ performance.
 Components
 ==========
 
-.. autoclass:: MMALComponent
+.. autoclass:: MMALBaseComponent
 
 .. autoclass:: MMALCamera
     :show-inheritance:
@@ -656,7 +656,7 @@ Components
 .. autoclass:: MMALCameraInfo
     :show-inheritance:
 
-.. autoclass:: MMALDownstreamComponent
+.. autoclass:: MMALComponent
     :show-inheritance:
 
 .. autoclass:: MMALSplitter
@@ -723,20 +723,17 @@ Python Extensions
 
 .. autoclass:: MMALPythonPort
 
-.. autoclass:: MMALPythonComponent
+.. autoclass:: MMALPythonBaseComponent
     :private-members: _commit_port
 
-.. autoclass:: MMALPythonDownstreamComponent
+.. autoclass:: MMALPythonComponent
     :show-inheritance:
+    :private-members: _callback, _commit_port
 
 .. autoclass:: MMALPythonConnection
 
 .. autoclass:: MMALPythonSource
     :show-inheritance:
-
-.. autoclass:: MMALPythonTransform
-    :show-inheritance:
-    :private-members: _callback, _commit_port
 
 
 Debugging

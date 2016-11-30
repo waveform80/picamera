@@ -723,9 +723,9 @@ class MMALArrayBuffer(mo.MMALBuffer):
         return False
 
 
-class PiArrayTransform(mo.MMALPythonTransform):
+class PiArrayTransform(mo.MMALPythonComponent):
     """
-    A derivative of :class:`~picamera.mmalobj.MMALPythonTransform` which eases
+    A derivative of :class:`~picamera.mmalobj.MMALPythonComponent` which eases
     the construction of custom MMAL transforms by representing buffer data as
     numpy arrays.
 
@@ -735,19 +735,22 @@ class PiArrayTransform(mo.MMALPythonTransform):
     """
 
     def _callback(self, port, source_buf):
-        target_buf = self.outputs[0].get_buffer()
-        target_buf.copy_meta(source_buf)
-        result = self.transform(
-            MMALArrayBuffer(port, source_buf._buf),
-            MMALArrayBuffer(self.outputs[0], target_buf._buf))
-        try:
-            self.outputs[0].send_buffer(target_buf)
-        except PiCameraMMALError as e:
-            if e.status != mmal.MMAL_EINVAL:
-                raise
-            # MMAL_EINVAL here means we're sending to a disabled port which
-            # also means we're about to shut down so disable further callbacks
-            return True
+        result = False
+        target_buf = self.outputs[0].get_buffer(False)
+        if target_buf:
+            target_buf.copy_meta(source_buf)
+            result = self.transform(
+                MMALArrayBuffer(port, source_buf._buf),
+                MMALArrayBuffer(self.outputs[0], target_buf._buf))
+            try:
+                self.outputs[0].send_buffer(target_buf)
+            except PiCameraMMALError as e:
+                if e.status != mmal.MMAL_EINVAL:
+                    raise
+                # MMAL_EINVAL here means we're sending to a disabled port which
+                # also means we're about to shut down so disable further
+                # callbacks
+                return True
         return result
 
     def transform(self, source, target):
