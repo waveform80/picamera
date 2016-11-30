@@ -457,7 +457,7 @@ def print_pipeline(port):
                 obj._port[0].format[0].es[0].video.height,
                 obj.framerate))
         elif isinstance(obj, MMALPythonPort):
-            rows[0].append('[0]')
+            rows[0].append('[%d]' % obj._index)
             if under_comp:
                 rows[1].append('encoding')
             if obj.format == mmal.MMAL_ENCODING_OPAQUE:
@@ -2136,6 +2136,14 @@ class MMALPythonPort(MMALObject):
         """
         return self._type
 
+    @property
+    def index(self):
+        """
+        Returns an integer indicating the port's position within its owning
+        list (inputs, outputs, etc.)
+        """
+        return self._index
+
     def __repr__(self):
         return '<MMALPythonPort "%s": format=%r buffers=%dx%d frames=%s@%sfps>' % (
             self.name, self.format, self.buffer_count, self.buffer_size, self.framesize, self.framerate)
@@ -2525,9 +2533,15 @@ class MMALPythonConnection(MMALObject):
         self._enabled = False
 
     def _transfer(self, port, buf):
-        dest = self._target.get_buffer()
-        dest.copy_from(buf)
-        self._target.send_buffer(dest)
+        try:
+            dest = self._target.get_buffer(False)
+        except PiCameraMMALError as e:
+            # No available buffers on the target; drop this frame
+            if e.status != mmal.MMAL_EAGAIN:
+                raise
+        else:
+            dest.copy_from(buf)
+            self._target.send_buffer(dest)
         return False
 
     def __enter__(self):
