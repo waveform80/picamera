@@ -13,6 +13,11 @@ library underlying picamera, ``raspistill``, and ``raspivid``.  It is provided
 to ease the usage of ``libmmal`` to Python coders unfamiliar with C and also
 works around some of the idiosyncrasies in ``libmmal``.
 
+.. warning::
+
+    This part of the API is still experimental and subject to change in future
+    versions. Backwards compatibility is not (yet) guaranteed.
+
 
 The MMAL Tour
 =============
@@ -712,12 +717,6 @@ Buffers
 
 Python Extensions
 =================
-
-.. warning::
-
-    This part of the API (the Python extension classes) is still experimental
-    and subject to change in future versions. Backwards compatibility is not
-    (yet) guaranteed.
 
 .. autoclass:: MMALPythonPort
 
