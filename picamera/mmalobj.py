@@ -563,7 +563,7 @@ class MMALComponent(MMALObject):
         Close the component and release all its resources. After this is
         called, most methods will raise exceptions if called.
         """
-        if self._component:
+        if self._component is not None:
             # ensure we free any pools associated with input/output ports
             for output in self.outputs:
                 output.disable()
@@ -603,26 +603,31 @@ class MMALComponent(MMALObject):
         """
         return self._outputs
 
-    def _get_enabled(self):
+    @property
+    def enabled(self):
+        """
+        Returns ``True`` if the component is currently enabled. Use
+        :meth:`enable` and :meth:`disable` to control the component's state.
+        """
         return bool(self._component[0].is_enabled)
-    def _set_enabled(self, value):
-        if value:
-            mmal_check(
-                mmal.mmal_component_enable(self._component),
-                prefix="Failed to enable component")
-        else:
-            mmal_check(
-                mmal.mmal_component_disable(self._component),
-                prefix="Failed to disable component")
-    enabled = property(
-        # use lambda trick to enable overriding _get_enabled, _set_enabled
-        lambda self: self._get_enabled(),
-        lambda self, value: self._set_enabled(value),
-        doc="""\
-        Retrieves or sets whether the component is currently enabled. When a
-        component is disabled it does not process data. Components may be
-        implicitly enabled by downstream components.
-        """)
+
+    def enable(self):
+        """
+        Enable the component. When a component is enabled it will process data
+        sent to its input port(s), sending the results to buffers on its output
+        port(s). Components may be implicitly enabled by connections.
+        """
+        mmal_check(
+            mmal.mmal_component_enable(self._component),
+            prefix="Failed to enable component")
+
+    def disable(self):
+        """
+        Disables the component.
+        """
+        mmal_check(
+            mmal.mmal_component_disable(self._component),
+            prefix="Failed to disable component")
 
     def __enter__(self):
         return self
@@ -631,7 +636,7 @@ class MMALComponent(MMALObject):
         self.close()
 
     def __repr__(self):
-        if self._component:
+        if self._component is not None:
             return '<%s "%s": %d inputs %d outputs>' % (
                 self.__class__.__name__, self.name,
                 len(self.inputs), len(self.outputs))
@@ -684,24 +689,22 @@ class MMALControlPort(MMALObject):
             finally:
                 buf.release()
 
-        if not self.enabled:
-            if callback:
-                self._wrapper = mmal.MMAL_PORT_BH_CB_T(wrapper)
-            else:
-                self._wrapper = None
-            mmal_check(
-                mmal.mmal_port_enable(self._port, self._wrapper),
-                prefix="Unable to enable port %s" % self.name)
+        if callback:
+            self._wrapper = mmal.MMAL_PORT_BH_CB_T(wrapper)
+        else:
+            self._wrapper = None
+        mmal_check(
+            mmal.mmal_port_enable(self._port, self._wrapper),
+            prefix="Unable to enable port %s" % self.name)
 
     def disable(self):
         """
         Disable the port.
         """
-        if self.enabled:
-            mmal_check(
-                mmal.mmal_port_disable(self._port),
-                prefix="Unable to disable port %s" % self.name)
-            self._wrapper = None
+        mmal_check(
+            mmal.mmal_port_disable(self._port),
+            prefix="Unable to disable port %s" % self.name)
+        self._wrapper = None
 
     @property
     def name(self):
@@ -730,7 +733,7 @@ class MMALControlPort(MMALObject):
         return self._params
 
     def __repr__(self):
-        if self._port:
+        if self._port is not None:
             return '<MMALControlPort "%s">' % self.name
         else:
             return '<MMALControlPort closed>'
@@ -920,36 +923,35 @@ class MMALPort(MMALControlPort):
                 if not self._stopped:
                     self._pool.send_buffer(False)
 
-        if not self.enabled:
-            # Workaround: There is a bug in the MJPEG encoder that causes a
-            # deadlock if the FIFO is full on shutdown. Increasing the encoder
-            # buffer size makes this less likely to happen. See
-            # raspberrypi/userland#208. Connecting the encoder component resets
-            # the output port's buffer size, hence why we correct this here,
-            # just before enabling the port.
-            if self._port[0].format[0].encoding == mmal.MMAL_ENCODING_MJPEG:
-                self._port[0].buffer_size = max(512 * 1024, self._port[0].buffer_size_recommended)
-            if callback:
-                assert self._stopped
-                self._stopped = False
-                self._wrapper = mmal.MMAL_PORT_BH_CB_T(wrapper)
-                mmal_check(
-                    mmal.mmal_port_enable(self._port, self._wrapper),
-                    prefix="Unable to enable port %s" % self.name)
-                assert self._pool is None
-                self._pool = MMALPortPool(self)
-                # If this port is an output port, send it all the buffers
-                # in the pool. If it's an input port, don't bother: the user
-                # will presumably want to feed buffers to it manually
-                if self._port[0].type == mmal.MMAL_PORT_TYPE_OUTPUT:
-                    try:
-                        self._pool.send_all_buffers(False)
-                    except:
-                        self._pool.close()
-                        self._pool = None
-                        raise
-            else:
-                super(MMALPort, self).enable()
+        # Workaround: There is a bug in the MJPEG encoder that causes a
+        # deadlock if the FIFO is full on shutdown. Increasing the encoder
+        # buffer size makes this less likely to happen. See
+        # raspberrypi/userland#208. Connecting the encoder component resets the
+        # output port's buffer size, hence why we correct this here, just
+        # before enabling the port.
+        if self._port[0].format[0].encoding == mmal.MMAL_ENCODING_MJPEG:
+            self._port[0].buffer_size = max(512 * 1024, self._port[0].buffer_size_recommended)
+        if callback:
+            assert self._stopped
+            self._stopped = False
+            self._wrapper = mmal.MMAL_PORT_BH_CB_T(wrapper)
+            mmal_check(
+                mmal.mmal_port_enable(self._port, self._wrapper),
+                prefix="Unable to enable port %s" % self.name)
+            assert self._pool is None
+            self._pool = MMALPortPool(self)
+            # If this port is an output port, send it all the buffers
+            # in the pool. If it's an input port, don't bother: the user
+            # will presumably want to feed buffers to it manually
+            if self._port[0].type == mmal.MMAL_PORT_TYPE_OUTPUT:
+                try:
+                    self._pool.send_all_buffers(False)
+                except:
+                    self._pool.close()
+                    self._pool = None
+                    raise
+        else:
+            super(MMALPort, self).enable()
 
     def disable(self):
         """
@@ -957,12 +959,12 @@ class MMALPort(MMALControlPort):
         """
         self._stopped = True
         super(MMALPort, self).disable()
-        if self._pool:
+        if self._pool is not None:
             self._pool.close()
             self._pool = None
 
     def __repr__(self):
-        if self._port:
+        if self._port is not None:
             return '<MMALPort "%s": format=%r buffers=%dx%d>' % (
                 self.name, self.format, self.buffer_count, self.buffer_size)
         else:
@@ -1018,7 +1020,7 @@ class MMALVideoPort(MMALPort):
         """)
 
     def __repr__(self):
-        if self._port:
+        if self._port is not None:
             return '<MMALVideoPort "%s": format=%r buffers=%dx%d frames=%s@%sfps>' % (
                 self.name, self.format, self._port[0].buffer_num,
                 self._port[0].buffer_size, self.framesize, self.framerate)
@@ -1033,7 +1035,7 @@ class MMALAudioPort(MMALPort):
     __slots__ = ()
 
     def __repr__(self):
-        if self._port:
+        if self._port is not None:
             return '<MMALAudioPort "%s": format=%r buffers=%dx%d>' % (
                 self.name, self.format, self._port[0].buffer_num,
                 self._port[0].buffer_size)
@@ -1048,7 +1050,7 @@ class MMALSubPicturePort(MMALPort):
     __slots__ = ()
 
     def __repr__(self):
-        if self._port:
+        if self._port is not None:
             return '<MMALSubPicturePort "%s": format=%r buffers=%dx%d>' % (
                 self.name, self.format, self._port[0].buffer_num,
                 self._port[0].buffer_size)
@@ -1377,7 +1379,7 @@ class MMALBuffer(object):
         return False
 
     def __repr__(self):
-        if self._buf:
+        if self._buf is not None:
             return '<MMALBuffer object: flags=%s length=%d>' % (
                 ''.join((
                 'E' if self.flags & mmal.MMAL_BUFFER_HEADER_FLAG_FRAME_END     else '_',
@@ -1465,10 +1467,11 @@ class MMALPortPool(MMALPool):
         self._port = port
 
     def close(self):
-        if self._pool:
+        if self._pool is not None:
             mmal.mmal_port_pool_destroy(self._port._port, self._pool)
             self._port = None
             self._pool = None
+        super(MMALPortPool, self).close()
 
     @property
     def port(self):
@@ -1536,18 +1539,31 @@ class MMALConnection(MMALObject):
             mmal.mmal_connection_destroy(self._connection)
             self._connection = None
 
-    def _get_enabled(self):
+    @property
+    def enabled(self):
+        """
+        Returns ``True`` if the connection is enabled. Use :meth:`enable`
+        and :meth:`disable` to control the state of the connection.
+        """
         return bool(self._connection[0].is_enabled)
-    def _set_enabled(self, value):
-        if value:
-            mmal_check(
-                mmal.mmal_connection_enable(self._connection),
-                prefix="Failed to enable connection")
-        else:
-            mmal_check(
-                mmal.mmal_connection_disable(self._connection),
-                prefix="Failed to disable connection")
-    enabled = property(_get_enabled, _set_enabled)
+
+    def enable(self):
+        """
+        Enable the connection. When a connection is enabled, data is
+        continually transferred from the output port of the source to the input
+        port of the target component.
+        """
+        mmal_check(
+            mmal.mmal_connection_enable(self._connection),
+            prefix="Failed to enable connection")
+
+    def disable(self):
+        """
+        Disables the connection.
+        """
+        mmal_check(
+            mmal.mmal_connection_disable(self._connection),
+            prefix="Failed to disable connection")
 
     @property
     def name(self):
@@ -1560,7 +1576,7 @@ class MMALConnection(MMALObject):
         self.close()
 
     def __repr__(self):
-        if self._connection:
+        if self._connection is not None:
             return '<MMALConnection "%s">' % self.name
         else:
             return '<MMALConnection closed>'
@@ -1729,7 +1745,7 @@ class MMALDownstreamComponent(MMALComponent):
         be automatically selected, and the connection will be automatically
         enabled.
         """
-        if self.connection:
+        if self.connection is not None:
             self.disconnect()
         if isinstance(source, MMALPythonPort):
             self._connection = MMALPythonConnection(source, self.inputs[0])
@@ -1741,7 +1757,7 @@ class MMALDownstreamComponent(MMALComponent):
         Destroy the connection between this component's input port and the
         upstream component.
         """
-        if self.connection:
+        if self.connection is not None:
             self.connection.close()
             self._connection = None
 
@@ -1749,15 +1765,15 @@ class MMALDownstreamComponent(MMALComponent):
         self.disconnect()
         super(MMALDownstreamComponent, self).close()
 
-    def _set_enabled(self, value):
-        if value:
-            super(MMALDownstreamComponent, self)._set_enabled(True)
-            if self.connection:
-                self.connection.enabled = True
-        else:
-            if self.connection:
-                self.connection.enabled = False
-            super(MMALDownstreamComponent, self)._set_enabled(False)
+    def enable(self):
+        super(MMALDownstreamComponent, self).enable()
+        if self.connection is not None:
+            self.connection.enable()
+
+    def disable(self):
+        if self.connection is not None:
+            self.connection.disable()
+        super(MMALDownstreamComponent, self).disable()
 
     @property
     def connection(self):
@@ -1988,7 +2004,7 @@ class MMALPythonPort(MMALObject):
         adjusting the port's format and/or associated settings (like width and
         height for video ports).
         """
-        self._owner.commit_port(self)
+        self._owner._commit_port(self)
         if str(self.format) not in self._FORMAT_BPP:
             raise PiCameraMMALError(mmal.MMAL_EINVAL, 'bad format')
 
@@ -2010,8 +2026,6 @@ class MMALPythonPort(MMALObject):
         :class:`MMALControlPort` (or descendent) and an :class:`MMALBuffer`
         instance. Any return value will be ignored.
         """
-        if self.enabled:
-            self.disable()
         if self.type == 'output':
             if self._owner._connection_out:
                 if callback is not None:
@@ -2038,7 +2052,7 @@ class MMALPythonPort(MMALObject):
             self._thread.daemon = True
         self._callback = callback
         self._enabled = True
-        if self._thread:
+        if self._thread is not None:
             self._thread.start()
 
     def disable(self):
@@ -2046,12 +2060,12 @@ class MMALPythonPort(MMALObject):
         Disable the port.
         """
         self._enabled = False
-        if self._thread:
+        if self._thread is not None:
             self._thread.join()
             while not self._queue.empty():
                 self._queue.get()
             self._thread = None
-        if self._pool:
+        if self._pool is not None:
             self._pool.close()
             self._pool = None
         self._callback = None
@@ -2079,7 +2093,7 @@ class MMALPythonPort(MMALObject):
         if not self._enabled:
             raise PiCameraMMALError(
                 mmal.MMAL_EINVAL, 'cannot get buffers from disabled port')
-        if self._callback:
+        if self._callback is not None:
             assert self._pool
             return self._pool.get_buffer(block, timeout)
         else:
@@ -2093,13 +2107,13 @@ class MMALPythonPort(MMALObject):
         if not self._enabled:
             raise PiCameraMMALError(
                 mmal.MMAL_EINVAL, 'cannot send buffers via disabled port')
-        if self._thread:
+        if self._thread is not None:
             # Asynchronous input port case; queue the buffer for processing.
             # The maximum queue size ensures that this call blocks if the
             # owning component isn't keeping up. This means upstream components
             # drop frames if required to keep the pipeline running
             self._queue.put(buf)
-        elif self._callback:
+        elif self._callback is not None:
             # Disconnected output port case; run the port's callback with the
             # buffer
             # XXX Do something with the return value?
@@ -2164,7 +2178,7 @@ class MMALPythonPortPool(MMALPool):
 class MMALPythonComponent(MMALObject):
     """
     Base class for Python-implemented MMAL components. This class provides the
-    :meth:`commit_port` method used by descendents to control their ports'
+    :meth:`_commit_port` method used by descendents to control their ports'
     behaviour, and the :attr:`enabled` property. However, it is unlikely that
     users will want to sub-class this directly. See
     :class:`MMALPythonDownstreamComponent` and :class:`MMALPythonTransform` for
@@ -2185,19 +2199,27 @@ class MMALPythonComponent(MMALObject):
         """
         self.enabled = False
 
-    def _get_enabled(self):
+    @property
+    def enabled(self):
+        """
+        Returns ``True`` if the component is currently enabled. Use
+        :meth:`enable` and :meth:`disable` to control the component's state.
+        """
         return self._enabled
-    def _set_enabled(self, value):
-        self._enabled = bool(value)
-    enabled = property(
-        # use lambda trick to enable overriding _get_enabled, _set_enabled
-        lambda self: self._get_enabled(),
-        lambda self, value: self._set_enabled(value),
-        doc="""\
-        Retrieves or sets whether the component is currently enabled. When a
-        component is disabled it does not process data. Components may be
-        implicitly enabled by downstream components.
-        """)
+
+    def enable(self):
+        """
+        Enable the component. When a component is enabled it will process data
+        sent to its input port(s), sending the results to buffers on its output
+        port(s). Components may be implicitly enabled by connections.
+        """
+        self._enabled = True
+
+    def disable(self):
+        """
+        Disables the component.
+        """
+        self._enabled = False
 
     @property
     def control(self):
@@ -2223,7 +2245,7 @@ class MMALPythonComponent(MMALObject):
         """
         return self._outputs
 
-    def commit_port(self, port):
+    def _commit_port(self, port):
         """
         Called by ports when their format is committed. Descendents may
         override this to reconfigure output ports when input ports are
@@ -2317,7 +2339,7 @@ class MMALPythonDownstreamComponent(MMALPythonComponent):
         be automatically selected, and the connection will be automatically
         enabled.
         """
-        if self.connection:
+        if self._connection_in is not None:
             self.disconnect()
         self._connection_in = MMALPythonConnection(
             source, self.inputs[0], callback=self._callback)
@@ -2327,7 +2349,7 @@ class MMALPythonDownstreamComponent(MMALPythonComponent):
         Destroy the connection between this component's input port and the
         upstream component.
         """
-        if self._connection_in:
+        if self._connection_in is not None:
             self._connection_in.close()
             self._connection_in = None
 
@@ -2346,8 +2368,8 @@ class MMALPythonTransform(MMALPythonDownstreamComponent):
     The optional *outputs* parameter specifies the number of outputs the
     component has (default 1).
 
-    Override the :math:`callback` method to implement the transformation, and
-    the :meth:`commit_port` method to control the formats and framesizes that
+    Override the :meth:`_callback` method to implement the transformation, and
+    the :meth:`_commit_port` method to control the formats and framesizes that
     the transformation works with.
     """
     __slots__ = ('_outputs',)
@@ -2370,26 +2392,26 @@ class MMALPythonTransform(MMALPythonDownstreamComponent):
     def name(self):
         return 'py.transform'
 
-    def commit_port(self, port):
+    def _commit_port(self, port):
         """
         Overridden to to copy the input port's configuration to the output
         port(s), and to ensure that the output port's format matches
         the input port's format.
         """
-        super(MMALPythonTransform, self).commit_port(port)
+        super(MMALPythonTransform, self)._commit_port(port)
         if port.type == 'input':
             for output in self.outputs:
                 output.copy_from(port)
         elif port.format.value != self.inputs[0].format.value:
             raise PiCameraMMALError(mmal.MMAL_EINVAL, 'output format mismatch')
 
-    def callback(self, port, buf):
+    def _callback(self, port, buf):
         """
         Stub for descendents to override. This will be called with each buffer
         from the input port that requires transformation. The method is
         expected to fetch a buffer from the component's output port(s), write
         the data into it and send the buffer. Return values are as for normal
-        port callbacks (True when no more buffers are expected, False
+        port callbacks (``True`` when no more buffers are expected, ``False``
         otherwise).
         """
         return False
@@ -2438,48 +2460,58 @@ class MMALPythonConnection(MMALObject):
             source._owner._connection_out = self
         if isinstance(target, MMALPythonPort):
             target._owner._connection_in = self
-        self.enabled = True
+        self.enable()
 
     def close(self):
-        try:
-            self.enabled = False
-            if isinstance(self._source, MMALPythonPort):
-                self._source._owner._connection_out = None
-            if isinstance(self._target, MMALPythonPort):
-                self._target._owner._connection_in = None
-        except AttributeError:
-            pass
+        self.disable()
+        if isinstance(self._source, MMALPythonPort):
+            self._source._owner._connection_out = None
+        if isinstance(self._target, MMALPythonPort):
+            self._target._owner._connection_in = None
 
     @property
     def name(self):
         return 'py:connection'
 
-    def _get_enabled(self):
+    @property
+    def enabled(self):
+        """
+        Returns ``True`` if the connection is enabled. Use :meth:`enable`
+        and :meth:`disable` to control the state of the connection.
+        """
         return self._enabled
-    def _set_enabled(self, value):
-        if not self._enabled and value:
-            self._target.enable(self._callback)
-            if isinstance(self._source, MMALPythonPort):
-                # Connected python output ports are nothing more than thin
-                # proxies for the target input port; no callback required
-                self._source.enable()
-                self._source._owner.enabled = True
-            else:
-                # Connected MMAL output ports are made to transfer their
-                # data to the Python input port
-                self._source.enable(self._transfer)
-            if isinstance(self._target, MMALPythonPort):
-                self._target._owner.enabled = True
-            self._enabled = True
-        elif self._enabled and not value:
-            if isinstance(self._target, MMALPythonPort):
-                self._target._owner.enabled = False
-            if isinstance(self._source, MMALPythonPort):
-                self._source._owner.enabled = False
-            self._source.disable()
-            self._target.disable()
-            self._enabled = False
-    enabled = property(_get_enabled, _set_enabled)
+
+    def enable(self):
+        """
+        Enable the connection. When a connection is enabled, data is
+        continually transferred from the output port of the source to the input
+        port of the target component.
+        """
+        self._target.enable(self._callback)
+        if isinstance(self._source, MMALPythonPort):
+            # Connected python output ports are nothing more than thin
+            # proxies for the target input port; no callback required
+            self._source.enable()
+            self._source._owner.enable()
+        else:
+            # Connected MMAL output ports are made to transfer their
+            # data to the Python input port
+            self._source.enable(self._transfer)
+        if isinstance(self._target, MMALPythonPort):
+            self._target._owner.enable()
+        self._enabled = True
+
+    def disable(self):
+        """
+        Disables the connection.
+        """
+        if isinstance(self._target, MMALPythonPort):
+            self._target._owner.disable()
+        if isinstance(self._source, MMALPythonPort):
+            self._source._owner.disable()
+        self._source.disable()
+        self._target.disable()
+        self._enabled = False
 
     def _transfer(self, port, buf):
         dest = self._target.get_buffer()

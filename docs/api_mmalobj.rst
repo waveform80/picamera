@@ -721,7 +721,7 @@ Python Extensions
 .. autoclass:: MMALPythonPort
 
 .. autoclass:: MMALPythonComponent
-    :private-members: _commit_input, _commit_output
+    :private-members: _commit_port
 
 .. autoclass:: MMALPythonDownstreamComponent
     :show-inheritance:
@@ -733,7 +733,7 @@ Python Extensions
 
 .. autoclass:: MMALPythonTransform
     :show-inheritance:
-    :private-members: _callback, _commit_input, _commit_output
+    :private-members: _callback, _commit_port
 
 
 Debugging
