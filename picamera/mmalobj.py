@@ -1419,11 +1419,10 @@ class MMALPool(object):
         and *timeout* is ``None`` (the default) then the method will block
         until a buffer is available. Otherwise *timeout* is the maximum time to
         wait (in ms) for a buffer to become available. If a buffer is not
-        available before the timeout expires a
-        :exc:`~picamera.PiCameraMMALError` is raised.
+        available before the timeout expires, the method returns ``None``.
 
         Likewise, if *block* is ``False`` and no buffer is immediately
-        available then :exc:`~picamera.PiCameraMMALError` is raised.
+        available then ``None`` is returned.
         """
         if block and timeout is None:
             buf = mmal.mmal_queue_wait(self._pool[0].queue)
@@ -1431,24 +1430,32 @@ class MMALPool(object):
             buf = mmal.mmal_queue_timedwait(self._pool[0].queue, timeout)
         else:
             buf = mmal.mmal_queue_get(self._pool[0].queue)
-        if not buf:
-            raise PiCameraMMALError(mmal.MMAL_EAGAIN, 'failed to get a buffer from the pool')
-        return MMALBuffer(buf)
+        if buf:
+            return MMALBuffer(buf)
 
     def send_buffer(self, port, block=True, timeout=None):
         """
         Get a buffer from the pool and send it to *port*. *block* and *timeout*
-        act as they do in :meth:`get_buffer`.
+        act as they do in :meth:`get_buffer`. If no buffer is available (for
+        the values of *block* and *timeout*, :exc:`PiCameraMMALError` is
+        raised).
         """
-        port.send_buffer(self.get_buffer(block, timeout))
+        buf = self.get_buffer(block, timeout)
+        if buf is None:
+            raise PiCameraMMALError(mmal.MMAL_EAGAIN, 'no buffers available')
+        port.send_buffer(buf)
 
     def send_all_buffers(self, port, block=True, timeout=None):
         """
         Send all buffers from the pool to *port*. *block* and *timeout* act as
-        they do in :meth:`get_buffer`.
+        they do in :meth:`get_buffer`. If no buffer is available (for the
+        values of *block* and *timeout*, :exc:`PiCameraMMALError` is raised).
         """
         for i in range(mmal.mmal_queue_length(self._pool[0].queue)):
-            port.send_buffer(self.get_buffer(block, timeout))
+            buf = self.get_buffer(block, timeout)
+            if buf is None:
+                raise PiCameraMMALError(mmal.MMAL_EAGAIN, 'no buffers available')
+            port.send_buffer(buf)
 
 
 class MMALPortPool(MMALPool):
@@ -2307,7 +2314,7 @@ class MMALPythonSource(MMALPythonComponent):
             raise PiCameraMMALError(
                 mmal.MMAL_ENOTCONN, 'source is not connected to anything')
         self.enabled = True
-        buf = self._outputs[0].get_buffer(False)
+        buf = self._outputs[0].get_buffer()
         buf.data = data
         if flags is not None:
             buf.flags = flags
@@ -2535,15 +2542,11 @@ class MMALPythonConnection(MMALObject):
         self._enabled = False
 
     def _transfer(self, port, buf):
-        try:
-            dest = self._target.get_buffer(False)
-        except PiCameraMMALError as e:
-            # No available buffers on the target; drop this frame
-            if e.status != mmal.MMAL_EAGAIN:
-                raise
-        else:
+        dest = self._target.get_buffer(False)
+        if dest is not None:
             dest.copy_from(buf)
             self._target.send_buffer(dest)
+        # If no available buffers on the target; drop this frame
         return False
 
     def __enter__(self):
