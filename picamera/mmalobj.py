@@ -2436,6 +2436,11 @@ class MMALPythonConnection(MMALObject):
         self._callback = callback
         self._source = source
         self._target = target
+        # Attempt to find a port format that both source and target will
+        # accept. The following algorithm attempts the existing formats first
+        # to avoid switching format unless absolutely necessary, on the
+        # possibility that the caller may have configured things with "known
+        # good" settings that they wish to keep
         formats = [
             # list of formats to try in descending order of preference
             mmal.MMAL_ENCODING_BGRA,
@@ -2444,6 +2449,12 @@ class MMALPythonConnection(MMALObject):
             mmal.MMAL_ENCODING_RGB24,
             mmal.MMAL_ENCODING_I420,
             ]
+        try:
+            # remove the source port's initial format from the list to be tried
+            # as it'll be tried anyway by the first iteration of the loop below
+            formats.remove(self._source.format.value)
+        except ValueError:
+            pass
         while True:
             try:
                 self._source.commit()
@@ -2527,7 +2538,7 @@ class MMALPythonConnection(MMALObject):
 
     @property
     def name(self):
-        return '%r/%r' % (self._source, self._target)
+        return '%s/%s' % (self._source.name, self._target.name)
 
     def __repr__(self):
         return '<MMALPythonConnection "%s">' % self.name
