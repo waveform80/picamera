@@ -1307,7 +1307,7 @@ class MMALBuffer(object):
             :meth:`copy_from` method.
         """
         mmal_check(
-            mmal_buffer_replicate(self._buf, source._buf),
+            mmal.mmal_buffer_header_replicate(self._buf, source._buf),
             prefix='unable to replicate buffer')
 
     def copy_from(self, source):
