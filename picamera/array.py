@@ -728,15 +728,37 @@ class PiArrayTransform(mo.MMALPythonComponent):
     """
     A derivative of :class:`~picamera.mmalobj.MMALPythonComponent` which eases
     the construction of custom MMAL transforms by representing buffer data as
-    numpy arrays.
+    numpy arrays. The *formats* parameter specifies the accepted input
+    formats as a sequence of strings (default: 'rgb', 'bgr', 'rgba', 'bgra').
 
     Override the :meth:`transform` method to modify buffers sent to the
     component, then place it in your MMAL pipeline as you would a normal
     encoder.
     """
+    __slots__ = ('_formats',)
+
+    def __init__(self, formats=('rgb', 'bgr', 'rgba', 'bgra')):
+        super(PiArrayTransform, self).__init__()
+        if isinstance(formats, bytes):
+            formats = formats.decode('ascii')
+        if isinstance(formats, str):
+            formats = (formats,)
+        try:
+            self._formats = {
+                {
+                    'rgb': mmal.MMAL_ENCODING_RGB24,
+                    'bgr': mmal.MMAL_ENCODING_BGR24,
+                    'rgba': mmal.MMAL_ENCODING_RGBA,
+                    'bgra': mmal.MMAL_ENCODING_BGRA,
+                    }[fmt]
+                for fmt in formats
+                }
+        except KeyError as e:
+            raise PiCameraValueError(
+                'PiArrayTransform cannot handle format %s' % str(e))
 
     def _commit_port(self, port):
-        if port.type == 'in' and port.format.value == mmal.MMAL_ENCODING_I420:
+        if port.type == 'in' and port.format.value not in self._formats:
             raise PiCameraMMALError(mmal.MMAL_EINVAL, 'invalid format')
         super(PiArrayTransform, self)._commit_port(port)
 
