@@ -697,7 +697,7 @@ class PiMotionAnalysis(PiAnalysisOutput):
 
 
 class MMALArrayBuffer(mo.MMALBuffer):
-    __slots__ = ('_shape', '_ptype')
+    __slots__ = ('_shape',)
 
     def __init__(self, port, buf):
         super(MMALArrayBuffer, self).__init__(buf)
@@ -707,7 +707,6 @@ class MMALArrayBuffer(mo.MMALBuffer):
         self.offset = 0
         self.length = width * height * bpp
         self._shape = (height, width, bpp)
-        self._ptype = ct.POINTER(ct.c_uint8 * self.size)
 
     def __enter__(self):
         mmal_check(
@@ -715,7 +714,9 @@ class MMALArrayBuffer(mo.MMALBuffer):
             prefix='unable to lock buffer header memory')
         assert self.offset == 0
         return np.frombuffer(
-            ct.cast(self._buf[0].data, self._ptype).contents,
+            ct.cast(
+                self._buf[0].data,
+                ct.POINTER(ct.c_uint8 * self._buf[0].alloc_size)).contents,
             dtype=np.uint8, count=self.length).reshape(self._shape)
 
     def __exit__(self, *exc):
@@ -733,6 +734,11 @@ class PiArrayTransform(mo.MMALPythonComponent):
     component, then place it in your MMAL pipeline as you would a normal
     encoder.
     """
+
+    def _commit_port(self, port):
+        if port.type == 'in' and port.format.value == mmal.MMAL_ENCODING_I420:
+            raise PiCameraMMALError(mmal.MMAL_EINVAL, 'invalid format')
+        super(PiArrayTransform, self)._commit_port(port)
 
     def _callback(self, port, source_buf):
         result = False

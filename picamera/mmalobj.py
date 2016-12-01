@@ -1405,9 +1405,6 @@ class MMALPool(object):
         self._pool = pool
         super(MMALPool, self).__init__()
 
-    def __del__(self):
-        self.close()
-
     def close(self):
         if self._pool is not None:
             mmal.mmal_pool_destroy(self._pool)

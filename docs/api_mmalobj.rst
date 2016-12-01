@@ -585,7 +585,7 @@ ports, and they're connected using the same means as ordinary MMAL components.
 
 Let's try this out by placing a transformation between the camera and a preview
 which will draw a cross over the frames going to the preview. For this we'll
-subclass :class:`array.PiArrayTransform`. This derives from
+subclass :class:`picamera.array.PiArrayTransform`. This derives from
 :class:`MMALPythonComponent` and provides the useful capability of
 providing the source and target buffers as numpy arrays containing RGB data:
 
@@ -623,8 +623,8 @@ configured automatically:
          frame     640x480@30fps         640x480@30fps    frame     640x480@30fps         640x480@30fps        frame
 
 Apparently the MMAL camera component is outputting RGB data (which is extremely
-large) to a "py.transform" component, which draws our cross on the buffer and
-passes it onto the renderer again as RGB. This is part of the inefficiency
+large) to a "py.transform" component, which draws our cross-hair on the buffer
+and passes it onto the renderer again as RGB. This is part of the inefficiency
 alluded to above: RGB is a very large format (compared to I420 which is half
 its size, or OPQV which is tiny) so we're shuttling a *lot* of data around
 here. Expect this to drop frames at higher resolutions or framerates.
@@ -636,14 +636,56 @@ output callback on the camera's output port to feed data to the "py.transform"
 input port, uses a background thread to run the transform, then copies the
 results into buffers obtained from the preview's input port. In other words
 there's really *two* (very short) MMAL pipelines with a hunk of Python running
-in between them.
+in between them. If ``mmalobj`` does its job properly you shouldn't need to
+worry about this implementation detail but it's worth bearing in mind from the
+perspective of performance. 
 
-If ``mmalobj`` does its job properly you shouldn't need to worry about this
-implementation detail but it's worth bearing in mind from the perspective of
-performance.
+
+Performance Hints
+-----------------
+
+Generally you want to your transform callbacks to be *fast*. To avoid dropping
+frames they've got to run in less than a frame's time (e.g.  33ms at 30fps).
+Bear in mind that a significant amount of time is going to be spent shuttling
+the huge RGB frames around so you've actually got much less than 33ms available
+to you (how much will depend on the speed of your Pi, what resolution you're
+using, the what framerate, etc).
+
+It's a sensible idea to perform any overlay rendering you want to do in a
+separate thread and then just handle compositing your overlay onto the frame in
+the transform callback. Anything you can do to avoid buffer copying is a bonus
+here.
+
+Sometimes that can even mean making unintuitive choices. For example, the
+`Pillow library`_ (the main imaging library in Python these days) can construct
+images which share buffer memory (see ``Image.frombuffer``), but only for the
+grayscale and RGBA formats, not RGB. Hence, it can make sense to use RGBA (a
+format even larger than RGB) if only because it allows you to avoid copying
+any data when performing a composite.
+
+Another trick is to realize that although YUV420 has different sized planes,
+it's often enough to manipulate the Y plane only. In that case you can treat
+the front of the buffer as a grayscale image (remember that Pillow can share
+buffer memory with such images) and manipulate that directly. With tricks like
+these it's possible to perform multiple composites in realtime at 720p30 on a
+Pi3.
+
+Here's a final (rather large) demonstration that puts all these things together
+to construct a :class:`MMALPythonComponent` derivative with two purposes:
+
+1. Render a partially transparent analogue clock in the top left of the frame.
+
+2. Produces two equivalent I420 outputs; one for feeding to a preview renderer,
+   and another to an encoder (we could use a proper MMAL splitter for this but
+   this is a demonstration of how Python components can have multiple outputs
+   too).
+
+.. literalinclude:: examples/mmal_python_transform.py
 
 
 .. _YUV420: https://en.wikipedia.org/wiki/YUV#Y.E2.80.B2UV420p_.28and_Y.E2.80.B2V12_or_YV12.29_to_RGB888_conversion
+.. _Pillow library: https://pillow.readthedocs.io/
+
 
 Components
 ==========
