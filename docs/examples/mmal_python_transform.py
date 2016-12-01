@@ -1,3 +1,4 @@
+import io
 import datetime as dt
 from threading import Thread, Lock
 from collections import namedtuple
@@ -140,8 +141,8 @@ class ClockSplitter(mo.MMALPythonComponent):
 def main(output_filename):
     camera = mo.MMALCamera()
     preview = mo.MMALRenderer()
-    encoder = mo.MMALVideoRenderer()
-    clock = Clock()
+    encoder = mo.MMALVideoEncoder()
+    clock = ClockSplitter()
 
     # Configure camera output 0
     camera.outputs[0].framesize = (640, 480)
