@@ -94,9 +94,7 @@ class ClockSplitter(mo.MMALPythonComponent):
             with out1 as data:
                 # construct an Image using the Y plane of the output
                 # buffer's data and tell PIL we can write to the buffer
-                img = Image.frombuffer(
-                    'L', self.inputs[0].framesize, data,
-                    'raw', 'L', 0, 1)
+                img = Image.frombuffer('L', port.framesize, data, 'raw', 'L', 0, 1)
                 img.readonly = 0
                 with self._lock:
                     if self._clock_image:

@@ -37,7 +37,6 @@ from __future__ import (
 # Make Py2's str equivalent to Py3's
 str = type('')
 
-import io
 import mimetypes
 import ctypes as ct
 from functools import reduce
@@ -46,7 +45,6 @@ from operator import or_
 from . import bcm_host, mmalobj as mo, mmal
 from .encoders import PiCookedOneImageEncoder, PiRawOneImageEncoder
 from .exc import PiCameraRuntimeError, PiCameraValueError
-from .streams import BufferIO
 
 
 class PiDisplay(object):

@@ -2488,10 +2488,6 @@ class MMALPythonConnection(MMALObject):
             self._target._connection = None
 
     @property
-    def name(self):
-        return 'py:connection'
-
-    @property
     def enabled(self):
         """
         Returns ``True`` if the connection is enabled. Use :meth:`enable`
