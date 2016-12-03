@@ -426,11 +426,7 @@ class PiEncoder(object):
         if self.parent and self.camera_port:
             with self.parent._encoders_lock:
                 self.parent._stop_capture(self.camera_port)
-        try:
-            self.output_port.disable()
-        except PiCameraMMALError as e:
-            if e.status != mmal.MMAL_EINVAL:
-                raise
+        self.output_port.disable()
         self.event.set()
         self._close_output()
 

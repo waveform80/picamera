@@ -706,9 +706,19 @@ class MMALControlPort(MMALObject):
         """
         Disable the port.
         """
-        mmal_check(
-            mmal.mmal_port_disable(self._port),
-            prefix="Unable to disable port %s" % self.name)
+        # NOTE: The test here only exists to avoid spamming the console; when
+        # disabling an already disabled port MMAL dumps errors to stderr. If
+        # this test isn't here closing a camera results in half a dozen lines
+        # of ignored errors
+        if self.enabled:
+            try:
+                mmal_check(
+                    mmal.mmal_port_disable(self._port),
+                    prefix="Unable to disable port %s" % self.name)
+            except PiCameraMMALError as e:
+                # Ignore the error if we're disabling an already disabled port
+                if not (e.status == mmal.MMAL_EINVAL and not self.enabled):
+                    raise e
         self._wrapper = None
 
     @property
