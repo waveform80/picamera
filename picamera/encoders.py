@@ -423,10 +423,14 @@ class PiEncoder(object):
         can potentially be called in the middle of image capture to terminate
         the capture.
         """
-        if self.parent and self.camera_port:
-            with self.parent._encoders_lock:
-                self.parent._stop_capture(self.camera_port)
-        self.output_port.disable()
+        # NOTE: The active test below is necessary to prevent attempting to
+        # re-enter the parent lock in the case the encoder is being torn down
+        # by an error in the constructor
+        if self.active:
+            if self.parent and self.camera_port:
+                with self.parent._encoders_lock:
+                    self.parent._stop_capture(self.camera_port)
+            self.output_port.disable()
         self.event.set()
         self._close_output()
 
