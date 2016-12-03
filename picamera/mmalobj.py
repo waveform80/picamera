@@ -450,7 +450,7 @@ def print_pipeline(port):
             rows[2].append('%dx%d' % (obj._port[0].buffer_num, obj._port[0].buffer_size))
             if under_comp:
                 rows[3].append('bitrate')
-            rows[3].append('%dbps' % (obj._port[0].format[0].bitrate))
+            rows[3].append('%dbps' % (obj._port[0].format[0].bitrate,))
             if under_comp:
                 rows[4].append('frame')
                 under_comp = False
@@ -470,9 +470,12 @@ def print_pipeline(port):
                 rows[2].append('buf')
             rows[2].append('%dx%d' % (obj.buffer_count, obj.buffer_size))
             if under_comp:
-                rows[3].append('frame')
+                rows[3].append('bitrate')
+            rows[3].append('%dbps' % (obj._format[0].bitrate,))
+            if under_comp:
+                rows[4].append('frame')
                 under_comp = False
-            rows[3].append('%dx%d@%sfps' % (
+            rows[4].append('%dx%d@%sfps' % (
                 obj._format[0].es[0].video.width,
                 obj._format[0].es[0].video.height,
                 obj.framerate))
