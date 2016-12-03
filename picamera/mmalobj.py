@@ -2223,7 +2223,7 @@ class MMALPythonBaseComponent(MMALObject):
         Close the component and release all its resources. After this is
         called, most methods will raise exceptions if called.
         """
-        self.enabled = False
+        self.disable()
 
     @property
     def enabled(self):
@@ -2319,7 +2319,7 @@ class MMALPythonSource(MMALPythonBaseComponent):
         if self._outputs[0]._connection is None:
             raise PiCameraMMALError(
                 mmal.MMAL_ENOTCONN, 'source is not connected to anything')
-        self.enabled = True
+        self.enable()
         buf = self._outputs[0].get_buffer()
         buf.data = data
         if flags is not None:

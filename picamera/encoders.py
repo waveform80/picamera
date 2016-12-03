@@ -723,7 +723,7 @@ class PiVideoEncoder(PiEncoder):
             self.output_port.params[mmal.MMAL_PARAMETER_VIDEO_ENCODE_MAX_QUANT] = quality
 
         self.encoder.inputs[0].params[mmal.MMAL_PARAMETER_VIDEO_IMMUTABLE_INPUT] = True
-        self.encoder.enabled = True
+        self.encoder.enable()
 
     def start(self, output, motion_output=None):
         """
@@ -930,7 +930,7 @@ class PiImageEncoder(PiEncoder):
                     1, *thumbnail)
             self.encoder.control.params[mmal.MMAL_PARAMETER_THUMBNAIL_CONFIGURATION] = mp
 
-        self.encoder.enabled = True
+        self.encoder.enable()
 
 
 class PiOneImageEncoder(PiImageEncoder):
