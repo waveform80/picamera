@@ -2145,7 +2145,7 @@ class MMALPythonPort(MMALObject):
         self._buffer_count = 2
         video = self._format[0].es[0].video
         try:
-            self._buffer_size = (
+            self._buffer_size = int(
                 MMALPythonPort._FORMAT_BPP[str(self.format)]
                 * video.width
                 * video.height)
@@ -2661,7 +2661,7 @@ class MMALPythonTarget(MMALPythonComponent):
     __slots__ = ('_opened', '_stream', '_done', '_event')
 
     def __init__(self, output, done=mmal.MMAL_BUFFER_HEADER_FLAG_EOS):
-        super(MMALPythonTarget, self).__init__(outputs=0)
+        super(MMALPythonTarget, self).__init__(name='py.target', outputs=0)
         self._inputs = (MMALPythonPort(self, 'in', 0),)
         self._outputs = ()
         self._stream, self._opened = open_stream(output)
