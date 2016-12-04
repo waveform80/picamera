@@ -1516,8 +1516,8 @@ class MMALPool(object):
         """
         Get a buffer from the pool and send it to *port*. *block* and *timeout*
         act as they do in :meth:`get_buffer`. If no buffer is available (for
-        the values of *block* and *timeout*, :exc:`PiCameraMMALError` is
-        raised).
+        the values of *block* and *timeout*, :exc:`~picamera.PiCameraMMALError`
+        is raised).
         """
         buf = self.get_buffer(block, timeout)
         if buf is None:
@@ -1528,7 +1528,8 @@ class MMALPool(object):
         """
         Send all buffers from the pool to *port*. *block* and *timeout* act as
         they do in :meth:`get_buffer`. If no buffer is available (for the
-        values of *block* and *timeout*, :exc:`PiCameraMMALError` is raised).
+        values of *block* and *timeout*, :exc:`~picamera.PiCameraMMALError` is
+        raised).
         """
         for i in range(mmal.mmal_queue_length(self._pool[0].queue)):
             buf = self.get_buffer(block, timeout)
@@ -2149,8 +2150,6 @@ class MMALPythonPort(MMALObject):
             # alone and hope the owning component knows what to set
             pass
         self._owner._commit_port(self)
-        if str(self.format) not in self._FORMAT_BPP:
-            raise PiCameraMMALError(mmal.MMAL_EINVAL, 'bad format')
 
     @property
     def enabled(self):
@@ -2533,8 +2532,8 @@ class MMALPythonSource(MMALPythonBaseComponent):
 
 class MMALPythonComponent(MMALPythonBaseComponent):
     """
-    Provides a Python-based MMAL component with a single input and the
-    specified number of *outputs* (default 1). The :meth:`connect` and
+    Provides a Python-based MMAL component with a *name*, a single input and
+    the specified number of *outputs* (default 1). The :meth:`connect` and
     :meth:`disconnect` methods can be used to establish or break a connection
     from the input port to an upstream component.
 
@@ -2542,10 +2541,11 @@ class MMALPythonComponent(MMALPythonBaseComponent):
     input port, and the :meth:`_commit_port` method to control what formats
     and framesizes the component works with.
     """
-    __slots__ = ()
+    __slots__ = ('_name',)
 
-    def __init__(self, outputs=1):
+    def __init__(self, name='py.component', outputs=1):
         super(MMALPythonComponent, self).__init__()
+        self._name = name
         self._inputs = (MMALPythonPort(self, 'in', 0),)
         self._outputs = tuple(
             MMALPythonPort(self, 'out', n)
@@ -2593,7 +2593,7 @@ class MMALPythonComponent(MMALPythonBaseComponent):
 
     @property
     def name(self):
-        return 'py.component'
+        return self._name
 
     def _commit_port(self, port):
         """
@@ -2608,6 +2608,20 @@ class MMALPythonComponent(MMALPythonBaseComponent):
         elif port.type == 'out':
             if port.format.value != self.inputs[0].format.value:
                 raise PiCameraMMALError(mmal.MMAL_EINVAL, 'output format mismatch')
+
+    def _accept_formats(self, port, valid):
+        """
+        A utility method intended for use within :meth:`_commit_port`. If the
+        *port* format is not one of the values listed in the *valid* sequence,
+        the appropriate :exc:`~picamera.PiCameraMMALError` is raised.
+        """
+        try:
+            iter(valid)
+        except TypeError:
+            valid = (valid,)
+        if port.format.value not in valid:
+            raise PiCameraMMALError(
+                mmal.MMAL_EINVAL, 'invalid format for port %r' % port)
 
     def _callback(self, port, buf):
         """

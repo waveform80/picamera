@@ -779,7 +779,7 @@ Python Extensions
 
 .. autoclass:: MMALPythonComponent
     :show-inheritance:
-    :private-members: _callback, _commit_port
+    :private-members: _callback, _commit_port, _accept_formats
 
 .. autoclass:: MMALPythonConnection
 

@@ -44,7 +44,7 @@ class Coord(namedtuple('Coord', ('x', 'y'))):
 
 class ClockSplitter(mo.MMALPythonComponent):
     def __init__(self):
-        super(ClockSplitter, self).__init__(outputs=2)
+        super(ClockSplitter, self).__init__(name='py.clock', outputs=2)
         self._lock = Lock()
         self._clock_image = None
         self._clock_thread = None
@@ -52,10 +52,9 @@ class ClockSplitter(mo.MMALPythonComponent):
     def _commit_port(self, port):
         # only accept I420 format on the input port
         if port.type == 'in':
-            if port.format.value != mmal.MMAL_ENCODING_I420:
-                raise PiCameraMMALError(mmal.MMAL_EINVAL, 'invalid format')
+            self._accept_formats(port, mmal.MMAL_ENCODING_I420)
         # the super call will take care of the rest (copying input format
-        # to output, checking output formats match input)
+        # to outputs, checking output formats match input)
         super(ClockSplitter, self)._commit_port(port)
 
     def _clock_run(self):
