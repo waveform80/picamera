@@ -1607,6 +1607,10 @@ class MMALConnection(MMALObject):
 
     def __init__(self, source, target):
         super(MMALConnection, self).__init__()
+        if not isinstance(source, MMALPort):
+            raise PiCameraValueError('source is not an MMAL port')
+        if not isinstance(target, MMALPort):
+            raise PiCameraValueError('target is not an MMAL port')
         self._connection = ct.POINTER(mmal.MMAL_CONNECTION_T)()
         if (source.opaque_subformat, target.opaque_subformat) in self.compatible_formats:
             source.format = mmal.MMAL_ENCODING_OPAQUE
@@ -2702,6 +2706,10 @@ class MMALPythonConnection(MMALObject):
                 isinstance(target, MMALPythonPort)
                 ):
             raise PiCameraValueError('use a real MMAL connection')
+        if not isinstance(source, (MMALPort, MMALPythonPort)):
+            raise PiCameraValueError('source is not a port')
+        if not isinstance(target, (MMALPort, MMALPythonPort)):
+            raise PiCameraValueError('target is not a port')
         self._enabled = False
         if callback is None:
             callback = lambda port, buf: True
