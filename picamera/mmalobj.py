@@ -41,6 +41,7 @@ from __future__ import (
 # Make Py2's str equivalent to Py3's
 str = type('')
 
+import io
 import ctypes as ct
 import warnings
 import weakref
@@ -2641,7 +2642,7 @@ class MMALPythonTarget(MMALPythonComponent):
     """
     __slots__ = ('_opened', '_stream', '_done', '_event')
 
-    def __init__(self, output, done=mmal.MMAL_BUFFER_HEADER_FLAG_EOS)
+    def __init__(self, output, done=mmal.MMAL_BUFFER_HEADER_FLAG_EOS):
         super(MMALPythonTarget, self).__init__(outputs=0)
         self._inputs = (MMALPythonPort(self, 'in', 0),)
         self._outputs = ()
