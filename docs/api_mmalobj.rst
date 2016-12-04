@@ -716,6 +716,15 @@ Components
 .. autoclass:: MMALImageEncoder
     :show-inheritance:
 
+.. autoclass:: MMALDecoder
+    :show-inheritance:
+
+.. autoclass:: MMALVideoDecoder
+    :show-inheritance:
+
+.. autoclass:: MMALImageDecoder
+    :show-inheritance:
+
 .. autoclass:: MMALRenderer
     :show-inheritance:
 
@@ -775,6 +784,9 @@ Python Extensions
 .. autoclass:: MMALPythonConnection
 
 .. autoclass:: MMALPythonSource
+    :show-inheritance:
+
+.. autoclass:: MMALPythonTarget
     :show-inheritance:
 
 

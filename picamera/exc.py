@@ -118,6 +118,13 @@ class PiCameraValueError(PiCameraError, ValueError):
     """
 
 
+class PiCameraIOError(PiCameraError, IOError):
+    """
+    Raised when a :class:`~PiCamera` object is unable to perform an IO
+    operation.
+    """
+
+
 class PiCameraMMALError(PiCameraError):
     """
     Raised when an MMAL operation fails for whatever reason.

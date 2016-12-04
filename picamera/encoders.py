@@ -37,7 +37,6 @@ from __future__ import (
 # Make Py2's str and range equivalent to Py3's
 str = type('')
 
-import io
 import datetime
 import threading
 import warnings
@@ -45,12 +44,12 @@ import ctypes as ct
 
 from . import bcm_host, mmal, mmalobj as mo
 from .frames import PiVideoFrame, PiVideoFrameType
-from .streams import BufferIO
 from .exc import (
     mmal_check,
     PiCameraError,
     PiCameraMMALError,
     PiCameraValueError,
+    PiCameraIOError,
     PiCameraRuntimeError,
     PiCameraResizerEncoding,
     PiCameraAlphaStripping,
@@ -306,7 +305,7 @@ class PiEncoder(object):
                     # Ignore None return value; most Python 2 streams have
                     # no return value for write()
                     if (written is not None) and (written != buf.length):
-                        raise PiCameraError(
+                        raise PiCameraIOError(
                             "Failed to write %d bytes from buffer to "
                             "output %r" % (buf.length, output))
         return bool(buf.flags & mmal.MMAL_BUFFER_HEADER_FLAG_EOS)
@@ -328,19 +327,7 @@ class PiEncoder(object):
         specified *key*.
         """
         with self.outputs_lock:
-            opened = isinstance(output, (bytes, str))
-            if opened:
-                # Open files in binary mode with a decent buffer size
-                output = io.open(output, 'wb', buffering=65536)
-            else:
-                try:
-                    output.write
-                except AttributeError:
-                    # If there's no write method, try and treat the output as
-                    # a writeable buffer
-                    opened = True
-                    output = BufferIO(output)
-            self.outputs[key] = (output, opened)
+            self.outputs[key] = mo.open_stream(output)
 
     def _close_output(self, key=PiVideoFrameType.frame):
         """
@@ -356,13 +343,7 @@ class PiEncoder(object):
             except KeyError:
                 pass
             else:
-                if opened:
-                    output.close()
-                else:
-                    try:
-                        output.flush()
-                    except AttributeError:
-                        pass
+                mo.close_stream(output, opened)
 
     @property
     def active(self):

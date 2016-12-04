@@ -44,7 +44,7 @@ str = type('')
 import ctypes as ct
 import warnings
 import weakref
-from threading import Thread
+from threading import Thread, Event
 try:
     from queue import Queue, Empty
 except ImportError:
@@ -54,6 +54,7 @@ from fractions import Fraction
 from itertools import cycle
 
 from . import bcm_host, mmal
+from .streams import BufferIO
 from .exc import (
     mmal_check,
     PiCameraValueError,
@@ -286,6 +287,58 @@ class PiResolution(namedtuple('PiResolution', ('width', 'height'))):
 
     def __str__(self):
         return '%dx%d' % (self.width, self.height)
+
+
+def open_stream(stream, output=True, buffering=65536):
+    """
+    This is the core of picamera's IO-semantics. It returns a tuple of a
+    file-like object and a bool indicating whether the stream requires closing
+    once the caller is finished with it.
+
+    * If *stream* is a string, it is opened as a file object (with mode 'wb' if
+      *output* is ``True``, and the specified amount of *bufffering*). In this
+      case the function returns ``(stream, True)``.
+
+    * If *stream* is a stream with a ``write`` method, it is returned as
+      ``(stream, False)``.
+
+    * Otherwise *stream* is assumed to be a writeable buffer and is wrapped
+      with :class:`BufferIO`. The function returns ``(stream, True)``.
+    """
+    if isinstance(stream, bytes):
+        stream = stream.decode('ascii')
+    opened = isinstance(stream, str)
+    if opened:
+        stream = io.open(stream, 'wb' if output else 'rb', buffering)
+    else:
+        try:
+            if output:
+                stream.write
+            else:
+                stream.read
+        except AttributeError:
+            # Assume the stream is actually a buffer
+            opened = True
+            stream = BufferIO(stream)
+            if output and not stream.writeable:
+                raise IOError('writeable buffer required for output')
+    return (stream, output)
+
+
+def close_stream(stream, opened):
+    """
+    If *opened* is ``True``, then the ``close`` method of *stream* will be
+    called. Otherwise, the function will attempt to call the ``flush`` method
+    on *stream* (if one exists). This function essentially takes the output
+    of :func:`open_stream` and finalizes the result.
+    """
+    if opened:
+        stream.close()
+    else:
+        try:
+            stream.flush()
+        except AttributeError:
+            pass
 
 
 def to_resolution(value):
@@ -852,9 +905,10 @@ class MMALPort(MMALControlPort):
     def commit(self):
         """
         Commits the port's configuration and automatically updates the number
-        and size of associated buffers. This is typically called after
-        adjusting the port's format and/or associated settings (like width and
-        height for video ports).
+        and size of associated buffers according to the recommendations of the
+        MMAL library. This is typically called after adjusting the port's
+        format and/or associated settings (like width and height for video
+        ports).
         """
         mmal_check(
             mmal.mmal_port_format_commit(self._port),
@@ -898,24 +952,30 @@ class MMALPort(MMALControlPort):
             mmal.mmal_port_flush(self._port),
             prefix="Unable to flush port %s" % self.name)
 
-    @property
-    def buffer_count(self):
-        """
+    def _get_buffer_count(self):
+        return self._port[0].buffer_num
+    def _set_buffer_count(self, value):
+        if value < 1:
+            raise PiCameraMMALError(mmal.MMAL_EINVAL, 'buffer count <1')
+        self._port[0].buffer_num = value
+    buffer_count = property(_get_buffer_count, _set_buffer_count, doc="""\
         The number of buffers allocated (or to be allocated) to the port.
         The ``mmalobj`` layer automatically configures this based on
         recommendations from the MMAL library.
-        """
-        return self._port[0].buffer_num
+        """)
 
-    @property
-    def buffer_size(self):
-        """
+    def _get_buffer_size(self):
+        return self._port[0].buffer_size
+    def _set_buffer_size(self, value):
+        if value < 0:
+            raise PiCameraMMALError(mmal.MMAL_EINVAL, 'buffer size <0')
+        self._port[0].buffer_size = value
+    buffer_size = property(_get_buffer_size, _set_buffer_size, doc="""\
         The size of buffers allocated (or to be allocated) to the port. The
         size of buffers is typically dictated by the port's format. The
         ``mmalobj`` layer automatically configures this based on
         recommendations from the MMAL library.
-        """
-        return self._port[0].buffer_size
+        """)
 
     def enable(self, callback=None):
         """
@@ -1171,19 +1231,26 @@ class MMALPortParams(object):
 class MMALBuffer(object):
     """
     Represents an MMAL buffer header. This is usually constructed from the
-    buffer header pointer and is largely supplied simply to make working with
-    the buffer's data a bit simpler; accessing the :attr:`data` attribute
-    implicitly locks the buffer's memory and returns the data as a bytes
-    string.
-
-    To work with the buffer memory directly as a ctypes object, using the
-    instance as a context manager will lock the buffer's memory and return the
-    :mod:`ctypes` buffer object itself::
+    buffer header pointer and is largely supplied to make working with
+    the buffer's data a bit simpler. Using the buffer as a context manager
+    implicitly locks the buffer's memory and returns the :mod:`ctypes`
+    buffer object itself::
 
         def callback(port, buf):
             with buf as data:
                 # data is a ctypes uint8 array with size entries
                 print(len(data))
+
+    Alternatively you can use the :attr:`data` property directly, which returns
+    and modifies the buffer's data as a :class:`bytes` object. However, beware
+    that you must still use the buffer as a context manager if you wish to
+    lock the buffer's memory (generally required when dealing with VideoCore
+    buffers)::
+
+        def callback(port, buf):
+            with buf:
+                # the buffer contents as a byte-string
+                print(buf.data)
     """
     __slots__ = ('_buf',)
 
@@ -1397,6 +1464,7 @@ class MMALBuffer(object):
         if self._buf is not None:
             return '<MMALBuffer object: flags=%s length=%d>' % (
                 ''.join((
+                'S' if self.flags & mmal.MMAL_BUFFER_HEADER_FLAG_FRAME_START   else '_',
                 'E' if self.flags & mmal.MMAL_BUFFER_HEADER_FLAG_FRAME_END     else '_',
                 'K' if self.flags & mmal.MMAL_BUFFER_HEADER_FLAG_KEYFRAME      else '_',
                 'C' if self.flags & mmal.MMAL_BUFFER_HEADER_FLAG_CONFIG        else '_',
@@ -1859,6 +1927,37 @@ class MMALImageEncoder(MMALEncoder):
     opaque_output_subformats = (None,)
 
 
+class MMALDecoder(MMALComponent):
+    """
+    Represents a generic MMAL decoder. This is an abstract base class.
+    """
+    __slots__ = ()
+
+
+class MMALVideoDecoder(MMALDecoder):
+    """
+    Represents the MMAL video decoder component. This component has 1 input
+    port and ? output ports. The input port is usually configured with
+    ``MMAL_ENCODING_H264`` or ``MMAL_ENCODING_MJPEG``.
+    """
+    __slots__ = ()
+    component_type = mmal.MMAL_COMPONENT_DEFAULT_VIDEO_DECODER
+    opaque_input_subformats = (None,)
+    opaque_output_subformats = ('OPQV-single',)
+
+
+class MMALImageDecoder(MMALDecoder):
+    """
+    Represents the MMAL iamge decoder component. This component has 1 input
+    port and 1 output port. The input port is usually configured with
+    ``MMAL_ENCODING_JPEG``.
+    """
+    __slots__ = ()
+    component_type = mmal.MMAL_COMPONENT_DEFAULT_IMAGE_DECODER
+    opaque_input_subformats = (None,)
+    opaque_output_subformats = ('OPQV-single',)
+
+
 class MMALRenderer(MMALComponent):
     """
     Represents the MMAL renderer component. This component has 1 input port and
@@ -1887,6 +1986,7 @@ class MMALPythonPort(MMALObject):
     """
     __slots__ = (
         '_buffer_count',
+        '_buffer_size',
         '_connection',
         '_enabled',
         '_owner',
@@ -1909,6 +2009,7 @@ class MMALPythonPort(MMALObject):
 
     def __init__(self, owner, port_type, index):
         self._buffer_count = 2
+        self._buffer_size = 0
         self._connection = None
         self._enabled = False
         self._owner = owner
@@ -2007,14 +2108,16 @@ class MMALPythonPort(MMALObject):
         with replicated buffers.
         """)
 
-    @property
-    def buffer_size(self):
-        """
+    def _get_buffer_size(self):
+        return self._buffer_size
+    def _set_buffer_size(self, value):
+        if value < 0:
+            raise PiCameraMMALError(mmal.MMAL_EINVAL, 'buffer size <0')
+        self._buffer_size = value
+    buffer_size = property(_get_buffer_size, _set_buffer_size, doc="""\
         The size of buffers allocated (or to be allocated) to the port. The
-        size of buffers is dictated by the port's format.
-        """
-        video = self._format[0].es[0].video
-        return int(self._FORMAT_BPP[str(self.format)] * video.width * video.height)
+        size of buffers defaults to a value dictated by the port's format.
+        """)
 
     def copy_from(self, source):
         """
@@ -2033,6 +2136,17 @@ class MMALPythonPort(MMALObject):
         adjusting the port's format and/or associated settings (like width and
         height for video ports).
         """
+        self._buffer_count = 2
+        video = self._format[0].es[0].video
+        try:
+            self._buffer_size = (
+                MMALPythonPort._FORMAT_BPP[str(self.format)]
+                * video.width
+                * video.height)
+        except KeyError:
+            # If it's an unknown / encoded format just leave the buffer size
+            # alone and hope the owning component knows what to set
+            pass
         self._owner._commit_port(self)
         if str(self.format) not in self._FORMAT_BPP:
             raise PiCameraMMALError(mmal.MMAL_EINVAL, 'bad format')
@@ -2306,35 +2420,110 @@ class MMALPythonBaseComponent(MMALObject):
 
 class MMALPythonSource(MMALPythonBaseComponent):
     """
-    Provides a Python-fed input port for an :class:`MMALComponent`.
-    """
-    __slots__ = ()
+    Provides a source for other :class:`MMALComponent` instances. The
+    specified *input* is read in chunks the size of the configured output
+    buffer(s) until the input is exhausted. The :meth:`wait` method can be
+    used to block until this occurs. If the output buffer is configured to
+    use a full-frame unencoded format (like I420 or RGB), frame-end flags will
+    be automatically generated by the source. When the input is exhausted an
+    empty buffer with the End Of Stream (EOS) flag will be sent.
 
-    def __init__(self):
+    The component provides all picamera's usual IO-handling characteristics; if
+    *input* is a string, a file with that name will be opened as the input and
+    closed implicitly when the component is closed. Otherwise, the input will
+    not be closed implicitly (the component did not open it, so the assumption
+    is that closing *input* is the caller's responsibility). If *input* is an
+    object with a ``read`` method it is assumed to be a file-like object and is
+    used as is. Otherwise, *input* is assumed to be a readable object
+    supporting the buffer protocol (which is wrapped in a :class:`BufferIO`
+    stream).
+    """
+    __slots__ = ('_stream', '_opened', '_thread')
+
+    def __init__(self, input):
         super(MMALPythonSource, self).__init__()
         self._inputs = ()
         self._outputs = (MMALPythonPort(self, 'out', 0),)
+        self._stream, self._opened = open_stream(input, output=False)
+        self._thread = None
 
     def close(self):
         super(MMALPythonSource, self).close()
         if self._outputs:
             self._outputs[0].close()
             self._outputs = ()
+        if self._stream:
+            close_stream(self._stream, self._opened)
+            self._stream = None
 
-    def send(self, data, flags=None):
+    def enable(self):
+        self._thread = Thread(target=self._send_run)
+        self._thread.daemon = True
+        self._thread.start()
+        super(MMALPythonSource, self).enable()
+
+    def disable(self):
+        super(MMALPythonSource, self).disable()
+        if self._thread:
+            self._thread.join()
+            self._thread = None
+
+    def wait(self, timeout=None):
         """
-        Emit data from the python source to whatever component it is connected
-        to.
+        Wait for the source to send all bytes from the specified input. If
+        *timeout* is specified, it is the number of seconds to wait for
+        completion. The method returns ``True`` if the source completed within
+        the specified timeout and ``False`` otherwise.
         """
-        if self._outputs[0]._connection is None:
+        if not self.enabled:
             raise PiCameraMMALError(
-                mmal.MMAL_ENOTCONN, 'source is not connected to anything')
-        self.enable()
-        buf = self._outputs[0].get_buffer()
-        buf.data = data
-        if flags is not None:
-            buf.flags = flags
-        self._outputs[0].send_buffer(buf)
+                mmal.MMAL_EINVAL, 'cannot wait on disabled component')
+        self._thread.join(timeout)
+        return not self._thread.is_alive()
+
+    def _send_run(self):
+        # Calculate the size of a frame if possible (i.e. when the output
+        # format is an unencoded full frame format). If it's an unknown /
+        # encoded format, we've no idea what the framesize is (this would
+        # presumably require decoding the stream) so leave framesize as None.
+        video = self._outputs[0]._format[0].es[0].video
+        try:
+            framesize = (
+                MMALPythonPort._FORMAT_BPP[str(self.format)]
+                * video.width
+                * video.height)
+        except KeyError:
+            framesize = None
+        frameleft = framesize
+        while self.enabled:
+            buf = self._outputs[0].get_buffer(timeout=0.1)
+            try:
+                if frameleft is None:
+                    send = buf.size
+                else:
+                    send = min(frameleft, buf.size)
+                with buf as data:
+                    if send == buf.size:
+                        try:
+                            # readinto() is by far the fastest method of
+                            # getting data into the buffer
+                            buf.length = self._stream.readinto(data)
+                        except AttributeError:
+                            # if there's no readinto() method, fallback on
+                            # read() and the data setter (memmove)
+                            buf.data = self._stream.read(buf.size)
+                    else:
+                        buf.data = self._stream.read(send)
+                if frameleft is not None:
+                    frameleft -= buf.length
+                    if not frameleft:
+                        buf.flags |= mmal.MMAL_BUFFER_HEADER_FLAG_FRAME_END
+                        frameleft = framesize
+                if not buf.length:
+                    buf.flags |= mmal.MMAL_BUFFER_HEADER_FLAG_EOS
+                    break
+            finally:
+                self._outputs[0].send_buffer(buf)
 
     @property
     def name(self):
@@ -2431,6 +2620,57 @@ class MMALPythonComponent(MMALPythonBaseComponent):
         Return values are as for normal port callbacks (``True`` when no more
         buffers are expected, ``False`` otherwise).
         """
+        return False
+
+
+class MMALPythonTarget(MMALPythonComponent):
+    """
+    Provides a simple component that writes all received buffers to the
+    specified *output* until a frame with the *done* flag is seen (defaults to
+    MMAL_BUFFER_HEADER_FLAG_EOS indicating End Of Stream).
+
+    The component provides all picamera's usual IO-handling characteristics; if
+    *output* is a string, a file with that name will be opened as the output
+    and closed implicitly when the component is closed. Otherwise, the output
+    will not be closed implicitly (the component did not open it, so the
+    assumption is that closing *output* is the caller's responsibility). If
+    *output* is an object with a ``write`` method it is assumed to be a
+    file-like object and is used as is. Otherwise, *output* is assumed to be a
+    writeable object supporting the buffer protocol (which is wrapped in a
+    :class:`BufferIO` stream).
+    """
+    __slots__ = ('_opened', '_stream', '_done', '_event')
+
+    def __init__(self, output, done=mmal.MMAL_BUFFER_HEADER_FLAG_EOS)
+        super(MMALPythonTarget, self).__init__(outputs=0)
+        self._inputs = (MMALPythonPort(self, 'in', 0),)
+        self._outputs = ()
+        self._stream, self._opened = open_stream(output)
+        self._done = done
+        self._event = Event()
+
+    def close(self):
+        super(MMALPythonTarget, self).close()
+        close_stream(self._stream, self._opened)
+
+    def enable(self):
+        self._event.clear()
+        super(MMALPythonTarget, self).enable()
+
+    def wait(self, timeout=None):
+        """
+        Wait for the output to be "complete" as defined by the constructor's
+        *done* parameter. If *timeout* is specified it is the number of seconds
+        to wait for completion. The method returns ``True`` if the target
+        completed within the specified timeout and ``False`` otherwise.
+        """
+        return self._event.wait(timeout)
+
+    def _callback(self, port, buf):
+        self._stream.write(buf.data)
+        if buf.flags & self._done:
+            self._event.set()
+            return True
         return False
 
 
