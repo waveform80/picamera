@@ -2493,7 +2493,7 @@ class MMALPythonSource(MMALPythonBaseComponent):
         video = self._outputs[0]._format[0].es[0].video
         try:
             framesize = (
-                MMALPythonPort._FORMAT_BPP[str(self.format)]
+                MMALPythonPort._FORMAT_BPP[str(self._outputs[0].format)]
                 * video.width
                 * video.height)
         except KeyError:
