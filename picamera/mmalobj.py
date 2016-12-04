@@ -1497,7 +1497,7 @@ class MMALPool(object):
         Get the next buffer from the pool. If *block* is ``True`` (the default)
         and *timeout* is ``None`` (the default) then the method will block
         until a buffer is available. Otherwise *timeout* is the maximum time to
-        wait (in ms) for a buffer to become available. If a buffer is not
+        wait (in seconds) for a buffer to become available. If a buffer is not
         available before the timeout expires, the method returns ``None``.
 
         Likewise, if *block* is ``False`` and no buffer is immediately
@@ -1506,7 +1506,7 @@ class MMALPool(object):
         if block and timeout is None:
             buf = mmal.mmal_queue_wait(self._pool[0].queue)
         elif block and timeout is not None:
-            buf = mmal.mmal_queue_timedwait(self._pool[0].queue, timeout)
+            buf = mmal.mmal_queue_timedwait(self._pool[0].queue, int(timeout * 1000))
         else:
             buf = mmal.mmal_queue_get(self._pool[0].queue)
         if buf:
