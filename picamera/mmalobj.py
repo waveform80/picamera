@@ -457,7 +457,7 @@ def debug_pipeline(port):
 
     assert isinstance(port, (MMALControlPort, MMALPythonPort))
     while True:
-        if port.type == 'out':
+        if port.type == mmal.MMAL_PORT_TYPE_OUTPUT:
             yield port
         if isinstance(port, MMALPythonPort):
             comp = port._owner
@@ -782,15 +782,25 @@ class MMALControlPort(MMALObject):
     @property
     def type(self):
         """
-        The type of the port as a string. One of "control", "clock", "in",
-        or "out".
+        The type of the port. One of:
+
+        * MMAL_PORT_TYPE_OUTPUT
+        * MMAL_PORT_TYPE_INPUT
+        * MMAL_PORT_TYPE_CONTROL
+        * MMAL_PORT_TYPE_CLOCK
         """
-        return {
-            mmal.MMAL_PORT_TYPE_OUTPUT:  'out',
-            mmal.MMAL_PORT_TYPE_INPUT:   'in',
-            mmal.MMAL_PORT_TYPE_CONTROL: 'control',
-            mmal.MMAL_PORT_TYPE_CLOCK:   'clock',
-            }[self._port[0].type]
+        return self._port[0].type
+
+    @property
+    def capabilities(self):
+        """
+        The capabilities of the port. A bitfield of the following:
+
+        * MMAL_PORT_CAPABILITY_PASSTHROUGH
+        * MMAL_PORT_CAPABILITY_ALLOCATION
+        * MMAL_PORT_CAPABILITY_SUPPORTS_EVENT_FORMAT_CHANGE
+        """
+        return self._port[0].capabilities
 
     @property
     def params(self):
@@ -920,7 +930,10 @@ class MMALPort(MMALControlPort):
         # issue with buffer_num_min which means we need to guard against 0
         # values...
         self._port[0].buffer_num = max(1, self._port[0].buffer_num_min)
-        self._port[0].buffer_size = self._port[0].buffer_size_recommended
+        self._port[0].buffer_size = (
+            self._port[0].buffer_size_recommended
+            if self._port[0].buffer_size_recommended > 0 else
+            self._port[0].buffer_size_min)
 
     @property
     def pool(self):
@@ -997,6 +1010,7 @@ class MMALPort(MMALControlPort):
             finally:
                 buf.release()
                 if not self._stopped:
+                    # XXX And if this fails?
                     self._pool.send_buffer(False)
 
         # Workaround: There is a bug in the MJPEG encoder that causes a
@@ -1479,7 +1493,9 @@ class MMALBuffer(object):
 class MMALPool(object):
     """
     Represents an MMAL pool containing :class:`MMALBuffer` objects. All active
-    ports are associated with a pool of buffers.
+    ports are associated with a pool of buffers. Can be treated as a sequence
+    of :class:`MMALBuffer` objects but this is only recommended for debugging
+    purposes.
     """
     __slots__ = ('_pool',)
 
@@ -1487,10 +1503,34 @@ class MMALPool(object):
         self._pool = pool
         super(MMALPool, self).__init__()
 
+    def __len__(self):
+        return self._pool[0].headers_num
+
+    def __getitem__(self, index):
+        return MMALBuffer(self._pool[0].header[index])
+
     def close(self):
         if self._pool is not None:
             mmal.mmal_pool_destroy(self._pool)
             self._pool = None
+
+    def resize(self, new_count, new_size):
+        """
+        Resizes the pool to contain *new_count* buffers with *new_size* bytes
+        allocated to each buffer.
+
+        *new_count* must be 1 or more (you cannot resize a pool to contain
+        no headers). However, *new_size* can be 0 which causes all payload
+        buffers to be released.
+
+        .. warning::
+
+            If the pool is associated with a port, the port must be disabled
+            when resizing the pool.
+        """
+        mmal_check(
+            mmal_pool_resize(self._pool, new_count, new_size),
+            prefix='unable to resize pool')
 
     def get_buffer(self, block=True, timeout=None):
         """
@@ -2173,7 +2213,7 @@ class MMALPythonPort(MMALObject):
         :class:`MMALControlPort` (or descendent) and an :class:`MMALBuffer`
         instance. Any return value will be ignored.
         """
-        if self.type == 'out':
+        if self.type == mmal.MMAL_PORT_TYPE_OUTPUT:
             if self._connection is not None:
                 if callback is not None:
                     raise PiCameraMMALError(
@@ -2217,6 +2257,59 @@ class MMALPythonPort(MMALObject):
             self._pool = None
         self._callback = None
 
+    def _format_changed(self, buf):
+        with buf as data:
+            event = mmal.MMAL_EVENT_FORMAT_CHANGED_T.from_buffer_copy(data)
+        if self._connection:
+            # Handle format change on the source output port, if any. We don't
+            # check the output port capabilities because it was the port that
+            # emitted the event change in the first case so it'd be odd if it
+            # didn't support them (or the format requested)!
+            output = self._connection._source
+            output.disable()
+            if isinstance(output, MMALPythonPort):
+                mmal.mmal_format_copy(output._format, event.format)
+            else:
+                mmal.mmal_format_copy(output._port[0].format, event.format)
+            output.commit()
+            output.buffer_count = (
+                event.buffer_num_recommended
+                if event.buffer_num_recommended > 0 else
+                event.buffer_num_min)
+            output.buffer_size = (
+                event.buffer_size_recommended
+                if event.buffer_size_recommended > 0 else
+                event.buffer_size_min)
+            if isinstance(output, MMALPythonPort):
+                output.enable()
+            else:
+                output.enable(self._connection._transfer)
+        # Now deal with the format change on this input port (this is only
+        # called from _callback_run so we must be an input port)
+        try:
+            if not (self.capabilities & mmal.MMAL_PORT_CAPABILITY_SUPPORTS_EVENT_FORMAT_CHANGE):
+                raise PiCameraMMALError(
+                    mmal.MMAL_EINVAL,
+                    'port %s does not support event change' % self.name)
+            mmal.mmal_format_copy(self._format, event.format)
+            self._owner._commit_port(self)
+            self._pool.resize(
+                event.buffer_num_recommended
+                if event.buffer_num_recommended > 0 else
+                event.buffer_num_min,
+                event.buffer_size_recommended
+                if event.buffer_size_recommended > 0 else
+                event.buffer_size_min)
+            self._buffer_count = len(self._pool)
+            self._buffer_size = self._pool[0].size
+        except:
+            # If this port can't handle the format change, or if anything goes
+            # wrong (like the owning component doesn't like the new format)
+            # stop the pipeline (from here at least)
+            if self._connection:
+                self._connection.disable()
+            raise
+
     def _callback_run(self):
         while self._enabled:
             try:
@@ -2224,9 +2317,18 @@ class MMALPythonPort(MMALObject):
             except Empty:
                 pass
             else:
-                # XXX Do something with the return value?
                 try:
-                    if self._owner.enabled:
+                    if buf.command == mmal.MMAL_EVENT_FORMAT_CHANGED:
+                        self._format_changed(buf)
+                        # Chain the format-change onward so everything
+                        # downstream sees it. NOTE: the callback isn't given
+                        # the format-change because there's no image data in it
+                        for output in self._owner.outputs:
+                            out_buf = output.get_buffer()
+                            out_buf.copy_from(buf)
+                            output.send_buffer(out_buf)
+                    elif self._owner.enabled:
+                        # XXX Do something with the return value?
                         self._callback(self, buf)
                 finally:
                     buf.release()
@@ -2244,7 +2346,7 @@ class MMALPythonPort(MMALObject):
             assert self._pool
             return self._pool.get_buffer(block, timeout)
         else:
-            assert self.type == 'out'
+            assert self.type == mmal.MMAL_PORT_TYPE_OUTPUT
             return self._connection._target.get_buffer(block, timeout)
 
     def send_buffer(self, buf):
@@ -2268,20 +2370,41 @@ class MMALPythonPort(MMALObject):
         else:
             # Connected output port case; forward the buffer to the connected
             # component's input port
-            assert self.type == 'out'
+            assert self.type == mmal.MMAL_PORT_TYPE_OUTPUT
+            # XXX If it's a format-change event?
             self._connection._target.send_buffer(buf)
 
     @property
     def name(self):
-        return '%s:%s:%d' % (self._owner.name, self.type, self._index)
+        return '%s:%s:%d' % (self._owner.name, {
+            mmal.MMAL_PORT_TYPE_OUTPUT:  'out',
+            mmal.MMAL_PORT_TYPE_INPUT:   'in',
+            mmal.MMAL_PORT_TYPE_CONTROL: 'control',
+            mmal.MMAL_PORT_TYPE_CLOCK:   'clock',
+            }[self.type], self._index)
 
     @property
     def type(self):
         """
-        The type of the port as a string. One of "control", "clock", "in",
-        or "out".
+        The type of the port. One of:
+
+        * MMAL_PORT_TYPE_OUTPUT
+        * MMAL_PORT_TYPE_INPUT
+        * MMAL_PORT_TYPE_CONTROL
+        * MMAL_PORT_TYPE_CLOCK
         """
         return self._type
+
+    @property
+    def capabilities(self):
+        """
+        The capabilities of the port. A bitfield of the following:
+
+        * MMAL_PORT_CAPABILITY_PASSTHROUGH
+        * MMAL_PORT_CAPABILITY_ALLOCATION
+        * MMAL_PORT_CAPABILITY_SUPPORTS_EVENT_FORMAT_CHANGE
+        """
+        return mmal.MMAL_PORT_CAPABILITY_SUPPORTS_EVENT_FORMAT_CHANGE
 
     @property
     def index(self):
@@ -2447,7 +2570,7 @@ class MMALPythonSource(MMALPythonBaseComponent):
     def __init__(self, input):
         super(MMALPythonSource, self).__init__()
         self._inputs = ()
-        self._outputs = (MMALPythonPort(self, 'out', 0),)
+        self._outputs = (MMALPythonPort(self, mmal.MMAL_PORT_TYPE_OUTPUT, 0),)
         self._stream, self._opened = open_stream(input, output=False)
         self._thread = None
 
@@ -2461,10 +2584,10 @@ class MMALPythonSource(MMALPythonBaseComponent):
             self._stream = None
 
     def enable(self):
+        super(MMALPythonSource, self).enable()
         self._thread = Thread(target=self._send_run)
         self._thread.daemon = True
         self._thread.start()
-        super(MMALPythonSource, self).enable()
 
     def disable(self):
         super(MMALPythonSource, self).disable()
@@ -2551,9 +2674,9 @@ class MMALPythonComponent(MMALPythonBaseComponent):
     def __init__(self, name='py.component', outputs=1):
         super(MMALPythonComponent, self).__init__()
         self._name = name
-        self._inputs = (MMALPythonPort(self, 'in', 0),)
+        self._inputs = (MMALPythonPort(self, mmal.MMAL_PORT_TYPE_INPUT, 0),)
         self._outputs = tuple(
-            MMALPythonPort(self, 'out', n)
+            MMALPythonPort(self, mmal.MMAL_PORT_TYPE_OUTPUT, n)
             for n in range(outputs)
             )
 
@@ -2607,10 +2730,10 @@ class MMALPythonComponent(MMALPythonBaseComponent):
         the input port's format.
         """
         super(MMALPythonComponent, self)._commit_port(port)
-        if port.type == 'in':
+        if port.type == mmal.MMAL_PORT_TYPE_INPUT:
             for output in self.outputs:
                 output.copy_from(port)
-        elif port.type == 'out':
+        elif port.type == mmal.MMAL_PORT_TYPE_OUTPUT:
             if port.format.value != self.inputs[0].format.value:
                 raise PiCameraMMALError(mmal.MMAL_EINVAL, 'output format mismatch')
 
@@ -2663,7 +2786,7 @@ class MMALPythonTarget(MMALPythonComponent):
 
     def __init__(self, output, done=mmal.MMAL_BUFFER_HEADER_FLAG_EOS):
         super(MMALPythonTarget, self).__init__(name='py.target', outputs=0)
-        self._inputs = (MMALPythonPort(self, 'in', 0),)
+        self._inputs = (MMALPythonPort(self, mmal.MMAL_PORT_TYPE_INPUT, 0),)
         self._outputs = ()
         self._stream, self._opened = open_stream(output)
         self._done = done
@@ -2809,6 +2932,7 @@ class MMALPythonConnection(MMALObject):
         self._enabled = False
 
     def _transfer(self, port, buf):
+        # XXX Mustn't timeout on format-change buffers...
         dest = self._target.get_buffer(False)
         if dest is not None:
             dest.copy_from(buf)
