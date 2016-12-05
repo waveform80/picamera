@@ -2501,33 +2501,34 @@ class MMALPythonSource(MMALPythonBaseComponent):
         frameleft = framesize
         while self.enabled:
             buf = self._outputs[0].get_buffer(timeout=0.1)
-            try:
-                if frameleft is None:
-                    send = buf.size
-                else:
-                    send = min(frameleft, buf.size)
-                with buf as data:
-                    if send == buf.size:
-                        try:
-                            # readinto() is by far the fastest method of
-                            # getting data into the buffer
-                            buf.length = self._stream.readinto(data)
-                        except AttributeError:
-                            # if there's no readinto() method, fallback on
-                            # read() and the data setter (memmove)
-                            buf.data = self._stream.read(buf.size)
+            if buf:
+                try:
+                    if frameleft is None:
+                        send = buf.size
                     else:
-                        buf.data = self._stream.read(send)
-                if frameleft is not None:
-                    frameleft -= buf.length
-                    if not frameleft:
-                        buf.flags |= mmal.MMAL_BUFFER_HEADER_FLAG_FRAME_END
-                        frameleft = framesize
-                if not buf.length:
-                    buf.flags |= mmal.MMAL_BUFFER_HEADER_FLAG_EOS
-                    break
-            finally:
-                self._outputs[0].send_buffer(buf)
+                        send = min(frameleft, buf.size)
+                    with buf as data:
+                        if send == buf.size:
+                            try:
+                                # readinto() is by far the fastest method of
+                                # getting data into the buffer
+                                buf.length = self._stream.readinto(data)
+                            except AttributeError:
+                                # if there's no readinto() method, fallback on
+                                # read() and the data setter (memmove)
+                                buf.data = self._stream.read(buf.size)
+                        else:
+                            buf.data = self._stream.read(send)
+                    if frameleft is not None:
+                        frameleft -= buf.length
+                        if not frameleft:
+                            buf.flags |= mmal.MMAL_BUFFER_HEADER_FLAG_FRAME_END
+                            frameleft = framesize
+                    if not buf.length:
+                        buf.flags |= mmal.MMAL_BUFFER_HEADER_FLAG_EOS
+                        break
+                finally:
+                    self._outputs[0].send_buffer(buf)
 
     @property
     def name(self):
@@ -2754,6 +2755,10 @@ class MMALPythonConnection(MMALObject):
                 except IndexError:
                     raise PiCameraMMALError(mmal.MMAL_EINVAL, 'failed to negotiate format')
             else:
+                self._source.buffer_count = self._target.buffer_count = max(
+                    self._source.buffer_count, self._target.buffer_count)
+                self._source.buffer_size = self._target.buffer_size = max(
+                    self._source.buffer_size, self._target.buffer_size)
                 break
 
     def close(self):
