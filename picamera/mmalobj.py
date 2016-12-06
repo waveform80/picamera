@@ -1009,9 +1009,14 @@ class MMALPort(MMALControlPort):
                     self._stopped = True
             finally:
                 buf.release()
-                if not self._stopped:
-                    # XXX And if this fails?
-                    self._pool.send_buffer(False)
+                while not self._stopped:
+                    try:
+                        self._pool.send_buffer(timeout=0.01)
+                    except PiCameraMMALError as e:
+                        if e.status != mmal.MMAL_EAGAIN:
+                            raise
+                    else:
+                        break
 
         # Workaround: There is a bug in the MJPEG encoder that causes a
         # deadlock if the FIFO is full on shutdown. Increasing the encoder
@@ -1477,7 +1482,7 @@ class MMALBuffer(object):
 
     def __repr__(self):
         if self._buf is not None:
-            return '<MMALBuffer object: flags=%s length=%d>' % (
+            return '<MMALBuffer object: flags=%s command=%s length=%d>' % (
                 ''.join((
                 'S' if self.flags & mmal.MMAL_BUFFER_HEADER_FLAG_FRAME_START   else '_',
                 'E' if self.flags & mmal.MMAL_BUFFER_HEADER_FLAG_FRAME_END     else '_',
@@ -1485,7 +1490,13 @@ class MMALBuffer(object):
                 'C' if self.flags & mmal.MMAL_BUFFER_HEADER_FLAG_CONFIG        else '_',
                 'M' if self.flags & mmal.MMAL_BUFFER_HEADER_FLAG_CODECSIDEINFO else '_',
                 'X' if self.flags & mmal.MMAL_BUFFER_HEADER_FLAG_EOS           else '_',
-                )), self.length)
+                )), {
+                0: 'none',
+                mmal.MMAL_EVENT_ERROR:             'error',
+                mmal.MMAL_EVENT_FORMAT_CHANGED:    'format-change',
+                mmal.MMAL_EVENT_PARAMETER_CHANGED: 'param-change',
+                mmal.MMAL_EVENT_EOS:               'end-of-stream',
+                }[self.command], self.length)
         else:
             return '<MMALBuffer object: ???>'
 
@@ -2905,40 +2916,41 @@ class MMALPythonConnection(MMALObject):
         continually transferred from the output port of the source to the input
         port of the target component.
         """
-        self._target.enable(self._callback)
-        if isinstance(self._source, MMALPythonPort):
-            # Connected python output ports are nothing more than thin
-            # proxies for the target input port; no callback required
-            self._source.enable()
-            self._source._owner.enable()
-        else:
-            # Connected MMAL output ports are made to transfer their
-            # data to the Python input port
-            self._source.enable(self._transfer)
-        if isinstance(self._target, MMALPythonPort):
-            self._target._owner.enable()
-        self._enabled = True
+        if not self._enabled:
+            self._enabled = True
+            self._target.enable(self._callback)
+            if isinstance(self._source, MMALPythonPort):
+                # Connected python output ports are nothing more than thin
+                # proxies for the target input port; no callback required
+                self._source.enable()
+            else:
+                # Connected MMAL output ports are made to transfer their
+                # data to the Python input port
+                self._source.enable(self._transfer)
 
     def disable(self):
         """
         Disables the connection.
         """
-        if isinstance(self._target, MMALPythonPort):
-            self._target._owner.disable()
-        if isinstance(self._source, MMALPythonPort):
-            self._source._owner.disable()
         self._source.disable()
         self._target.disable()
         self._enabled = False
 
     def _transfer(self, port, buf):
-        # XXX Mustn't timeout on format-change buffers...
-        dest = self._target.get_buffer(False)
-        if dest is not None:
-            dest.copy_from(buf)
-            self._target.send_buffer(dest)
-        # If no available buffers on the target; drop this frame
-        return False
+        while self._enabled:
+            try:
+                dest = self._target.get_buffer(timeout=0.01)
+            except PiCameraMMALError as e:
+                if e.status == mmal.MMAL_EINVAL:
+                    # The port was disabled; tell the source we're done
+                    return True
+                else:
+                    raise
+            else:
+                if dest:
+                    dest.copy_from(buf)
+                    self._target.send_buffer(dest)
+                    return False
 
     def __enter__(self):
         return self
