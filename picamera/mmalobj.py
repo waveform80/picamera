@@ -1540,7 +1540,7 @@ class MMALPool(object):
             when resizing the pool.
         """
         mmal_check(
-            mmal_pool_resize(self._pool, new_count, new_size),
+            mmal.mmal_pool_resize(self._pool, new_count, new_size),
             prefix='unable to resize pool')
 
     def get_buffer(self, block=True, timeout=None):
@@ -2270,56 +2270,56 @@ class MMALPythonPort(MMALObject):
 
     def _format_changed(self, buf):
         with buf as data:
-            event = mmal.MMAL_EVENT_FORMAT_CHANGED_T.from_buffer_copy(data)
-        if self._connection:
-            # Handle format change on the source output port, if any. We don't
-            # check the output port capabilities because it was the port that
-            # emitted the event change in the first case so it'd be odd if it
-            # didn't support them (or the format requested)!
-            output = self._connection._source
-            output.disable()
-            if isinstance(output, MMALPythonPort):
-                mmal.mmal_format_copy(output._format, event.format)
-            else:
-                mmal.mmal_format_copy(output._port[0].format, event.format)
-            output.commit()
-            output.buffer_count = (
-                event.buffer_num_recommended
-                if event.buffer_num_recommended > 0 else
-                event.buffer_num_min)
-            output.buffer_size = (
-                event.buffer_size_recommended
-                if event.buffer_size_recommended > 0 else
-                event.buffer_size_min)
-            if isinstance(output, MMALPythonPort):
-                output.enable()
-            else:
-                output.enable(self._connection._transfer)
-        # Now deal with the format change on this input port (this is only
-        # called from _callback_run so we must be an input port)
-        try:
-            if not (self.capabilities & mmal.MMAL_PORT_CAPABILITY_SUPPORTS_EVENT_FORMAT_CHANGE):
-                raise PiCameraMMALError(
-                    mmal.MMAL_EINVAL,
-                    'port %s does not support event change' % self.name)
-            mmal.mmal_format_copy(self._format, event.format)
-            self._owner._commit_port(self)
-            self._pool.resize(
-                event.buffer_num_recommended
-                if event.buffer_num_recommended > 0 else
-                event.buffer_num_min,
-                event.buffer_size_recommended
-                if event.buffer_size_recommended > 0 else
-                event.buffer_size_min)
-            self._buffer_count = len(self._pool)
-            self._buffer_size = self._pool[0].size
-        except:
-            # If this port can't handle the format change, or if anything goes
-            # wrong (like the owning component doesn't like the new format)
-            # stop the pipeline (from here at least)
+            event = mmal.mmal_event_format_changed_get(buf._buf)
             if self._connection:
-                self._connection.disable()
-            raise
+                # Handle format change on the source output port, if any. We don't
+                # check the output port capabilities because it was the port that
+                # emitted the event change in the first case so it'd be odd if it
+                # didn't support them (or the format requested)!
+                output = self._connection._source
+                output.disable()
+                if isinstance(output, MMALPythonPort):
+                    mmal.mmal_format_copy(output._format, event[0].format)
+                else:
+                    mmal.mmal_format_copy(output._port[0].format, event[0].format)
+                output.commit()
+                output.buffer_count = (
+                    event[0].buffer_num_recommended
+                    if event[0].buffer_num_recommended > 0 else
+                    event[0].buffer_num_min)
+                output.buffer_size = (
+                    event[0].buffer_size_recommended
+                    if event[0].buffer_size_recommended > 0 else
+                    event[0].buffer_size_min)
+                if isinstance(output, MMALPythonPort):
+                    output.enable()
+                else:
+                    output.enable(self._connection._transfer)
+            # Now deal with the format change on this input port (this is only
+            # called from _callback_run so we must be an input port)
+            try:
+                if not (self.capabilities & mmal.MMAL_PORT_CAPABILITY_SUPPORTS_EVENT_FORMAT_CHANGE):
+                    raise PiCameraMMALError(
+                        mmal.MMAL_EINVAL,
+                        'port %s does not support event change' % self.name)
+                mmal.mmal_format_copy(self._format, event[0].format)
+                self._owner._commit_port(self)
+                self._pool.resize(
+                    event[0].buffer_num_recommended
+                    if event[0].buffer_num_recommended > 0 else
+                    event[0].buffer_num_min,
+                    event[0].buffer_size_recommended
+                    if event[0].buffer_size_recommended > 0 else
+                    event[0].buffer_size_min)
+                self._buffer_count = len(self._pool)
+                self._buffer_size = self._pool[0].size
+            except:
+                # If this port can't handle the format change, or if anything goes
+                # wrong (like the owning component doesn't like the new format)
+                # stop the pipeline (from here at least)
+                if self._connection:
+                    self._connection.disable()
+                raise
 
     def _callback_run(self):
         while self._enabled:
@@ -2964,4 +2964,5 @@ class MMALPythonConnection(MMALObject):
 
     def __repr__(self):
         return '<MMALPythonConnection "%s">' % self.name
+
 
