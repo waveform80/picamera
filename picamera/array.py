@@ -43,12 +43,19 @@ except NameError:
     pass
 
 import io
+import ctypes as ct
 import warnings
 
 import numpy as np
 from numpy.lib.stride_tricks import as_strided
 
-from .exc import PiCameraValueError, PiCameraDeprecated
+from . import mmalobj as mo, mmal
+from .exc import (
+    mmal_check,
+    PiCameraValueError,
+    PiCameraDeprecated,
+    PiCameraMMALError,
+    )
 
 
 motion_dtype = np.dtype([
@@ -687,4 +694,115 @@ class PiMotionAnalysis(PiAnalysisOutput):
                 np.frombuffer(b, dtype=motion_dtype).\
                 reshape((self.rows, self.cols)))
         return result
+
+
+class MMALArrayBuffer(mo.MMALBuffer):
+    __slots__ = ('_shape',)
+
+    def __init__(self, port, buf):
+        super(MMALArrayBuffer, self).__init__(buf)
+        width = port._format[0].es[0].video.width
+        height = port._format[0].es[0].video.height
+        bpp = self.size // (width * height)
+        self.offset = 0
+        self.length = width * height * bpp
+        self._shape = (height, width, bpp)
+
+    def __enter__(self):
+        mmal_check(
+            mmal.mmal_buffer_header_mem_lock(self._buf),
+            prefix='unable to lock buffer header memory')
+        assert self.offset == 0
+        return np.frombuffer(
+            ct.cast(
+                self._buf[0].data,
+                ct.POINTER(ct.c_uint8 * self._buf[0].alloc_size)).contents,
+            dtype=np.uint8, count=self.length).reshape(self._shape)
+
+    def __exit__(self, *exc):
+        mmal.mmal_buffer_header_mem_unlock(self._buf)
+        return False
+
+
+class PiArrayTransform(mo.MMALPythonComponent):
+    """
+    A derivative of :class:`~picamera.mmalobj.MMALPythonComponent` which eases
+    the construction of custom MMAL transforms by representing buffer data as
+    numpy arrays. The *formats* parameter specifies the accepted input
+    formats as a sequence of strings (default: 'rgb', 'bgr', 'rgba', 'bgra').
+
+    Override the :meth:`transform` method to modify buffers sent to the
+    component, then place it in your MMAL pipeline as you would a normal
+    encoder.
+    """
+    __slots__ = ('_formats',)
+
+    def __init__(self, formats=('rgb', 'bgr', 'rgba', 'bgra')):
+        super(PiArrayTransform, self).__init__()
+        if isinstance(formats, bytes):
+            formats = formats.decode('ascii')
+        if isinstance(formats, str):
+            formats = (formats,)
+        try:
+            self._formats = {
+                {
+                    'rgb': mmal.MMAL_ENCODING_RGB24,
+                    'bgr': mmal.MMAL_ENCODING_BGR24,
+                    'rgba': mmal.MMAL_ENCODING_RGBA,
+                    'bgra': mmal.MMAL_ENCODING_BGRA,
+                    }[fmt]
+                for fmt in formats
+                }
+        except KeyError as e:
+            raise PiCameraValueError(
+                'PiArrayTransform cannot handle format %s' % str(e))
+
+    def _commit_port(self, port):
+        if port.type == 'in' and port.format.value not in self._formats:
+            raise PiCameraMMALError(mmal.MMAL_EINVAL, 'invalid format')
+        super(PiArrayTransform, self)._commit_port(port)
+
+    def _callback(self, port, source_buf):
+        result = False
+        target_buf = self.outputs[0].get_buffer(False)
+        if target_buf:
+            target_buf.copy_meta(source_buf)
+            result = self.transform(
+                MMALArrayBuffer(port, source_buf._buf),
+                MMALArrayBuffer(self.outputs[0], target_buf._buf))
+            try:
+                self.outputs[0].send_buffer(target_buf)
+            except PiCameraMMALError as e:
+                if e.status != mmal.MMAL_EINVAL:
+                    raise
+                # MMAL_EINVAL here means we're sending to a disabled port which
+                # also means we're about to shut down so disable further
+                # callbacks
+                return True
+        return result
+
+    def transform(self, source, target):
+        """
+        This method will be called for every frame passing through the
+        transform.  The *source* and *target* parameters represent buffers from
+        the input and output ports of the transform respectively. They will be
+        derivatives of :class:`~picamera.mmalobj.MMALBuffer` which return a
+        3-dimensional numpy array when used as context managers. For example::
+
+            def transform(self, source, target):
+                with source as source_array, target as target_array:
+                    # Copy the source array data to the target
+                    target_array[...] = source_array
+                    # Draw a box around the edges
+                    target_array[0, :, :] = 0xff
+                    target_array[-1, :, :] = 0xff
+                    target_array[:, 0, :] = 0xff
+                    target_array[:, -1, :] = 0xff
+                    return False
+
+        The target buffer's meta-data starts out as a copy of the source
+        buffer's meta-data, but the target buffer's data starts out
+        uninitialized.
+        """
+        return False
 

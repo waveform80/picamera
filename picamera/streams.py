@@ -48,7 +48,7 @@ from picamera.frames import PiVideoFrame, PiVideoFrameType
 
 class BufferIO(io.IOBase):
     """
-    A stream which uses a writeable :class:`memoryview` for storage.
+    A stream which uses a :class:`memoryview` for storage.
 
     This is used internally by picamera for capturing directly to an existing
     object which supports the buffer protocol (like a numpy array). Because the
@@ -58,11 +58,10 @@ class BufferIO(io.IOBase):
 
     Users should never need this class directly.
     """
+    __slots__ = ('_buf', '_pos', '_size')
 
     def __init__(self, obj):
         self._buf = memoryview(obj)
-        if self._buf.readonly:
-            raise ValueError('buffer object is read-only')
         if self._buf.ndim > 1 or self._buf.format != 'B':
             try:
                 # Py2.7 doesn't have memoryview.cast
@@ -105,7 +104,7 @@ class BufferIO(io.IOBase):
         Returns ``True``, indicating that the stream supports :meth:`write`.
         """
         self._check_open()
-        return True
+        return not self._buf.readonly
 
     def seekable(self):
         """
@@ -177,6 +176,19 @@ class BufferIO(io.IOBase):
             self._pos += len(result)
             return result
 
+    def readinto(self, b):
+        """
+        Read bytes into a pre-allocated, writable bytes-like object b, and
+        return the number of bytes read.
+        """
+        self._check_open()
+        result = max(0, min(len(b), self._size - self._pos))
+        if result == 0:
+            return 0
+        else:
+            b[:result] = self._buf[self._pos:self._pos + result]
+            return result
+
     def readall(self):
         """
         Read and return all bytes from the buffer until EOF.
@@ -198,16 +210,16 @@ class BufferIO(io.IOBase):
         bytes as possible will be written before raising :exc:`IOError`.
         """
         self._check_open()
+        if self._buf.readonly:
+            raise IOError('buffer object is not writeable')
         excess = max(0, len(b) - (self.size - self._pos))
+        result = len(b) - excess
         if excess:
-            b = b[:-excess]
-        self._buf[self._pos:self._pos + len(b)] = b
-        self._pos += len(b)
-        if excess:
-            raise IOError(
-                'buffer object not large enough for write; %d excess bytes '
-                'not written' % excess)
-        return len(b)
+            self._buf[self._pos:self._pos + result] = b[:-excess]
+        else:
+            self._buf[self._pos:self._pos + result] = b
+        self._pos += result
+        return result
 
 
 class CircularIO(io.IOBase):

@@ -88,7 +88,7 @@ class PiRenderer(object):
             self.rotation = rotation
             self.vflip = vflip
             self.hflip = hflip
-            self.renderer.enabled = True
+            self.renderer.enable()
         except:
             self.renderer.close()
             raise
@@ -405,8 +405,8 @@ class PiOverlayRenderer(PiRenderer):
             framerate. Going faster will rapidly starve the renderer's pool of
             buffers leading to a runtime error.
         """
-        buf = self.renderer.inputs[0].pool.get_buffer()
-        buf.update(source)
+        buf = self.renderer.inputs[0].get_buffer()
+        buf.data = source
         self.renderer.inputs[0].send_buffer(buf)
 
 
@@ -452,12 +452,12 @@ class PiPreviewRenderer(PiRenderer):
                 ):
             raise PiCameraValueError(
                 'preview resolution cannot exceed camera resolution')
-        self.renderer.connection.enabled = False
+        self.renderer.connection.disable()
         if value is None:
             value = self._parent.resolution
         self._parent._camera.outputs[self._parent.CAMERA_PREVIEW_PORT].framesize = value
         self._parent._camera.outputs[self._parent.CAMERA_PREVIEW_PORT].commit()
-        self.renderer.connection.enabled = True
+        self.renderer.connection.enable()
     resolution = property(_get_resolution, _set_resolution, doc="""\
         Retrieves or sets the resolution of the preview renderer.
 
@@ -515,7 +515,7 @@ class PiNullSink(object):
 
     def __init__(self, parent, source):
         self.renderer = mo.MMALNullSink()
-        self.renderer.enabled = True
+        self.renderer.enable()
         self.renderer.connect(source)
 
     def close(self):

@@ -1,6 +1,6 @@
 Source: picamera
 Maintainer: Dave Jones <dave@waveform.org.uk>
-Homepage: http://pypi.python.org/pypi/picamera
+Homepage: http://picamera.readthedocs.io/
 Section: python
 Priority: extra
 Build-Depends: debhelper (>= 8), python-all (>= 2.7), python-setuptools, python3-all, python3-setuptools, python-docutils, python-sphinx (>= 1.0.7+dfsg-1~)

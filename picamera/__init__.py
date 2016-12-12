@@ -84,8 +84,9 @@ from picamera.exc import (
     PiCameraMMALError,
     mmal_check,
     )
-from picamera.mmalobj import PiCameraResolution
+from picamera.mmalobj import PiResolution
 from picamera.camera import PiCamera
+from picamera.display import PiDisplay
 from picamera.frames import PiVideoFrame, PiVideoFrameType
 from picamera.encoders import (
     PiEncoder,

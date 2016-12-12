@@ -369,7 +369,7 @@ class PiCamera(object):
             if camera_info.info_rev > 1:
                 self._exif_tags['IFD0.Model'] = 'RP_%s' % info.cameras[camera_num].camera_name.decode('ascii')
             if PiCamera.MAX_RESOLUTION is PiCameraMaxResolution:
-                PiCamera.MAX_RESOLUTION = mo.PiCameraResolution(
+                PiCamera.MAX_RESOLUTION = mo.PiResolution(
                         info.cameras[camera_num].max_width,
                         info.cameras[camera_num].max_height,
                         )
@@ -388,7 +388,7 @@ class PiCamera(object):
                 else:
                     w = int(w.value)
                     h = int(h.value)
-                resolution = mo.PiCameraResolution(w, h)
+                resolution = mo.PiResolution(w, h)
             elif resolution is PiCameraMaxResolution:
                 resolution = PiCamera.MAX_RESOLUTION
             else:
@@ -412,7 +412,7 @@ class PiCamera(object):
             self._configure_camera(sensor_mode, framerate, resolution, clock_mode)
             self._init_preview()
             self._init_splitter()
-            self._camera.enabled = True
+            self._camera.enable()
             self._init_defaults()
         except:
             self.close()
@@ -1912,9 +1912,9 @@ class PiCamera(object):
         An internal method for disabling the camera, e.g. for re-configuration.
         This disables the splitter and preview connections (if they exist).
         """
-        self._splitter.connection.enabled = False
-        self._preview.renderer.connection.enabled = False
-        self._camera.enabled = False
+        self._splitter.connection.disable()
+        self._preview.renderer.connection.disable()
+        self._camera.disable()
 
     def _enable_camera(self):
         """
@@ -1922,9 +1922,9 @@ class PiCamera(object):
         This ensures the splitter configuration is consistent, then re-enables
         the camera along with the splitter and preview connections.
         """
-        self._camera.enabled = True
-        self._preview.renderer.connection.enabled = True
-        self._splitter.connection.enabled = True
+        self._camera.enable()
+        self._preview.renderer.connection.enable()
+        self._splitter.connection.enable()
 
     def _configure_splitter(self):
         """
@@ -2203,7 +2203,7 @@ class PiCamera(object):
 
     def _get_resolution(self):
         self._check_camera_open()
-        return mo.PiCameraResolution(
+        return mo.PiResolution(
             int(self._camera_config.max_stills_w),
             int(self._camera_config.max_stills_h)
             )

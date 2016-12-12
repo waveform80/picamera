@@ -37,7 +37,6 @@ from __future__ import (
 # Make Py2's str and range equivalent to Py3's
 str = type('')
 
-import io
 import datetime
 import threading
 import warnings
@@ -45,12 +44,12 @@ import ctypes as ct
 
 from . import bcm_host, mmal, mmalobj as mo
 from .frames import PiVideoFrame, PiVideoFrameType
-from .streams import BufferIO
 from .exc import (
     mmal_check,
     PiCameraError,
     PiCameraMMALError,
     PiCameraValueError,
+    PiCameraIOError,
     PiCameraRuntimeError,
     PiCameraResizerEncoding,
     PiCameraAlphaStripping,
@@ -183,7 +182,7 @@ class PiEncoder(object):
         self.exception = None
         self.event = threading.Event()
         try:
-            if parent.closed:
+            if parent and parent.closed:
                 raise PiCameraRuntimeError("Camera is closed")
             if resize:
                 self._create_resizer(*resize)
@@ -306,7 +305,7 @@ class PiEncoder(object):
                     # Ignore None return value; most Python 2 streams have
                     # no return value for write()
                     if (written is not None) and (written != buf.length):
-                        raise PiCameraError(
+                        raise PiCameraIOError(
                             "Failed to write %d bytes from buffer to "
                             "output %r" % (buf.length, output))
         return bool(buf.flags & mmal.MMAL_BUFFER_HEADER_FLAG_EOS)
@@ -328,19 +327,7 @@ class PiEncoder(object):
         specified *key*.
         """
         with self.outputs_lock:
-            opened = isinstance(output, (bytes, str))
-            if opened:
-                # Open files in binary mode with a decent buffer size
-                output = io.open(output, 'wb', buffering=65536)
-            else:
-                try:
-                    output.write
-                except AttributeError:
-                    # If there's no write method, try and treat the output as
-                    # a writeable buffer
-                    opened = True
-                    output = BufferIO(output)
-            self.outputs[key] = (output, opened)
+            self.outputs[key] = mo.open_stream(output)
 
     def _close_output(self, key=PiVideoFrameType.frame):
         """
@@ -356,13 +343,7 @@ class PiEncoder(object):
             except KeyError:
                 pass
             else:
-                if opened:
-                    output.close()
-                else:
-                    try:
-                        output.flush()
-                    except AttributeError:
-                        pass
+                mo.close_stream(output, opened)
 
     @property
     def active(self):
@@ -372,7 +353,6 @@ class PiEncoder(object):
         try:
             return bool(self.output_port.enabled)
         except AttributeError:
-            # If active is accessed prior to encoder component construction,
             # output_port can be None; avoid a (demonstrated) race condition
             # by catching AttributeError
             return False
@@ -424,21 +404,14 @@ class PiEncoder(object):
         can potentially be called in the middle of image capture to terminate
         the capture.
         """
-        # The check below is not a race condition; we ignore the EINVAL error
-        # in the case the port turns out to be disabled when we disable below.
-        # The check exists purely to prevent stderr getting spammed by our
-        # continued attempts to disable an already disabled port. Lock
-        # acquisition must occur after the check to avoid re-acquiring a
-        # non-re-entrant lock in certain conditions (e.g. encoder destruction
-        # from __init__, when the lock is held by the same thread)
+        # NOTE: The active test below is necessary to prevent attempting to
+        # re-enter the parent lock in the case the encoder is being torn down
+        # by an error in the constructor
         if self.active:
-            with self.parent._encoders_lock:
-                self.parent._stop_capture(self.camera_port)
-                try:
-                    self.output_port.disable()
-                except PiCameraMMALError as e:
-                    if e.status != mmal.MMAL_EINVAL:
-                        raise
+            if self.parent and self.camera_port:
+                with self.parent._encoders_lock:
+                    self.parent._stop_capture(self.camera_port)
+            self.output_port.disable()
         self.event.set()
         self._close_output()
 
@@ -464,6 +437,27 @@ class PiEncoder(object):
             self.resizer.close()
             self.resizer = None
         self.output_port = None
+
+
+class MMALBufferAlphaStrip(mo.MMALBuffer):
+    """
+    An MMALBuffer descendent that strips alpha bytes from the buffer data. This
+    is used internally by PiRawMixin when it needs to strip alpha bytes itself
+    (e.g. because an appropriate format cannot be selected on an output port).
+    """
+
+    def __init__(self, buf):
+        super(MMALBufferAlphaStrip, self).__init__(buf)
+        self._stripped = bytearray(super(MMALBufferAlphaStrip, self).data)
+        del self._stripped[3::4]
+
+    @property
+    def length(self):
+        return len(self._stripped)
+
+    @property
+    def data(self):
+        return self._stripped
 
 
 class PiRawMixin(PiEncoder):
@@ -501,7 +495,7 @@ class PiRawMixin(PiEncoder):
             except PiCameraMMALError as e:
                 if e.status != mmal.MMAL_EINVAL:
                     raise
-                resize = parent.resolution
+                resize = input_port.framesize
                 warnings.warn(
                     PiCameraResizerEncoding(
                         "using a resizer to perform non-YUV encoding; "
@@ -527,13 +521,13 @@ class PiRawMixin(PiEncoder):
             except KeyError:
                 pass
         else:
-            width, height = parent.resolution
+            width, height = input_port.framesize
         # Workaround (#83): when the resizer is used the width must be aligned
         # (both the frame and crop values) to avoid an error when the output
         # port format is set (height is aligned too, simply for consistency
         # with old picamera versions). Warn the user as they're not going to
         # get the resolution they expect
-        if not resize and format != 'yuv' and input_port.name.startswith(b'vc.ril.video_splitter'):
+        if not resize and format != 'yuv' and input_port.name.startswith('vc.ril.video_splitter'):
             # Workaround: Expected frame size is rounded to 16x16 when splitter
             # port with no resizer is used and format is not YUV
             fwidth = bcm_host.VCOS_ALIGN_UP(width, 16)
@@ -573,10 +567,7 @@ class PiRawMixin(PiEncoder):
         Overridden to strip alpha bytes when required.
         """
         if self._strip_alpha:
-            s = bytearray(buf.data)
-            del s[3::4]
-            new_buf = buf.copy(s)
-            return super(PiRawMixin, self)._callback_write(new_buf, key)
+            return super(PiRawMixin, self)._callback_write(MMALBufferAlphaStrip(buf._buf), key)
         else:
             return super(PiRawMixin, self)._callback_write(buf, key)
 
@@ -637,7 +628,11 @@ class PiVideoEncoder(PiEncoder):
             w, h = self.output_port.framesize
             w = bcm_host.VCOS_ALIGN_UP(w, 16) >> 4
             h = bcm_host.VCOS_ALIGN_UP(h, 16) >> 4
-            if w * h * (self.parent.framerate + self.parent.framerate_delta) > limit:
+            if self.parent:
+                framerate = self.parent.framerate + self.parent.framerate_delta
+            else:
+                framerate = self.input_port.framerate
+            if w * h * framerate > limit:
                 raise PiCameraValueError(
                     'too many macroblocks/s requested; reduce resolution or '
                     'framerate')
@@ -709,7 +704,7 @@ class PiVideoEncoder(PiEncoder):
             self.output_port.params[mmal.MMAL_PARAMETER_VIDEO_ENCODE_MAX_QUANT] = quality
 
         self.encoder.inputs[0].params[mmal.MMAL_PARAMETER_VIDEO_IMMUTABLE_INPUT] = True
-        self.encoder.enabled = True
+        self.encoder.enable()
 
     def start(self, output, motion_output=None):
         """
@@ -763,7 +758,11 @@ class PiVideoEncoder(PiEncoder):
         # ensure the timeout is deliberately excessive, and clamp the minimum
         # timeout to 10 seconds (otherwise unencoded formats tend to fail
         # presumably due to I/O capacity)
-        timeout = max(10.0, float(self._intra_period / self.parent.framerate) * 3.0)
+        if self.parent:
+            framerate = self.parent.framerate + self.parent.framerate_delta
+        else:
+            framerate = self.input_port.framerate
+        timeout = max(10.0, float(self._intra_period / framerate) * 3.0)
         if self._intra_period > 1:
             self.request_key_frame()
         if not self.event.wait(timeout):
@@ -912,7 +911,7 @@ class PiImageEncoder(PiEncoder):
                     1, *thumbnail)
             self.encoder.control.params[mmal.MMAL_PARAMETER_THUMBNAIL_CONFIGURATION] = mp
 
-        self.encoder.enabled = True
+        self.encoder.enable()
 
 
 class PiOneImageEncoder(PiImageEncoder):
@@ -982,6 +981,15 @@ class PiCookedOneImageEncoder(PiOneImageEncoder):
 
     exif_encoding = 'ascii'
 
+    def __init__(
+            self, parent, camera_port, input_port, format, resize, **options):
+        super(PiCookedOneImageEncoder, self).__init__(
+                parent, camera_port, input_port, format, resize, **options)
+        if parent:
+            self.exif_tags = self.parent.exif_tags
+        else:
+            self.exif_tags = {}
+
     def _add_exif_tag(self, tag, value):
         # Format the tag and value into an appropriate bytes string, encoded
         # with the Exif encoding (ASCII)
@@ -1018,9 +1026,9 @@ class PiCookedOneImageEncoder(PiOneImageEncoder):
         # above, but the user may choose to override the value in the
         # exif_tags mapping
         for tag in timestamp_tags:
-            self._add_exif_tag(tag, self.parent.exif_tags.get(tag, timestamp))
+            self._add_exif_tag(tag, self.exif_tags.get(tag, timestamp))
         # All other tags are just copied in verbatim
-        for tag, value in self.parent.exif_tags.items():
+        for tag, value in self.exif_tags.items():
             if not tag in timestamp_tags:
                 self._add_exif_tag(tag, value)
         super(PiCookedOneImageEncoder, self).start(output)

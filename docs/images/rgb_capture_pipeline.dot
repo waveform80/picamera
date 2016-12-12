@@ -1,0 +1,14 @@
+digraph G {
+    graph [rankdir=LR];
+    node [shape=record, style=filled, fontname="Sans", fontsize=10, fillcolor="#77bbee", color="#447777"];
+    edge [fontname="Sans", fontsize=10, color="#447777"];
+
+    MMALCamera [label="{MMALCamera|{<preview>0|<video>1|<still>2}}"];
+    MMALRenderer [label="{<input>0|MMALRenderer}"];
+    FileOutput [label="image.data", shape=note];
+
+    MMALCamera:still->FileOutput [
+        taillabel="RGB3\n640x480",
+        label="callback fn"
+        ];
+}

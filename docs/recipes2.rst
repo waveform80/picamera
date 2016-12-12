@@ -974,7 +974,7 @@ acts as a flash LED with the Python script above.
 
 
 .. _YUV: http://en.wikipedia.org/wiki/YUV
-.. _YUV420: http://en.wikipedia.org/wiki/YUV#Y.27UV420p_.28and_Y.27V12_or_YV12.29_to_RGB888_conversion
+.. _YUV420: https://en.wikipedia.org/wiki/YUV#Y.E2.80.B2UV420p_.28and_Y.E2.80.B2V12_or_YV12.29_to_RGB888_conversion
 .. _RGB: http://en.wikipedia.org/wiki/RGB
 .. _RGBA: http://en.wikipedia.org/wiki/RGBA_color_space
 .. _numpy: http://www.numpy.org/

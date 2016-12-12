@@ -38,10 +38,10 @@ from setuptools.command.install import install
 
 if sys.version_info[0] == 2:
     if not sys.version_info >= (2, 7):
-        raise ValueError('This package requires Python 2.7 or above')
+        raise ValueError('This package requires Python 2.7 or newer')
 elif sys.version_info[0] == 3:
     if not sys.version_info >= (3, 2):
-        raise ValueError('This package requires Python 3.2 or above')
+        raise ValueError('This package requires Python 3.2 or newer')
 else:
     raise ValueError('Unrecognized major version of Python')
 
@@ -69,6 +69,8 @@ __classifiers__ = [
     'Programming Language :: Python :: 2.7',
     'Programming Language :: Python :: 3.2',
     'Programming Language :: Python :: 3.3',
+    'Programming Language :: Python :: 3.4',
+    'Programming Language :: Python :: 3.5',
     'Topic :: Multimedia :: Graphics :: Capture :: Digital Camera',
     ]
 
@@ -87,12 +89,12 @@ __extra_requires__ = {
     }
 
 if sys.version_info[:2] == (3, 2):
+    # Particular versions are required for Python 3.2 compatibility
     __extra_requires__['doc'].extend([
-        # Particular versions are required for Python 3.2 compatibility. The
-        # ordering is reversed because that's what easy_install needs...
         'Jinja2<2.7',
         'MarkupSafe<0.16',
         ])
+    __extra_requires__['test'][0] = 'coverage<4.0dev'
 
 __entry_points__ = {
     }
@@ -145,6 +147,7 @@ def main():
             entry_points         = __entry_points__,
             cmdclass             = {'install': CustomInstallCommand},
             )
+
 
 if __name__ == '__main__':
     main()

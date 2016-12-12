@@ -85,7 +85,7 @@ def mode(request, camera):
             camera.resolution = save_resolution
             camera.framerate = save_framerate
     request.addfinalizer(fin)
-    return request.param
+    return (picamera.PiResolution(*new_resolution), new_framerate)
 
 # A fixture for temporary directories which cleans them up immediately after
 # usage (the built-in tmpdir fixture only cleans up after several test runs

@@ -80,3 +80,9 @@ PiMotionAnalysis
 .. autoclass:: PiMotionAnalysis
     :no-members:
 
+
+PiArrayTransform
+================
+
+.. autoclass:: PiArrayTransform
+
