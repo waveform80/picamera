@@ -102,10 +102,16 @@ deb: $(DIST_DEB) $(DIST_DSC)
 dist: $(DIST_EGG) $(DIST_DEB) $(DIST_DSC) $(DIST_TAR) $(DIST_ZIP)
 
 develop: tags
-	@# These have to be done separately to avoid a cockup...
-	$(PIP) install -U setuptools
-	$(PIP) install -U pip
-	$(PIP) install -e .[doc,test]
+	@# Loads of stuff simply doesn't support py3.2 anymore; easiest to
+	@# install from a requirements file
+	if $(PYTHON) -V | grep "^Python 3\.2\."; then \
+		$(PIP) install -r py32dev_requirements.txt \
+		$(PYTHON) setup.py develop \
+	else \
+		$(PIP) install -U setuptools \
+		$(PIP) install -U pip \
+		$(PIP) install -e .[doc,test] \
+	fi
 
 test:
 	$(COVERAGE) run -m $(PYTEST) tests -v

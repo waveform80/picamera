@@ -88,7 +88,7 @@ def test_annotate_text(camera, previewing):
     save_value = camera.annotate_text
     try:
         camera.annotate_text = ''
-        assert camera.annotate_text == u''
+        assert camera.annotate_text == ''
         camera.annotate_text = 'foo'
         assert camera.annotate_text == u'foo'
         camera.annotate_text = 'foo bar baz quux xyzzy'
