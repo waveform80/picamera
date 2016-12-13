@@ -321,9 +321,9 @@ def open_stream(stream, output=True, buffering=65536):
             # Assume the stream is actually a buffer
             opened = True
             stream = BufferIO(stream)
-            if output and not stream.writeable:
+            if output and not stream.writable:
                 raise IOError('writeable buffer required for output')
-    return (stream, output)
+    return (stream, opened)
 
 
 def close_stream(stream, opened):
