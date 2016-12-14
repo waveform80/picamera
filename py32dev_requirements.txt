@@ -1,0 +1,13 @@
+Jinja2==2.6
+MarkupSafe==0.15
+Pillow==3.4.2
+Pygments==1.6
+Sphinx==1.2
+coverage==3.7.1
+distribute==0.6.24
+docutils==0.13.1
+mock==1.0.1
+numpy==1.11.0
+py==1.4.31
+pytest==2.8.7
+wsgiref==0.1.2
