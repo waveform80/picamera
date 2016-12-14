@@ -60,7 +60,7 @@ The diagram below roughly illustrates the architecture of the system:
 .. image:: images/camera_architecture.*
     :align: center
 
-The other important factor influencing sensor counts, other than line read-out
+The other important factor influencing sensor counts, aside from line read-out
 time, is the sensor's gain. Specifically, the gain given the by
 :attr:`~PiCamera.analog_gain` attribute. The corresponding
 :attr:`~PiCamera.digital_gain` attribute refers to a manipulation of the sensor
@@ -113,7 +113,7 @@ time:
     >>> camera.exposure_speed
     3318
 
-Now, force the camera to use a higher gain by setting ISO too 800. If you have
+Now, force the camera to use a higher gain by setting ISO to 800. If you have
 the preview running, you'll see very little difference in the scene. However,
 if you subsequently query the exposure time you'll find the firmware has
 drastically reduced it to compensate for the higher sensor gain:

@@ -292,6 +292,17 @@
          result="composite2"
          id="feComposite5441" />
     </filter>
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath4286">
+      <rect
+         y="169.81398"
+         x="382.07797"
+         height="26.933655"
+         width="113.00325"
+         id="rect4288"
+         style="color:#000000;clip-rule:nonzero;display:inline;overflow:visible;visibility:visible;opacity:1;isolation:auto;mix-blend-mode:normal;color-interpolation:sRGB;color-interpolation-filters:linearRGB;solid-color:#000000;solid-opacity:1;fill:#ffffff;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;color-rendering:auto;image-rendering:auto;shape-rendering:auto;text-rendering:auto;enable-background:accumulate" />
+    </clipPath>
   </defs>
   <sodipodi:namedview
      id="base"
@@ -300,9 +311,9 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="1.4"
-     inkscape:cx="330.90428"
-     inkscape:cy="180.99165"
+     inkscape:zoom="1.979899"
+     inkscape:cx="226.81657"
+     inkscape:cy="163.52241"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="false"
@@ -532,120 +543,6 @@
          cy="174.42096"
          r="10.227794" />
     </g>
-    <rect
-       style="color:#000000;clip-rule:nonzero;display:inline;overflow:visible;visibility:visible;opacity:1;isolation:auto;mix-blend-mode:normal;color-interpolation:sRGB;color-interpolation-filters:linearRGB;solid-color:#000000;solid-opacity:1;fill:#ffffff;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;color-rendering:auto;image-rendering:auto;shape-rendering:auto;text-rendering:auto;enable-background:accumulate"
-       id="rect4190"
-       width="113.00325"
-       height="26.933655"
-       x="382.07797"
-       y="169.81398" />
-    <g
-       id="g5416"
-       transform="translate(-37.285714,7.1428571)">
-      <g
-         transform="translate(-14.72516,8.7193621)"
-         id="g5166">
-        <g
-           id="g5007"
-           clip-path="url(#clipPath5099)">
-          <rect
-             inkscape:tile-y0="155.33153"
-             inkscape:tile-x0="431.25"
-             inkscape:tile-h="1.5817659"
-             inkscape:tile-w="121.81634"
-             inkscape:tile-cy="156.12241"
-             inkscape:tile-cx="492.15817"
-             y="155.33153"
-             x="431.25"
-             height="1.5817659"
-             width="121.81634"
-             id="rect4989"
-             style="color:#000000;clip-rule:nonzero;display:inline;overflow:visible;visibility:visible;opacity:1;isolation:auto;mix-blend-mode:normal;color-interpolation:sRGB;color-interpolation-filters:linearRGB;solid-color:#000000;solid-opacity:1;fill:#dadada;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;color-rendering:auto;image-rendering:auto;shape-rendering:auto;text-rendering:auto;enable-background:accumulate" />
-          <use
-             id="use4993"
-             transform="translate(0,3.1635318)"
-             xlink:href="#rect4989"
-             inkscape:tiled-clone-of="#rect4989"
-             y="0"
-             x="0"
-             width="100%"
-             height="100%" />
-          <use
-             id="use4995"
-             transform="translate(0,6.3270636)"
-             xlink:href="#rect4989"
-             inkscape:tiled-clone-of="#rect4989"
-             y="0"
-             x="0"
-             width="100%"
-             height="100%" />
-          <use
-             id="use4997"
-             transform="translate(0,9.4905953)"
-             xlink:href="#rect4989"
-             inkscape:tiled-clone-of="#rect4989"
-             y="0"
-             x="0"
-             width="100%"
-             height="100%" />
-          <use
-             id="use4999"
-             transform="translate(0,12.654127)"
-             xlink:href="#rect4989"
-             inkscape:tiled-clone-of="#rect4989"
-             y="0"
-             x="0"
-             width="100%"
-             height="100%" />
-          <use
-             id="use5001"
-             transform="translate(0,15.817659)"
-             xlink:href="#rect4989"
-             inkscape:tiled-clone-of="#rect4989"
-             y="0"
-             x="0"
-             width="100%"
-             height="100%" />
-          <use
-             id="use5003"
-             transform="translate(0,18.981191)"
-             xlink:href="#rect4989"
-             inkscape:tiled-clone-of="#rect4989"
-             y="0"
-             x="0"
-             width="100%"
-             height="100%" />
-          <use
-             id="use5005"
-             transform="translate(0,22.144722)"
-             xlink:href="#rect4989"
-             inkscape:tiled-clone-of="#rect4989"
-             y="0"
-             x="0"
-             width="100%"
-             height="100%" />
-        </g>
-        <rect
-           y="153.95177"
-           x="434.08884"
-           height="26.933655"
-           width="113.00325"
-           id="rect5105"
-           style="color:#000000;clip-rule:nonzero;display:inline;overflow:visible;visibility:visible;opacity:1;isolation:auto;mix-blend-mode:normal;color-interpolation:sRGB;color-interpolation-filters:linearRGB;solid-color:#000000;solid-opacity:1;fill:#3965d4;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;color-rendering:auto;image-rendering:auto;shape-rendering:auto;text-rendering:auto;enable-background:accumulate"
-           clip-path="url(#clipPath5158)" />
-      </g>
-      <text
-         sodipodi:linespacing="125%"
-         id="text4192"
-         y="182.50819"
-         x="432.11957"
-         style="color:#000000;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:17.5px;line-height:125%;font-family:sans-serif;text-indent:0;text-align:start;text-decoration:none;text-decoration-line:none;text-decoration-style:solid;text-decoration-color:#000000;letter-spacing:0px;word-spacing:0px;text-transform:none;direction:ltr;block-progression:tb;writing-mode:lr-tb;baseline-shift:baseline;text-anchor:start;white-space:normal;clip-rule:nonzero;display:inline;overflow:visible;visibility:visible;opacity:1;isolation:auto;mix-blend-mode:normal;color-interpolation:sRGB;color-interpolation-filters:linearRGB;solid-color:#000000;solid-opacity:1;fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;color-rendering:auto;image-rendering:auto;shape-rendering:auto;text-rendering:auto;enable-background:accumulate"
-         xml:space="preserve"><tspan
-           y="182.50819"
-           x="432.11957"
-           id="tspan4194"
-           sodipodi:role="line">MIPI CSI-2</tspan></text>
-    </g>
     <text
        xml:space="preserve"
        style="color:#000000;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:15px;line-height:125%;font-family:sans-serif;text-indent:0;text-align:start;text-decoration:none;text-decoration-line:none;text-decoration-style:solid;text-decoration-color:#000000;letter-spacing:0px;word-spacing:0px;text-transform:none;direction:ltr;block-progression:tb;writing-mode:lr-tb;baseline-shift:baseline;text-anchor:start;white-space:normal;clip-rule:nonzero;display:inline;overflow:visible;visibility:visible;opacity:1;isolation:auto;mix-blend-mode:normal;color-interpolation:sRGB;color-interpolation-filters:linearRGB;solid-color:#000000;solid-opacity:1;fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;color-rendering:auto;image-rendering:auto;shape-rendering:auto;text-rendering:auto;enable-background:accumulate"
@@ -658,10 +555,11 @@
          x="327.12683"
          y="303.73993">128Mb</tspan></text>
     <path
-       style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:2, 1;stroke-dashoffset:0;stroke-opacity:1"
-       d="m 215.25243,70.060643 0,186.373147 98.99495,18.18275 0,50.50762"
+       style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:1;stroke-linecap:round;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:3, 3;stroke-dashoffset:0;stroke-opacity:1"
+       d="m 215.25243,70.060643 0,170.373147 c -0.0842,40.73351 99.0485,8.28861 98.99495,44.18275 l 0,40.50762"
        id="path5310"
-       inkscape:connector-curvature="0" />
+       inkscape:connector-curvature="0"
+       sodipodi:nodetypes="cccc" />
     <g
        id="g4967"
        transform="translate(-37.285714,7.1428571)">
@@ -714,5 +612,120 @@
          x="442.4415"
          y="220.95154"
          id="tspan5338">1Gbps per lane</tspan></text>
+    <g
+       id="g4308">
+      <rect
+         y="169.81398"
+         x="382.07797"
+         height="26.933655"
+         width="113.00325"
+         id="rect4190"
+         style="color:#000000;clip-rule:nonzero;display:inline;overflow:visible;visibility:visible;opacity:1;isolation:auto;mix-blend-mode:normal;color-interpolation:sRGB;color-interpolation-filters:linearRGB;solid-color:#000000;solid-opacity:1;fill:#ffffff;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;color-rendering:auto;image-rendering:auto;shape-rendering:auto;text-rendering:auto;enable-background:accumulate" />
+      <g
+         clip-path="url(#clipPath4286)"
+         id="g4276">
+        <rect
+           style="color:#000000;clip-rule:nonzero;display:inline;overflow:visible;visibility:visible;opacity:1;isolation:auto;mix-blend-mode:normal;color-interpolation:sRGB;color-interpolation-filters:linearRGB;solid-color:#000000;solid-opacity:1;fill:#dadada;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;color-rendering:auto;image-rendering:auto;shape-rendering:auto;text-rendering:auto;enable-background:accumulate"
+           id="rect4989"
+           width="121.81634"
+           height="1.5817659"
+           x="379.23914"
+           y="171.19374"
+           inkscape:tile-cx="492.15817"
+           inkscape:tile-cy="156.12241"
+           inkscape:tile-w="121.81634"
+           inkscape:tile-h="1.5817659"
+           inkscape:tile-x0="431.25"
+           inkscape:tile-y0="155.33153" />
+        <use
+           height="100%"
+           width="100%"
+           x="0"
+           y="0"
+           inkscape:tiled-clone-of="#rect4989"
+           xlink:href="#rect4989"
+           transform="translate(0,3.1635318)"
+           id="use4993" />
+        <use
+           height="100%"
+           width="100%"
+           x="0"
+           y="0"
+           inkscape:tiled-clone-of="#rect4989"
+           xlink:href="#rect4989"
+           transform="translate(0,6.3270636)"
+           id="use4995" />
+        <use
+           height="100%"
+           width="100%"
+           x="0"
+           y="0"
+           inkscape:tiled-clone-of="#rect4989"
+           xlink:href="#rect4989"
+           transform="translate(0,9.4905953)"
+           id="use4997" />
+        <use
+           height="100%"
+           width="100%"
+           x="0"
+           y="0"
+           inkscape:tiled-clone-of="#rect4989"
+           xlink:href="#rect4989"
+           transform="translate(0,12.654127)"
+           id="use4999" />
+        <use
+           height="100%"
+           width="100%"
+           x="0"
+           y="0"
+           inkscape:tiled-clone-of="#rect4989"
+           xlink:href="#rect4989"
+           transform="translate(0,15.817659)"
+           id="use5001" />
+        <use
+           height="100%"
+           width="100%"
+           x="0"
+           y="0"
+           inkscape:tiled-clone-of="#rect4989"
+           xlink:href="#rect4989"
+           transform="translate(0,18.981191)"
+           id="use5003" />
+        <use
+           height="100%"
+           width="100%"
+           x="0"
+           y="0"
+           inkscape:tiled-clone-of="#rect4989"
+           xlink:href="#rect4989"
+           transform="translate(0,22.144722)"
+           id="use5005" />
+      </g>
+      <text
+         sodipodi:linespacing="125%"
+         id="text4192"
+         y="189.65105"
+         x="394.83386"
+         style="color:#000000;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:17.5px;line-height:125%;font-family:sans-serif;text-indent:0;text-align:start;text-decoration:none;text-decoration-line:none;text-decoration-style:solid;text-decoration-color:#000000;letter-spacing:0px;word-spacing:0px;text-transform:none;direction:ltr;block-progression:tb;writing-mode:lr-tb;baseline-shift:baseline;text-anchor:start;white-space:normal;clip-rule:nonzero;display:inline;overflow:visible;visibility:visible;opacity:1;isolation:auto;mix-blend-mode:normal;color-interpolation:sRGB;color-interpolation-filters:linearRGB;solid-color:#000000;solid-opacity:1;fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;color-rendering:auto;image-rendering:auto;shape-rendering:auto;text-rendering:auto;enable-background:accumulate"
+         xml:space="preserve"><tspan
+           y="189.65105"
+           x="394.83386"
+           id="tspan4194"
+           sodipodi:role="line">MIPI CSI-2</tspan></text>
+      <rect
+         y="169.81398"
+         x="382.07797"
+         height="26.933661"
+         width="8.586297"
+         id="rect4290"
+         style="color:#000000;clip-rule:nonzero;display:inline;overflow:visible;visibility:visible;opacity:1;isolation:auto;mix-blend-mode:normal;color-interpolation:sRGB;color-interpolation-filters:linearRGB;solid-color:#000000;solid-opacity:1;fill:#2377d2;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:2, 1;stroke-dashoffset:0;stroke-opacity:1;color-rendering:auto;image-rendering:auto;shape-rendering:auto;text-rendering:auto;enable-background:accumulate" />
+      <rect
+         style="color:#000000;clip-rule:nonzero;display:inline;overflow:visible;visibility:visible;opacity:1;isolation:auto;mix-blend-mode:normal;color-interpolation:sRGB;color-interpolation-filters:linearRGB;solid-color:#000000;solid-opacity:1;fill:#2377d2;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:2, 1;stroke-dashoffset:0;stroke-opacity:1;color-rendering:auto;image-rendering:auto;shape-rendering:auto;text-rendering:auto;enable-background:accumulate"
+         id="rect4306"
+         width="8.586297"
+         height="26.933661"
+         x="486.49493"
+         y="169.81398" />
+    </g>
   </g>
 </svg>
