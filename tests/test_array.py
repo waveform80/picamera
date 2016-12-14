@@ -188,16 +188,21 @@ def test_yuv_analysis1(camera, mode):
     if resolution == (2592, 1944):
         pytest.xfail('Cannot encode video at max resolution')
     class YUVTest(picamera.array.PiYUVAnalysis):
-        def analyse(self, a):
+        def __init__(self, camera):
+            super(YUVTest, self).__init__(camera)
+            self.write_called = False
+        def analyze(self, a):
+            self.write_called = True
             assert a.shape == (resolution[1], resolution[0], 3)
     with YUVTest(camera) as stream:
         camera.start_recording(stream, 'yuv')
         camera.wait_recording(1)
         camera.stop_recording()
+        assert stream.write_called
 
 def test_yuv_analysis2(fake_cam):
     class YUVTest(picamera.array.PiYUVAnalysis):
-        def analyse(self, a):
+        def analyze(self, a):
             assert (a[..., 0] == 1).all()
             assert (a[..., 1] == 2).all()
             assert (a[..., 2] == 3).all()
@@ -211,16 +216,21 @@ def test_rgb_analysis1(camera, mode):
     if resolution == (2592, 1944):
         pytest.xfail('Cannot encode video at max resolution')
     class RGBTest(picamera.array.PiRGBAnalysis):
-        def analyse(self, a):
+        def __init__(self, camera):
+            super(RGBTest, self).__init__(camera)
+            self.write_called = False
+        def analyze(self, a):
+            self.write_called = True
             assert a.shape == (resolution[1], resolution[0], 3)
     with RGBTest(camera) as stream:
         camera.start_recording(stream, 'rgb')
         camera.wait_recording(1)
         camera.stop_recording()
+        assert stream.write_called
 
 def test_rgb_analysis2(fake_cam):
     class RGBTest(picamera.array.PiRGBAnalysis):
-        def analyse(self, a):
+        def analyze(self, a):
             assert (a[..., 0] == 1).all()
             assert (a[..., 1] == 2).all()
             assert (a[..., 2] == 3).all()
@@ -236,12 +246,17 @@ def test_motion_analysis1(camera, mode):
     width = ((resolution[0] + 15) // 16) + 1
     height = (resolution[1] + 15) // 16
     class MATest(picamera.array.PiMotionAnalysis):
-        def analyse(self, a):
+        def __init__(self, camera):
+            super(MATest, self).__init__(camera)
+            self.write_called = False
+        def analyze(self, a):
+            self.write_called = True
             assert a.shape == (height, width)
     with MATest(camera) as stream:
         camera.start_recording('/dev/null', 'h264', motion_output=stream)
         camera.wait_recording(1)
         camera.stop_recording()
+        assert stream.write_called
 
 def test_motion_analysis2(camera, mode):
     resolution, framerate = mode
@@ -252,13 +267,18 @@ def test_motion_analysis2(camera, mode):
     width = ((resize[0] + 15) // 16) + 1
     height = (resize[1] + 15) // 16
     class MATest(picamera.array.PiMotionAnalysis):
-        def analyse(self, a):
+        def __init__(self, camera, size):
+            super(MATest, self).__init__(camera, size)
+            self.write_called = False
+        def analyze(self, a):
+            self.write_called = True
             assert a.shape == (height, width)
     with MATest(camera, size=resize) as stream:
         camera.start_recording(
             '/dev/null', 'h264', motion_output=stream, resize=resize)
         camera.wait_recording(1)
         camera.stop_recording()
+        assert stream.write_called
 
 def test_overlay_array1(camera, mode):
     resolution, framerate = mode
@@ -288,4 +308,20 @@ def test_overlay_array2(camera, mode):
     assert camera.overlays[0].layer == 3
     camera.remove_overlay(overlay)
     assert not camera.overlays
+
+def test_bayer_bad(camera):
+    stream = picamera.array.PiBayerArray(camera)
+    stream.write(b'\x00' * 12000000)
+    with pytest.raises(picamera.PiCameraValueError):
+        stream.flush()
+
+def test_array_writable(camera):
+    stream = picamera.array.PiRGBArray(camera)
+    assert stream.writable
+
+def test_array_no_analyze(camera):
+    stream = picamera.array.PiRGBAnalysis(camera)
+    res = camera.resolution.pad()
+    with pytest.raises(NotImplementedError):
+        stream.write(b'\x00' * (res.width * res.height * 3))
 

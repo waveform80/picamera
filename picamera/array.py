@@ -528,7 +528,7 @@ class PiAnalysisOutput(io.IOBase):
         self.camera = camera
         self.size = size
 
-    def writeable(self):
+    def writable(self):
         return True
 
     def write(self, b):
