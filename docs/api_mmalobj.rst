@@ -92,8 +92,8 @@ MMAL operates on the principle of pipelines:
     amount of data copying that *actually* occurs, but as a mental model of
     what's going on it's reasonable).
 
-  - Components take buffers from their input port(s), process them, and emit
-    buffers from their output port(s).
+  - Components take buffers from their input port(s), process them, and write
+    the result into a buffer from the output port(s).
 
 
 Components
@@ -520,11 +520,11 @@ of how picamera operates under the hood.
 
 The major difference between picamera and a "typical" MMAL setup is that upon
 construction, the :class:`~picamera.PiCamera` class constructs both a
-:class:`MMALCamera` (accessible as ``_camera``) *and* and a
-:class:`MMALSplitter` (accessible as ``_splitter``). The splitter remains
-permanently attached to the camera's video port (output port 1). Furthermore,
-there's *always* something connected to the camera's preview port; by default
-it's a :class:`MMALNullSink` component which is switched with a
+:class:`MMALCamera` (accessible as ``camera._camera``) *and* a
+:class:`MMALSplitter` (accessible as ``camera._splitter``). The splitter
+remains permanently attached to the camera's video port (output port 1).
+Furthermore, there's *always* something connected to the camera's preview port;
+by default it's a :class:`MMALNullSink` component which is switched with a
 :class:`MMALRenderer` when the preview is started.
 
 Encoders are constructed and destroyed as required by calls to
@@ -543,9 +543,8 @@ Before we move onto the pure Python components it's worth mentioning the
 debugging capabilities built into ``mmalobj``. Firstly, most objects have
 useful :func:`repr` outputs (in particular, it can be useful to simply "print"
 a :class:`MMALBuffer` to see what flags it's got and how much data is stored in
-it). Also, there's the :func:`print_pipeline` function. Give this an output
-port and it'll dump a human-readable version of your pipeline leading to that
-output:
+it). Also, there's the :func:`print_pipeline` function. Give this a port and
+it'll dump a human-readable version of your pipeline leading up to that port:
 
 .. code-block:: pycon
 

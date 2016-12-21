@@ -114,7 +114,7 @@ develop: tags
 	fi
 
 test:
-	$(COVERAGE) run -m $(PYTEST) tests -v
+	$(COVERAGE) run --rcfile coverage.cfg -m $(PYTEST) tests -v
 	$(COVERAGE) report --rcfile coverage.cfg
 
 clean:

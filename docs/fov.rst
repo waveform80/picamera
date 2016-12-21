@@ -61,7 +61,7 @@ The diagram below roughly illustrates the architecture of the system:
     :align: center
 
 The other important factor influencing sensor counts, aside from line read-out
-time, is the sensor's gain. Specifically, the gain given the by
+time, is the sensor's gain. Specifically, the gain given by the
 :attr:`~PiCamera.analog_gain` attribute. The corresponding
 :attr:`~PiCamera.digital_gain` attribute refers to a manipulation of the sensor
 counts done in the GPU after frame read-out has completed (i.e.

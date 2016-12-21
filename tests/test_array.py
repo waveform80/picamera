@@ -317,7 +317,7 @@ def test_bayer_bad(camera):
 
 def test_array_writable(camera):
     stream = picamera.array.PiRGBArray(camera)
-    assert stream.writable
+    assert stream.writable()
 
 def test_array_no_analyze(camera):
     stream = picamera.array.PiRGBAnalysis(camera)
@@ -325,3 +325,6 @@ def test_array_no_analyze(camera):
     with pytest.raises(NotImplementedError):
         stream.write(b'\x00' * (res.width * res.height * 3))
 
+def test_analysis_writable(camera):
+    stream = picamera.array.PiRGBAnalysis(camera)
+    assert stream.writable()
