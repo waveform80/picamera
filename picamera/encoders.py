@@ -619,46 +619,122 @@ class PiVideoEncoder(PiEncoder):
         if not (0 <= bitrate <= limit):
             raise PiCameraValueError(
                 'bitrate must be between 0 and %.1fMbps' % (bitrate / 1000000))
-        self.output_port.bitrate = bitrate
-        self.output_port.framerate = 0
-        self.output_port.commit()
 
         if format == 'h264':
-            limit = 522240 if level == '4.2' else 245760
-            w, h = self.output_port.framesize
-            w = bcm_host.VCOS_ALIGN_UP(w, 16) >> 4
-            h = bcm_host.VCOS_ALIGN_UP(h, 16) >> 4
-            if self.parent:
-                framerate = self.parent.framerate + self.parent.framerate_delta
-            else:
-                framerate = self.input_port.framerate
-            if w * h * framerate > limit:
-                raise PiCameraValueError(
-                    'too many macroblocks/s requested; reduce resolution or '
-                    'framerate')
-            mp = mmal.MMAL_PARAMETER_VIDEO_PROFILE_T(
-                    mmal.MMAL_PARAMETER_HEADER_T(
-                        mmal.MMAL_PARAMETER_PROFILE,
-                        ct.sizeof(mmal.MMAL_PARAMETER_VIDEO_PROFILE_T),
-                        ),
-                    )
             try:
-                mp.profile[0].profile = {
+                profile = {
                     'baseline':    mmal.MMAL_VIDEO_PROFILE_H264_BASELINE,
                     'main':        mmal.MMAL_VIDEO_PROFILE_H264_MAIN,
+                    'extended':    mmal.MMAL_VIDEO_PROFILE_H264_EXTENDED,
                     'high':        mmal.MMAL_VIDEO_PROFILE_H264_HIGH,
                     'constrained': mmal.MMAL_VIDEO_PROFILE_H264_CONSTRAINED_BASELINE,
                     }[profile]
             except KeyError:
                 raise PiCameraValueError("Invalid H.264 profile %s" % profile)
             try:
-                mp.profile[0].level = {
+                level = {
+                    '1':   mmal.MMAL_VIDEO_LEVEL_H264_1,
+                    '1b':  mmal.MMAL_VIDEO_LEVEL_H264_1b,
+                    '1.1': mmal.MMAL_VIDEO_LEVEL_H264_11,
+                    '1.2': mmal.MMAL_VIDEO_LEVEL_H264_12,
+                    '1.3': mmal.MMAL_VIDEO_LEVEL_H264_13,
+                    '2':   mmal.MMAL_VIDEO_LEVEL_H264_2,
+                    '2.1': mmal.MMAL_VIDEO_LEVEL_H264_21,
+                    '2.2': mmal.MMAL_VIDEO_LEVEL_H264_22,
+                    '3':   mmal.MMAL_VIDEO_LEVEL_H264_3,
+                    '3.1': mmal.MMAL_VIDEO_LEVEL_H264_31,
+                    '3.2': mmal.MMAL_VIDEO_LEVEL_H264_32,
                     '4':   mmal.MMAL_VIDEO_LEVEL_H264_4,
                     '4.1': mmal.MMAL_VIDEO_LEVEL_H264_41,
                     '4.2': mmal.MMAL_VIDEO_LEVEL_H264_42,
                     }[level]
             except KeyError:
                 raise PiCameraValueError("Invalid H.264 level %s" % level)
+
+            # From https://en.wikipedia.org/wiki/H.264/MPEG-4_AVC#Levels
+            bitrate_limit = {
+                # level, high-profile:  bitrate
+                (mmal.MMAL_VIDEO_LEVEL_H264_1,  False): 64000,
+                (mmal.MMAL_VIDEO_LEVEL_H264_1b, False): 128000,
+                (mmal.MMAL_VIDEO_LEVEL_H264_11, False): 192000,
+                (mmal.MMAL_VIDEO_LEVEL_H264_12, False): 384000,
+                (mmal.MMAL_VIDEO_LEVEL_H264_13, False): 768000,
+                (mmal.MMAL_VIDEO_LEVEL_H264_2,  False): 2000000,
+                (mmal.MMAL_VIDEO_LEVEL_H264_21, False): 4000000,
+                (mmal.MMAL_VIDEO_LEVEL_H264_22, False): 4000000,
+                (mmal.MMAL_VIDEO_LEVEL_H264_3,  False): 10000000,
+                (mmal.MMAL_VIDEO_LEVEL_H264_31, False): 14000000,
+                (mmal.MMAL_VIDEO_LEVEL_H264_32, False): 20000000,
+                (mmal.MMAL_VIDEO_LEVEL_H264_4,  False): 20000000,
+                (mmal.MMAL_VIDEO_LEVEL_H264_41, False): 50000000,
+                (mmal.MMAL_VIDEO_LEVEL_H264_42, False): 50000000,
+                (mmal.MMAL_VIDEO_LEVEL_H264_1,  True):  80000,
+                (mmal.MMAL_VIDEO_LEVEL_H264_1b, True):  160000,
+                (mmal.MMAL_VIDEO_LEVEL_H264_11, True):  240000,
+                (mmal.MMAL_VIDEO_LEVEL_H264_12, True):  480000,
+                (mmal.MMAL_VIDEO_LEVEL_H264_13, True):  960000,
+                (mmal.MMAL_VIDEO_LEVEL_H264_2,  True):  2500000,
+                (mmal.MMAL_VIDEO_LEVEL_H264_21, True):  5000000,
+                (mmal.MMAL_VIDEO_LEVEL_H264_22, True):  5000000,
+                (mmal.MMAL_VIDEO_LEVEL_H264_3,  True):  12500000,
+                (mmal.MMAL_VIDEO_LEVEL_H264_31, True):  17500000,
+                (mmal.MMAL_VIDEO_LEVEL_H264_32, True):  25000000,
+                (mmal.MMAL_VIDEO_LEVEL_H264_4,  True):  25000000,
+                (mmal.MMAL_VIDEO_LEVEL_H264_41, True):  62500000,
+                (mmal.MMAL_VIDEO_LEVEL_H264_42, True):  62500000,
+                }[level, profile == mmal.MMAL_VIDEO_PROFILE_H264_HIGH]
+            if bitrate > bitrate_limit:
+                raise PiCameraValueError(
+                    'bitrate %d exceeds %d which is the limit for the '
+                    'selected H.264 level and profile' %
+                    (bitrate, bitrate_limit))
+            self.output_port.bitrate = bitrate
+            self.output_port.commit()
+
+            # Again, from https://en.wikipedia.org/wiki/H.264/MPEG-4_AVC#Levels
+            macroblocks_per_s_limit, macroblocks_limit = {
+                #level: macroblocks/s, macroblocks
+                mmal.MMAL_VIDEO_LEVEL_H264_1:  (1485,   99),
+                mmal.MMAL_VIDEO_LEVEL_H264_1b: (1485,   99),
+                mmal.MMAL_VIDEO_LEVEL_H264_11: (3000,   396),
+                mmal.MMAL_VIDEO_LEVEL_H264_12: (6000,   396),
+                mmal.MMAL_VIDEO_LEVEL_H264_13: (11880,  396),
+                mmal.MMAL_VIDEO_LEVEL_H264_2:  (11880,  396),
+                mmal.MMAL_VIDEO_LEVEL_H264_21: (19800,  792),
+                mmal.MMAL_VIDEO_LEVEL_H264_22: (20250,  1620),
+                mmal.MMAL_VIDEO_LEVEL_H264_3:  (40500,  1620),
+                mmal.MMAL_VIDEO_LEVEL_H264_31: (108000, 3600),
+                mmal.MMAL_VIDEO_LEVEL_H264_32: (216000, 5120),
+                mmal.MMAL_VIDEO_LEVEL_H264_4:  (245760, 8192),
+                mmal.MMAL_VIDEO_LEVEL_H264_41: (245760, 8192),
+                mmal.MMAL_VIDEO_LEVEL_H264_42: (522240, 8704),
+                }[level]
+            w, h = self.output_port.framesize
+            w = bcm_host.VCOS_ALIGN_UP(w, 16) >> 4
+            h = bcm_host.VCOS_ALIGN_UP(h, 16) >> 4
+            if w * h > macroblocks_limit:
+                raise PiCameraValueError(
+                    'output resolution %s exceeds macroblock limit (%d) for '
+                    'the selected H.264 profile and level' %
+                    (self.output_port.framesize, macroblocks_limit))
+            if self.parent:
+                framerate = self.parent.framerate + self.parent.framerate_delta
+            else:
+                framerate = self.input_port.framerate
+            if w * h * framerate > macroblocks_per_s_limit:
+                raise PiCameraValueError(
+                    'output resolution and framerate exceeds macroblocks/s '
+                    'limit (%d) for the selected H.264 profile and '
+                    'level' % macroblocks_per_s_limit)
+
+            mp = mmal.MMAL_PARAMETER_VIDEO_PROFILE_T(
+                    mmal.MMAL_PARAMETER_HEADER_T(
+                        mmal.MMAL_PARAMETER_PROFILE,
+                        ct.sizeof(mmal.MMAL_PARAMETER_VIDEO_PROFILE_T),
+                        ),
+                    )
+            mp.profile[0].profile = profile
+            mp.profile[0].level = level
             self.output_port.params[mmal.MMAL_PARAMETER_PROFILE] = mp
 
             if inline_headers:
@@ -694,6 +770,8 @@ class PiVideoEncoder(PiEncoder):
                 self.output_port.params[mmal.MMAL_PARAMETER_VIDEO_INTRA_REFRESH] = mp
 
         elif format == 'mjpeg':
+            self.output_port.bitrate = bitrate
+            self.output_port.commit()
             # MJPEG doesn't have an intra_period setting as such, but as every
             # frame is a full-frame, the intra_period is effectively 1
             self._intra_period = 1
