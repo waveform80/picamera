@@ -24,8 +24,8 @@ The MMAL Tour
 
 MMAL operates on the principle of pipelines:
 
-* A pipeline consists of one or more MMAL components (:class:`MMALBaseComponent`)
-  connected together in series.
+* A pipeline consists of one or more MMAL components
+  (:class:`MMALBaseComponent`) connected together in series.
 
 * A component (:class:`MMALBaseComponent`) has one or more ports.
 
@@ -637,7 +637,7 @@ results into buffers obtained from the preview's input port. In other words
 there's really *two* (very short) MMAL pipelines with a hunk of Python running
 in between them. If ``mmalobj`` does its job properly you shouldn't need to
 worry about this implementation detail but it's worth bearing in mind from the
-perspective of performance. 
+perspective of performance.
 
 
 Performance Hints

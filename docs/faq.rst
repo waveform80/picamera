@@ -320,3 +320,26 @@ camera, which handles disseminating captured frames to other processes via a
 
 .. literalinclude:: examples/multiproc_camera.py
 
+VLC won't play back MJPEG recordings
+====================================
+
+`MJPEG`_ is a particularly ill-defined format (see "`Disadvantages`_") which
+results in compatibility issues between software that purports to produce MJPEG
+files, and software that purports to play MJPEG files. This is one such case:
+the Pi's camera firmware produces an MJPEG file which simply consists of
+concatenated JPEGs; this is reasonably common on other devices and webcams, and
+is a nice simple format which makes parsing particularly easy (see
+:ref:`web_streaming` for an example).
+
+Unfortunately, VLC doesn't recognize this as a valid MJPEG file: it thinks it's
+a single JPEG image and doesn't bother reading the rest of the file (which is
+also a reasonable interpretation in the absence of any other information).
+Thankfully, extra command line switches can be provided to give it a hint that
+there's more to read in the file:
+
+.. code-block:: console
+
+    $ vlc --demux=mjpeg --mjpeg-fps=30 my_recording.mjpeg
+
+.. _MJPEG: https://en.wikipedia.org/wiki/Motion_JPEG
+.. _Disadvantages: https://en.wikipedia.org/wiki/Motion_JPEG#Disadvantages
