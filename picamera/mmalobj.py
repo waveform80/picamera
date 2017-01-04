@@ -1641,7 +1641,7 @@ class MMALConnection(MMALObject):
 
     The connection will automatically negotiate the most efficient format
     supported by both ports (implicitly handling the incompatibility of some
-    OPAQUE sub-formats). See :ref:`under_the_hood` for more information.
+    OPAQUE sub-formats). See :ref:`mmal` for more information.
     """
     __slots__ = ('_connection',)
 

@@ -934,11 +934,11 @@ class PiCamera(object):
         additional options:
 
         * *profile* - The H.264 profile to use for encoding. Defaults to
-          'high', but can be one of 'baseline', 'main', 'high', or
+          'high', but can be one of 'baseline', 'main', 'extended', 'high', or
           'constrained'.
 
-        * *level* - The H.264 level to use for encoding. Defaults to '4', but
-          can be one of '4', '4.1', or '4.2'.
+        * *level* - The `H.264 level`_ to use for encoding. Defaults to '4',
+          but can be any H.264 level up to '4.2'.
 
         * *intra_period* - The key frame rate (the rate at which I-frames are
           inserted in the output). Defaults to ``None``, but can be any 32-bit
@@ -970,10 +970,10 @@ class PiCamera(object):
         All encoded formats accept the following additional options:
 
         * *bitrate* - The bitrate at which video will be encoded. Defaults to
-          17000000 (17Mbps) if not specified.  The maximum value is 25000000
-          (25Mbps), except for H.264 level 4.2 for which the maximum is
-          62500000 (62.5Mbps). Bitrate 0 indicates the encoder should not use
-          bitrate control (the encoder is limited by the quality only).
+          17000000 (17Mbps) if not specified. The maximum value depends on the
+          selected `H.264 level`_ and profile. Bitrate 0 indicates the encoder
+          should not use bitrate control (the encoder is limited by the quality
+          only).
 
         * *quality* - Specifies the quality that the encoder should attempt
           to maintain. For the ``'h264'`` format, use values between 10 and 40
@@ -998,6 +998,8 @@ class PiCamera(object):
 
         .. versionchanged:: 1.11
             Support for buffer outputs was added.
+
+        .. _H.264 level: https://en.wikipedia.org/wiki/H.264/MPEG-4_AVC#Levels
         """
         if 'quantization' in options:
             warnings.warn(
@@ -1304,8 +1306,8 @@ class PiCamera(object):
         specifies the port of the video splitter that the image encoder will be
         attached to. This defaults to ``0`` and most users will have no need to
         specify anything different. This parameter is ignored when
-        *use_video_port* is ``False``. See :ref:`under_the_hood` for more
-        information about the video splitter.
+        *use_video_port* is ``False``. See :ref:`mmal` for more information
+        about the video splitter.
 
         If *resize* is not ``None`` (the default), it must be a two-element
         tuple specifying the width and height that the image should be resized
