@@ -615,11 +615,6 @@ class PiVideoEncoder(PiEncoder):
         except KeyError:
             raise PiCameraValueError('Unsupported format %s' % format)
 
-        limit = 62500000 if format == 'h264' and level == '4.2' else 25000000
-        if not (0 <= bitrate <= limit):
-            raise PiCameraValueError(
-                'bitrate must be between 0 and %.1fMbps' % (bitrate / 1000000))
-
         if format == 'h264':
             try:
                 profile = {
@@ -634,17 +629,21 @@ class PiVideoEncoder(PiEncoder):
             try:
                 level = {
                     '1':   mmal.MMAL_VIDEO_LEVEL_H264_1,
+                    '1.0': mmal.MMAL_VIDEO_LEVEL_H264_1,
                     '1b':  mmal.MMAL_VIDEO_LEVEL_H264_1b,
                     '1.1': mmal.MMAL_VIDEO_LEVEL_H264_11,
                     '1.2': mmal.MMAL_VIDEO_LEVEL_H264_12,
                     '1.3': mmal.MMAL_VIDEO_LEVEL_H264_13,
                     '2':   mmal.MMAL_VIDEO_LEVEL_H264_2,
+                    '2.0': mmal.MMAL_VIDEO_LEVEL_H264_2,
                     '2.1': mmal.MMAL_VIDEO_LEVEL_H264_21,
                     '2.2': mmal.MMAL_VIDEO_LEVEL_H264_22,
                     '3':   mmal.MMAL_VIDEO_LEVEL_H264_3,
+                    '3.0': mmal.MMAL_VIDEO_LEVEL_H264_3,
                     '3.1': mmal.MMAL_VIDEO_LEVEL_H264_31,
                     '3.2': mmal.MMAL_VIDEO_LEVEL_H264_32,
                     '4':   mmal.MMAL_VIDEO_LEVEL_H264_4,
+                    '4.0': mmal.MMAL_VIDEO_LEVEL_H264_4,
                     '4.1': mmal.MMAL_VIDEO_LEVEL_H264_41,
                     '4.2': mmal.MMAL_VIDEO_LEVEL_H264_42,
                     }[level]
