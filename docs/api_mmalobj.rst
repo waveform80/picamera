@@ -574,13 +574,13 @@ modify frames from the camera before they reach the image or video encoder.
 The Python components are an attempt to make this request relatively simple to
 achieve from within Python.
 
-However, the means by which this is achieved are inefficient (to say the least)
-so don't expect this to work with high resolutions or framerates. The
-``mmalobj`` layer in picamera includes the concept of a "Python MMAL"
-component. To the user these components look a lot like the MMAL components
-you've been playing with above (:class:`MMALCamera`, :class:`MMALImageEncoder`,
-etc). They are instantiated in a similar manner, they have the same sort of
-ports, and they're connected using the same means as ordinary MMAL components.
+The means by which this is achieved are inefficient (to say the least) so don't
+expect this to work with high resolutions or framerates. The ``mmalobj`` layer
+in picamera includes the concept of a "Python MMAL" component. To the user
+these components look a lot like the MMAL components you've been playing with
+above (:class:`MMALCamera`, :class:`MMALImageEncoder`, etc). They are
+instantiated in a similar manner, they have the same sort of ports, and they're
+connected using the same means as ordinary MMAL components.
 
 Let's try this out by placing a transformation between the camera and a preview
 which will draw a cross over the frames going to the preview. For this we'll
@@ -684,6 +684,16 @@ to construct a :class:`MMALPythonComponent` derivative with two purposes:
 
 .. _YUV420: https://en.wikipedia.org/wiki/YUV#Y.E2.80.B2UV420p_.28and_Y.E2.80.B2V12_or_YV12.29_to_RGB888_conversion
 .. _Pillow library: https://pillow.readthedocs.io/
+
+
+IO Classes
+----------
+
+The Python MMAL components include a couple of useful IO classes:
+:class:`MMALSource` and :class:`MMALTarget`. We could have used these instead
+of messing around with output callbacks in the sections above but it was worth
+exploring how those callbacks operated first (in order to comprehend how
+Python transforms operated).
 
 
 Components
