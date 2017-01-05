@@ -428,7 +428,9 @@ components that data passes through are as follows:
 
 6. Above these components is the VPU; this is the general purpose component in
    the GPU running VCOS (ThreadX), and it is this that configures and controls
-   the other components in response to messages from VCHI.
+   the other components in response to messages from VCHI. Currently the most
+   complete documentation of the VPU is available from the `videocoreiv
+   repository`_.
 
 Feedback loops
 --------------
@@ -863,3 +865,4 @@ abstraction layers which necessarily obscure (but hopefully simplify) the
 .. _motion estimation: https://en.wikipedia.org/wiki/Motion_estimation
 .. _color balance: https://en.wikipedia.org/wiki/Color_balance
 .. _field of view: https://en.wikipedia.org/wiki/Angle_of_view
+.. _videocoreiv repository: https://github.com/hermanhermitage/videocoreiv
