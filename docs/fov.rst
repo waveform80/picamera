@@ -516,8 +516,8 @@ maintain the deliberately over-exposed appearance of the scene:
 Sensor Modes
 ============
 
-The Pi's camera modules have a discrete set of modes. On the V1 module these
-are as follows:
+The Pi's camera modules have a discrete set of modes that they can use to
+output data to the GPU. On the V1 module these are as follows:
 
 +---+------------+--------------+-------------+-------+-------+---------+---------+
 | # | Resolution | Aspect Ratio | Framerates  | Video | Image | FoV     | Binning |
@@ -557,6 +557,14 @@ On the V2 module, these are:
 | 7 | 640x480    | 4:3          | 40-90fps   | x     |       | Partial | 2x2     |
 +---+------------+--------------+------------+-------+-------+---------+---------+
 
+.. note::
+
+    These are *not* the set of possible output resolutions or framerates. These
+    are merely the set of resolutions and framerates that the *sensor* can
+    output directly to the GPU. The GPU's ISP block will resize to any
+    requested resolution (within reason). Read on for details of mode
+    selection.
+
 Modes with full `field of view`_ (FoV) capture from the whole area of the
 camera's sensor (2592x1944 pixels for the V1 camera, 3280x2464 for the V2
 camera).  Modes with partial FoV capture from the center of the sensor. The
@@ -577,47 +585,49 @@ following image:
     :width: 640px
     :align: center
 
-The input mode can be manually specified with the *sensor_mode* parameter in
-the :class:`PiCamera` constructor (using one of the values from the # column in
-the tables above). This defaults to 0 indicating that the mode should be
+The sensor's mode can be forced with the *sensor_mode* parameter in the
+:class:`PiCamera` constructor (using one of the values from the # column in the
+tables above). This parameter defaults to 0 indicating that the mode should be
 selected automatically based on the requested :attr:`~PiCamera.resolution` and
-:attr:`~PiCamera.framerate`. The rules governing which input mode is selected
+:attr:`~PiCamera.framerate`. The rules governing which sensor mode is selected
 are as follows:
 
-* The mode must be acceptable. Video modes can be used for video recording, or
-  for image captures from the video port (i.e. when *use_video_port* is
-  ``True`` in calls to the various capture methods). Image captures when
-  *use_video_port* is ``False`` must use an image mode (of which only two
-  exist, both with the maximum resolution).
+* The capture mode must be acceptable. All modes can be used for video
+  recording, or for image captures from the video port (i.e. when
+  *use_video_port* is ``True`` in calls to the various capture methods). Image
+  captures when *use_video_port* is ``False`` must use an image mode (of which
+  only two exist, both with the maximum resolution).
 
 * The closer the requested :attr:`~PiCamera.resolution` is to the mode's
-  resolution the better, but downscaling from a higher input resolution is
-  preferable to upscaling from a lower input resolution.
+  resolution the better, but downscaling from a higher sensor resolution to a
+  lower output resolution is preferable to upscaling from a lower sensor
+  resolution.
 
 * The requested :attr:`~PiCamera.framerate` should be within the range of the
-  input mode.
+  sensor mode.
 
 * The closer the aspect ratio of the requested :attr:`~PiCamera.resolution` to
   the mode's resolution, the better. Attempts to set resolutions with aspect
   ratios other than 4:3 or 16:9 (which are the only ratios directly supported
-  by the modes in the table above) will choose the mode which maximizes the
-  resulting FoV.
+  by the modes in the tables above) will choose the mode which maximizes the
+  resulting `field of view`_ (FoV).
 
 A few examples are given below to clarify the operation of this heuristic (note
 these examples assume the V1 camera module):
 
 * If you set the :attr:`~PiCamera.resolution` to 1024x768 (a 4:3 aspect ratio),
   and :attr:`~PiCamera.framerate` to anything less than 42fps, the 1296x972
-  mode will be selected, and the camera will downscale the result to 1024x768.
+  mode (4) will be selected, and the GPU will downscale the result to
+  1024x768.
 
 * If you set the :attr:`~PiCamera.resolution` to 1280x720 (a 16:9 wide-screen
   aspect ratio), and :attr:`~PiCamera.framerate` to anything less than 49fps,
-  the 1296x730 mode will be selected and downscaled appropriately.
+  the 1296x730 mode (5) will be selected and downscaled appropriately.
 
 * Setting :attr:`~PiCamera.resolution` to 1920x1080 and
   :attr:`~PiCamera.framerate` to 30fps exceeds the resolution of both the
   1296x730 and 1296x972 modes (i.e. they would require upscaling), so the
-  1920x1080 mode is selected instead, although it has a reduced FoV.
+  1920x1080 mode (1) is selected instead, despite it having a reduced FoV.
 
 * A :attr:`~PiCamera.resolution` of 800x600 and a :attr:`~PiCamera.framerate`
   of 60fps will select the 640x480 60fps mode, even though it requires
