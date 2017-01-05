@@ -2273,6 +2273,8 @@ MMAL_COMPONENT_DEFAULT_CAMERA_INFO     = b"vc.camera_info"
 # The following two components aren't in the MMAL headers, but do exist
 MMAL_COMPONENT_DEFAULT_NULL_SINK       = b"vc.null_sink"
 MMAL_COMPONENT_DEFAULT_RESIZER         = b"vc.ril.resize"
+MMAL_COMPONENT_DEFAULT_ISP             = b"vc.ril.isp"
+MMAL_COMPONENT_RAW_CAMERA              = b"vc.ril.rawcam"
 
 # util/mmal_util_params.h ####################################################
 

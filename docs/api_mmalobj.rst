@@ -713,6 +713,9 @@ Components
 .. autoclass:: MMALSplitter
     :show-inheritance:
 
+.. autoclass:: MMALConverter
+    :show-inheritance:
+
 .. autoclass:: MMALResizer
     :show-inheritance:
 

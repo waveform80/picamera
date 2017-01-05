@@ -1726,6 +1726,16 @@ class MMALConnection(MMALObject):
             return '<MMALConnection closed>'
 
 
+class MMALRawCamera(MMALBaseComponent):
+    """
+    The MMAL raw camera component.
+    """
+    __slots__ = ()
+    component_type = mmal.MMAL_COMPONENT_RAW_CAMERA
+    opaque_input_subformats = ()
+    opaque_output_subformats = ('OPQV-single',)
+
+
 class MMALCamera(MMALBaseComponent):
     """
     Represents the MMAL camera component. This component has 0 input ports and
@@ -1938,6 +1948,18 @@ class MMALSplitter(MMALComponent):
     component_type = mmal.MMAL_COMPONENT_DEFAULT_VIDEO_SPLITTER
     opaque_input_subformats = ('OPQV-single',)
     opaque_output_subformats = ('OPQV-single',) * 4
+
+
+class MMALConverter(MMALComponent):
+    """
+    Represents the MMAL ISP component. This component has 1 input port and
+    1 output port, and supports conversion of numerous formats into numerous
+    other formats (e.g. OPAQUE to RGB, etc).
+    """
+    __slots__ = ()
+    component_type = mmal.MMAL_COMPONENT_DEFAULT_ISP
+    opaque_input_subformats = ('OPQV-single',)
+    opaque_output_subformats = (None,)
 
 
 class MMALResizer(MMALComponent):
