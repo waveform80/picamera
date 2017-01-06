@@ -59,71 +59,73 @@ Exposure time
 
 What does the camera sensor *actually sense*? Quite simply photon counts; the
 more photons hit the sensor elements, the more those elements increment their
-counters. When a line of elements is read out, the counters are reset. The
-longer the line read-out time, the more photons can fall on the sensor
-elements, and the higher the counter's values.
+counters.  As our camera has no physical shutter (unlike a DSLR) we can't
+prevent light falling on the elements and incrementing the counts. In fact we
+can only perform two operations on the sensor: reset a row of elements, or read
+a row of elements.
 
-To get a feel for this, we'll walk through the reception of a couple of frames
-of data with a hypothetical camera sensor, having a mere 8x8 pixels and no
-`Bayer filter`_. The sensor is sat in bright light, but as we've just
-initialized it, all the elements start off with a count of 0:
-
-= = = = = = = = === = = = = = = = =
-Sensor elements --> Frame 1
-=============== === ===============
-0 0 0 0 0 0 0 0
-0 0 0 0 0 0 0 0
-0 0 0 0 0 0 0 0
-0 0 0 0 0 0 0 0
-0 0 0 0 0 0 0 0
-0 0 0 0 0 0 0 0
-0 0 0 0 0 0 0 0
-0 0 0 0 0 0 0 0
-= = = = = = = = === = = = = = = = =
-
-We read the first line of data (all zeros), which also resets that line to
-zero. However, whilst reading that line, light is still falling on all the
-other elements so they increment by 1:
+To get a feel for a typical frame capture, we'll walk through the reception of
+a couple of frames of data with a hypothetical camera sensor, having a mere 4x4
+pixels and no `Bayer filter`_. The sensor is sat in bright light, but as we've
+just initialized it, all the elements start off with a count of 0. The sensor's
+elements are shown on the left, and our frame buffer that we'll read values
+into is on the right:
 
 = = = = = = = = === = = = = = = = =
 Sensor elements --> Frame 1
 =============== === ===============
-0 0 0 0 0 0 0 0 --> 0 0 0 0 0 0 0 0
-1 1 1 1 1 1 1 1
-1 1 1 1 1 1 1 1
-1 1 1 1 1 1 1 1
-1 1 1 1 1 1 1 1
-1 1 1 1 1 1 1 1
-1 1 1 1 1 1 1 1
-1 1 1 1 1 1 1 1
+0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0
+0 0 0 0 0 0 0 0
 = = = = = = = = === = = = = = = = =
 
-We read out the second line of data (all ones), which resets that line to
-zero. Again, whilst reading that line, light is still falling on all the
-other elements so they increment by 1:
-
-= = = = = = = = === = = = = = = = =
-Sensor elements --> Frame 1
-=============== === ===============
-1 1 1 1 1 1 1 1     0 0 0 0 0 0 0 0
-0 0 0 0 0 0 0 0 --> 1 1 1 1 1 1 1 1
-2 2 2 2 2 2 2 2
-2 2 2 2 2 2 2 2
-2 2 2 2 2 2 2 2
-2 2 2 2 2 2 2 2
-2 2 2 2 2 2 2 2
-2 2 2 2 2 2 2 2
-= = = = = = = = === = = = = = = = =
-
-We read out the third line of data (all twos), which resets that line to
-zero. Again, all other elements increment by 1:
+We reset the first line of data (in this case that doesn't change any state).
+Whilst resetting that line, light is still falling on all the other elements
+so they increment by 1:
 
 = = = = = = = = === = = = = = = = =
 Sensor elements --> Frame 1
 =============== === ===============
-2 2 2 2 2 2 2 2     0 0 0 0 0 0 0 0
-1 1 1 1 1 1 1 1     1 1 1 1 1 1 1 1
-0 0 0 0 0 0 0 0 --> 2 2 2 2 2 2 2 2
+0 0 0 0 0 0 0 0 Rst
+1 1 1 1 1 1 1 1
+1 1 1 1 1 1 1 1
+1 1 1 1 1 1 1 1
+1 1 1 1 1 1 1 1
+1 1 1 1 1 1 1 1
+1 1 1 1 1 1 1 1
+1 1 1 1 1 1 1 1
+= = = = = = = = === = = = = = = = =
+
+We reset the second line of data (this does change some state this time). We've
+not read anything yet, but we want to leave a delay for the first row to "see"
+enough light before we read it:
+
+= = = = = = = = === = = = = = = = =
+Sensor elements --> Frame 1
+=============== === ===============
+1 1 1 1 1 1 1 1
+0 0 0 0 0 0 0 0 Rst
+2 2 2 2 2 2 2 2
+2 2 2 2 2 2 2 2
+2 2 2 2 2 2 2 2
+2 2 2 2 2 2 2 2
+2 2 2 2 2 2 2 2
+2 2 2 2 2 2 2 2
+= = = = = = = = === = = = = = = = =
+
+We reset the third line of data. Again, all other elements increment by 1:
+
+= = = = = = = = === = = = = = = = =
+Sensor elements --> Frame 1
+=============== === ===============
+2 2 2 2 2 2 2 2
+1 1 1 1 1 1 1 1
+0 0 0 0 0 0 0 0 Rst
 3 3 3 3 3 3 3 3
 3 3 3 3 3 3 3 3
 3 3 3 3 3 3 3 3
@@ -131,85 +133,103 @@ Sensor elements --> Frame 1
 3 3 3 3 3 3 3 3
 = = = = = = = = === = = = = = = = =
 
-It should be obvious at this point that our first full frame is going to be
-quite useless as it has uneven exposure (it'll be dark at the top and bright at
-the bottom), so let's fast-forward to the state at the end of the first frame:
+Now we'll start reading and resetting. We read the first line while resetting
+the fourth line:
 
 = = = = = = = = === = = = = = = = =
 Sensor elements --> Frame 1
 =============== === ===============
-7 7 7 7 7 7 7 7     0 0 0 0 0 0 0 0
-6 6 6 6 6 6 6 6     1 1 1 1 1 1 1 1
-5 5 5 5 5 5 5 5     2 2 2 2 2 2 2 2
+3 3 3 3 3 3 3 3 --> 3 3 3 3 3 3 3 3
+2 2 2 2 2 2 2 2
+1 1 1 1 1 1 1 1
+0 0 0 0 0 0 0 0 Rst
+4 4 4 4 4 4 4 4
+4 4 4 4 4 4 4 4
+4 4 4 4 4 4 4 4
+4 4 4 4 4 4 4 4
+= = = = = = = = === = = = = = = = =
+
+We read the second line while resetting the fifth:
+
+= = = = = = = = === = = = = = = = =
+Sensor elements --> Frame 1
+=============== === ===============
 4 4 4 4 4 4 4 4     3 3 3 3 3 3 3 3
-3 3 3 3 3 3 3 3     4 4 4 4 4 4 4 4
-2 2 2 2 2 2 2 2     5 5 5 5 5 5 5 5
-1 1 1 1 1 1 1 1     6 6 6 6 6 6 6 6
-0 0 0 0 0 0 0 0 --> 7 7 7 7 7 7 7 7
-= = = = = = = = === = = = = = = = =
-
-The first full frame has been received but as it has uneven exposure we need to
-throw it away. However, the sensor's counters are now "primed" with non-zero
-values. Let's continue with the reception of the second frame and see what
-happens this time. We read the first line which resets its counts:
-
-= = = = = = = = === = = = = = = = =
-Sensor elements --> Frame 2
-=============== === ===============
-0 0 0 0 0 0 0 0 --> 7 7 7 7 7 7 7 7
-7 7 7 7 7 7 7 7
-6 6 6 6 6 6 6 6
+3 3 3 3 3 3 3 3 --> 3 3 3 3 3 3 3 3
+2 2 2 2 2 2 2 2
+1 1 1 1 1 1 1 1
+0 0 0 0 0 0 0 0 Rst
 5 5 5 5 5 5 5 5
-4 4 4 4 4 4 4 4
-3 3 3 3 3 3 3 3
+5 5 5 5 5 5 5 5
+5 5 5 5 5 5 5 5
+= = = = = = = = === = = = = = = = =
+
+At this point it should be fairly clear what's going on, so let's fast-forward
+to the point where we've reset the final line:
+
+= = = = = = = = === = = = = = = = =
+Sensor elements --> Frame 1
+=============== === ===============
+7 7 7 7 7 7 7 7     3 3 3 3 3 3 3 3
+6 6 6 6 6 6 6 6     3 3 3 3 3 3 3 3
+5 5 5 5 5 5 5 5     3 3 3 3 3 3 3 3
+4 4 4 4 4 4 4 4     3 3 3 3 3 3 3 3
+3 3 3 3 3 3 3 3 --> 3 3 3 3 3 3 3 3
+2 2 2 2 2 2 2 2
+1 1 1 1 1 1 1 1
+0 0 0 0 0 0 0 0 Rst
+= = = = = = = = === = = = = = = = =
+
+At this point we can start resetting the first line again while we continue
+reading lines off the sensor:
+
+= = = = = = = = === = = = = = = = =
+Sensor elements --> Frame 1
+=============== === ===============
+0 0 0 0 0 0 0 0 Rst 3 3 3 3 3 3 3 3
+7 7 7 7 7 7 7 7     3 3 3 3 3 3 3 3
+6 6 6 6 6 6 6 6     3 3 3 3 3 3 3 3
+5 5 5 5 5 5 5 5     3 3 3 3 3 3 3 3
+4 4 4 4 4 4 4 4     3 3 3 3 3 3 3 3
+3 3 3 3 3 3 3 3 --> 3 3 3 3 3 3 3 3
 2 2 2 2 2 2 2 2
 1 1 1 1 1 1 1 1
 = = = = = = = = === = = = = = = = =
 
-We read the second line, which resets its counts (remember light is still
-falling on the other elements, incrementing them):
+Let's fast-forward to the state where we've read the last row. Our first frame
+is now complete:
+
+= = = = = = = = === = = = = = = = =
+Sensor elements --> Frame 1
+=============== === ===============
+2 2 2 2 2 2 2 2     3 3 3 3 3 3 3 3
+1 1 1 1 1 1 1 1     3 3 3 3 3 3 3 3
+0 0 0 0 0 0 0 0 Rst 3 3 3 3 3 3 3 3
+7 7 7 7 7 7 7 7     3 3 3 3 3 3 3 3
+6 6 6 6 6 6 6 6     3 3 3 3 3 3 3 3
+5 5 5 5 5 5 5 5     3 3 3 3 3 3 3 3
+4 4 4 4 4 4 4 4     3 3 3 3 3 3 3 3
+3 3 3 3 3 3 3 3 --> 3 3 3 3 3 3 3 3
+= = = = = = = = === = = = = = = = =
+
+At this stage we'd send this frame off for processing in the rest of the
+imaging pipeline and start processing the next frame into a new buffer:
 
 = = = = = = = = === = = = = = = = =
 Sensor elements --> Frame 2
 =============== === ===============
-1 1 1 1 1 1 1 1     7 7 7 7 7 7 7 7
-0 0 0 0 0 0 0 0 --> 7 7 7 7 7 7 7 7
+3 3 3 3 3 3 3 3 --> 3 3 3 3 3 3 3 3
+2 2 2 2 2 2 2 2
+1 1 1 1 1 1 1 1
+0 0 0 0 0 0 0 0 Rst
 7 7 7 7 7 7 7 7
 6 6 6 6 6 6 6 6
 5 5 5 5 5 5 5 5
 4 4 4 4 4 4 4 4
-3 3 3 3 3 3 3 3
-2 2 2 2 2 2 2 2
 = = = = = = = = === = = = = = = = =
-
-Our second frame looks like it's going to be more useful as it'll have an
-even exposure over the entire frame. Let's fast-forward to the final state:
-
-= = = = = = = = === = = = = = = = =
-Sensor elements --> Frame 2
-=============== === ===============
-7 7 7 7 7 7 7 7     7 7 7 7 7 7 7 7
-6 6 6 6 6 6 6 6     7 7 7 7 7 7 7 7
-5 5 5 5 5 5 5 5     7 7 7 7 7 7 7 7
-4 4 4 4 4 4 4 4     7 7 7 7 7 7 7 7
-3 3 3 3 3 3 3 3     7 7 7 7 7 7 7 7
-2 2 2 2 2 2 2 2     7 7 7 7 7 7 7 7
-1 1 1 1 1 1 1 1     7 7 7 7 7 7 7 7
-0 0 0 0 0 0 0 0 --> 7 7 7 7 7 7 7 7
-= = = = = = = = === = = = = = = = =
-
-As expected, our second frame has even exposure and we can see that the sensor
-counts are again "primed" for even exposure of the third frame. Provided we
-keep reading lines from the sensor at a constant rate we'll receive an even
-exposure time over the whole frame. However, if we reset the sensor we'll
-probably have to throw away the first frame again.
 
 It should also be clear from the sketch above that we can control the exposure
-time of an image by slowing down or speeding up our line read-out time. Read
-lines slower and the counters have more time to increment (increased exposure).
-Read lines quicker and the counters have less time build up (decreased
-exposure).
-
+time of an image by varying the delay between resetting a line and reading it.
 However, there are naturally limits to this. Reading out a line of elements
 must take a certain minimum time. This minimum time influences the maximum
 framerate that the camera can achieve.
@@ -378,37 +398,64 @@ From this we get our first glimpse of the image processing "pipeline" and why
 it is called such. In the diagram above, an H264 video is being recorded. The
 components that data passes through are as follows:
 
-1. Starting on the OV5647 there is a small `image signal processor`_ (ISP).
-   This is mostly unused but it is the first step in the pipeline and is used
-   to perform flips, rotations, and `binning`_.
+1. Starting on the OV5647 some minor processing happens. Specifically, flips
+   (horizontal and vertical), line skipping, and pixel `binning`_ is
+   configured, and occurs, here. Pixel binning actually happens on the sensor
+   itself, prior to the ADC to improve signal-to-noise ratios. See
+   :attr:`~PiCamera.hflip`, :attr:`~PiCamera.vflip`, and
+   :attr:`~PiCamera.sensor_mode`.
 
 2. As described previously, image line data is streamed over the CSI-2
    interface to the GPU. There, it is received by the Unicam component which
    writes the line data into RAM.
 
-3. Next the GPU's ISP performs several post-processing steps on the frame data.
-   These include:
+3. Next the GPU's `image signal processor`_ (ISP) performs several
+   post-processing steps on the frame data.  These include (in order):
 
-    - Digital gain. As mentioned above, this is a straight-forward
-      post-processing step probably performed while the frame data is still in
-      Bayer format.
+    - Transposition. If any rotation has been requested, transpose the input to
+      take care of it (rotation is always implemented by some combination of
+      transposition and flips).
 
-    - De-mosaic. The frame data is converted from Bayer format to `YUV420`_
-      which is the format used by the remainder of the pipeline.
+    - Black level compensation. Camera sensors typically include a border of
+      non-light sensing elements which are used to determine what level of
+      charge represents "optically black".
 
     - Lens shading. The camera firmware includes a table that corrects for
       chromatic distortion from the standard module's lens. This is one reason
       that third party modules incorporating different lenses may show
       non-uniform color across a frame.
 
-    - White balance. The red and blue white balance gains are applied to the
-      UV planes of the frame.
+    - White balance. The red and blue gains are applied to correct the `color
+      balance`_. See :attr:`~PiCamera.awb_gains` and
+      :attr:`~PiCamera.awb_mode`.
 
-    - Noise reduction. Different noise reduction algorithms are used depending
-      on whether still images or video are being produced (stills use a more
-      aggressive, longer running algorithm).
+    - Digital gain. As mentioned above, this is a straight-forward
+      post-processing step that applies a gain to the Bayer values. See
+      :attr:`~PiCamera.digital_gain`.
 
-    - Brightness / constrast / saturation adjustments.
+    - Bayer de-noise. This is a noise reduction algorithm run on the image
+      data while it is still in Bayer format.
+
+    - De-mosaic. The frame data is converted from Bayer format to `YUV420`_
+      which is the format used by the remainder of the pipeline.
+
+    - YCbCr de-noise. Another noise reduction algorithm, this time with the
+      image in YUV420 format. See :attr:`~PiCamera.image_denoise` and
+      :attr:`~PiCamera.video_denoise`.
+
+    - Sharpening. An algorithm to enhance edges in the image. See
+      :attr:`~PiCamera.sharpness`.
+
+    - Color processing. The :attr:`~PiCamera.brightness`,
+      :attr:`~PiCamera.contrast`, and :attr:`~PiCamera.saturation` adjustments
+      are implemented.
+
+    - Distortion. The distortion introduced by the camera's lens is corrected.
+
+    - Resizing. At this point, the image is resized to the requested output
+      resolution (all prior stages have been performed on "full" frame data
+      at whatever resolution the sensor is configured to produce). See
+      :attr:`~PiCamera.resolution`.
 
    Some of these steps can be controlled directly (e.g. brightness, noise
    reduction), others can only be influenced (e.g. digital gain), and the
@@ -416,7 +463,8 @@ components that data passes through are as follows:
 
 4. At this point the frame is effectively "complete". When dealing with
    pipelines producing "unencoded" output (YUV, RGB, etc.) the pipeline ends
-   here with the frame data getting copied over to the CPU.
+   here (the ISP might be used to convert to RGB, but that's all) with the
+   frame data getting copied over to the CPU.
 
 5. In the case of pipelines producing encoded output (H264, MJPEG, MPEG2, etc.)
    the next step is one of the encoding blocks (the H264 block in this case).
@@ -437,14 +485,15 @@ Feedback loops
 
 There are a couple of feedback loops running within the pipeline described
 above. When :attr:`~PiCamera.exposure_mode` is not ``'off'``, automatic gain
-control (AGC) analyzes the Y (`luminance`_) values of each frame. It tweaks the
-analog and digital gains, and the exposure time (line read-out time) to ensure
-the next frame is neither under- nor over-exposed.
+control (AGC) gathers statistics from each frame (prior to the de-mosaic phase
+in the ISP). It tweaks the analog and digital gains, and the exposure time
+(line read-out time) attempting to nudge subsequent frames towards a target Y'
+(`luminance`_) value.
 
 Likewise, when :attr:`~PiCamera.awb_mode` is not ``'off'``, automatic white
-balance (AWB) analyzes the UV (`chrominance`_) values of each frame. It adjusts
-the red and blue gains (:attr:`~PiCamera.awb_gains`) to ensure that the next
-frame has the expected `color balance`_.
+balance (AWB) gathers statistics from each frame (again, prior to de-mosaic).
+It adjusts the red and blue gains (:attr:`~PiCamera.awb_gains`) attempting to
+nudge subsequent frames towards the expected `color balance`_.
 
 You can observe the effect of the AGC loop quite easily during daylight.
 Ensure the camera module is pointed at something bright like the sky or the
@@ -858,7 +907,6 @@ abstraction layers which necessarily obscure (but hopefully simplify) the
 .. _Bayer filter: http://en.wikipedia.org/wiki/Bayer_filter
 .. _f-stop: https://en.wikipedia.org/wiki/F-number
 .. _luminance: https://en.wikipedia.org/wiki/Relative_luminance
-.. _chrominance: https://en.wikipedia.org/wiki/Chrominance
 .. _YUV420: http://en.wikipedia.org/wiki/YUV#Y.27UV420p_.28and_Y.27V12_or_YV12.29_to_RGB888_conversion
 .. _RGB: http://en.wikipedia.org/wiki/RGB
 .. _discrete cosine transforms: https://en.wikipedia.org/wiki/Discrete_cosine_transform
