@@ -229,10 +229,11 @@ Sensor elements --> Frame 2
 = = = = = = = = === = = = = = = = =
 
 It should also be clear from the sketch above that we can control the exposure
-time of an image by varying the delay between resetting a line and reading it.
-However, there are naturally limits to this. Reading out a line of elements
-must take a certain minimum time. This minimum time influences the maximum
-framerate that the camera can achieve.
+time of an image by varying the delay between resetting a line and reading it
+(reset and read don't really happen simultaneously but that doesn't matter much
+for this sketch). However, there are naturally limits to this. Reading out a
+line of elements must take a certain minimum time. This minimum time influences
+the maximum framerate that the camera can achieve.
 
 For example, if there are 500 rows on our hypothetical sensor, and reading each
 row takes a minimum of 20ns then it will take a minimum of :math:`500 \times
@@ -399,8 +400,8 @@ it is called such. In the diagram above, an H264 video is being recorded. The
 components that data passes through are as follows:
 
 1. Starting on the OV5647 some minor processing happens. Specifically, flips
-   (horizontal and vertical), line skipping, and pixel `binning`_ is
-   configured, and occurs, here. Pixel binning actually happens on the sensor
+   (horizontal and vertical), line skipping, and pixel `binning`_ is configured
+   on the sensor's registers. Pixel binning actually happens on the sensor
    itself, prior to the ADC to improve signal-to-noise ratios. See
    :attr:`~PiCamera.hflip`, :attr:`~PiCamera.vflip`, and
    :attr:`~PiCamera.sensor_mode`.
