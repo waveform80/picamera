@@ -65,7 +65,7 @@ can only perform two operations on the sensor: reset a row of elements, or read
 a row of elements.
 
 To get a feel for a typical frame capture, we'll walk through the reception of
-a couple of frames of data with a hypothetical camera sensor, having a mere 4x4
+a couple of frames of data with a hypothetical camera sensor, having a mere 8x8
 pixels and no `Bayer filter`_. The sensor is sat in bright light, but as we've
 just initialized it, all the elements start off with a count of 0. The sensor's
 elements are shown on the left, and our frame buffer that we'll read values
@@ -509,10 +509,11 @@ view through a window, and query the camera's analog gain and exposure time:
     >>> camera.exposure_speed
     3318
 
-Now, force the camera to use a higher gain by setting ISO to 800. If you have
-the preview running, you'll see very little difference in the scene. However,
-if you subsequently query the exposure time you'll find the firmware has
-drastically reduced it to compensate for the higher sensor gain:
+Now, force the camera to use a higher gain by setting :attr:`~PiCamera.iso` to
+800. If you have the preview running, you'll see very little difference in the
+     scene. However, if you subsequently query the exposure time you'll find
+     the firmware has drastically reduced it to compensate for the higher
+     sensor gain:
 
 .. code-block:: pycon
 
@@ -523,8 +524,8 @@ drastically reduced it to compensate for the higher sensor gain:
 You can force a longer exposure time with the :attr:`~PiCamera.shutter_speed`
 attribute at which point the scene will become quite washed out (because both
 the gain and exposure time are now fixed). If you let the gain float again by
-setting ISO back to automatic (0) you should find the gain reduces accordingly
-and the scene returns more or less to normal:
+setting :attr:`~PiCamera.iso` back to automatic (0) you should find the gain
+reduces accordingly and the scene returns more or less to normal:
 
 .. code-block:: pycon
 
@@ -535,9 +536,9 @@ and the scene returns more or less to normal:
     >>> float(camera.analog_gain)
     1.0
 
-The camera's AGC loop attempts to produce a scene with a target Y
+The camera's AGC loop attempts to produce a scene with a target Y'
 (`luminance`_) value (or values) within the constraints set by things like ISO,
-shutter speed, and so forth. The target Y value can be adjusted with the
+shutter speed, and so forth. The target Y' value can be adjusted with the
 :attr:`~PiCamera.exposure_compensation` attribute which is measured in
 increments of 1/6th of an `f-stop`_. So if, whilst the exposure time is fixed,
 you increase the luminance that the camera is aiming for by a couple of stops,
