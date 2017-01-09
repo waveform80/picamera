@@ -6,70 +6,75 @@ Camera Hardware
 
 .. currentmodule:: picamera
 
-This chapter attempts to provide an overview of the operation of the camera
-under various conditions, as well as to provide an introduction to the low
-level software interface that picamera utilizes.
+This chapter provides an overview of how the camera works
+under various conditions, as well as an introduction to the software interface that picamera uses.
 
+.. Just so you know, if any of the changes I have made seem to be personal preference, or just plain unnessary, the reason I have made them is to ensure that the document doesn't contain too many more rarely used English words, idioms etc.. Basically so that people who do have have English as a first language have a fighting chance of understanding it.
 
 .. _operations:
 
 Theory of Operation
 ===================
 
-A large number of questions I receive regarding picamera are based on
-misunderstandings of the camera's basic operation. This section attempts to
-correct those misconceptions and give the reader a mental model of the
+Many questions I receive regarding picamera are based on
+misunderstandings of how the camera works. This chapter attempts to
+correct those misunderstandings and gives the reader a basic description of the
 operation of the camera. The chapter deliberately follows a `lie-to-children`_
-model, presenting first a technically inaccurate but nonetheless useful model
-of the camera's operation, then refining it closer to the truth further on.
+model, presenting first a technically inaccurate but useful model
+of the camera's operation, then refining it closer to the truth later on.
 
 Mobile cameras
 --------------
 
-The Pi's camera module is, in essence, a mobile phone camera module. Mobile
-phone digital cameras differ from their larger, more expensive, brethren
-(DSLRs) in a few respects. The most important of these, for understanding the
-camera's operation, is that many mobile cameras (including the Pi's camera
-module) use a `rolling shutter`_. When the camera needs to capture a frame, it
+The Pi's camera module is basically a mobile phone camera module. Mobile
+phone digital cameras differ from larger, more expensive, camerals (DSLRs) in a 
+few respects. The most important of these, for understanding the
+Pi's camera, is that many mobile cameras (including the Pi's camera
+module) use a `rolling shutter` to capture images. When the camera needs to capture a frame, it
 reads out pixels from the sensor a row at a time rather than capturing all
-pixel values in one consistent read.
+pixel values at once.
+
+.. It seems odd to mention that Pi camera modules differ from DSLRs in key respects and then not mention anything else about DLSRs. I would have expected some comparison, or at least a mention of what DLSRs use rather than a rolling stock. Otherwise to mention them at all seems unneccessary.
 
 The notion of "capturing a frame" is thus a bit misleading as what we actually
 mean is "reading each row from the sensor in turn and assembling them back into
 an image".
 
 Furthermore, the notion that the camera is effectively idle until we tell it to
-capture a given frame is also misleading. Once the camera is initialized, it is
+capture a frame is also misleading. Once the camera is initialized, it is
 constantly streaming rows of pixels down the ribbon cable to the Pi for
 processing. The processing that goes on in the background consists of automatic
 gain control, exposure time, white balance, and numerous other tasks which
-we'll cover later on. However, this background processing explains why most of
+we'll cover later on. However, this background processing is why most of
 the picamera example scripts seen in prior chapters include a ``sleep(2)`` line
-after initializing the camera; during this pause the camera's firmware is
-receiving frames (or rather lines of frames) and adjusting the sensor's gain
-and exposure times to make the scene look "normal".
+after initializing the camera. The ``sleep(2)`` command intiates a pause during which the camera's firmware receives frames (or rather lines of frames) from the camera and adjusts the sensor's gain
+and exposure times to make the image look "normal".
 
-Thus, when we request that the camera "capture a frame" what we're really
+.. I'm not sure if I edited that last part right in terms of the technicality, but that's what I perceived it meant.
+
+So when we request the camera to "capture a frame" what we're really
 requesting is that the camera give us the next complete frame it assembles,
 rather than analyzing it for gain and exposure then throwing it away (as
 happens constantly otherwise).
 
+.. I'm not sure what you mean here by saying "rather than analyzing it for gain and exposure then throwing it away". why would it be thrown away? Do you mean that it would have to capture several before it gets the gain and exposure post processing right?
+
 Exposure time
 -------------
 
-What does the camera sensor *actually sense*? Quite simply photon counts; the
-more photons hit the sensor elements, the more those elements increment their
+What does the camera sensor *actually detect*? Quite simply photon counts; the
+more photons that hit the sensor elements, the more those elements increment their
 counters.  As our camera has no physical shutter (unlike a DSLR) we can't
 prevent light falling on the elements and incrementing the counts. In fact we
 can only perform two operations on the sensor: reset a row of elements, or read
 a row of elements.
 
-To get a feel for a typical frame capture, we'll walk through the reception of
-a couple of frames of data with a hypothetical camera sensor, having a mere 4x4
-pixels and no `Bayer filter`_. The sensor is sat in bright light, but as we've
+To understand a typical frame capture, we'll walk through the capture of
+a couple of frames of data with a hypothetical camera sensor, with only 4x4
+pixels and no `Bayer filter`. The sensor is sat in bright light, but as we've
 just initialized it, all the elements start off with a count of 0. The sensor's
-elements are shown on the left, and our frame buffer that we'll read values
-into is on the right:
+elements are shown on the left, and our frame buffer, that we'll read values
+into, is on the right:
 
 = = = = = = = = === = = = = = = = =
 Sensor elements --> Frame 1
@@ -84,7 +89,9 @@ Sensor elements --> Frame 1
 0 0 0 0 0 0 0 0
 = = = = = = = = === = = = = = = = =
 
-We reset the first line of data (in this case that doesn't change any state).
+.. Phrasing this example in the first person plural just off hand makes it seem like these are things the user is actually doing. If it were me I would rephrase them to avoid using we, and instead use something like, the camera does this... or the software does that.... just to make it clear.
+
+We reset the first line of data (in this case that doesn't change the state of any of the sensor elements).
 Whilst resetting that line, light is still falling on all the other elements
 so they increment by 1:
 
@@ -101,7 +108,7 @@ Sensor elements --> Frame 1
 1 1 1 1 1 1 1 1
 = = = = = = = = === = = = = = = = =
 
-We reset the second line of data (this does change some state this time). We've
+We reset the second line of data (this time some sensor element states change). All other elemente increment by 1. We've
 not read anything yet, but we want to leave a delay for the first row to "see"
 enough light before we read it:
 
@@ -149,7 +156,7 @@ Sensor elements --> Frame 1
 4 4 4 4 4 4 4 4
 = = = = = = = = === = = = = = = = =
 
-We read the second line while resetting the fifth:
+Now we read the second line while resetting the fifth line:
 
 = = = = = = = = === = = = = = = = =
 Sensor elements --> Frame 1
@@ -212,8 +219,7 @@ Sensor elements --> Frame 1
 3 3 3 3 3 3 3 3 --> 3 3 3 3 3 3 3 3
 = = = = = = = = === = = = = = = = =
 
-At this stage we'd send this frame off for processing in the rest of the
-imaging pipeline and start processing the next frame into a new buffer:
+At this stage we'd send this frame off for processing and start capturing the next frame into a new buffer:
 
 = = = = = = = = === = = = = = = = =
 Sensor elements --> Frame 2
@@ -228,7 +234,7 @@ Sensor elements --> Frame 2
 4 4 4 4 4 4 4 4
 = = = = = = = = === = = = = = = = =
 
-It should also be clear from the sketch above that we can control the exposure
+From the example above it should be clear that we can control the exposure
 time of an image by varying the delay between resetting a line and reading it
 (reset and read don't really happen simultaneously but that doesn't matter much
 for this sketch). However, there are naturally limits to this. Reading out a
@@ -241,25 +247,31 @@ row takes a minimum of 20ns then it will take a minimum of :math:`500 \times
 framerate of the camera cannot exceed :math:`\frac{1}{10\text{ms}} =
 \frac{1}{0.01\text{s}} = 100\text{fps}`.
 
-Conversely, this implies that if the camera's :attr:`~PiCamera.framerate` is
+Conversely, if the camera's :attr:`~PiCamera.framerate` is
 set to a certain value, it necessarily limits the amount of time available for
-reading sensor lines, and indeed this is so: the
+reading sensor lines. The
 :attr:`~PiCamera.exposure_speed` attribute (which reports the exposure time of
 the last processed frame, and which is really a multiple of the sensor's line
 read-out time) is limited by the camera's framerate.
+
+.. I get lost a little in the above paragraph, I might have to get you to explain it to me.
 
 .. note::
 
     Framerate adjustments, as done with :attr:`~PiCamera.framerate_delta`, are
     achieved by manipulating the number of "padding" lines added to the end of
     a frame. These are lines read from the sensor which *don't* make up part of
-    the captured image (imaging sensors usually have a border of non-sensing
-    elements used for black level adjustment).
+    the captured image. Imaging sensors usually have a border of non-sensing
+    elements used for black level adjustment.
+
+.. Are the non sensing elements in the border or in lines?. I can't really picture this. 
 
 Sensor gain
 -----------
 
-The other important factor influencing sensor counts, aside from line read-out
+.. What is gain in this sense?
+
+The other important factor influencing sensor element counts, aside from line read-out
 time, is the sensor's gain. Specifically, the gain given by the
 :attr:`~PiCamera.analog_gain` attribute (the corresponding
 :attr:`~PiCamera.digital_gain` is simply post-processing which we'll cover
