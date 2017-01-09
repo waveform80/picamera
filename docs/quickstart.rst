@@ -41,16 +41,16 @@ which requires a `camera adapter cable`_.
 
 To attach a camera module to a Pi Zero:
 
-1. Remove the existing camera cable by gently lifting the collar on the camera
-   module and pulling the cable out.
+1. Remove the existing camera module's cable by gently lifting the collar on
+   the camera module and pulling the cable out.
 
-2. Next, insert the adapter cable with the conductors facing in the same
-   direction as the camera's lens.
+2. Next, insert the wider end of the adapter cable with the conductors facing
+   in the same direction as the camera's lens.
 
 3. Finally, attach the adapter to the Pi Zero by gently lifting the collar at
-   the edge of the board (be careful with this as they are much more delicate
-   than the collars on the regular CSI ports) and inserting the smaller end of
-   the adapter with the conductors facing the back of the Pi Zero.
+   the edge of the board (be careful with this as they are more delicate than
+   the collars on the regular CSI ports) and inserting the smaller end of the
+   adapter with the conductors facing the back of the Pi Zero.
 
 Your setup should look something like this:
 
