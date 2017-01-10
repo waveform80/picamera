@@ -269,8 +269,8 @@ The *maximum* exposure time is thus governed by the camera's *minimum*
 framerate. This, in turn, is largely dictated by how slow the sensor can be
 made to read lines (at the hardware level this is down to the size of registers
 for holding things like line read-out times). If we imagine that the minimum
-framerate of our hypothetical sensor is 1/2fps then the maximum exposure time
-will be :math:`\frac{1\text{s}}{\frac{1}{2}} = 2{s}`.
+framerate of our hypothetical sensor is ½fps then the maximum exposure time
+will be :math:`\frac{1\text{s}}{^1/_2} = 2{s}`.
 
 Hence, the :attr:`~PiCamera.exposure_speed` attribute, which reports the
 exposure time of the last processed frame, and which is really a multiple of
@@ -546,11 +546,10 @@ view through a window, and query the camera's analog gain and exposure time:
     >>> camera.exposure_speed
     3318
 
-Now, force the camera to use a higher gain by setting :attr:`~PiCamera.iso` to
-800. If you have the preview running, you'll see very little difference in the
-     scene. However, if you subsequently query the exposure time you'll find
-     the firmware has drastically reduced it to compensate for the higher
-     sensor gain:
+Force the camera to use a higher gain by setting :attr:`~PiCamera.iso` to 800.
+If you have the preview running, you'll see very little difference in the
+scene. However, if you subsequently query the exposure time you'll find the
+firmware has drastically reduced it to compensate for the higher sensor gain:
 
 .. code-block:: pycon
 
