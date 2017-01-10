@@ -9,6 +9,13 @@ Advanced Recipes
 The following recipes involve advanced techniques and may not be "beginner
 friendly". Please feel free to suggest enhancements or additional recipes.
 
+.. warning::
+
+    When trying out these scripts do *not* name your file :file:`picamera.py`.
+    Naming scripts after existing Python modules will cause errors when you
+    try and import those modules (because Python checks the current directory
+    before checking other paths).
+
 
 .. _array_capture:
 

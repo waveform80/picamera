@@ -10,6 +10,13 @@ The following recipes should be reasonably accessible to Python programmers of
 all skill levels. Please feel free to suggest enhancements or additional
 recipes.
 
+.. warning::
+
+    When trying out these scripts do *not* name your file :file:`picamera.py`.
+    Naming scripts after existing Python modules will cause errors when you
+    try and import those modules (because Python checks the current directory
+    before checking other paths).
+
 
 .. _file_capture:
 
@@ -22,8 +29,8 @@ the output of whatever :meth:`~PiCamera.capture` method you require:
 .. literalinclude:: examples/file_capture.py
 
 Note that files opened by picamera (as in the case above) will be flushed and
-closed so that when the capture method returns, the data should be accessible
-to other processes.
+closed so that when the :meth:`~PiCamera.capture` method returns, the data
+should be accessible to other processes.
 
 
 .. _stream_capture:
