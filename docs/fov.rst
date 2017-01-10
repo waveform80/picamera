@@ -34,11 +34,11 @@ shutter`_ to capture images. When the camera needs to capture a frame, it reads
 out pixels from the sensor a row at a time rather than capturing all pixel
 values at once.
 
-In fact, DSLRs also read out pixels a row at a time. The major difference is
-that a DSLR will have a physical shutter that covers the sensor. Hence in a
-DSLR the procedure for capturing an image is to open the shutter, letting the
-sensor "view" the scene, close the shutter, then read out each line from the
-sensor.
+In fact, the "global shutter" on DSLRs typically also read out pixels a row at
+a time. The major difference is that a DSLR will have a physical shutter that
+covers the sensor.  Hence in a DSLR the procedure for capturing an image is to
+open the shutter, letting the sensor "view" the scene, close the shutter, then
+read out each line from the sensor.
 
 The notion of "capturing a frame" is thus a bit misleading as what we actually
 mean is "reading each row from the sensor in turn and assembling them back into
@@ -270,7 +270,7 @@ framerate. This, in turn, is largely dictated by how slow the sensor can be
 made to read lines (at the hardware level this is down to the size of registers
 for holding things like line read-out times). If we imagine that the minimum
 framerate of our hypothetical sensor is ½fps then the maximum exposure time
-will be :math:`\frac{1\text{s}}{^1/_2} = 2{s}`.
+will be :math:`\frac{1\text{s}}{^1/_2} = 2\text{s}`.
 
 Hence, the :attr:`~PiCamera.exposure_speed` attribute, which reports the
 exposure time of the last processed frame, and which is really a multiple of
