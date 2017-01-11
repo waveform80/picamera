@@ -355,9 +355,16 @@ class PiBayerArray(PiArrayOutput):
     .. _Bayer pattern: http://en.wikipedia.org/wiki/Bayer_filter
     """
 
-    def __init__(self, camera):
+    def __init__(self, camera, output_dims=3):
         super(PiBayerArray, self).__init__(camera, size=None)
+        if 2 <= output_dims <= 3:
+            raise PiCameraValueError('output_dims must be 2 or 3')
         self._demo = None
+        self._output_dims = output_dims
+
+    @property
+    def output_dims(self):
+        return self._output_dims
 
     def flush(self):
         super(PiBayerArray, self).flush()
@@ -384,10 +391,21 @@ class PiBayerArray(PiArrayOutput):
         data = data.astype(np.uint16) << 2
         for byte in range(4):
             data[:, byte::5] |= ((data[:, 4::5] >> ((4 - byte) * 2)) & 3)
-        # Create a new array from the unpacked data
-        self.array = np.zeros((data.shape[0], data.shape[1]*(4.0/5)), dtype = np.uint16)
-        for i in range(4):
-            self.array[:, i::4] = data[:, i::5]
+        if self.output_dims == 3:
+            data = np.delete(data, np.s_[4::5], 1)
+            self.array = np.zeros(data.shape + (3,), dtype=data.dtype)
+            self.array[1::2, 0::2, 0] = data[1::2, 0::2] # Red
+            self.array[0::2, 0::2, 1] = data[0::2, 0::2] # Green
+            self.array[1::2, 1::2, 1] = data[1::2, 1::2] # Green
+            self.array[0::2, 1::2, 2] = data[0::2, 1::2] # Blue
+        else:
+            data = np.delete(data, np.s_[4::5], 1)
+            self.array = data
+            # Create a new array from the unpacked data
+            self.array = np.zeros(
+                (data.shape[0], data.shape[1] * 4 // 5), dtype=np.uint16)
+            for i in range(4):
+                self.array[:, i::4] = data[:, i::5]
 
     def demosaic(self):
         if self._demo is None:
