@@ -409,10 +409,21 @@ class PiBayerArray(PiArrayOutput):
     def flush(self):
         super(PiBayerArray, self).flush()
         self._demo = None
-        offset, reshape, crop = {
-            'OV5647': (6404096,  (1952, 3264), (1944, 3240)),
-            'IMX219': (10270208, (2480, 4128), (2464, 4100)),
-            }[self.camera.revision.upper()]
+        offset = {
+            'OV5647': {
+                0: 6404096,
+                },
+            'IMX219': {
+                0: 10270208,
+                1: 2678784,
+                2: 10270208,
+                3: 10270208,
+                4: 2628608,
+                5: 1963008,
+                6: 1233920,
+                7: 445440,
+                },
+            }[self.camera.revision.upper()][self.camera.sensor_mode]
         data = self.getvalue()[-offset:]
         if data[:4] != b'BRCM':
             raise PiCameraValueError('Unable to locate Bayer data at end of buffer')
@@ -421,8 +432,19 @@ class PiBayerArray(PiArrayOutput):
         # bytes from start of bayer data
         self._header = BroadcomRawHeader.from_buffer_copy(
             data[176:176 + ct.sizeof(BroadcomRawHeader)])
-        data = np.frombuffer(data, dtype=np.uint8, offset=32768).\
-                reshape(reshape)[:crop[0], :crop[1]]
+        data = np.frombuffer(data, dtype=np.uint8, offset=32768)
+        # Reshape and crop the data. The crop's width is multiplied by 5/4 to
+        # deal with the packed 10-bit format; the shape's width is calculated
+        # in a similar fashion but with padding included (which involves
+        # several additional padding steps)
+        crop = mo.PiResolution(
+            self._header.width * 5 // 4,
+            self._header.height)
+        shape = mo.PiResolution(
+            (((self._header.width + self._header.padding_right) * 5) + 3) // 4,
+            (self._header.height + self._header.padding_down)
+            ).pad()
+        data = data.reshape((shape.height, shape.width))[:crop.height, :crop.width]
         # Unpack 10-bit values; every 5 bytes contains the high 8-bits of 4
         # values followed by the low 2-bits of 4 values packed into the fifth
         # byte
