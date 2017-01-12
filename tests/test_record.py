@@ -315,3 +315,25 @@ def test_record_bad_format(camera):
     with pytest.raises(picamera.PiCameraValueError):
         camera.start_recording('test.h264', format='mp4')
 
+def test_record_bad_timestamp(camera):
+    # Frame timestamps should be None or positive integers. Prior to #357
+    # getting fixed a None timestamp (from a 0 PTS) would be followed by a
+    # large negative timestamp (from an unrecognized TIME_UNKNOWN timestamp)
+    class Timestamps(object):
+        def __init__(self, camera):
+            self.camera = camera
+            self.timestamps = []
+            self.none_count = 0
+        def write(self, buf):
+            if self.camera.frame.complete:
+                self.timestamps.append(self.camera.frame.timestamp)
+                if self.camera.frame.timestamp is None:
+                    self.none_count += 1
+    output = Timestamps(camera)
+    camera.start_recording(output, 'h264')
+    while output.none_count < 2:
+        camera.wait_recording(1)
+    camera.stop_recording()
+    for timestamp in output.timestamps:
+        assert timestamp is None or timestamp >= 0
+

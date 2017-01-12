@@ -140,7 +140,7 @@ class MMAL_RATIONAL_T(ct.Structure):
     def __repr__(self):
         return '%d/%d' % (self.num, self.den)
 
-MMAL_TIME_UNKNOWN = ct.c_int64(1<<63)
+MMAL_TIME_UNKNOWN = ct.c_int64(1<<63).value
 
 class MMAL_FOURCC_T(ct.c_uint32):
     def __eq__(self, other):
