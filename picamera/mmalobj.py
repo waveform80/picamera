@@ -2988,3 +2988,4 @@ class MMALPythonConnection(MMALObject):
         return '<MMALPythonConnection "%s">' % self.name
 
 
+
