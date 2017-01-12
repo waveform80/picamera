@@ -306,6 +306,7 @@ class PiCamera(object):
         '_camera',
         '_camera_config',
         '_camera_exception',
+        '_revision',
         '_preview',
         '_preview_alpha',
         '_preview_layer',
@@ -362,19 +363,20 @@ class PiCamera(object):
         self._image_effect_params = None
         with mo.MMALCameraInfo() as camera_info:
             info = camera_info.control.params[mmal.MMAL_PARAMETER_CAMERA_INFO]
+            self._revision = 'ov5647'
+            if camera_info.info_rev > 1:
+                self._revision = info.cameras[camera_num].camera_name.decode('ascii')
             self._exif_tags = {
-                'IFD0.Model': 'RP_OV5647',
+                'IFD0.Model': 'RP_%s' % self._revision,
                 'IFD0.Make': 'RaspberryPi',
                 }
-            if camera_info.info_rev > 1:
-                self._exif_tags['IFD0.Model'] = 'RP_%s' % info.cameras[camera_num].camera_name.decode('ascii')
             if PiCamera.MAX_RESOLUTION is PiCameraMaxResolution:
                 PiCamera.MAX_RESOLUTION = mo.PiResolution(
                         info.cameras[camera_num].max_width,
                         info.cameras[camera_num].max_height,
                         )
             if PiCamera.MAX_FRAMERATE is PiCameraMaxFramerate:
-                if self.exif_tags['IFD0.Model'].upper() == 'RP_OV5647':
+                if self._revision.upper() == 'OV5647':
                     PiCamera.MAX_FRAMERATE = 90
                 else:
                     PiCamera.MAX_FRAMERATE = 120
@@ -1704,6 +1706,15 @@ class PiCamera(object):
                 'PiCamera.previewing is deprecated; test PiCamera.preview '
                 'is not None instead'))
         return isinstance(self._preview, PiPreviewRenderer)
+
+    @property
+    def revision(self):
+        """
+        Returns a string representing the revision of the Pi's camera module.
+        At the time of writing, the string returned is 'ov5647' for the V1
+        module, and 'imx219' for the V2 module.
+        """
+        return self._revision
 
     @property
     def exif_tags(self):

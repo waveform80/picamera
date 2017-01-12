@@ -307,6 +307,21 @@ class PiYUVArray(PiArrayOutput):
         return self._rgb
 
 
+class BroadcomRawHeader(ct.Structure):
+    _fields_ = [
+        ('name',          ct.c_char * 32),
+        ('width',         ct.c_uint16),
+        ('height',        ct.c_uint16),
+        ('padding_right', ct.c_uint16),
+        ('padding_down',  ct.c_uint16),
+        ('dummy',         ct.c_uint32 * 6),
+        ('transform',     ct.c_uint16),
+        ('format',        ct.c_uint16),
+        ('bayer_order',   ct.c_uint8),
+        ('bayer_format',  ct.c_uint8),
+        ]
+
+
 class PiBayerArray(PiArrayOutput):
     """
     Produces a 3-dimensional RGB array from raw Bayer data.
@@ -314,9 +329,8 @@ class PiBayerArray(PiArrayOutput):
     This custom output class is intended to be used with the
     :meth:`~picamera.PiCamera.capture` method, with the *bayer* parameter set
     to ``True``, to include raw Bayer data in the JPEG output.  The class
-    strips out the raw data, constructing a 2-dimensional numpy array organized
-    as (rows, columns, colors). The resulting data is accessed via the
-    :attr:`~PiArrayOutput.array` attribute::
+    strips out the raw data, and constructs a numpy array from it.  The
+    resulting data is accessed via the :attr:`~PiArrayOutput.array` attribute::
 
         import picamera
         import picamera.array
@@ -326,12 +340,20 @@ class PiBayerArray(PiArrayOutput):
                 camera.capture(output, 'jpeg', bayer=True)
                 print(output.array.shape)
 
-    Note that Bayer data is *always* full resolution, so the resulting
-    array always has the shape (1944, 2592, 3) with the V1 module, or
-    (2464, 3280, 3) with the V2 module; this also implies that the
-    optional *size* parameter (for specifying a resizer resolution) is not
-    available with this array class. As the sensor records 10-bit values,
-    the array uses the unsigned 16-bit integer data type.
+    The *output_dims* parameter specifies whether the resulting array is
+    three-dimensional (the default, or when *output_dims* is 3), or
+    two-dimensional (when *output_dims* is 2). The three-dimensional data is
+    already separated into the three color planes, whilst the two-dimensional
+    variant is not (in which case you need to know the Bayer ordering to
+    accurately deal with the results).
+
+    Note that Bayer data is *always* full resolution, so the resulting array
+    always has the shape (1944, 2592, 3) with the V1 module, or (2464, 3280, 3)
+    with the V2 module (if two-dimensional output is requested the 3-layered
+    color dimension is omitted); this also implies that the optional *size*
+    parameter (for specifying a resizer resolution) is not available with this
+    array class. As the sensor records 10-bit values, the array uses the
+    unsigned 16-bit integer data type.
 
     By default, `de-mosaicing`_ is **not** performed; if the resulting array is
     viewed it will therefore appear dark and too green (due to the green bias
@@ -354,36 +376,52 @@ class PiBayerArray(PiArrayOutput):
     .. _de-mosaicing: http://en.wikipedia.org/wiki/Demosaicing
     .. _Bayer pattern: http://en.wikipedia.org/wiki/Bayer_filter
     """
+    BAYER_OFFSETS = {
+        0: ((0, 0), (1, 0), (0, 1), (1, 1)),
+        1: ((1, 0), (0, 0), (1, 1), (0, 1)),
+        2: ((1, 1), (0, 1), (1, 0), (0, 0)),
+        3: ((0, 1), (1, 1), (0, 0), (1, 0)),
+        }
 
     def __init__(self, camera, output_dims=3):
         super(PiBayerArray, self).__init__(camera, size=None)
-        if 2 <= output_dims <= 3:
+        if not (2 <= output_dims <= 3):
             raise PiCameraValueError('output_dims must be 2 or 3')
         self._demo = None
+        self._header = None
         self._output_dims = output_dims
 
     @property
     def output_dims(self):
         return self._output_dims
 
+    def _to_3d(self, array):
+        array_3d = np.zeros(array.shape + (3,), dtype=array.dtype)
+        (
+            (ry, rx), (gy, gx), (Gy, Gx), (by, bx)
+            ) = PiBayerArray.BAYER_OFFSETS[self._header.bayer_order]
+        array_3d[ry::2, rx::2, 0] = array[ry::2, rx::2] # Red
+        array_3d[gy::2, gx::2, 1] = array[gy::2, gx::2] # Green
+        array_3d[Gy::2, Gx::2, 1] = array[Gy::2, Gx::2] # Green
+        array_3d[by::2, bx::2, 2] = array[by::2, bx::2] # Blue
+        return array_3d
+
     def flush(self):
         super(PiBayerArray, self).flush()
         self._demo = None
-        ver = 1
-        data = self.getvalue()[-6404096:]
+        offset, reshape, crop = {
+            'OV5647': (6404096,  (1952, 3264), (1944, 3240)),
+            'IMX219': (10270208, (2480, 4128), (2464, 4100)),
+            }[self.camera.revision.upper()]
+        data = self.getvalue()[-offset:]
         if data[:4] != b'BRCM':
-            ver = 2
-            data = self.getvalue()[-10270208:]
-            if data[:4] != b'BRCM':
-                raise PiCameraValueError('Unable to locate Bayer data at end of buffer')
-        # Strip header
-        data = data[32768:]
-        # Reshape into 2D pixel values
-        reshape, crop = {
-            1: ((1952, 3264), (1944, 3240)),
-            2: ((2480, 4128), (2464, 4100)),
-            }[ver]
-        data = np.frombuffer(data, dtype=np.uint8).\
+            raise PiCameraValueError('Unable to locate Bayer data at end of buffer')
+        # Extract header (with bayer order and other interesting bits), which
+        # is 176 bytes from start of bayer data, and pixel data which 32768
+        # bytes from start of bayer data
+        self._header = BroadcomRawHeader.from_buffer_copy(
+            data[176:176 + ct.sizeof(BroadcomRawHeader)])
+        data = np.frombuffer(data, dtype=np.uint8, offset=32768).\
                 reshape(reshape)[:crop[0], :crop[1]]
         # Unpack 10-bit values; every 5 bytes contains the high 8-bits of 4
         # values followed by the low 2-bits of 4 values packed into the fifth
@@ -391,37 +429,29 @@ class PiBayerArray(PiArrayOutput):
         data = data.astype(np.uint16) << 2
         for byte in range(4):
             data[:, byte::5] |= ((data[:, 4::5] >> ((4 - byte) * 2)) & 3)
+        self.array = np.zeros(
+            (data.shape[0], data.shape[1] * 4 // 5), dtype=np.uint16)
+        for i in range(4):
+            self.array[:, i::4] = data[:, i::5]
         if self.output_dims == 3:
-            data = np.delete(data, np.s_[4::5], 1)
-            self.array = np.zeros(data.shape + (3,), dtype=data.dtype)
-            self.array[1::2, 0::2, 0] = data[1::2, 0::2] # Red
-            self.array[0::2, 0::2, 1] = data[0::2, 0::2] # Green
-            self.array[1::2, 1::2, 1] = data[1::2, 1::2] # Green
-            self.array[0::2, 1::2, 2] = data[0::2, 1::2] # Blue
-        else:
-            data = np.delete(data, np.s_[4::5], 1)
-            self.array = data
-            # Create a new array from the unpacked data
-            self.array = np.zeros(
-                (data.shape[0], data.shape[1] * 4 // 5), dtype=np.uint16)
-            for i in range(4):
-                self.array[:, i::4] = data[:, i::5]
+            self.array = self._to_3d(self.array)
 
     def demosaic(self):
         if self._demo is None:
-            # XXX Again, should take into account camera's vflip and hflip here
+            # Construct 3D representation of Bayer data (if necessary)
+            if self.output_dims == 2:
+                array_3d = self._to_3d(self.array)
+            else:
+                array_3d = self.array
             # Construct representation of the bayer pattern
-            expandedArray = np.zeros(self.array.shape + (3,), dtype=self.array.dtype)
-            expandedArray[1::2, 1::2, 0] = self.array[1::2, 1::2] # Red
-            expandedArray[1::2, 0::2, 1] = self.array[1::2, 0::2] # Green
-            expandedArray[0::2, 1::2, 1] = self.array[0::2, 1::2] # Green
-            expandedArray[0::2, 0::2, 2] = self.array[0::2, 0::2] # Blue
-            # Construct representation of the bayer pattern
-            bayer = np.zeros(expandedArray.shape, dtype=np.uint8)
-            bayer[1::2, 1::2, 0] = 1 # Red
-            bayer[0::2, 1::2, 1] = 1 # Green
-            bayer[1::2, 0::2, 1] = 1 # Green
-            bayer[0::2, 0::2, 2] = 1 # Blue
+            bayer = np.zeros(array_3d.shape, dtype=np.uint8)
+            (
+                (ry, rx), (gy, gx), (Gy, Gx), (by, bx)
+                ) = PiBayerArray.BAYER_OFFSETS[self._header.bayer_order]
+            bayer[ry::2, rx::2, 0] = 1 # Red
+            bayer[gy::2, gx::2, 1] = 1 # Green
+            bayer[Gy::2, Gx::2, 1] = 1 # Green
+            bayer[by::2, bx::2, 2] = 1 # Blue
             # Allocate output array with same shape as data and set up some
             # constants to represent the weighted average window
             window = (3, 3)
@@ -431,17 +461,17 @@ class PiBayerArray(PiArrayOutput):
             # unavailable on the version of numpy shipped with Raspbian at the
             # time of writing)
             rgb = np.zeros((
-                expandedArray.shape[0] + borders[0],
-                expandedArray.shape[1] + borders[1],
-                expandedArray.shape[2]), dtype=self.array.dtype)
+                array_3d.shape[0] + borders[0],
+                array_3d.shape[1] + borders[1],
+                array_3d.shape[2]), dtype=array_3d.dtype)
             rgb[
                 border[0]:rgb.shape[0] - border[0],
                 border[1]:rgb.shape[1] - border[1],
-                :] = expandedArray
+                :] = array_3d
             bayer_pad = np.zeros((
-                expandedArray.shape[0] + borders[0],
-                expandedArray.shape[1] + borders[1],
-                expandedArray.shape[2]), dtype=bayer.dtype)
+                array_3d.shape[0] + borders[0],
+                array_3d.shape[1] + borders[1],
+                array_3d.shape[2]), dtype=bayer.dtype)
             bayer_pad[
                 border[0]:bayer_pad.shape[0] - border[0],
                 border[1]:bayer_pad.shape[1] - border[1],
@@ -450,7 +480,7 @@ class PiBayerArray(PiArrayOutput):
             # For each plane in the RGB data, construct a view over the plane
             # of 3x3 matrices. Then do the same for the bayer array and use
             # Einstein summation to get the weighted average
-            self._demo = np.empty(expandedArray.shape, dtype=expandedArray.dtype)
+            self._demo = np.empty(array_3d.shape, dtype=array_3d.dtype)
             for plane in range(3):
                 p = rgb[..., plane]
                 b = bayer[..., plane]
@@ -464,7 +494,6 @@ class PiBayerArray(PiArrayOutput):
                 bsum = np.einsum('ijkl->ij', bview)
                 self._demo[..., plane] = psum // bsum
         return self._demo
-
 
 
 class PiMotionArray(PiArrayOutput):
