@@ -347,13 +347,21 @@ class PiBayerArray(PiArrayOutput):
     variant is not (in which case you need to know the Bayer ordering to
     accurately deal with the results).
 
-    Note that Bayer data is *always* full resolution, so the resulting array
-    always has the shape (1944, 2592, 3) with the V1 module, or (2464, 3280, 3)
-    with the V2 module (if two-dimensional output is requested the 3-layered
-    color dimension is omitted); this also implies that the optional *size*
-    parameter (for specifying a resizer resolution) is not available with this
-    array class. As the sensor records 10-bit values, the array uses the
-    unsigned 16-bit integer data type.
+    .. note::
+
+        Bayer data is *usually* full resolution, so the resulting array usually
+        has the shape (1944, 2592, 3) with the V1 module, or (2464, 3280, 3)
+        with the V2 module (if two-dimensional output is requested the
+        3-layered color dimension is omitted). If the camera's
+        :attr:`~picamera.PiCamera.sensor_mode` has been forced to something
+        other than 0, then the output will be the native size for the requested
+        sensor mode.
+
+        This also implies that the optional *size* parameter (for specifying a
+        resizer resolution) is not available with this array class.
+
+    As the sensor records 10-bit values, the array uses the unsigned 16-bit
+    integer data type.
 
     By default, `de-mosaicing`_ is **not** performed; if the resulting array is
     viewed it will therefore appear dark and too green (due to the green bias
@@ -372,6 +380,10 @@ class PiBayerArray(PiArrayOutput):
     considerably worse quality than the regular camera output (as none of the
     other usual post-processing steps like auto-exposure, white-balance,
     vignette compensation, and smoothing have been performed).
+
+    .. versionchanged:: 1.13
+        This class now supports the V2 module properly, and handles flipped
+        images, and forced sensor modes correctly.
 
     .. _de-mosaicing: http://en.wikipedia.org/wiki/Demosaicing
     .. _Bayer pattern: http://en.wikipedia.org/wiki/Bayer_filter
