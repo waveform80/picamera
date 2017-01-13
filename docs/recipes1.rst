@@ -478,10 +478,10 @@ contrast with the :attr:`~PiCamera.annotate_background` attribute):
 Controlling the LED
 ===================
 
-In certain circumstances, you may find the camera module's red LED a hindrance.
-For example, in the case of automated close-up wild-life photography, the LED
-may scare off animals. It can also cause unwanted reflected red glare with
-close-up subjects.
+In certain circumstances, you may find the V1 camera module's red LED a
+hindrance (the V2 camera module lacks an LED). For example, in the case of
+automated close-up wild-life photography, the LED may scare off animals. It can
+also cause unwanted reflected red glare with close-up subjects.
 
 One trivial way to deal with this is simply to place some opaque covering on
 the LED (e.g. blue-tack or electricians tape). Another method is to use the

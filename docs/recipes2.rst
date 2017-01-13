@@ -72,7 +72,7 @@ Capturing to an OpenCV object
 
 This is a variation on :ref:`array_capture`. `OpenCV`_ uses numpy arrays as
 images and defaults to colors in planar BGR. Hence, the following is all that's
-required to capture an OpenCV compatible image (under Python 3.x):
+required to capture an OpenCV compatible image:
 
 .. literalinclude:: examples/opencv_capture.py
 
