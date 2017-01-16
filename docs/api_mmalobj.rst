@@ -775,6 +775,8 @@ Buffers
 
 .. autoclass:: MMALBuffer
 
+.. autoclass:: MMALQueue
+
 .. autoclass:: MMALPool
 
 .. autoclass:: MMALPortPool

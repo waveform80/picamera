@@ -46,10 +46,6 @@ import ctypes as ct
 import warnings
 import weakref
 from threading import Thread, Event
-try:
-    from queue import Queue, Empty
-except ImportError:
-    from Queue import Queue, Empty
 from collections import namedtuple
 from fractions import Fraction
 from itertools import cycle
@@ -1501,24 +1497,95 @@ class MMALBuffer(object):
             return '<MMALBuffer object: ???>'
 
 
+class MMALQueue(object):
+    """
+    Represents an MMAL buffer queue. Buffers can be added to the queue with the
+    :meth:`put` method, and retrieved from the queue (with optional wait
+    timeout) with the :meth:`get` method.
+    """
+    __slots__ = ('_queue', '_created')
+
+    def __init__(self, queue):
+        self._created = False
+        self._queue = queue
+
+    @classmethod
+    def create(cls):
+        self = cls(mmal.mmal_queue_create())
+        self._created = True
+        return self
+
+    def close(self):
+        if self._created:
+            mmal_queue_destroy(self._queue)
+        self._queue = None
+
+    def __len__(self):
+        return mmal.mmal_queue_length(self._queue)
+
+    def get(self, block=True, timeout=None):
+        """
+        Get the next buffer from the queue. If *block* is ``True`` (the default)
+        and *timeout* is ``None`` (the default) then the method will block
+        until a buffer is available. Otherwise *timeout* is the maximum time to
+        wait (in seconds) for a buffer to become available. If a buffer is not
+        available before the timeout expires, the method returns ``None``.
+
+        Likewise, if *block* is ``False`` and no buffer is immediately
+        available then ``None`` is returned.
+        """
+        if block and timeout is None:
+            buf = mmal.mmal_queue_wait(self._queue)
+        elif block and timeout is not None:
+            buf = mmal.mmal_queue_timedwait(self._queue, int(timeout * 1000))
+        else:
+            buf = mmal.mmal_queue_get(self._queue)
+        if buf:
+            return MMALBuffer(buf)
+
+    def put(self, buf):
+        """
+        Place :class:`MMALBuffer` *buf* at the back of the queue.
+        """
+        mmal.mmal_queue_put(self._queue, buf._buf)
+
+    def put_back(self, buf):
+        """
+        Place :class:`MMALBuffer` *buf* at the front of the queue. This is
+        used when a buffer was removed from the queue but needs to be put
+        back at the front where it was originally taken from.
+        """
+        mmal.mmal_queue_put_back(self._queue, buf._buf)
+
+
 class MMALPool(object):
     """
     Represents an MMAL pool containing :class:`MMALBuffer` objects. All active
-    ports are associated with a pool of buffers. Can be treated as a sequence
-    of :class:`MMALBuffer` objects but this is only recommended for debugging
-    purposes.
+    ports are associated with a pool of buffers, and a queue. Instances can be
+    treated as a sequence of :class:`MMALBuffer` objects but this is only
+    recommended for debugging purposes; otherwise, use the :meth:`get_buffer`,
+    :meth:`send_buffer`, and :meth:`send_all_buffers` methods which work with
+    the encapsulated :class:`MMALQueue`.
     """
-    __slots__ = ('_pool',)
+    __slots__ = ('_pool', '_queue')
 
     def __init__(self, pool):
         self._pool = pool
         super(MMALPool, self).__init__()
+        self._queue = MMALQueue(pool[0].queue)
 
     def __len__(self):
         return self._pool[0].headers_num
 
     def __getitem__(self, index):
         return MMALBuffer(self._pool[0].header[index])
+
+    @property
+    def queue(self):
+        """
+        The :class:`MMALQueue` associated with the pool.
+        """
+        return self._queue
 
     def close(self):
         if self._pool is not None:
@@ -1545,30 +1612,17 @@ class MMALPool(object):
 
     def get_buffer(self, block=True, timeout=None):
         """
-        Get the next buffer from the pool. If *block* is ``True`` (the default)
-        and *timeout* is ``None`` (the default) then the method will block
-        until a buffer is available. Otherwise *timeout* is the maximum time to
-        wait (in seconds) for a buffer to become available. If a buffer is not
-        available before the timeout expires, the method returns ``None``.
-
-        Likewise, if *block* is ``False`` and no buffer is immediately
-        available then ``None`` is returned.
+        Get the next buffer from the pool's queue. See :meth:`MMALQueue.get`
+        for the meaning of the parameters.
         """
-        if block and timeout is None:
-            buf = mmal.mmal_queue_wait(self._pool[0].queue)
-        elif block and timeout is not None:
-            buf = mmal.mmal_queue_timedwait(self._pool[0].queue, int(timeout * 1000))
-        else:
-            buf = mmal.mmal_queue_get(self._pool[0].queue)
-        if buf:
-            return MMALBuffer(buf)
+        return self._queue.get(block, timeout)
 
     def send_buffer(self, port, block=True, timeout=None):
         """
-        Get a buffer from the pool and send it to *port*. *block* and *timeout*
-        act as they do in :meth:`get_buffer`. If no buffer is available (for
-        the values of *block* and *timeout*, :exc:`~picamera.PiCameraMMALError`
-        is raised).
+        Get a buffer from the pool's queue and send it to *port*. *block* and
+        *timeout* act as they do in :meth:`get_buffer`. If no buffer is
+        available (for the values of *block* and *timeout*,
+        :exc:`~picamera.PiCameraMMALError` is raised).
         """
         buf = self.get_buffer(block, timeout)
         if buf is None:
@@ -1577,16 +1631,13 @@ class MMALPool(object):
 
     def send_all_buffers(self, port, block=True, timeout=None):
         """
-        Send all buffers from the pool to *port*. *block* and *timeout* act as
+        Send all buffers from the queue to *port*. *block* and *timeout* act as
         they do in :meth:`get_buffer`. If no buffer is available (for the
         values of *block* and *timeout*, :exc:`~picamera.PiCameraMMALError` is
         raised).
         """
-        for i in range(mmal.mmal_queue_length(self._pool[0].queue)):
-            buf = self.get_buffer(block, timeout)
-            if buf is None:
-                raise PiCameraMMALError(mmal.MMAL_EAGAIN, 'no buffers available')
-            port.send_buffer(buf)
+        for i in range(len(self._queue)):
+            self.send_buffer(block, timeout)
 
 
 class MMALPortPool(MMALPool):
@@ -2095,7 +2146,7 @@ class MMALPythonPort(MMALObject):
         self._pool = None
         self._callback = None
         self._thread = None
-        self._queue = Queue(maxsize=2) # see send_buffer for maxsize reason
+        self._queue = MMALQueue.create()
         self._type = port_type
         self._index = index
         self._format = ct.pointer(mmal.MMAL_ES_FORMAT_T(
@@ -2108,7 +2159,7 @@ class MMALPythonPort(MMALObject):
             self._connection.close()
             self._connection = None
         self.disable()
-        self._queue = None
+        self._queue.close()
         self._format = None
 
     def _get_bitrate(self):
@@ -2282,8 +2333,8 @@ class MMALPythonPort(MMALObject):
         self._enabled = False
         if self._thread is not None:
             self._thread.join()
-            while not self._queue.empty():
-                self._queue.get()
+            while self._queue.get():
+                pass
             self._thread = None
         if self._pool is not None:
             self._pool.close()
@@ -2294,10 +2345,10 @@ class MMALPythonPort(MMALObject):
         with buf as data:
             event = mmal.mmal_event_format_changed_get(buf._buf)
             if self._connection:
-                # Handle format change on the source output port, if any. We don't
-                # check the output port capabilities because it was the port that
-                # emitted the event change in the first case so it'd be odd if it
-                # didn't support them (or the format requested)!
+                # Handle format change on the source output port, if any. We
+                # don't check the output port capabilities because it was the
+                # port that emitted the event change in the first case so it'd
+                # be odd if it didn't support them (or the format requested)!
                 output = self._connection._source
                 output.disable()
                 if isinstance(output, MMALPythonPort):
@@ -2345,11 +2396,8 @@ class MMALPythonPort(MMALObject):
 
     def _callback_run(self):
         while self._enabled:
-            try:
-                buf = self._queue.get(timeout=0.1)
-            except Empty:
-                pass
-            else:
+            buf = self._queue.get(timeout=0.1)
+            if buf:
                 try:
                     if buf.command == mmal.MMAL_EVENT_FORMAT_CHANGED:
                         self._format_changed(buf)
@@ -2361,8 +2409,8 @@ class MMALPythonPort(MMALObject):
                             out_buf.copy_from(buf)
                             output.send_buffer(out_buf)
                     elif self._owner.enabled:
-                        # XXX Do something with the return value?
-                        self._callback(self, buf)
+                        if self._callback(self, buf):
+                            self._owner.disable()
                 finally:
                     buf.release()
 
@@ -2390,16 +2438,13 @@ class MMALPythonPort(MMALObject):
             raise PiCameraMMALError(
                 mmal.MMAL_EINVAL, 'cannot send buffers via disabled port')
         if self._thread is not None:
-            # Asynchronous input port case; queue the buffer for processing.
-            # The maximum queue size ensures that this call blocks if the
-            # owning component isn't keeping up. This means upstream components
-            # drop frames if required to keep the pipeline running
+            # Asynchronous input port case; queue the buffer for processing
             self._queue.put(buf)
         elif self._callback is not None:
             # Disconnected output port case; run the port's callback with the
             # buffer
-            # XXX Do something with the return value?
-            self._callback(self, buf)
+            if self._callback(self, buf):
+                self._enabled = False
         else:
             # Connected output port case; forward the buffer to the connected
             # component's input port
