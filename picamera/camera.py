@@ -964,6 +964,9 @@ class PiCamera(object):
           "Supplemental Enhancement Information" within the output stream.
           Defaults to ``False`` if not specified.
 
+        * *sps_timing* - When ``True`` the encoder includes the camera's
+          framerate in the SPS header. Defaults to ``False`` if not specified.
+
         * *motion_output* - Indicates the output destination for motion vector
           estimation data. When ``None`` (the default), motion data is not
           output. Otherwise, this can be a filename string, a file-like object,

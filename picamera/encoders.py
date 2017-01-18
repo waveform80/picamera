@@ -608,8 +608,9 @@ class PiVideoEncoder(PiEncoder):
 
     def _create_encoder(
             self, format, bitrate=17000000, intra_period=None, profile='high',
-            quantization=0, quality=0, inline_headers=True, sei=False,
-            motion_output=None, intra_refresh=None, level='4'):
+            level='4', quantization=0, quality=0, inline_headers=True,
+            sei=False, sps_timing=False, motion_output=None,
+            intra_refresh=None):
         """
         Extends the base :meth:`~PiEncoder._create_encoder` implementation to
         configure the video encoder for H.264 or MJPEG output.
@@ -752,6 +753,8 @@ class PiVideoEncoder(PiEncoder):
                 self.output_port.params[mmal.MMAL_PARAMETER_VIDEO_ENCODE_INLINE_HEADER] = True
             if sei:
                 self.output_port.params[mmal.MMAL_PARAMETER_VIDEO_ENCODE_SEI_ENABLE] = True
+            if sps_timing:
+                self.output_port.params[mmal.MMAL_PARAMETER_VIDEO_ENCODE_SPS_TIMING] = True
             if motion_output is not None:
                 self.output_port.params[mmal.MMAL_PARAMETER_VIDEO_ENCODE_INLINE_VECTORS] = True
 
