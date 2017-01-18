@@ -2001,11 +2001,13 @@ class MMALSplitter(MMALComponent):
     opaque_output_subformats = ('OPQV-single',) * 4
 
 
-class MMALConverter(MMALComponent):
+class MMALISPResizer(MMALComponent):
     """
-    Represents the MMAL ISP component. This component has 1 input port and
-    1 output port, and supports conversion of numerous formats into numerous
-    other formats (e.g. OPAQUE to RGB, etc).
+    Represents the MMAL ISP resizer component. This component has 1 input port
+    and 1 output port, and supports resizing via the VideoCore ISP, along with
+    conversion of numerous formats into numerous other formats (e.g. OPAQUE to
+    RGB, etc). This is more efficient than :class:`MMALResizer` but is only
+    available on later firmware versions.
     """
     __slots__ = ()
     component_type = mmal.MMAL_COMPONENT_DEFAULT_ISP
@@ -2015,9 +2017,11 @@ class MMALConverter(MMALComponent):
 
 class MMALResizer(MMALComponent):
     """
-    Represents the MMAL resizer component. This component has 1 input port and
-    1 output port. The output port can (and usually should) have a different
-    frame size to the input port.
+    Represents the MMAL VPU resizer component. This component has 1 input port
+    and 1 output port. This supports resizing via the VPU. This is not as
+    efficient as :class:`MMALISPResizer` but is available on all firmware
+    verions. The output port can (and usually should) have a different frame
+    size to the input port.
     """
     __slots__ = ()
     component_type = mmal.MMAL_COMPONENT_DEFAULT_RESIZER

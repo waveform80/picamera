@@ -162,8 +162,9 @@ class PiEncoder(object):
 
     .. attribute:: resizer
 
-        The :class:`~mmalobj.MMALResizer` component, or ``None`` if no resizer
-        component has been created.
+        The :class:`~mmalobj.MMALISPResizer` component (or
+        :class:`~mmalobj.MMALResizer` on older firmwares), or ``None`` if no
+        resizer component has been created.
     """
 
     DEBUG = 0
@@ -198,7 +199,9 @@ class PiEncoder(object):
 
     def _create_resizer(self, width, height):
         """
-        Creates and configures an :class:`~mmalobj.MMALResizer` component.
+        Creates and configures an :class:`~mmalobj.MMALISPResizer` component
+        (or :class:`~mmalobj.MMALResizer` if the firmware doesn't support
+        the ISP component).
 
         This is called when the initializer's *resize* parameter is something
         other than ``None``. The *width* and *height* parameters are passed to
@@ -206,7 +209,11 @@ class PiEncoder(object):
         resizer - it does not connect it to the encoder. The method sets the
         :attr:`resizer` attribute to the constructed resizer component.
         """
-        self.resizer = mo.MMALResizer()
+        try:
+            self.resizer = mo.MMALISPResizer()
+        except PiCameraMMALError as e:
+            if e.errno == mmal.MMAL_ENOSYS:
+                self.resizer = mo.MMALResizer()
         self.resizer.connect(self.input_port)
         self.resizer.outputs[0].copy_from(self.resizer.inputs[0])
         self.resizer.outputs[0].format = mmal.MMAL_ENCODING_I420
@@ -501,25 +508,30 @@ class PiRawMixin(PiEncoder):
                         "using a resizer to perform non-YUV encoding; "
                         "upgrading your firmware with sudo rpi-update "
                         "may improve performance"))
-        # Workaround: If a non-alpha format is requested with the resizer, use
-        # the alpha-inclusive format and set a flag to get the callback to
-        # strip the alpha bytes
+        # Workaround: If a non-alpha format is requested with the resizer, and
+        # the ISPResizer isn't available (due to an old firmware) use the
+        # alpha-inclusive format and set a flag to get the callback to strip
+        # the alpha bytes
         self._strip_alpha = False
         if resize:
             width, height = resize
             try:
-                format = {
-                    'rgb': 'rgba',
-                    'bgr': 'bgra',
-                    }[format]
-                self._strip_alpha = True
-                warnings.warn(
-                    PiCameraAlphaStripping(
-                        "using alpha-stripping to convert to non-alpha "
-                        "format; you may find the equivalent alpha format "
-                        "faster"))
-            except KeyError:
-                pass
+                mo.MMALISPResizer().close()
+            except PiCameraMMALError as e:
+                if e.errno == mmal.MMAL_ENOSYS:
+                    try:
+                        format = {
+                            'rgb': 'rgba',
+                            'bgr': 'bgra',
+                            }[format]
+                        self._strip_alpha = True
+                        warnings.warn(
+                            PiCameraAlphaStripping(
+                                "using alpha-stripping with old resizer; "
+                                "upgrading your firmware with sudo rpi-update "
+                                "may improve performance"))
+                    except KeyError:
+                        pass
         else:
             width, height = input_port.framesize
         # Workaround (#83): when the resizer is used the width must be aligned

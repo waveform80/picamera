@@ -303,6 +303,10 @@ Things to note:
 * The easiest way to use such "structured" parameters is to query them first,
   modify the resulting structure, then write it back to the parameter.
 
+To find out what parameters are available for use with the camera component,
+have a look at the source for the :class:`~picamera.PiCamera` class, especially
+property getters and setters.
+
 
 File Output (RGB capture)
 -------------------------
@@ -717,6 +721,9 @@ Components
     :show-inheritance:
 
 .. autoclass:: MMALResizer
+    :show-inheritance:
+
+.. autoclass:: MMALISPResizer
     :show-inheritance:
 
 .. autoclass:: MMALEncoder
