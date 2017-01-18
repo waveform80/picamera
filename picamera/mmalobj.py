@@ -446,7 +446,7 @@ def debug_pipeline(port):
 
     def find_component(addr):
         for obj in MMALObject.REGISTRY:
-            if isinstance(obj, MMALBaseComponent):
+            if isinstance(obj, MMALBaseComponent) and obj._component is not None:
                 if ct.addressof(obj._component[0]) == addr:
                     return obj
         raise IndexError('unable to locate component with address %x' % addr)
@@ -1713,21 +1713,29 @@ class MMALConnection(MMALObject):
             raise PiCameraValueError('source is not an MMAL port')
         if not isinstance(target, MMALPort):
             raise PiCameraValueError('target is not an MMAL port')
-        self._connection = ct.POINTER(mmal.MMAL_CONNECTION_T)()
         if (source.opaque_subformat, target.opaque_subformat) in self.compatible_formats:
             source.format = mmal.MMAL_ENCODING_OPAQUE
         else:
             source.format = mmal.MMAL_ENCODING_I420
         source.commit()
-        mmal_check(
-            mmal.mmal_connection_create(
-                self._connection, source._port, target._port,
-                mmal.MMAL_CONNECTION_FLAG_TUNNELLING |
-                mmal.MMAL_CONNECTION_FLAG_ALLOCATION_ON_INPUT),
-            prefix="Failed to create connection")
-        mmal_check(
-            mmal.mmal_connection_enable(self._connection),
-            prefix="Failed to enable connection")
+        self._connection = ct.POINTER(mmal.MMAL_CONNECTION_T)()
+        try:
+            mmal_check(
+                mmal.mmal_connection_create(
+                    self._connection, source._port, target._port,
+                    mmal.MMAL_CONNECTION_FLAG_TUNNELLING |
+                    mmal.MMAL_CONNECTION_FLAG_ALLOCATION_ON_INPUT),
+                prefix="Failed to create connection")
+            try:
+                mmal_check(
+                    mmal.mmal_connection_enable(self._connection),
+                    prefix="Failed to enable connection")
+            except:
+                mmal.mmal_connection_destroy(self._connection)
+                raise
+        except:
+            self._connection = None
+            raise
 
     def close(self):
         if self._connection is not None:
