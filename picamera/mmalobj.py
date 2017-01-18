@@ -574,7 +574,7 @@ class MMALBaseComponent(MMALObject):
     """
 
     __slots__ = ('_component', '_control', '_inputs', '_outputs')
-    component_type = 'none'
+    component_type = b'none'
     opaque_input_subformats = ()
     opaque_output_subformats = ()
 
@@ -1779,7 +1779,12 @@ class MMALConnection(MMALObject):
 
 class MMALRawCamera(MMALBaseComponent):
     """
-    The MMAL raw camera component.
+    The MMAL "raw camera" component.
+
+    Don't use this! If you insist on using this anyway, read the forum post
+    about `raw sensor access`_ first.
+
+    .. raw sensor access: https://www.raspberrypi.org/forums/viewtopic.php?f=43&t=109137
     """
     __slots__ = ()
     component_type = mmal.MMAL_COMPONENT_RAW_CAMERA
