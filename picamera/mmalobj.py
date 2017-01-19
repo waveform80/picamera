@@ -2916,6 +2916,21 @@ class MMALPythonTarget(MMALPythonComponent):
         self._stream, self._opened = open_stream(output)
         self._done = done
         self._event = Event()
+        # Accept all the formats picamera generally produces (user can add
+        # other esoteric stuff if they need to)
+        self.inputs[0].valid_formats = {
+            mmal.MMAL_ENCODING_MJPEG,
+            mmal.MMAL_ENCODING_H264,
+            mmal.MMAL_ENCODING_JPEG,
+            mmal.MMAL_ENCODING_GIF,
+            mmal.MMAL_ENCODING_PNG,
+            mmal.MMAL_ENCODING_BMP,
+            mmal.MMAL_ENCODING_I420,
+            mmal.MMAL_ENCODING_RGB24,
+            mmal.MMAL_ENCODING_BGR24,
+            mmal.MMAL_ENCODING_RGBA,
+            mmal.MMAL_ENCODING_BGRA,
+            }
 
     def close(self):
         super(MMALPythonTarget, self).close()
