@@ -944,6 +944,10 @@ class MMALPort(MMALControlPort):
         and *timeout* act as they do in the corresponding
         :meth:`MMALPool.get_buffer`.
         """
+        if not self.enabled:
+            raise PiCameraMMALError(
+                mmal.MMAL_EINVAL,
+                "cannot get buffer from disabled port %s" % self.name)
         return self.pool.get_buffer(block, timeout)
 
     def send_buffer(self, buf):
@@ -2140,6 +2144,7 @@ class MMALPythonPort(MMALObject):
         '_pool',
         '_type',
         '_index',
+        '_valid_formats',
         '_format',
         '_callback',
         '_thread',
@@ -2166,6 +2171,13 @@ class MMALPythonPort(MMALObject):
         self._queue = MMALQueue.create()
         self._type = port_type
         self._index = index
+        self._valid_formats = {
+            mmal.MMAL_ENCODING_I420,
+            mmal.MMAL_ENCODING_RGB24,
+            mmal.MMAL_ENCODING_BGR24,
+            mmal.MMAL_ENCODING_RGBA,
+            mmal.MMAL_ENCODING_BGRA,
+            }
         self._format = ct.pointer(mmal.MMAL_ES_FORMAT_T(
             type=mmal.MMAL_ES_TYPE_VIDEO,
             encoding=mmal.MMAL_ENCODING_I420,
@@ -2185,6 +2197,27 @@ class MMALPythonPort(MMALObject):
         self._format[0].bitrate = value
     bitrate = property(_get_bitrate, _set_bitrate, doc="""\
         Retrieves or sets the bitrate limit for the port's format.
+        """)
+
+    def _get_valid_formats(self):
+        return self._valid_formats
+    def _set_valid_formats(self, value):
+        try:
+            value = {f for f in value}
+        except TypeError:
+            value = {value}
+        if not value:
+            raise PiCameraMMALError(
+                mmal.MMAL_EINVAL, "port must have at least one valid format")
+        self._valid_formats = value
+    valid_formats = property(_get_valid_formats, _set_valid_formats, doc="""\
+        Retrieves or sets the set of valid formats for this port. The set must
+        always contain at least one valid format. A single format can be
+        specified; it will be converted implicitly to a singleton set.
+
+        If the current port :attr:`format` is not a member of the new set, no
+        error is raised. An error will be raised when :meth:`commit` is next
+        called if :attr:`format` is still not a member of the set.
         """)
 
     def _get_format(self):
@@ -2283,6 +2316,9 @@ class MMALPythonPort(MMALObject):
         adjusting the port's format and/or associated settings (like width and
         height for video ports).
         """
+        if self.format.value not in self.valid_formats:
+            raise PiCameraMMALError(
+                mmal.MMAL_EINVAL, 'invalid format for port %r' % self)
         self._buffer_count = 2
         video = self._format[0].es[0].video
         try:
@@ -2426,6 +2462,7 @@ class MMALPythonPort(MMALObject):
                             out_buf.copy_from(buf)
                             output.send_buffer(out_buf)
                     elif self._owner.enabled:
+                        # XXX Exception handling?
                         if self._callback(self, buf):
                             self._owner.disable()
                 finally:
@@ -2451,23 +2488,30 @@ class MMALPythonPort(MMALObject):
         """
         Send :class:`MMALBuffer` *buf* to the port.
         """
-        if not self._enabled:
-            raise PiCameraMMALError(
-                mmal.MMAL_EINVAL, 'cannot send buffers via disabled port')
         if self._thread is not None:
+            if not self._enabled:
+                raise PiCameraMMALError(
+                    mmal.MMAL_EINVAL, 'cannot send buffers via disabled port')
             # Asynchronous input port case; queue the buffer for processing
             self._queue.put(buf)
-        elif self._callback is not None:
-            # Disconnected output port case; run the port's callback with the
-            # buffer
-            if self._callback(self, buf):
-                self._enabled = False
+        elif self._enabled:
+            if self._callback is not None:
+                # Disconnected output port case; run the port's callback with
+                # the buffer
+                if self._callback(self, buf):
+                    self._enabled = False
+            else:
+                # Connected output port case; forward the buffer to the
+                # connected component's input port
+                assert self.type == mmal.MMAL_PORT_TYPE_OUTPUT
+                # XXX If it's a format-change event?
+                self._connection._target.send_buffer(buf)
         else:
-            # Connected output port case; forward the buffer to the connected
-            # component's input port
-            assert self.type == mmal.MMAL_PORT_TYPE_OUTPUT
-            # XXX If it's a format-change event?
-            self._connection._target.send_buffer(buf)
+            # Disabled output port case; we don't raise an error (this commonly
+            # occurs when disabling an output port while a component's
+            # background thread is still running), but we do release the buffer
+            # back to its queue
+            buf.release()
 
     @property
     def name(self):
@@ -2831,20 +2875,6 @@ class MMALPythonComponent(MMALPythonBaseComponent):
         elif port.type == mmal.MMAL_PORT_TYPE_OUTPUT:
             if port.format.value != self.inputs[0].format.value:
                 raise PiCameraMMALError(mmal.MMAL_EINVAL, 'output format mismatch')
-
-    def _accept_formats(self, port, valid):
-        """
-        A utility method intended for use within :meth:`_commit_port`. If the
-        *port* format is not one of the values listed in the *valid* sequence,
-        the appropriate :exc:`~picamera.PiCameraMMALError` is raised.
-        """
-        try:
-            iter(valid)
-        except TypeError:
-            valid = (valid,)
-        if port.format.value not in valid:
-            raise PiCameraMMALError(
-                mmal.MMAL_EINVAL, 'invalid format for port %r' % port)
 
     def _callback(self, port, buf):
         """

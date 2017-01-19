@@ -45,17 +45,24 @@ class Coord(namedtuple('Coord', ('x', 'y'))):
 class ClockSplitter(mo.MMALPythonComponent):
     def __init__(self):
         super(ClockSplitter, self).__init__(name='py.clock', outputs=2)
+        self.inputs[0].valid_formats = {mmal.MMAL_ENCODING_I420}
         self._lock = Lock()
         self._clock_image = None
         self._clock_thread = None
 
-    def _commit_port(self, port):
-        # only accept I420 format on the input port
-        if port.type == 'in':
-            self._accept_formats(port, mmal.MMAL_ENCODING_I420)
-        # the super call will take care of the rest (copying input format
-        # to outputs, checking output formats match input)
-        super(ClockSplitter, self)._commit_port(port)
+    def enable(self):
+        super(ClockSplitter, self).enable()
+        self._clock_thread = Thread(target=self._clock_run)
+        self._clock_thread.daemon = True
+        self._clock_thread.start()
+
+    def disable(self):
+        super(ClockSplitter, self).disable()
+        if self._clock_thread:
+            self._clock_thread.join()
+            self._clock_thread = None
+            with self._lock:
+                self._clock_image = None
 
     def _clock_run(self):
         # draw the clock face up front (no sense drawing that every time)
@@ -94,7 +101,7 @@ class ClockSplitter(mo.MMALPythonComponent):
                 # construct an Image using the Y plane of the output
                 # buffer's data and tell PIL we can write to the buffer
                 img = Image.frombuffer('L', port.framesize, data, 'raw', 'L', 0, 1)
-                img.readonly = 0
+                img.readonly = False
                 with self._lock:
                     if self._clock_image:
                         img.paste(self._clock_image, (10, 10), self._clock_image)
@@ -103,36 +110,10 @@ class ClockSplitter(mo.MMALPythonComponent):
             # copy_from)
             if out2:
                 out2.replicate(out1)
-            try:
-                self.outputs[0].send_buffer(out1)
-            except PiCameraMMALError as e:
-                # if EINVAL occurs here the port's shutting down so stop
-                # the callbacks anyway
-                if e.status != mmal.MMAL_EINVAL:
-                    raise
-                return True
+            self.outputs[0].send_buffer(out1)
         if out2:
-            try:
-                self.outputs[1].send_buffer(out2)
-            except PiCameraMMALError as e:
-                if e.status != mmal.MMAL_EINVAL:
-                    raise
-                return True
+            self.outputs[1].send_buffer(out2)
         return False
-
-    def enable(self):
-        super(ClockSplitter, self).enable()
-        self._clock_thread = Thread(target=self._clock_run)
-        self._clock_thread.daemon = True
-        self._clock_thread.start()
-
-    def disable(self):
-        super(ClockSplitter, self).disable()
-        if self._clock_thread:
-            self._clock_thread.join()
-            self._clock_thread = None
-            with self._lock:
-                self._clock_image = None
 
 
 def main(output_filename):

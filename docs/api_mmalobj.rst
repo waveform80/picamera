@@ -652,26 +652,32 @@ frames they've got to run in less than a frame's time (e.g.  33ms at 30fps).
 Bear in mind that a significant amount of time is going to be spent shuttling
 the huge RGB frames around so you've actually got much less than 33ms available
 to you (how much will depend on the speed of your Pi, what resolution you're
-using, the what framerate, etc).
+using, the framerate, etc).
+
+Sometimes, performance can mean making unintuitive choices. For example, the
+`Pillow library`_ (the main imaging library in Python these days) can construct
+images which share buffer memory (see ``Image.frombuffer``), but only for the
+indexed (grayscale) and RGBA formats, not RGB. Hence, it can make sense to use
+RGBA (a format even larger than RGB) if only because it allows you to avoid
+copying any data when performing a composite.
+
+Another trick is to realize that although YUV420 has different sized planes,
+it's often enough to manipulate the Y plane only. In that case you can treat
+the front of the buffer as an indexed image (remember that Pillow can share
+buffer memory with such images) and manipulate that directly. With tricks like
+these it's possible to perform multiple composites in realtime at 720p30 on a
+Pi3.
+
+Here's a (heavily commented) variant of the cross-hair example above that uses
+the lower level :class:`MMALPythonComponent` class instead, and the `Pillow
+library`_ to perform compositing on YUV420 in the manner just described:
+
+.. literalinclude:: examples/mmal_crosshair.py
 
 It's a sensible idea to perform any overlay rendering you want to do in a
 separate thread and then just handle compositing your overlay onto the frame in
 the transform callback. Anything you can do to avoid buffer copying is a bonus
 here.
-
-Sometimes that can even mean making unintuitive choices. For example, the
-`Pillow library`_ (the main imaging library in Python these days) can construct
-images which share buffer memory (see ``Image.frombuffer``), but only for the
-grayscale and RGBA formats, not RGB. Hence, it can make sense to use RGBA (a
-format even larger than RGB) if only because it allows you to avoid copying
-any data when performing a composite.
-
-Another trick is to realize that although YUV420 has different sized planes,
-it's often enough to manipulate the Y plane only. In that case you can treat
-the front of the buffer as a grayscale image (remember that Pillow can share
-buffer memory with such images) and manipulate that directly. With tricks like
-these it's possible to perform multiple composites in realtime at 720p30 on a
-Pi3.
 
 Here's a final (rather large) demonstration that puts all these things together
 to construct a :class:`MMALPythonComponent` derivative with two purposes:
@@ -683,7 +689,7 @@ to construct a :class:`MMALPythonComponent` derivative with two purposes:
    this is a demonstration of how Python components can have multiple outputs
    too).
 
-.. literalinclude:: examples/mmal_python_transform.py
+.. literalinclude:: examples/mmal_clock_splitter.py
 
 
 .. _YUV420: https://en.wikipedia.org/wiki/YUV#Y.E2.80.B2UV420p_.28and_Y.E2.80.B2V12_or_YV12.29_to_RGB888_conversion
