@@ -121,6 +121,7 @@ def main(output_filename):
     preview = mo.MMALRenderer()
     encoder = mo.MMALVideoEncoder()
     clock = ClockSplitter()
+    target = mo.MMALPythonTarget(output_filename)
 
     # Configure camera output 0
     camera.outputs[0].framesize = (640, 480)
@@ -140,21 +141,28 @@ def main(output_filename):
     encoder.outputs[0].params[mmal.MMAL_PARAMETER_VIDEO_ENCODE_INITIAL_QUANT] = 22
     encoder.outputs[0].params[mmal.MMAL_PARAMETER_VIDEO_ENCODE_MAX_QUANT] = 22
     encoder.outputs[0].params[mmal.MMAL_PARAMETER_VIDEO_ENCODE_MIN_QUANT] = 22
-    output = io.open(output_filename, 'wb')
-    def output_callback(port, buf):
-        output.write(buf.data)
-        return bool(buf.flags & mmal.MMAL_BUFFER_HEADER_FLAG_EOS)
 
-    # Connect everything up (no need to enable capture on camera port 0)
+    # Connect everything up and enable everything (no need to enable capture on
+    # camera port 0)
     clock.connect(camera.outputs[0])
     preview.connect(clock.outputs[0])
     encoder.connect(clock.outputs[1])
-    encoder.outputs[0].enable(output_callback)
+    target.connect(encoder.outputs[0])
+    target.enable()
+    encoder.enable()
+    preview.enable()
+    clock.enable()
     try:
         sleep(10)
     finally:
-        preview.disconnect()
+        # Disable everything and tear down the pipeline
+        target.disable()
+        encoder.disable()
+        preview.disable()
+        clock.disable()
+        target.disconnect()
         encoder.disconnect()
+        preview.disconnect()
         clock.disconnect()
 
 

@@ -29,8 +29,9 @@ class Crosshair(mo.MMALPythonComponent):
         if out:
             # We've got a buffer (if we don't get a buffer here it most likely
             # means things are going too slow downstream so we'll just have to
-            # skip this frame); grab a locked reference to the buffer's data by
-            # using "with"
+            # skip this frame); copy the input buffer to the output buffer
+            out.copy_from(buf)
+            # now grab a locked reference to the buffer's data by using "with"
             with out as data:
                 # Construct a PIL Image over the Y plane at the front of the
                 # data and tell PIL the buffer is writeable
@@ -50,6 +51,15 @@ camera = mo.MMALCamera()
 preview = mo.MMALRenderer()
 transform = Crosshair()
 
+camera.outputs[0].framesize = '720p'
+camera.outputs[0].framerate = 30
+camera.outputs[0].commit()
+
 transform.connect(camera.outputs[0])
 preview.connect(transform.outputs[0])
+
+preview.enable()
+transform.enable()
+camera.enable()
+
 pause()
