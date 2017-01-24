@@ -483,7 +483,8 @@ class PiCamera(object):
         # video recordings and captures where use_video_port=True to occur
         # simultaneously (#26)
         self._splitter = mo.MMALSplitter()
-        self._splitter.connect(self._camera.outputs[self.CAMERA_VIDEO_PORT])
+        self._splitter.inputs[0].connect(
+                self._camera.outputs[self.CAMERA_VIDEO_PORT]).enable()
 
     def _init_preview(self):
         # Create a null-sink component, enable it and connect it to the

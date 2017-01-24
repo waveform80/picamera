@@ -57,7 +57,7 @@ MMAL operates on the principle of pipelines:
     port.
 
   - Finally, all ports (control, input and output) have parameters
-    (:attr:`~MMALControlPort.params`) which control their operation.
+    (:attr:`~MMALControlPort.params`) which affect their operation.
 
 * An output port can have a connection to an input port
   (:class:`MMALConnection`). Connections ensure the two ports use compatible
@@ -192,25 +192,41 @@ The renderer is what ``mmalobj`` terms a "downstream component". This is a
 component with a single input that typically sits downstream from some feeder
 component (like a camera). All such components have the
 :meth:`MMALComponent.connect` method which can be used to connect the
-sole input to the specified output port:
+sole input to a specified output:
 
 .. code-block:: pycon
 
-    >>> preview.connect(camera.outputs[0])
+    >>> preview.connect(camera)
+
+Note that we've been quite lazy in the snippet above by simply calling
+:meth:`MMALComponent.connect` with the ``camera`` component. In this case, a
+connection will be attempted between the first input port of the owner
+(``preview``) and the *first unconnected* output of the parameter (``camera``).
+However, this is not always what's wanted so you can specify the exact ports
+you wish to connect. In this case the example was equivalent to calling:
+
+.. code-block:: pycon
+
+    >>> preview.inputs[0].connect(camera.outputs[0])
+
+As soon as the connection is complete you should see the camera preview appear
+on the Pi's screen. Let's query the port configurations now:
+
+.. code-block:: pycon
+
     >>> camera.outputs[0]
     <MMALVideoPort "vc.ril.camera:out:0(OPQV)": format=MMAL_FOURCC('OPQV') buffers=10x128 frames=640x480@30fps>
     >>> preview.inputs[0]
     <MMALVideoPort "vc.ril.video_render:in:0(OPQV)": format=MMAL_FOURCC('OPQV') buffers=10x128 frames=640x480@30fps>
 
-As soon as the connection is complete you should see the camera preview appear
-on the Pi's screen. One interesting thing to note is that the connection has
-implicitly reconfigured the camera's output port to use the OPAQUE ("OPQV")
-format. This is a special format used internally by the camera firmware which
-avoids passing complete frame data around, instead passing pointers to frame
-data around (this explains the tiny buffer size of 128 bytes as very little
-data is actually being shuttled between the components). Note also that the
-connection has automatically copied the port format, frame size and frame-rate
-to the preview's input port.
+One interesting thing to note is that the connection has implicitly
+reconfigured the camera's output port to use the OPAQUE ("OPQV") format. This
+is a special format used internally by the camera firmware which avoids passing
+complete frame data around, instead passing pointers to frame data around (this
+explains the tiny buffer size of 128 bytes as very little data is actually
+being shuttled between the components). Note also that the connection has
+automatically copied the port format, frame size and frame-rate to the
+preview's input port.
 
 .. image:: images/preview_pipeline.*
     :align: center
@@ -676,8 +692,8 @@ library`_ to perform compositing on YUV420 in the manner just described:
 
 It's a sensible idea to perform any overlay rendering you want to do in a
 separate thread and then just handle compositing your overlay onto the frame in
-the transform callback. Anything you can do to avoid buffer copying is a bonus
-here.
+the transform's callback method. Anything you can do to avoid buffer copying is
+a bonus here.
 
 Here's a final (rather large) demonstration that puts all these things together
 to construct a :class:`MMALPythonComponent` derivative with two purposes:
@@ -780,6 +796,8 @@ Ports
 Connections
 ===========
 
+.. autoclass:: MMALBaseConnection
+
 .. autoclass:: MMALConnection
 
 
@@ -806,7 +824,7 @@ Python Extensions
 
 .. autoclass:: MMALPythonComponent
     :show-inheritance:
-    :private-members: _callback, _commit_port, _accept_formats
+    :private-members: _callback, _commit_port
 
 .. autoclass:: MMALPythonConnection
 

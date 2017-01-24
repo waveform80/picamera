@@ -65,6 +65,9 @@ def MMAL_VERSION_TO_MINOR(a):
 def MMAL_FOURCC(s):
     return sum(ord(c) << (i * 8) for (i, c) in enumerate(s))
 
+def FOURCC_str(n):
+    return ''.join(chr(n >> i & 0xFF) for i in range(0, 32, 8))
+
 MMAL_MAGIC = MMAL_FOURCC('mmal')
 
 MMAL_FALSE = 0
@@ -142,18 +145,7 @@ class MMAL_RATIONAL_T(ct.Structure):
 
 MMAL_TIME_UNKNOWN = ct.c_int64(1<<63).value
 
-class MMAL_FOURCC_T(ct.c_uint32):
-    def __eq__(self, other):
-        if isinstance(other, int):
-            return self.value == other
-        else:
-            return super(MMAL_FOURCC_T, self).__eq__(other)
-
-    def __str__(self):
-        return ''.join(chr(self.value >> i & 0xFF) for i in range(0, 32, 8))
-
-    def __repr__(self):
-        return "MMAL_FOURCC('%s')" % str(self)
+MMAL_FOURCC_T = ct.c_uint32
 
 # mmal_format.h ##############################################################
 

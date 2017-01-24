@@ -118,8 +118,8 @@ Sensor elements --> Frame 1
 = = = = = = = = === = = = = = = = =
 
 The second line of data is reset (this time some sensor element states change).
-All other elemente increment by 1. We've not read anything yet, but we want to
-leave a delay for the first row to "see" enough light before we read it:
+All other elements increment by 1. We've not read anything yet, because we want
+to leave a delay for the first row to "see" enough light before we read it:
 
 = = = = = = = = === = = = = = = = =
 Sensor elements --> Frame 1

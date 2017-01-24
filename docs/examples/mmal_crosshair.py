@@ -7,7 +7,7 @@ class Crosshair(mo.MMALPythonComponent):
     def __init__(self):
         super(Crosshair, self).__init__(name='py.crosshair')
         self._crosshair = None
-        self.inputs[0].valid_formats = mmal.MMAL_ENCODING_I420
+        self.inputs[0].supported_formats = mmal.MMAL_ENCODING_I420
 
     def _callback(self, port, buf):
         # If we haven't drawn the crosshair yet, do it now and cache the
@@ -55,8 +55,11 @@ camera.outputs[0].framesize = '720p'
 camera.outputs[0].framerate = 30
 camera.outputs[0].commit()
 
-transform.connect(camera.outputs[0])
-preview.connect(transform.outputs[0])
+transform.connect(camera)
+preview.connect(transform)
+
+transform.connection.enable()
+preview.connection.enable()
 
 preview.enable()
 transform.enable()

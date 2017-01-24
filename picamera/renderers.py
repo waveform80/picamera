@@ -435,7 +435,7 @@ class PiPreviewRenderer(PiRenderer):
         if resolution is not None:
             resolution = mo.to_resolution(resolution)
             source.framesize = resolution
-        self.renderer.connect(source)
+        self.renderer.inputs[0].connect(source).enable()
 
     def _get_resolution(self):
         result = self._parent._camera.outputs[self._parent.CAMERA_PREVIEW_PORT].framesize
@@ -516,7 +516,7 @@ class PiNullSink(object):
     def __init__(self, parent, source):
         self.renderer = mo.MMALNullSink()
         self.renderer.enable()
-        self.renderer.connect(source)
+        self.renderer.inputs[0].connect(source).enable()
 
     def close(self):
         """

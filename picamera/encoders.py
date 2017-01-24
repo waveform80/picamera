@@ -190,9 +190,9 @@ class PiEncoder(object):
             self._create_encoder(format, **options)
             if self.encoder:
                 if self.resizer:
-                    self.encoder.connect(self.resizer.outputs[0])
+                    self.encoder.inputs[0].connect(self.resizer.outputs[0]).enable()
                 else:
-                    self.encoder.connect(self.input_port)
+                    self.encoder.inputs[0].connect(self.input_port).enable()
         except:
             self.close()
             raise
@@ -214,7 +214,7 @@ class PiEncoder(object):
         except PiCameraMMALError as e:
             if e.errno == mmal.MMAL_ENOSYS:
                 self.resizer = mo.MMALResizer()
-        self.resizer.connect(self.input_port)
+        self.resizer.inputs[0].connect(self.input_port).enable()
         self.resizer.outputs[0].copy_from(self.resizer.inputs[0])
         self.resizer.outputs[0].format = mmal.MMAL_ENCODING_I420
         self.resizer.outputs[0].framesize = (width, height)

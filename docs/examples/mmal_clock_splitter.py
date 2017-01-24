@@ -45,7 +45,7 @@ class Coord(namedtuple('Coord', ('x', 'y'))):
 class ClockSplitter(mo.MMALPythonComponent):
     def __init__(self):
         super(ClockSplitter, self).__init__(name='py.clock', outputs=2)
-        self.inputs[0].valid_formats = {mmal.MMAL_ENCODING_I420}
+        self.inputs[0].supported_formats = {mmal.MMAL_ENCODING_I420}
         self._lock = Lock()
         self._clock_image = None
         self._clock_thread = None
@@ -144,10 +144,14 @@ def main(output_filename):
 
     # Connect everything up and enable everything (no need to enable capture on
     # camera port 0)
-    clock.connect(camera.outputs[0])
-    preview.connect(clock.outputs[0])
-    encoder.connect(clock.outputs[1])
-    target.connect(encoder.outputs[0])
+    clock.inputs[0].connect(camera.outputs[0])
+    preview.inputs[0].connect(clock.outputs[0])
+    encoder.inputs[0].connect(clock.outputs[1])
+    target.inputs[0].connect(encoder.outputs[0])
+    target.connection.enable()
+    encoder.connection.enable()
+    preview.connection.enable()
+    clock.connection.enable()
     target.enable()
     encoder.enable()
     preview.enable()
@@ -160,10 +164,10 @@ def main(output_filename):
         encoder.disable()
         preview.disable()
         clock.disable()
-        target.disconnect()
-        encoder.disconnect()
-        preview.disconnect()
-        clock.disconnect()
+        target.inputs[0].disconnect()
+        encoder.inputs[0].disconnect()
+        preview.inputs[0].disconnect()
+        clock.inputs[0].disconnect()
 
 
 if __name__ == '__main__':
