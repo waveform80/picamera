@@ -827,7 +827,7 @@ class PiArrayTransform(mo.MMALPythonComponent):
     component, then place it in your MMAL pipeline as you would a normal
     encoder.
     """
-    __slots__ = ('_formats',)
+    __slots__ = ()
 
     def __init__(self, formats=('rgb', 'bgr', 'rgba', 'bgra')):
         super(PiArrayTransform, self).__init__()
@@ -836,7 +836,7 @@ class PiArrayTransform(mo.MMALPythonComponent):
         if isinstance(formats, str):
             formats = (formats,)
         try:
-            self._formats = {
+            formats = {
                 {
                     'rgb': mmal.MMAL_ENCODING_RGB24,
                     'bgr': mmal.MMAL_ENCODING_BGR24,
@@ -848,11 +848,8 @@ class PiArrayTransform(mo.MMALPythonComponent):
         except KeyError as e:
             raise PiCameraValueError(
                 'PiArrayTransform cannot handle format %s' % str(e))
-
-    def _commit_port(self, port):
-        if port.type == 'in' and port.format.value not in self._formats:
-            raise PiCameraMMALError(mmal.MMAL_EINVAL, 'invalid format')
-        super(PiArrayTransform, self)._commit_port(port)
+        self.inputs[0].supported_formats = formats
+        self.outputs[0].supported_formats = formats
 
     def _callback(self, port, source_buf):
         result = False

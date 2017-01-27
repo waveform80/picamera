@@ -197,6 +197,8 @@ sole input to a specified output:
 .. code-block:: pycon
 
     >>> preview.connect(camera)
+    <MMALConnection "vc.ril.camera:out:0/vc.ril.video_render:in:0">
+    >>> preview.connection.enable()
 
 Note that we've been quite lazy in the snippet above by simply calling
 :meth:`MMALComponent.connect` with the ``camera`` component. In this case, a
@@ -208,8 +210,10 @@ you wish to connect. In this case the example was equivalent to calling:
 .. code-block:: pycon
 
     >>> preview.inputs[0].connect(camera.outputs[0])
+    <MMALConnection "vc.ril.camera:out:0/vc.ril.video_render:in:0">
+    >>> preview.inputs[0].connection.enable()
 
-As soon as the connection is complete you should see the camera preview appear
+As soon as the connection is enabled you should see the camera preview appear
 on the Pi's screen. Let's query the port configurations now:
 
 .. code-block:: pycon
@@ -341,31 +345,24 @@ activate the output port:
     >>> camera.outputs[2]
     <MMALVideoPort "vc.ril.camera:out:2(RGB3)": format=MMAL_FOURCC('RGB3') buffers=1x921600 frames=640x480@0fps>
     >>> camera.outputs[2].enable()
-    Traceback (most recent call last):
-      File "<stdin>", line 1, in <module>
-      File "/home/pi/picamera/picamera/mmalobj.py", line 919, in enable
-        super(MMALPort, self).enable()
-      File "/home/pi/picamera/picamera/mmalobj.py", line 684, in enable
-        mmal.mmal_port_enable(self._port, self._wrapper),
-    ctypes.ArgumentError: argument 2: <class 'TypeError'>: expected CFunctionType instance instead of NoneType
 
-Unfortunately, activating an output port is slightly more complex than it
-sounds!
+Unfortunately, that didn't seem to do much! An output port that is
+participating in a connection needs nothing more: it knows where it's data is
+going. However, an output port *without* a connection requires a callback
+function to be assigned so that something can be done with the buffers of data
+it produces.
 
-An output port that is participating in a connection needs nothing more: it
-knows where it's data is going. However, an output port *without* a connection
-requires a callback function to be assigned so that something can be done with
-the data it produces. The callback will take two parameters: the
-:class:`MMALPort` responsible for producing the data, and the
-:class:`MMALBuffer` containing the data. It is expected to return a
-:class:`bool` which will be ``False`` if further data is expected and ``True``
-if no further data is expected. If ``True`` is returned, the callback will not
-be executed again. In our case we're going to write data out to a file we'll
-open before-hand, and we should return ``True`` when we see a buffer with the
-"frame end" flag set:
+The callback will be given two parameters: the :class:`MMALPort` responsible
+for producing the data, and the :class:`MMALBuffer` containing the data. It is
+expected to return a :class:`bool` which will be ``False`` if further data is
+expected and ``True`` if no further data is expected. If ``True`` is returned,
+the callback will not be executed again. In our case we're going to write data
+out to a file we'll open before-hand, and we should return ``True`` when we see
+a buffer with the "frame end" flag set:
 
 .. code-block:: pycon
 
+    >>> camera.outputs[2].disable()
     >>> import io
     >>> output = io.open('image.data', 'wb')
     >>> def image_callback(port, buf):
@@ -482,6 +479,8 @@ from earlier and just assign a different output file to ``jpg_data``:
 .. code-block:: pycon
 
     >>> encoder.connect(camera.outputs[2])
+    <MMALConnection "vc.ril.camera:out:2/vc.ril.image_encode:in:0">
+    >>> encoder.connection.enable()
     >>> encoder.inputs[0]
     <MMALVideoPort "vc.ril.image_encode:in:0(OPQV)": format=MMAL_FOURCC('OPQV') buffers=10x128 frames=640x480@0fps>
     >>> jpg_data = io.open('direct.jpg', 'wb')
@@ -490,7 +489,7 @@ from earlier and just assign a different output file to ``jpg_data``:
     >>> camera.outputs[2].params[mmal.MMAL_PARAMETER_CAPTURE] = False
     >>> jpg_data.tell()
     99328
-    >>> camera.outputs[2].disable()
+    >>> encoder.connection.disable()
     >>> jpg_data.close()
 
 Now the state of our system looks like this:
@@ -581,6 +580,7 @@ it'll dump a human-readable version of your pipeline leading up to that port:
      vc.ril.camera [2]                           [0] vc.ril.image_encode [0]
        encoding    OPQV-strips    -->    OPQV-strips      encoding       JPEG
           buf      10x128                     10x128         buf         1x307200
+        bitrate    0bps                         0bps       bitrate       0bps
          frame     640x480@0fps         640x480@0fps        frame        0x0@0fps
 
 
@@ -613,9 +613,10 @@ providing the source and target buffers as numpy arrays containing RGB data:
     >>> from picamera import array
     >>> class Crosshair(array.PiArrayTransform):
     ...     def transform(self, source, target):
-    ...         target.array = source.array
-    ...         target.array[240, :, :] = 0xff
-    ...         target.array[:, 320, :] = 0xff
+    ...         with source as sdata, target as tdata:
+    ...             tdata[...] = sdata
+    ...             tdata[240, :, :] = 0xff
+    ...             tdata[:, 320, :] = 0xff
     ...         return False
     ...
     >>> transform = Crosshair()
@@ -627,8 +628,12 @@ and the renderer:
 
 .. code-block:: pycon
 
-    >>> transform.connect(camera.outputs[0])
-    >>> preview.connect(transform.outputs[0])
+    >>> transform.connect(camera)
+    <MMALPythonConnection "vc.ril.camera.out:0(RGB3)/py.component:in:0">
+    >>> preview.connect(transform)
+    <MMALPythonConnection "py.component:out:0/vc.ril.video_render:in:0(RGB3)">
+    >>> transform.connection.enable()
+    >>> preview.connection.enable()
 
 At this point we should take a look at the pipeline to see what's been
 configured automatically:
