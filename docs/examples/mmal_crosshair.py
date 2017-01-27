@@ -1,4 +1,4 @@
-from picamera import mmal, mmalobj as mo, PiCameraMMALError
+from picamera import mmal, mmalobj as mo, PiCameraPortDisabled
 from PIL import Image, ImageDraw
 from signal import pause
 
@@ -25,26 +25,40 @@ class Crosshair(mo.MMALPythonComponent):
                 fill=(255,), width=1)
         # buf is the buffer containing the frame from our input port. First
         # we try and grab a buffer from our output port
-        out = self.outputs[0].get_buffer(False)
-        if out:
-            # We've got a buffer (if we don't get a buffer here it most likely
-            # means things are going too slow downstream so we'll just have to
-            # skip this frame); copy the input buffer to the output buffer
-            out.copy_from(buf)
-            # now grab a locked reference to the buffer's data by using "with"
-            with out as data:
-                # Construct a PIL Image over the Y plane at the front of the
-                # data and tell PIL the buffer is writeable
-                img = Image.frombuffer('L', port.framesize, data, 'raw', 'L', 0, 1)
-                img.readonly = False
-                img.paste(self._crosshair, (0, 0), mask=self._crosshair)
-            # Send the output buffer back to the output port so it can continue
-            # onward to whatever's downstream
-            self.outputs[0].send_buffer(out)
-        # Return False to indicate that we want to continue processing frames.
-        # If we returned True here, the component would be disabled and no
-        # further buffers would be processed
-        return False
+        try:
+            out = self.outputs[0].get_buffer(False)
+        except PiCameraPortDisabled:
+            # The port was disabled; that probably means we're shutting down so
+            # return True to indicate we're all done and the component should
+            # be disabled
+            return True
+        else:
+            if out:
+                # We've got a buffer (if we don't get a buffer here it most
+                # likely means things are going too slow downstream so we'll
+                # just have to skip this frame); copy the input buffer to the
+                # output buffer
+                out.copy_from(buf)
+                # now grab a locked reference to the buffer's data by using
+                # "with"
+                with out as data:
+                    # Construct a PIL Image over the Y plane at the front of
+                    # the data and tell PIL the buffer is writeable
+                    img = Image.frombuffer('L', port.framesize, data, 'raw', 'L', 0, 1)
+                    img.readonly = False
+                    img.paste(self._crosshair, (0, 0), mask=self._crosshair)
+                # Send the output buffer back to the output port so it can
+                # continue onward to whatever's downstream
+                try:
+                    self.outputs[0].send_buffer(out)
+                except PiCameraPortDisabled:
+                    # The port was disabled; same as before this probably means
+                    # we're shutting down so return True to indicate we're done
+                    return True
+            # Return False to indicate that we want to continue processing
+            # frames. If we returned True here, the component would be
+            # disabled and no further buffers would be processed
+            return False
 
 
 camera = mo.MMALCamera()

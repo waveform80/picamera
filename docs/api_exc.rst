@@ -56,6 +56,8 @@ Exceptions
 
 .. autoexception:: PiCameraMMALError
 
+.. autoexception:: PiCameraPortDisabled
+
 
 Functions
 =========

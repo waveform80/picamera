@@ -54,7 +54,7 @@ from .exc import (
     mmal_check,
     PiCameraValueError,
     PiCameraDeprecated,
-    PiCameraMMALError,
+    PiCameraPortDisabled,
     )
 
 
@@ -852,8 +852,10 @@ class PiArrayTransform(mo.MMALPythonComponent):
         self.outputs[0].supported_formats = formats
 
     def _callback(self, port, source_buf):
-        result = False
-        target_buf = self.outputs[0].get_buffer(False)
+        try:
+            target_buf = self.outputs[0].get_buffer(False)
+        except PiCameraPortDisabled:
+            return False
         if target_buf:
             target_buf.copy_meta(source_buf)
             result = self.transform(
@@ -861,14 +863,9 @@ class PiArrayTransform(mo.MMALPythonComponent):
                 MMALArrayBuffer(self.outputs[0], target_buf._buf))
             try:
                 self.outputs[0].send_buffer(target_buf)
-            except PiCameraMMALError as e:
-                if e.status != mmal.MMAL_EINVAL:
-                    raise
-                # MMAL_EINVAL here means we're sending to a disabled port which
-                # also means we're about to shut down so disable further
-                # callbacks
-                return True
-        return result
+            except PiCameraPortDisabled:
+                return False
+        return False
 
     def transform(self, source, target):
         """

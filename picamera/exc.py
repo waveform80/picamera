@@ -150,6 +150,27 @@ class PiCameraMMALError(PiCameraError):
             }.get(status, "Unknown status error")))
 
 
+class PiCameraPortDisabled(PiCameraMMALError):
+    """
+    Sub-class of :exc:`PiCameraMMALError` raised when attempting a buffer
+    operation on a disabled port.
+
+    This exception is intended for the common use-case of attempting to get
+    or send a buffer just when a component is shutting down (e.g. at script
+    teardown) and simplifies the trivial response (ignore the error and shut
+    down quietly). For example::
+
+        def _callback(self, port, buf):
+            try:
+                buf = self.outputs[0].get_buffer(False)
+            except PiCameraPortDisabled:
+                return True # shutting down
+            # ...
+    """
+    def __init__(self, msg):
+        super(PiCameraPortDisabled, self).__init__(mmal.MMAL_EINVAL, msg)
+
+
 def mmal_check(status, prefix=""):
     """
     Checks the return status of an mmal call and raises an exception on

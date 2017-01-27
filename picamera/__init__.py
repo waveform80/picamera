@@ -82,6 +82,7 @@ from picamera.exc import (
     PiCameraAlreadyRecording,
     PiCameraValueError,
     PiCameraMMALError,
+    PiCameraPortDisabled,
     mmal_check,
     )
 from picamera.mmalobj import PiResolution

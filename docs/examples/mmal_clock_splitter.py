@@ -5,7 +5,7 @@ from collections import namedtuple
 from math import sin, cos, pi
 from time import sleep
 
-from picamera import mmal, mmalobj as mo, PiCameraMMALError
+from picamera import mmal, mmalobj as mo, PiCameraPortDisabled
 from PIL import Image, ImageDraw
 
 
@@ -92,8 +92,11 @@ class ClockSplitter(mo.MMALPythonComponent):
             sleep(0.2)
 
     def _callback(self, port, buf):
-        out1 = self.outputs[0].get_buffer(False)
-        out2 = self.outputs[1].get_buffer(False)
+        try:
+            out1 = self.outputs[0].get_buffer(False)
+            out2 = self.outputs[1].get_buffer(False)
+        except PiCameraPortDisabled:
+            return True
         if out1:
             # copy the input frame to the first output buffer
             out1.copy_from(buf)
@@ -110,9 +113,15 @@ class ClockSplitter(mo.MMALPythonComponent):
             # copy_from)
             if out2:
                 out2.replicate(out1)
-            self.outputs[0].send_buffer(out1)
+            try:
+                self.outputs[0].send_buffer(out1)
+            except PiCameraPortDisabled:
+                return True
         if out2:
-            self.outputs[1].send_buffer(out2)
+            try:
+                self.outputs[1].send_buffer(out2)
+            except PiCameraPortDisabled:
+                return True
         return False
 
 

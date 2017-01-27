@@ -57,6 +57,7 @@ from .exc import (
     PiCameraValueError,
     PiCameraRuntimeError,
     PiCameraMMALError,
+    PiCameraPortDisabled,
     PiCameraDeprecated,
     )
 
@@ -978,19 +979,39 @@ class MMALPort(MMALControlPort):
         :meth:`MMALPool.get_buffer`.
         """
         if not self.enabled:
-            raise PiCameraMMALError(
-                mmal.MMAL_EINVAL,
-                "cannot get buffer from disabled port %s" % self.name)
+            raise PiCameraPortDisabled(
+                'cannot get buffer from disabled port %s' % self.name)
         return self.pool.get_buffer(block, timeout)
 
     def send_buffer(self, buf):
         """
         Send :class:`MMALBuffer` *buf* to the port.
         """
-        # XXX Implement MMALPythonConnection._callback
-        mmal_check(
-            mmal.mmal_port_send_buffer(self._port, buf._buf),
-            prefix="unable to send the buffer to port %s" % self.name)
+        if (
+                self.type == mmal.MMAL_PORT_TYPE_INPUT and
+                isinstance(self._connection, MMALPythonConnection) and
+                self._connection._callback is not None):
+            try:
+                modified_buf = self._connection._callback(self._connection, buf)
+            except:
+                buf.release()
+                raise
+            else:
+                if modified_buf is None:
+                    buf.release()
+                else:
+                    buf = modified_buf
+        try:
+            mmal_check(
+                mmal.mmal_port_send_buffer(self._port, buf._buf),
+                prefix="cannot send buffer to port %s" % self.name)
+        except PiCameraMMALError as e:
+            # If port is disabled, convert exception for convenience
+            if e.status == mmal.MMAL_EINVAL and not self.enabled:
+                raise PiCameraPortDisabled(
+                    'cannot send buffer to disabled port %s' % self.name)
+            else:
+                raise
 
     def flush(self):
         """
@@ -1995,28 +2016,29 @@ class MMALConnection(MMALBaseConnection):
             buf = mmal.mmal_queue_get(connection[0].queue)
             if buf:
                 buf = MMALBuffer(buf)
-                modified_buf = self._callback(self, buf)
-                if modified_buf is not None:
-                    try:
-                        self._target.send_buffer(modified_buf)
-                    except PiCameraMMALError as e:
-                        if e.status != mmal.MMAL_EINVAL or self._target.enabled:
-                            raise
-                        # Target port has been disabled; ignore the error
-                else:
+                try:
+                    modified_buf = self._callback(self, buf)
+                except:
                     buf.release()
-                return
+                    raise
+                else:
+                    if modified_buf is not None:
+                        try:
+                            self._target.send_buffer(modified_buf)
+                        except PiCameraPortDisabled:
+                            # Target port disabled; ignore the error
+                            pass
+                    else:
+                        buf.release()
+                    return
             buf = mmal.mmal_queue_get(connection[0].pool[0].queue)
             if buf:
                 buf = MMALBuffer(buf)
                 try:
                     self._source.send_buffer(buf)
-                except PiCameraMMALError as e:
-                    if e.status != mmal.MMAL_EINVAL or self._source.enabled:
-                        raise
-                    # Source port has been disabled; ignore the error and
-                    # release the buffer back to the connection's pool
-                    buf.release()
+                except PiCameraPortDisabled:
+                    # Source port has been disabled; ignore the error
+                    pass
 
         if self._callback is not None:
             self._wrapper = mmal.MMAL_CONNECTION_CALLBACK_T(wrapper)
@@ -2108,7 +2130,7 @@ class MMALCamera(MMALBaseComponent):
             if not found:
                 PARAM_TYPES[mmal.MMAL_PARAMETER_ANNOTATE] = None
                 raise PiCameraMMALError(
-                        mmal.MMAL_EINVAL, "unknown camera annotation structure revision")
+                    mmal.MMAL_EINVAL, "unknown camera annotation structure revision")
         if FIX_RGB_BGR_ORDER is None:
             # old firmware lists BGR24 before RGB24 in supported_formats
             for f in self.outputs[1].supported_formats:
@@ -2124,7 +2146,7 @@ class MMALCamera(MMALBaseComponent):
             return MMALCamera.annotate_structs.index(PARAM_TYPES[mmal.MMAL_PARAMETER_ANNOTATE]) + 1
         except IndexError:
             raise PiCameraMMALError(
-                    mmal.MMAL_EINVAL, "unknown camera annotation structure revision")
+                mmal.MMAL_EINVAL, "unknown camera annotation structure revision")
     def _set_annotate_rev(self, value):
         try:
             PARAM_TYPES[mmal.MMAL_PARAMETER_ANNOTATE] = MMALCamera.annotate_structs[value - 1]
@@ -2643,8 +2665,8 @@ class MMALPythonPort(MMALObject):
         :meth:`MMALPool.get_buffer`.
         """
         if not self._enabled:
-            raise PiCameraMMALError(
-                mmal.MMAL_EINVAL, 'cannot get buffers from disabled port')
+            raise PiCameraPortDisabled(
+                'cannot get buffer from disabled port %s' % self.name)
         if self._pool is not None:
             # Unconnected port or input port case; retrieve buffer from the
             # allocated pool
@@ -2660,33 +2682,46 @@ class MMALPythonPort(MMALObject):
         """
         Send :class:`MMALBuffer` *buf* to the port.
         """
-        # XXX Implement MMALPythonConnection._callback?
-        if self._enabled:
-            if self._callback is not None:
-                # XXX Return value? If it's an input port we should ignore it,
-                # but what about output ports?
-                self._callback(self, buf)
-            if self._type == mmal.MMAL_PORT_TYPE_INPUT:
-                # Input port case; queue the buffer for processing on the
-                # owning component
-                self._owner()._queue.put(buf)
-            elif self._connection is None:
-                # Unconnected output port case; release the buffer back to the
-                # pool
+        # NOTE: The MMALPythonConnection callback must occur *before* the test
+        # for the port being enabled; it's meant to be the connection making
+        # the callback prior to the buffer getting to the port after all
+        if (
+                self.type == mmal.MMAL_PORT_TYPE_INPUT and
+                self._connection._callback is not None):
+            try:
+                modified_buf = self._connection._callback(self._connection, buf)
+            except:
                 buf.release()
+                raise
             else:
-                # Connected output port case; forward the buffer to the
-                # connected component's input port
-                # XXX If it's a format-change event?
-                self._connection.target.send_buffer(buf)
-        else:
-            # The only sensible thing to do with a buffer when the port is
-            # disabled is release it back to the pool; buffer processing is
-            # typically asynchronous so there's plenty of chances for a
-            # background thread to get a buffer from a port, the port is then
-            # disabled (indirectly) by another thread, whereupon the first
-            # thread tries to send the buffer to the now disabled port
+                if modified_buf is None:
+                    buf.release()
+                else:
+                    buf = modified_buf
+        if not self._enabled:
+            raise PiCameraPortDisabled(
+                'cannot send buffer to disabled port %s' % self.name)
+        if self._callback is not None:
+            # but what about output ports?
+            try:
+                # XXX Return value? If it's an input port we should ignore it,
+                self._callback(self, buf)
+            except:
+                buf.release()
+                raise
+        if self._type == mmal.MMAL_PORT_TYPE_INPUT:
+            # Input port case; queue the buffer for processing on the
+            # owning component
+            self._owner()._queue.put(buf)
+        elif self._connection is None:
+            # Unconnected output port case; release the buffer back to the
+            # pool
             buf.release()
+        else:
+            # Connected output port case; forward the buffer to the
+            # connected component's input port
+            # XXX If it's a format-change event?
+            self._connection.target.send_buffer(buf)
 
     def _format_changed(self, buf):
         with buf as data:
@@ -3077,12 +3112,13 @@ class MMALPythonComponent(MMALPythonBaseComponent):
     input port, and the :meth:`_commit_port` method to control what formats
     and framesizes the component works with.
     """
-    __slots__ = ('_name', '_thread', '_queue')
+    __slots__ = ('_name', '_thread', '_queue', '_error')
 
     def __init__(self, name='py.component', outputs=1):
         super(MMALPythonComponent, self).__init__()
         self._name = name
         self._thread = None
+        self._error = None
         self._queue = MMALQueue.create()
         self._inputs = (MMALPythonPort(self, mmal.MMAL_PORT_TYPE_INPUT, 0),)
         self._outputs = tuple(
@@ -3168,27 +3204,32 @@ class MMALPythonComponent(MMALPythonBaseComponent):
         if self._thread:
             self._thread.join()
             self._thread = None
+            if self._error:
+                raise self._error
 
     def _thread_run(self):
-        while self._enabled:
-            buf = self._queue.get(timeout=0.1)
-            if buf:
-                try:
-                    if buf.command == mmal.MMAL_EVENT_FORMAT_CHANGED:
-                        self.inputs[0]._format_changed(buf)
-                        # Chain the format-change onward so everything
-                        # downstream sees it. NOTE: the callback isn't given
-                        # the format-change because there's no image data in it
-                        for output in self.outputs:
-                            out_buf = output.get_buffer()
-                            out_buf.copy_from(buf)
-                            output.send_buffer(out_buf)
-                    else:
-                        # XXX Exception handling?
-                        if self._callback(self.inputs[0], buf):
-                            self._enabled = False
-                finally:
-                    buf.release()
+        try:
+            while self._enabled:
+                buf = self._queue.get(timeout=0.1)
+                if buf:
+                    try:
+                        if buf.command == mmal.MMAL_EVENT_FORMAT_CHANGED:
+                            self.inputs[0]._format_changed(buf)
+                            # Chain the format-change onward so everything
+                            # downstream sees it. NOTE: the callback isn't given
+                            # the format-change because there's no image data in it
+                            for output in self.outputs:
+                                out_buf = output.get_buffer()
+                                out_buf.copy_from(buf)
+                                output.send_buffer(out_buf)
+                        else:
+                            if self._callback(self.inputs[0], buf):
+                                self._enabled = False
+                    finally:
+                        buf.release()
+        except Exception as e:
+            self._error = e
+            self._enabled = False
 
     def _callback(self, port, buf):
         """
@@ -3362,17 +3403,15 @@ class MMALPythonConnection(MMALBaseConnection):
         while self._enabled:
             try:
                 dest = self._target.get_buffer(timeout=0.01)
-            except PiCameraMMALError as e:
-                if e.status == mmal.MMAL_EINVAL:
-                    # The port was disabled; tell the source we're done
-                    return True
-                else:
-                    raise
-            else:
-                if dest:
-                    dest.copy_from(buf)
+            except PiCameraPortDisabled:
+                dest = None
+            if dest:
+                dest.copy_from(buf)
+                try:
                     self._target.send_buffer(dest)
-                    return False
+                except PiCameraPortDisabled:
+                    pass
+            return False
 
     @property
     def name(self):
