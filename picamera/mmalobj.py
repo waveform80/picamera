@@ -747,7 +747,7 @@ class MMALControlPort(MMALObject):
         if callback:
             self._wrapper = mmal.MMAL_PORT_BH_CB_T(wrapper)
         else:
-            self._wrapper = None
+            self._wrapper = ct.cast(None, mmal.MMAL_PORT_BH_CB_T)
         mmal_check(
             mmal.mmal_port_enable(self._port, self._wrapper),
             prefix="Unable to enable port %s" % self.name)
