@@ -768,8 +768,10 @@ captures:
 
 .. literalinclude:: examples/bayer_data.py
 
-This recipe is also encapsulated in the :class:`~PiBayerArray` class in the
-:mod:`picamera.array` module, which means the same can be achieved as follows:
+An enhanced version of this recipe (which also handles different bayer orders
+caused by flips and rotations) is also encapsulated in the
+:class:`~picamera.array.PiBayerArray` class in the :mod:`picamera.array`
+module, which means the same can be achieved as follows:
 
 .. literalinclude:: examples/bayer_array.py
 
