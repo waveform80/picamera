@@ -30,28 +30,24 @@ PiRGBArray
 ==========
 
 .. autoclass:: PiRGBArray
-    :no-members:
 
 
 PiYUVArray
 ==========
 
 .. autoclass:: PiYUVArray
-    :no-members:
 
 
 PiBayerArray
 ============
 
 .. autoclass:: PiBayerArray
-    :no-members:
 
 
 PiMotionArray
 =============
 
 .. autoclass:: PiMotionArray
-    :no-members:
 
 
 PiAnalysisOutput
@@ -64,21 +60,18 @@ PiRGBAnalysis
 =============
 
 .. autoclass:: PiRGBAnalysis
-    :no-members:
 
 
 PiYUVAnalysis
 =============
 
 .. autoclass:: PiYUVAnalysis
-    :no-members:
 
 
 PiMotionAnalysis
 ================
 
 .. autoclass:: PiMotionAnalysis
-    :no-members:
 
 
 PiArrayTransform

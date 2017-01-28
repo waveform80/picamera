@@ -478,6 +478,14 @@ class PiBayerArray(PiArrayOutput):
             self.array = self._to_3d(self.array)
 
     def demosaic(self):
+        """
+        Perform a rudimentary `de-mosaic`_ of ``self.array``, returning the
+        result as a new array. The result of the demosaic is *always* three
+        dimensional, with the last dimension being the color planes (see
+        *output_dims* parameter on the constructor).
+
+        .. _de-mosaic: http://en.wikipedia.org/wiki/Demosaicing
+        """
         if self._demo is None:
             # Construct 3D representation of Bayer data (if necessary)
             if self.output_dims == 2:

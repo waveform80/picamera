@@ -258,7 +258,7 @@ three output ports:
   resolution images efficiently.
 
 Generally, you don't need to worry about these differences. The ``mmalobj``
-layer knows about them and auto-negotiates the most efficient format it can for
+layer knows about them and negotiates the most efficient format it can for
 connections. However, they're worth bearing in mind if you're aiming to get the
 most out of the firmware or if you're confused about why a particular format
 has been selected for a connection.
@@ -347,7 +347,7 @@ activate the output port:
     >>> camera.outputs[2].enable()
 
 Unfortunately, that didn't seem to do much! An output port that is
-participating in a connection needs nothing more: it knows where it's data is
+participating in a connection needs nothing more: it knows where its data is
 going. However, an output port *without* a connection requires a callback
 function to be assigned so that something can be done with the buffers of data
 it produces.
@@ -634,6 +634,7 @@ and the renderer:
     <MMALPythonConnection "py.component:out:0/vc.ril.video_render:in:0(RGB3)">
     >>> transform.connection.enable()
     >>> preview.connection.enable()
+    >>> transform.enable()
 
 At this point we should take a look at the pipeline to see what's been
 configured automatically:
@@ -653,16 +654,16 @@ alluded to above: RGB is a very large format (compared to I420 which is half
 its size, or OPQV which is tiny) so we're shuttling a *lot* of data around
 here. Expect this to drop frames at higher resolutions or framerates.
 
-The other part of inefficiency isn't obvious from the debug output above which
-gives the impression that the "py.transform" component is actually part of the
-MMAL pipeline. In fact, this is a lie. Under the covers ``mmalobj`` installs an
-output callback on the camera's output port to feed data to the "py.transform"
-input port, uses a background thread to run the transform, then copies the
-results into buffers obtained from the preview's input port. In other words
-there's really *two* (very short) MMAL pipelines with a hunk of Python running
-in between them. If ``mmalobj`` does its job properly you shouldn't need to
-worry about this implementation detail but it's worth bearing in mind from the
-perspective of performance.
+The other source of inefficiency isn't obvious from the debug output above
+which gives the impression that the "py.transform" component is actually part
+of the MMAL pipeline. In fact, this is a lie. Under the covers ``mmalobj``
+installs an output callback on the camera's output port to feed data to the
+"py.transform" input port, uses a background thread to run the transform, then
+copies the results into buffers obtained from the preview's input port. In
+other words there's really *two* (very short) MMAL pipelines with a hunk of
+Python running in between them. If ``mmalobj`` does its job properly you
+shouldn't need to worry about this implementation detail but it's worth bearing
+in mind from the perspective of performance.
 
 
 Performance Hints
@@ -800,7 +801,8 @@ Connections
 
 .. autoclass:: MMALBaseConnection
 
-.. autoclass:: MMALConnection
+.. autoclass:: MMALConnection(source, target, formats=default_formats, callback=None)
+    :show-inheritance:
 
 
 Buffers
@@ -828,7 +830,8 @@ Python Extensions
     :show-inheritance:
     :private-members: _callback, _commit_port
 
-.. autoclass:: MMALPythonConnection
+.. autoclass:: MMALPythonConnection(source, target, formats=default_formats, callback=None)
+    :show-inheritance:
 
 .. autoclass:: MMALPythonSource
     :show-inheritance:

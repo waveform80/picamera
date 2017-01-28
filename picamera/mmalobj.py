@@ -888,11 +888,6 @@ class MMALPort(MMALControlPort):
     def supported_formats(self):
         """
         Retrieves a sequence of supported encodings on this port.
-
-        .. warning::
-
-            On older firmwares, property does not work on the camera's still
-            port (``MMALCamera.outputs[2]``) due to an underlying bug.
         """
         try:
             mp = self.params[mmal.MMAL_PARAMETER_SUPPORTED_ENCODINGS]
@@ -1127,14 +1122,12 @@ class MMALPort(MMALControlPort):
         """
         Connect this port to the *other* :class:`MMALPort` (or
         :class:`MMALPythonPort`). The type and configuration of the connection
-        will be automatically selected. If *enable* is ``True`` (the default),
-        the connection will be implicitly enabled upon construction.
+        will be automatically selected.
 
-        Various connection options can be specified as keyword arguments. These
-        will be passed onto the :class:`MMALConnection` or
+        Various connection *options* can be specified as keyword arguments.
+        These will be passed onto the :class:`MMALConnection` or
         :class:`MMALPythonConnection` constructor that is called (see those
         classes for an explanation of the available options).
-
         """
         # Always construct connections from the output end
         if self.type != mmal.MMAL_PORT_TYPE_OUTPUT:
@@ -1353,15 +1346,13 @@ class MMALBuffer(object):
                 print(len(data))
 
     Alternatively you can use the :attr:`data` property directly, which returns
-    and modifies the buffer's data as a :class:`bytes` object. However, beware
-    that you must still use the buffer as a context manager if you wish to
-    lock the buffer's memory (generally required when dealing with VideoCore
-    buffers)::
+    and modifies the buffer's data as a :class:`bytes` object (note this is
+    generally slower than using the buffer object unless you are simply
+    replacing the entire buffer)::
 
         def callback(port, buf):
-            with buf:
-                # the buffer contents as a byte-string
-                print(buf.data)
+            # the buffer contents as a byte-string
+            print(buf.data)
     """
     __slots__ = ('_buf',)
 
@@ -1495,7 +1486,9 @@ class MMALBuffer(object):
         .. note::
 
             This is fundamentally different to the operation of the
-            :meth:`copy_from` method.
+            :meth:`copy_from` method. It is much faster, but imposes the burden
+            that two buffers now share data (the *source* cannot be released
+            until the replicant has been released).
         """
         mmal_check(
             mmal.mmal_buffer_header_replicate(self._buf, source._buf),
@@ -1506,13 +1499,14 @@ class MMALBuffer(object):
         Copies all fields (including data) from the *source*
         :class:`MMALBuffer`. This buffer must have sufficient :attr:`size` to
         store :attr:`length` bytes from the *source* buffer. This method
-        implicitly sets :attr:`offset` to zero, the :attr:`length` to the
+        implicitly sets :attr:`offset` to zero, and :attr:`length` to the
         number of bytes copied.
 
         .. note::
 
             This is fundamentally different to the operation of the
-            :meth:`replicate` method.
+            :meth:`replicate` method. It is much slower, but afterward the
+            copied buffer is entirely independent of the *source*.
         """
         assert self.size >= source.length
         source_len = source._buf[0].length
@@ -1954,9 +1948,11 @@ class MMALConnection(MMALBaseConnection):
         callback between MMAL components as it requires buffers to be
         copied from the GPU's memory to the CPU's memory and back again.
 
-        There's no *extra* penalty when the connection is between an MMAL
-        component and a Python MMAL component though, as such copying has
-        to take place anyway.
+    .. data:: default_formats
+        :annotation: = (MMAL_ENCODING_OPAQUE, MMAL_ENCODING_I420, MMAL_ENCODING_RGB24, MMAL_ENCODING_BGR24, MMAL_ENCODING_RGBA, MMAL_ENCODING_BGRA)
+
+        Class attribute defining the default formats used to negotiate
+        connections between MMAL components.
     """
     __slots__ = ('_connection', '_callback', '_wrapper')
 
@@ -1971,7 +1967,6 @@ class MMALConnection(MMALBaseConnection):
 
     def __init__(
             self, source, target, formats=default_formats, callback=None):
-
         if not isinstance(source, MMALPort):
             raise PiCameraValueError('source is not an MMAL port')
         if not isinstance(target, MMALPort):
@@ -2831,14 +2826,12 @@ class MMALPythonPort(MMALObject):
         """
         Connect this port to the *other* :class:`MMALPort` (or
         :class:`MMALPythonPort`). The type and configuration of the connection
-        will be automatically selected. If *enable* is ``True`` (the default),
-        the connection will be implicitly enabled upon construction.
+        will be automatically selected.
 
         Various connection options can be specified as keyword arguments. These
         will be passed onto the :class:`MMALConnection` or
         :class:`MMALPythonConnection` constructor that is called (see those
         classes for an explanation of the available options).
-
         """
         # Always construct connections from the output end
         if self.type != mmal.MMAL_PORT_TYPE_OUTPUT:
@@ -3333,6 +3326,14 @@ class MMALPythonConnection(MMALBaseConnection):
     data. The callable may optionally manipulate the :class:`MMALBuffer` and
     return it to permit it to continue traversing the connection, or return
     ``None`` in which case the buffer will be released.
+
+    .. data:: default_formats
+        :annotation: = (MMAL_ENCODING_I420, MMAL_ENCODING_RGB24, MMAL_ENCODING_BGR24, MMAL_ENCODING_RGBA, MMAL_ENCODING_BGRA)
+
+        Class attribute defining the default formats used to negotiate
+        connections between Python and and MMAL components, in preference
+        order. Note that OPAQUE is not present in contrast with the default
+        formats in :class:`MMALConnection`.
     """
     __slots__ = ('_enabled', '_callback')
 

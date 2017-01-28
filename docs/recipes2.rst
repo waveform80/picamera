@@ -130,8 +130,8 @@ capture will be:
     \end{equation}
 
 The first 14336 bytes of the data (128*112) will be Y values, the next 3584
-bytes (128*112/4) will be U values, and the final 3584 bytes will be the V
-values.
+bytes (:math:`128 \times 112 \div 4`) will be U values, and the final 3584
+bytes will be the V values.
 
 The following code demonstrates capturing YUV image data, loading the data into
 a set of `numpy`_ arrays, and converting the data to RGB format in an efficient
@@ -410,9 +410,9 @@ long (before exhausting the disk cache).
 If you are intending to perform processing on the frames after capture, you may
 be better off just capturing video and decoding frames from the resulting file
 rather than dealing with individual JPEG captures. Thankfully this is
-relatively easy as the JPEG format has a well designed `magic number`_ (FF D8)
-which cannot appear anywhere else in the JPEG data. This means we can use a
-:ref:`custom output <custom_outputs>` to separate the frames out of an MJPEG
+relatively easy as the JPEG format has a well designed `magic number`_ (``FF
+D8``) which cannot appear anywhere else in the JPEG data. This means we can use
+a :ref:`custom output <custom_outputs>` to separate the frames out of an MJPEG
 video recording by inspecting the first two bytes of each buffer:
 
 .. literalinclude:: examples/rapid_capture_mjpeg.py
@@ -453,8 +453,8 @@ first - just set *use_video_port* to ``True`` in the
 
 .. literalinclude:: examples/rapid_streaming.py
 
-Using this technique, the author can manage about 19fps of streaming at 640x480
-on firmware #685. However, utilizing the MJPEG splitting demonstrated in
+Using this technique, the author can manage about 19fps of streaming at
+640x480. However, utilizing the MJPEG splitting demonstrated in
 :ref:`rapid_capture` we can manage much faster:
 
 .. literalinclude:: examples/rapid_streaming_mjpeg.py
@@ -560,15 +560,15 @@ a file-like object:
 Motion data is calculated at the `macro-block`_ level (an MPEG macro-block
 represents a 16x16 pixel region of the frame), and includes one extra column of
 data. Hence, if the camera's resolution is 640x480 (as in the example above)
-there will be 41 columns of motion data ((640 / 16) + 1), in 30 rows (480 /
-16).
+there will be 41 columns of motion data (:math:`(640 \div 16) + 1`), in 30 rows
+(:math:`480 \div 16`).
 
 Motion data values are 4-bytes long, consisting of a signed 1-byte x vector, a
 signed 1-byte y vector, and an unsigned 2-byte SAD (`Sum of Absolute
 Differences`_) value for each macro-block.  Hence in the example above, each
-frame will generate 4920 bytes of motion data (41 * 30 * 4). Assuming the data
-contains 300 frames (in practice it may contain a few more) the motion data
-should be 1,476,000 bytes in total.
+frame will generate 4920 bytes of motion data (:math:`41 \times 30 \times 4`).
+Assuming the data contains 300 frames (in practice it may contain a few more)
+the motion data should be 1,476,000 bytes in total.
 
 The following code demonstrates loading the motion data into a
 three-dimensional numpy array. The first dimension represents the frame, with
