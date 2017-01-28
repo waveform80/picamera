@@ -9,7 +9,7 @@ class Crosshair(mo.MMALPythonComponent):
         self._crosshair = None
         self.inputs[0].supported_formats = mmal.MMAL_ENCODING_I420
 
-    def _callback(self, port, buf):
+    def _handle_frame(self, port, buf):
         # If we haven't drawn the crosshair yet, do it now and cache the
         # result so we don't bother doing it again
         if self._crosshair is None:

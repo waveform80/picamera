@@ -2718,60 +2718,6 @@ class MMALPythonPort(MMALObject):
             # XXX If it's a format-change event?
             self._connection.target.send_buffer(buf)
 
-    def _format_changed(self, buf):
-        with buf as data:
-            event = mmal.mmal_event_format_changed_get(buf._buf)
-            if self._connection:
-                # Handle format change on the source output port, if any. We
-                # don't check the output port capabilities because it was the
-                # port that emitted the event change in the first case so it'd
-                # be odd if it didn't support them (or the format requested)!
-                output = self._connection._source
-                output.disable()
-                if isinstance(output, MMALPythonPort):
-                    mmal.mmal_format_copy(output._format, event[0].format)
-                else:
-                    mmal.mmal_format_copy(output._port[0].format, event[0].format)
-                output.commit()
-                output.buffer_count = (
-                    event[0].buffer_num_recommended
-                    if event[0].buffer_num_recommended > 0 else
-                    event[0].buffer_num_min)
-                output.buffer_size = (
-                    event[0].buffer_size_recommended
-                    if event[0].buffer_size_recommended > 0 else
-                    event[0].buffer_size_min)
-                if isinstance(output, MMALPythonPort):
-                    output.enable()
-                else:
-                    output.enable(self._connection._transfer)
-            # Now deal with the format change on this input port (this is only
-            # called from the owning component's background thread so we must
-            # be an input port)
-            try:
-                if not (self.capabilities & mmal.MMAL_PORT_CAPABILITY_SUPPORTS_EVENT_FORMAT_CHANGE):
-                    raise PiCameraMMALError(
-                        mmal.MMAL_EINVAL,
-                        'port %s does not support event change' % self.name)
-                mmal.mmal_format_copy(self._format, event[0].format)
-                self._owner()._commit_port(self)
-                self._pool.resize(
-                    event[0].buffer_num_recommended
-                    if event[0].buffer_num_recommended > 0 else
-                    event[0].buffer_num_min,
-                    event[0].buffer_size_recommended
-                    if event[0].buffer_size_recommended > 0 else
-                    event[0].buffer_size_min)
-                self._buffer_count = len(self._pool)
-                self._buffer_size = self._pool[0].size
-            except:
-                # If this port can't handle the format change, or if anything goes
-                # wrong (like the owning component doesn't like the new format)
-                # stop the pipeline (from here at least)
-                if self._connection:
-                    self._connection.disable()
-                raise
-
     @property
     def name(self):
         return '%s:%s:%d' % (self._owner().name, {
@@ -3101,9 +3047,10 @@ class MMALPythonComponent(MMALPythonBaseComponent):
     :meth:`disconnect` methods can be used to establish or break a connection
     from the input port to an upstream component.
 
-    Override the :meth:`_callback` method to respond to buffers sent to the
-    input port, and the :meth:`_commit_port` method to control what formats
-    and framesizes the component works with.
+    Typically descendents will override the :meth:`_handle_frame` method to
+    respond to buffers sent to the input port, and will set
+    :attr:`MMALPythonPort.supported_formats` in the constructor to define the
+    formats that the component will work with.
     """
     __slots__ = ('_name', '_thread', '_queue', '_error')
 
@@ -3206,37 +3153,150 @@ class MMALPythonComponent(MMALPythonBaseComponent):
                 buf = self._queue.get(timeout=0.1)
                 if buf:
                     try:
-                        if buf.command == mmal.MMAL_EVENT_FORMAT_CHANGED:
-                            self.inputs[0]._format_changed(buf)
-                            # Chain the format-change onward so everything
-                            # downstream sees it. NOTE: the callback isn't given
-                            # the format-change because there's no image data in it
-                            for output in self.outputs:
-                                out_buf = output.get_buffer()
-                                out_buf.copy_from(buf)
-                                output.send_buffer(out_buf)
-                        else:
-                            if self._callback(self.inputs[0], buf):
-                                self._enabled = False
+                        handler = {
+                            0:                                 self._handle_frame,
+                            mmal.MMAL_EVENT_PARAMETER_CHANGED: self._handle_parameter_changed,
+                            mmal.MMAL_EVENT_FORMAT_CHANGED:    self._handle_format_changed,
+                            mmal.MMAL_EVENT_ERROR:             self._handle_error,
+                            mmal.MMAL_EVENT_EOS:               self._handle_end_of_stream,
+                            }[buf.command]
+                        if handler(self.inputs[0], buf):
+                            self._enabled = False
                     finally:
                         buf.release()
         except Exception as e:
             self._error = e
             self._enabled = False
 
-    def _callback(self, port, buf):
+    def _handle_frame(self, port, buf):
         """
-        Stub for descendents to override. This will be called with each buffer
-        sent to the input port.
+        Handles frame data buffers (where :attr:`MMALBuffer.command` is set to
+        0).
 
-        If the component has output ports, the method is expected to fetch a
-        buffer from the output port(s), write data into them, and send them
-        back to their respective ports.
+        Typically, if the component has output ports, the method is expected to
+        fetch a buffer from the output port(s), write data into them, and send
+        them back to their respective ports.
 
-        Return values are as for normal port callbacks (``True`` when no more
+        Return values are as for normal event handlers (``True`` when no more
         buffers are expected, ``False`` otherwise).
         """
         return False
+
+    def _handle_format_changed(self, port, buf):
+        """
+        Handles format change events passed to the component (where
+        :attr:`MMALBuffer.command` is set to MMAL_EVENT_FORMAT_CHANGED).
+
+        The default implementation re-configures the input port of the
+        component and emits the event on all output ports for downstream
+        processing. Override this method if you wish to do something else in
+        response to format change events.
+
+        The *port* parameter is the port into which the event arrived, and
+        *buf* contains the event itself (a MMAL_EVENT_FORMAT_CHANGED_T
+        structure). Use ``mmal_event_format_changed_get`` on the buffer's data
+        to extract the event.
+        """
+        with buf as data:
+            event = mmal.mmal_event_format_changed_get(buf._buf)
+            if port.connection:
+                # Handle format change on the source output port, if any. We
+                # don't check the output port capabilities because it was the
+                # port that emitted the format change in the first case so it'd
+                # be odd if it didn't support them (or the format requested)!
+                output = port.connection._source
+                output.disable()
+                if isinstance(output, MMALPythonPort):
+                    mmal.mmal_format_copy(output._format, event[0].format)
+                else:
+                    mmal.mmal_format_copy(output._port[0].format, event[0].format)
+                output.commit()
+                output.buffer_count = (
+                    event[0].buffer_num_recommended
+                    if event[0].buffer_num_recommended > 0 else
+                    event[0].buffer_num_min)
+                output.buffer_size = (
+                    event[0].buffer_size_recommended
+                    if event[0].buffer_size_recommended > 0 else
+                    event[0].buffer_size_min)
+                if isinstance(output, MMALPythonPort):
+                    output.enable()
+                else:
+                    output.enable(port.connection._transfer)
+            # Now deal with the format change on this input port (this is only
+            # called from _thread_run so port must be an input port)
+            try:
+                if not (port.capabilities & mmal.MMAL_PORT_CAPABILITY_SUPPORTS_EVENT_FORMAT_CHANGE):
+                    raise PiCameraMMALError(
+                        mmal.MMAL_EINVAL,
+                        'port %s does not support event change' % self.name)
+                mmal.mmal_format_copy(port._format, event[0].format)
+                self._commit_port(port)
+                port.pool.resize(
+                    event[0].buffer_num_recommended
+                    if event[0].buffer_num_recommended > 0 else
+                    event[0].buffer_num_min,
+                    event[0].buffer_size_recommended
+                    if event[0].buffer_size_recommended > 0 else
+                    event[0].buffer_size_min)
+                port.buffer_count = len(port.pool)
+                port.buffer_size = port.pool[0].size
+            except:
+                # If this port can't handle the format change, or if anything goes
+                # wrong (like the owning component doesn't like the new format)
+                # stop the pipeline (from here at least)
+                if port.connection:
+                    port.connection.disable()
+                raise
+        # Chain the format-change onward so everything downstream sees it.
+        # NOTE: the callback isn't given the format-change because there's no
+        # image data in it
+        for output in self.outputs:
+            out_buf = output.get_buffer()
+            out_buf.copy_from(buf)
+            output.send_buffer(out_buf)
+        return False
+
+    def _handle_parameter_changed(self, port, buf):
+        """
+        Handles parameter change events passed to the component (where
+        :attr:`MMALBuffer.command` is set to MMAL_EVENT_PARAMETER_CHANGED).
+
+        The default implementation does nothing but return ``False``
+        (indicating that processing should continue). Override this in
+        descendents to respond to parameter changes.
+
+        The *port* parameter is the port into which the event arrived, and
+        *buf* contains the event itself (a MMAL_EVENT_PARAMETER_CHANGED_T
+        structure).
+        """
+        return False
+
+    def _handle_error(self, port, buf):
+        """
+        Handles error notifications passed to the component (where
+        :attr:`MMALBuffer.command` is set to MMAL_EVENT_ERROR).
+
+        The default implementation does nothing but return ``True`` (indicating
+        that processing should halt). Override this in descendents to respond
+        to error events.
+
+        The *port* parameter is the port into which the event arrived.
+        """
+        return True
+
+    def _handle_end_of_stream(self, port, buf):
+        """
+        Handles end-of-stream notifications passed to the component (where
+        :attr:`MMALBuffer.command` is set to MMAL_EVENT_EOS).
+
+        The default implementation does nothing but return ``True`` (indicating
+        that processing should halt). Override this in descendents to respond
+        to the end of stream.
+
+        The *port* parameter is the port into which the event arrived.
+        """
+        return True
 
 
 class MMALPythonTarget(MMALPythonComponent):

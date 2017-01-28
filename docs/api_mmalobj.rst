@@ -824,11 +824,11 @@ Python Extensions
 .. autoclass:: MMALPythonPort
 
 .. autoclass:: MMALPythonBaseComponent
-    :private-members: _commit_port
+    :private-members:
 
 .. autoclass:: MMALPythonComponent
     :show-inheritance:
-    :private-members: _callback, _commit_port
+    :private-members:
 
 .. autoclass:: MMALPythonConnection(source, target, formats=default_formats, callback=None)
     :show-inheritance:

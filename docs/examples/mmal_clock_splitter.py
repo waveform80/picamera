@@ -91,7 +91,7 @@ class ClockSplitter(mo.MMALPythonComponent):
                 self._clock_image = img
             sleep(0.2)
 
-    def _callback(self, port, buf):
+    def _handle_frame(self, port, buf):
         try:
             out1 = self.outputs[0].get_buffer(False)
             out2 = self.outputs[1].get_buffer(False)
