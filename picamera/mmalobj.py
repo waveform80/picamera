@@ -892,27 +892,40 @@ class MMALPort(MMALControlPort):
         try:
             mp = self.params[mmal.MMAL_PARAMETER_SUPPORTED_ENCODINGS]
         except PiCameraMMALError as e:
-            if e.status == mmal.MMAL_EINVAL and self.name == 'vc.ril.camera:out:2':
+            if e.status in (mmal.MMAL_EINVAL, mmal.MMAL_ENOSYS):
                 # Workaround: old firmwares raise EINVAL when camera's still
                 # port is queried for supported formats. The following is the
                 # correct sequence for old firmwares (note: swapped RGB24 and
-                # BGR24 order)
-                return [
-                    mmal.MMAL_ENCODING_I420,
-                    mmal.MMAL_ENCODING_NV12,
-                    mmal.MMAL_ENCODING_I422,
-                    mmal.MMAL_ENCODING_YUYV,
-                    mmal.MMAL_ENCODING_YVYU,
-                    mmal.MMAL_ENCODING_VYUY,
-                    mmal.MMAL_ENCODING_UYVY,
-                    mmal.MMAL_ENCODING_BGR24,
-                    mmal.MMAL_ENCODING_BGRA,
-                    mmal.MMAL_ENCODING_RGB16,
-                    mmal.MMAL_ENCODING_YV12,
-                    mmal.MMAL_ENCODING_NV21,
-                    mmal.MMAL_ENCODING_RGB24,
-                    mmal.MMAL_ENCODING_RGBA,
-                    ]
+                # BGR24 order). We also fill out a bogus list for the null
+                # sink here
+                try:
+                    return {
+                        'vc.ril.camera:out:2': [
+                            mmal.MMAL_ENCODING_I420,
+                            mmal.MMAL_ENCODING_NV12,
+                            mmal.MMAL_ENCODING_I422,
+                            mmal.MMAL_ENCODING_YUYV,
+                            mmal.MMAL_ENCODING_YVYU,
+                            mmal.MMAL_ENCODING_VYUY,
+                            mmal.MMAL_ENCODING_UYVY,
+                            mmal.MMAL_ENCODING_BGR24,
+                            mmal.MMAL_ENCODING_BGRA,
+                            mmal.MMAL_ENCODING_RGB16,
+                            mmal.MMAL_ENCODING_YV12,
+                            mmal.MMAL_ENCODING_NV21,
+                            mmal.MMAL_ENCODING_RGB24,
+                            mmal.MMAL_ENCODING_RGBA,
+                            ],
+                        'vc.null_sink:in:0': [
+                            mmal.MMAL_ENCODING_I420,
+                            mmal.MMAL_ENCODING_RGB24,
+                            mmal.MMAL_ENCODING_BGR24,
+                            mmal.MMAL_ENCODING_RGBA,
+                            mmal.MMAL_ENCODING_BGRA,
+                            ],
+                        }[self.name]
+                except KeyError:
+                    raise e
             else:
                 raise
         else:
