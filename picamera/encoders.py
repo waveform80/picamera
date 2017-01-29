@@ -186,7 +186,7 @@ class PiEncoder(object):
             if parent and parent.closed:
                 raise PiCameraRuntimeError("Camera is closed")
             if resize:
-                self._create_resizer(*resize)
+                self._create_resizer(*mo.to_resolution(resize))
             self._create_encoder(format, **options)
             if self.encoder:
                 if self.resizer:
