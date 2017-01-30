@@ -861,7 +861,7 @@ the flash pin as GPIO 17:
 
 .. code-block:: text
 
-    pin-define@FLASH_0_ENABLE {
+    pin_define@FLASH_0_ENABLE {
         type = "internal";
         number = <17>;
     };
