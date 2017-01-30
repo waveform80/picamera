@@ -816,29 +816,26 @@ for the revision number if you are unsure):
 +================================+============================+
 | Raspberry Pi Model B rev 1     | ``/videocore/pins_rev1``   |
 +--------------------------------+----------------------------+
-| Raspberry Pi Model A           | ``/videocore/pins_rev2``   |
-|                                |                            |
-| Raspberry Pi Model B rev 2     |                            |
-+--------------------------------+----------------------------+
+| Raspberry Pi Model A and       | ``/videocore/pins_rev2``   |
+| Model B rev 2                  |                            |
++---------------------+----------+----------------------------+
 | Raspberry Pi Model A+          | ``/videocore/pins_aplus``  |
-+--------------------------------+----------------------------+
++---------------------+----------+----------------------------+
 | Raspberry Pi Model B+ rev 1.1  | ``/videocore/pins_bplus1`` |
-+--------------------------------+----------------------------+
++---------------------+----------+----------------------------+
 | Raspberry Pi Model B+ rev 1.2  | ``/videocore/pins_bplus2`` |
 +--------------------------------+----------------------------+
 | Raspberry Pi 2 Model B rev 1.0 | ``/videocore/pins_2b1``    |
 +--------------------------------+----------------------------+
 | Raspberry Pi 2 Model B rev 1.1 | ``/videocore/pins_2b2``    |
-|                                |                            |
-| Raspberry Pi 2 Model B rev 1.2 |                            |
+| and rev 1.2                    |                            |
 +--------------------------------+----------------------------+
 | Raspberry Pi 3 Model B rev 1.0 | ``/videocore/pins_3b1``    |
 +--------------------------------+----------------------------+
 | Raspberry Pi 3 Model B rev 1.2 | ``/videocore/pins_3b2``    |
 +--------------------------------+----------------------------+
-| Raspberry Pi Zero rev 1.2      | ``/videocore/pins_pi0``    |
-|                                |                            |
-| Raspberry Pi Zero rev 1.3      |                            |
+| Raspberry Pi Zero rev 1.2 and  | ``/videocore/pins_pi0``    |
+| rev 1.3                        |                            |
 +--------------------------------+----------------------------+
 
 Under the section for your particular model of Pi you will find ``pin_config``
@@ -874,7 +871,7 @@ blob for the firmware to read. This is done with the following command line:
 
 .. code-block:: console
 
-    $ dtc -I dts -O dtb dt-blob.dts -o dt-blob.bin
+    $ dtc -q -I dts -O dtb dt-blob.dts -o dt-blob.bin
 
 Dissecting this command line, the following components are present:
 
@@ -888,16 +885,12 @@ Dissecting this command line, the following components are present:
 
 * ``-o dt-blob.bin`` - The output filename
 
-This should output the following:
-
-.. code-block:: text
-
-    DTC: dts->dtb  on file "dt-blob.dts"
-
-If anything else is output, it will most likely be an error message indicating
-you have made a mistake in the device tree source. In this case, review your
-edits carefully (note that sections and properties *must* be semi-colon
-terminated for example), and try again.
+This should output nothing. If you get lots of warnings, you've forgotten the
+``-q`` switch; you can ignore the warnings. If anything else is output, it will
+most likely be an error message indicating you have made a mistake in the
+device tree source. In this case, review your edits carefully (note that
+sections and properties *must* be semi-colon terminated for example), and try
+again.
 
 Now the device tree binary blob has been produced, it needs to be placed on the
 first partition of the SD card. In the case of non-NOOBS Raspbian installs,
