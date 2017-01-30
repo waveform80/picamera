@@ -73,7 +73,7 @@ background otherwise).
 Exposure time
 -------------
 
-What does the camera sensor *actually detect*? Quite simply photon counts; the
+What does the camera sensor *actually detect*? It detects photon counts; the
 more photons that hit the sensor elements, the more those elements increment
 their counters.  As our camera has no physical shutter (unlike a DSLR) we can't
 prevent light falling on the elements and incrementing the counts. In fact we
@@ -249,39 +249,48 @@ of an image by varying the delay between resetting a line and reading it (reset
 and read don't really happen simultaneously, but they are synchronized which is
 all that matters for this process).
 
-However, there are naturally limits: reading out a line of elements must take a
+Minimum exposure time
+~~~~~~~~~~~~~~~~~~~~~
+There are naturally limits to the minimum exposure time: reading out a line of elements must take a
 certain minimum time. For example, if there are 500 rows on our hypothetical
 sensor, and reading each row takes a minimum of 20ns then it will take a
 minimum of :math:`500 \times 20\text{ns} = 10\text{ms}` to read
 a full image. This is the *minimum* exposure time of our hypothetical sensor.
 
-If it takes 10ms to read a full image, then we cannot capture more than
-:math:`\frac{1\text{s}}{10\text{ms}} = \frac{1\text{s}}{0.01\text{s}} =
-100` images in a second. Hence the maximum framerate of our hypothetical 500
-row sensor is 100fps.
+Maximum framerate is determined by the minimum exposure time
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The framerate is the number of frames the camera can capture per second. Depending on the time it takes to capture one frame, the exposure time, we can only capture so many frames in a specific amount of time. For example, if it takes 10ms to read a full image, then we cannot capture more than:math:`\frac{1\text{s}}{10\text{ms}} = \frac{1\text{s}}{0.01\text{s}} = 100` images in a second. Hence the maximum framerate of our hypothetical 500 row sensor is 100fps.
 
-Conversely, if the camera's :attr:`~PiCamera.framerate` is set to a certain
-value, it necessarily limits the amount of time available for exposing images.
+This can be expressed in the word equation:
+:math:`\frac{1\text{s}}{\text{minimum exposure time in s}} = \text{framerate in fps}`
+
+Using this equation we can also see that setting the camera's :attr:`~PiCamera.framerate` to a certain
+value will limit the minimum exposure time:
+:math:`\frac{1\text{s}}{\text{framerate in fps}} = \text{Minimum exposure time in s}`
+
 For example, if we set the framerate to 30fps, then we cannot spend more than
 :math:`\frac{1\text{s}}{30} = 33^1/_3\text{ms}` capturing any given frame.
 
-The *maximum* exposure time is thus governed by the camera's *minimum*
-framerate. This, in turn, is largely dictated by how slow the sensor can be
+Maximum exposure time is determined by the minimum framerate
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+To maximise the exposure time we need to capture as few frames as possible per second, i.e. we need a very low framerate.
+Therefore the *maximum* exposure time is determined by the camera's *minimum*
+framerate. The minimum framerate is largely determined by how slow the sensor can be
 made to read lines (at the hardware level this is down to the size of registers
-for holding things like line read-out times). If we imagine that the minimum
-framerate of our hypothetical sensor is ½fps then the maximum exposure time
+for holding things like line read-out times). 
+
+If we imagine that the minimum framerate of our hypothetical sensor is ½fps then the maximum exposure time
 will be :math:`\frac{1\text{s}}{^1/_2} = 2\text{s}`.
 
-Hence, the :attr:`~PiCamera.exposure_speed` attribute, which reports the
-exposure time of the last processed frame, and which is really a multiple of
-the sensor's line read-out time, is limited by the camera's
+Therefore, the :attr:`~PiCamera.exposure_speed` attribute, which reports the
+exposure time of the last processed frame (which is really a multiple of
+the sensor's line read-out time) is determined by the camera's
 :attr:`~PiCamera.framerate`.
 
 .. note::
 
-    Tiny framerate adjustments, as done with :attr:`~PiCamera.framerate_delta`,
-    are achieved by reading extra "dummy" lines at the end of a frame.
-
+    Tiny framerate adjustments, done with :attr:`~PiCamera.framerate_delta`,
+    are achieved by reading extra "dummy" lines at the end of a frame. I.e reading a line but then throwing it away.
 Sensor gain
 -----------
 
