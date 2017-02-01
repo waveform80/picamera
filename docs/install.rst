@@ -147,7 +147,8 @@ up to date:
     switch back to using ``apt`` to manage it with the following commands::
 
         $ sudo apt-get update
-        $ sudo apt-get install --reinstall libraspberrypi0 libraspberrypi-{bin,dev,doc} raspberrypi-bootloader
+        $ sudo apt-get install --reinstall libraspberrypi0 libraspberrypi-{bin,dev,doc} z
+        >   raspberrypi-bootloader
         $ sudo rm /boot/.firmware_revision
 
     You will need to reboot after doing so.
@@ -160,5 +161,5 @@ up to date:
     including long exposures and text overlays.
 
 
-.. _Raspbian: http://www.raspberrypi.org/downloads/raspbian/
-.. _PiTFT: http://www.adafruit.com/product/1601
+.. _Raspbian: https://www.raspberrypi.org/downloads/raspbian/
+.. _PiTFT: https://www.adafruit.com/product/1601

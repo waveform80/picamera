@@ -180,7 +180,7 @@ class PiCamera(object):
         Added *clock_mode* parameter, and permitted setting of resolution as
         appropriately formatted string.
 
-    .. _Compute Module: http://www.raspberrypi.org/documentation/hardware/computemodule/cmio-camera.md
+    .. _Compute Module: https://www.raspberrypi.org/documentation/hardware/computemodule/cmio-camera.md
     """
 
     CAMERA_PREVIEW_PORT = 0
@@ -857,7 +857,7 @@ class PiCamera(object):
             an off-screen buffer. Be aware that this requires more GPU memory
             and may reduce the update rate.
 
-        .. _RGB: http://en.wikipedia.org/wiki/RGB
+        .. _RGB: https://en.wikipedia.org/wiki/RGB
 
         .. versionadded:: 1.8
         """
@@ -1525,6 +1525,8 @@ class PiCamera(object):
         The table below contains several example values of *output* and the
         sequence of filenames those values could produce:
 
+        .. tabularcolumns:: |p{80mm}|p{40mm}|p{10mm}|
+
         +--------------------------------------------+--------------------------------------------+-------+
         | *output* Value                             | Filenames                                  | Notes |
         +============================================+============================================+=======+
@@ -1583,7 +1585,8 @@ class PiCamera(object):
             with picamera.PiCamera() as camera:
                 camera.start_preview()
                 try:
-                    for i, filename in enumerate(camera.capture_continuous('image{counter:02d}.jpg')):
+                    for i, filename in enumerate(
+                            camera.capture_continuous('image{counter:02d}.jpg')):
                         print(filename)
                         time.sleep(1)
                         if i == 59:
@@ -1852,7 +1855,7 @@ class PiCamera(object):
             in `config.txt`_ (this has the added advantage that sudo privileges
             and GPIO access are not required, at least for LED control).
 
-        .. _config.txt: http://www.raspberrypi.org/documentation/configuration/config-txt.md
+        .. _config.txt: https://www.raspberrypi.org/documentation/configuration/config-txt.md
         """)
 
     def _get_raw_format(self):
@@ -2603,7 +2606,7 @@ class PiCamera(object):
         The default value is ``'off'``. All possible values for the attribute
         can be obtained from the ``PiCamera.DRC_STRENGTHS`` attribute.
 
-        .. _dynamic range compression: http://en.wikipedia.org/wiki/Gain_compression
+        .. _dynamic range compression: https://en.wikipedia.org/wiki/Gain_compression
 
         .. versionadded:: 1.6
         """.format(values=docstring_values(DRC_STRENGTHS)))
@@ -2678,7 +2681,7 @@ class PiCamera(object):
             permits such settings in particular circumstances.
 
 
-        .. _sensitivity of the camera to light: http://en.wikipedia.org/wiki/Film_speed#Digital
+        .. _sensitivity of the camera to light: https://en.wikipedia.org/wiki/Film_speed#Digital
         """)
 
     def _get_meter_mode(self):
@@ -2713,8 +2716,8 @@ class PiCamera(object):
         The default value is ``'average'``. All possible values for the
         attribute can be obtained from the ``PiCamera.METER_MODES`` attribute.
 
-        .. _determines the exposure: http://en.wikipedia.org/wiki/Metering_mode
-        .. _difference between each mode: http://www.raspberrypi.org/forums/viewtopic.php?p=565644#p565644
+        .. _determines the exposure: https://en.wikipedia.org/wiki/Metering_mode
+        .. _difference between each mode: https://www.raspberrypi.org/forums/viewtopic.php?p=565644#p565644
         """.format(values=docstring_values(METER_MODES)))
 
     def _get_video_stabilization(self):
@@ -2740,7 +2743,7 @@ class PiCamera(object):
             The built-in video stabilization only accounts for `vertical and
             horizontal motion`_, not rotation.
 
-        .. _vertical and horizontal motion: http://www.raspberrypi.org/phpBB3/viewtopic.php?p=342667&sid=ec7d95e887ab74a90ffaab87888c48cd#p342667
+        .. _vertical and horizontal motion: https://www.raspberrypi.org/forums/viewtopic.php?p=342667&sid=ec7d95e887ab74a90ffaab87888c48cd#p342667
         """)
 
     def _get_exposure_compensation(self):
@@ -2846,7 +2849,7 @@ class PiCamera(object):
             information can be found in this :ref:`recipe
             <flash_configuration>`.
 
-        .. _Device Tree configuration: http://www.raspberrypi.org/documentation/configuration/pin-configuration.md
+        .. _Device Tree configuration: https://www.raspberrypi.org/documentation/configuration/pin-configuration.md
 
         .. versionadded:: 1.10
         """.format(values=docstring_values(FLASH_MODES)))
@@ -3055,6 +3058,8 @@ class PiCamera(object):
 
         The effects which have parameters, and what combinations those
         parameters can take is as follows:
+
+        .. tabularcolumns:: |p{30mm}|p{25mm}|p{75mm}|
 
         +--------------------+----------------+-----------------------------------------+
         | Effect             | Parameters     | Description                             |

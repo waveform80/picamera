@@ -29,34 +29,47 @@ Warnings
 ========
 
 .. autoexception:: PiCameraWarning
+    :show-inheritance:
 
 .. autoexception:: PiCameraDeprecated
+    :show-inheritance:
 
 .. autoexception:: PiCameraFallback
+    :show-inheritance:
 
 .. autoexception:: PiCameraResizerEncoding
+    :show-inheritance:
 
 .. autoexception:: PiCameraAlphaStripping
+    :show-inheritance:
 
 
 Exceptions
 ==========
 
 .. autoexception:: PiCameraError
+    :show-inheritance:
 
 .. autoexception:: PiCameraValueError
+    :show-inheritance:
 
 .. autoexception:: PiCameraRuntimeError
+    :show-inheritance:
 
 .. autoexception:: PiCameraClosed
+    :show-inheritance:
 
 .. autoexception:: PiCameraNotRecording
+    :show-inheritance:
 
 .. autoexception:: PiCameraAlreadyRecording
+    :show-inheritance:
 
 .. autoexception:: PiCameraMMALError
+    :show-inheritance:
 
 .. autoexception:: PiCameraPortDisabled
+    :show-inheritance:
 
 
 Functions

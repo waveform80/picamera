@@ -504,8 +504,8 @@ running as root with ``sudo python``), you can also control the LED via the
 
 .. _PIL: http://effbot.org/imagingbook/pil-index.htm
 .. _RPi.GPIO: https://pypi.python.org/pypi/RPi.GPIO
-.. _ring buffer: http://en.wikipedia.org/wiki/Circular_buffer
-.. _boot configuration: http://www.raspberrypi.org/documentation/configuration/config-txt.md
-.. _Little Endian: http://en.wikipedia.org/wiki/Endianness
-.. _rolling shutter: http://en.wikipedia.org/wiki/Rolling_shutter
+.. _ring buffer: https://en.wikipedia.org/wiki/Circular_buffer
+.. _boot configuration: https://www.raspberrypi.org/documentation/configuration/config-txt.md
+.. _Little Endian: https://en.wikipedia.org/wiki/Endianness
+.. _rolling shutter: https://en.wikipedia.org/wiki/Rolling_shutter
 

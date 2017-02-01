@@ -395,6 +395,8 @@ class Color(namedtuple('Color', ('red', 'green', 'blue'))):
     The specific forms that the default constructor will accept are enumerated
     below:
 
+    .. tabularcolumns:: |p{40mm}|p{100mm}|
+
     +------------------------------+------------------------------------------+
     | Style                        | Description                              |
     +==============================+==========================================+
@@ -406,43 +408,43 @@ class Color(namedtuple('Color', ('red', 'green', 'blue'))):
     |                              | parameters are between 0.0 and 1.0, or   |
     |                              | :meth:`Color.from_rgb_bytes` otherwise.  |
     +------------------------------+                                          |
-    | Three named parameters,      |                                          |
-    | "r", "g", "b"                |                                          |
+    | Three named parameters:      |                                          |
+    | *r*, *g*, *b*                |                                          |
     +------------------------------+                                          |
-    | Three named parameters,      |                                          |
-    | "red", "green", "blue"       |                                          |
+    | Three named parameters:      |                                          |
+    | *red*, *green*, *blue*       |                                          |
     +------------------------------+------------------------------------------+
-    | Three named parameters,      | Equivalent to calling                    |
-    | "y", "u", "v"                | :meth:`Color.from_yuv` if "y" is between |
-    |                              | 0.0 and 1.0, "u" is between -0.436 and   |
-    |                              | 0.436, and "v" is between -0.615 and     |
+    | Three named parameters:      | Equivalent to calling                    |
+    | *y*, *u*, *v*                | :meth:`Color.from_yuv` if *y* is between |
+    |                              | 0.0 and 1.0, *u* is between -0.436 and   |
+    |                              | 0.436, and *v* is between -0.615 and     |
     |                              | 0.615, or :meth:`Color.from_yuv_bytes`   |
     |                              | otherwise.                               |
     +------------------------------+------------------------------------------+
-    | Three named parameters,      | Equivalent to calling                    |
-    | "y", "i", "q"                | :meth:`Color.from_yiq`.                  |
+    | Three named parameters:      | Equivalent to calling                    |
+    | *y*, *i*, *q*                | :meth:`Color.from_yiq`.                  |
     +------------------------------+------------------------------------------+
-    | Three named parameters,      | Equivalent to calling                    |
-    | "h", "l", "s"                | :meth:`Color.from_hls`.                  |
+    | Three named parameters:      | Equivalent to calling                    |
+    | *h*, *l*, *s*                | :meth:`Color.from_hls`.                  |
     +------------------------------+                                          |
-    | Three named parameters,      |                                          |
-    | "hue", "lightness",          |                                          |
-    | "saturation"                 |                                          |
+    | Three named parameters:      |                                          |
+    | *hue*, *lightness*,          |                                          |
+    | *saturation*                 |                                          |
     +------------------------------+------------------------------------------+
-    | Three named parameters       | Equivalent to calling                    |
-    | "h", "s", "v"                | :meth:`Color.from_hsv`                   |
+    | Three named parameters:      | Equivalent to calling                    |
+    | *h*, *s*, *v*                | :meth:`Color.from_hsv`                   |
     +------------------------------+                                          |
-    | Three named parameters       |                                          |
-    | "hue", "saturation", "value" |                                          |
+    | Three named parameters:      |                                          |
+    | *hue*, *saturation*, *value* |                                          |
     +------------------------------+------------------------------------------+
-    | Three named parameters,      | Equivalent to calling                    |
-    | "x", "y", "z"                | :meth:`Color.from_cie_xyz`               |
+    | Three named parameters:      | Equivalent to calling                    |
+    | *x*, *y*, *z*                | :meth:`Color.from_cie_xyz`               |
     +------------------------------+------------------------------------------+
-    | Three named parameters,      | Equivalent to calling                    |
-    | "l", "a", "b"                | :meth:`Color.from_cie_lab`               |
+    | Three named parameters:      | Equivalent to calling                    |
+    | *l*, *a*, *b*                | :meth:`Color.from_cie_lab`               |
     +------------------------------+------------------------------------------+
-    | Three named parameters,      | Equivalent to calling                    |
-    | "l", "u", "v"                | :meth:`Color.from_cie_luv`               |
+    | Three named parameters:      | Equivalent to calling                    |
+    | *l*, *u*, *v*                | :meth:`Color.from_cie_luv`               |
     +------------------------------+------------------------------------------+
 
     If the constructor parameters do not conform to any of the variants in the

@@ -364,7 +364,7 @@ class PiOverlayRenderer(PiRenderer):
     The *layer*, *alpha*, *fullscreen*, and *window* parameters are the same
     as in :class:`PiRenderer`.
 
-    .. _RGB: http://en.wikipedia.org/wiki/RGB
+    .. _RGB: https://en.wikipedia.org/wiki/RGB
     """
 
     def __init__(

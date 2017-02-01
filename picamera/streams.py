@@ -247,7 +247,7 @@ class CircularIO(io.IOBase):
     rare operation (a reasonable assumption for the camera use-case, but not
     necessarily for more general usage).
 
-    .. _ring buffer: http://en.wikipedia.org/wiki/Circular_buffer
+    .. _ring buffer: https://en.wikipedia.org/wiki/Circular_buffer
     """
     def __init__(self, size):
         if size < 1:

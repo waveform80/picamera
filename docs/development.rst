@@ -48,8 +48,8 @@ within a virtual Python environment:
 .. code-block:: console
 
     $ sudo apt-get install lsb-release build-essential git git-core \
-        exuberant-ctags virtualenvwrapper python-virtualenv python3-virtualenv \
-        python-dev python3-dev libjpeg8-dev zlib1g-dev libav-tools
+    >   exuberant-ctags virtualenvwrapper python-virtualenv python3-virtualenv \
+    >   python-dev python3-dev libjpeg8-dev zlib1g-dev libav-tools
     $ cd
     $ mkvirtualenv -p /usr/bin/python3 picamera
     $ workon picamera

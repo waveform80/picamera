@@ -109,7 +109,7 @@ power supply may be insufficient. A practical minimum is 1A for running a Pi
 with an active camera module; more may be required if additional peripherals
 are attached.
 
-.. _requires 250mA: http://www.raspberrypi.org/help/faqs/#cameraPower
+.. _requires 250mA: https://www.raspberrypi.org/help/faqs/#cameraPower
 
 How can I take two consecutive pictures with equivalent settings?
 =================================================================

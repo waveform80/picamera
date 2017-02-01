@@ -979,12 +979,12 @@ abstraction layers which necessarily obscure (but hopefully simplify) the
 .. _system on a chip: https://en.wikipedia.org/wiki/System_on_a_chip
 .. _image signal processor: https://en.wikipedia.org/wiki/Image_processor
 .. _binning: http://www.andor.com/learning-academy/ccd-binning-what-does-binning-mean
-.. _rolling shutter: http://en.wikipedia.org/wiki/Rolling_shutter
-.. _Bayer filter: http://en.wikipedia.org/wiki/Bayer_filter
+.. _rolling shutter: https://en.wikipedia.org/wiki/Rolling_shutter
+.. _Bayer filter: https://en.wikipedia.org/wiki/Bayer_filter
 .. _f-stop: https://en.wikipedia.org/wiki/F-number
 .. _luminance: https://en.wikipedia.org/wiki/Relative_luminance
-.. _YUV420: http://en.wikipedia.org/wiki/YUV#Y.27UV420p_.28and_Y.27V12_or_YV12.29_to_RGB888_conversion
-.. _RGB: http://en.wikipedia.org/wiki/RGB
+.. _YUV420: https://en.wikipedia.org/wiki/YUV#Y.E2.80.B2UV420p_.28and_Y.E2.80.B2V12_or_YV12.29_to_RGB888_conversion
+.. _RGB: https://en.wikipedia.org/wiki/RGB
 .. _discrete cosine transforms: https://en.wikipedia.org/wiki/Discrete_cosine_transform
 .. _motion estimation: https://en.wikipedia.org/wiki/Motion_estimation
 .. _color balance: https://en.wikipedia.org/wiki/Color_balance

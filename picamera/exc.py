@@ -152,8 +152,7 @@ class PiCameraMMALError(PiCameraError):
 
 class PiCameraPortDisabled(PiCameraMMALError):
     """
-    Sub-class of :exc:`PiCameraMMALError` raised when attempting a buffer
-    operation on a disabled port.
+    Raised when attempting a buffer operation on a disabled port.
 
     This exception is intended for the common use-case of attempting to get
     or send a buffer just when a component is shutting down (e.g. at script

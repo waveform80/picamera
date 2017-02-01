@@ -66,7 +66,7 @@ requests from me in the last couple of months!
 .. _#241: https://github.com/waveform80/picamera/issues/241
 .. _#257: https://github.com/waveform80/picamera/issues/257
 .. _#212: https://github.com/waveform80/picamera/issues/212
-.. _#279: https://github.com/waveform80/picamera/issues/279
+.. _#279: https://github.com/waveform80/picamera/pull/279
 .. _#216: https://github.com/waveform80/picamera/issues/216
 .. _#240: https://github.com/waveform80/picamera/issues/240
 .. _#218: https://github.com/waveform80/picamera/issues/218
@@ -146,11 +146,11 @@ requests, and thanks for all the great bug reports. Happy new year everyone!
 .. _#168: https://github.com/waveform80/picamera/issues/168
 .. _#170: https://github.com/waveform80/picamera/issues/170
 .. _#171: https://github.com/waveform80/picamera/issues/171
-.. _#172: https://github.com/waveform80/picamera/issues/172
+.. _#172: https://github.com/waveform80/picamera/pull/172
 .. _#174: https://github.com/waveform80/picamera/issues/174
-.. _#176: https://github.com/waveform80/picamera/issues/176
+.. _#176: https://github.com/waveform80/picamera/pull/176
 .. _#177: https://github.com/waveform80/picamera/issues/177
-.. _#179: https://github.com/waveform80/picamera/issues/179
+.. _#179: https://github.com/waveform80/picamera/pull/179
 .. _#180: https://github.com/waveform80/picamera/issues/180
 .. _#182: https://github.com/waveform80/picamera/issues/182
 
@@ -427,7 +427,7 @@ Release 1.1 (2014-01-25)
 * A couple of documentation enhancements made it in (`#41`_ and `#47`_)
 
 .. _#40: https://github.com/waveform80/picamera/issues/40
-.. _#41: https://github.com/waveform80/picamera/issues/41
+.. _#41: https://github.com/waveform80/picamera/pull/41
 .. _#46: https://github.com/waveform80/picamera/issues/46
 .. _#47: https://github.com/waveform80/picamera/issues/47
 

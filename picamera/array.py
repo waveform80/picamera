@@ -277,7 +277,7 @@ class PiYUVArray(PiArrayOutput):
                 print('Captured %dx%d image' % (
                         output.array.shape[1], output.array.shape[0]))
 
-    .. _ITU-R BT.601: http://en.wikipedia.org/wiki/YCbCr#ITU-R_BT.601_conversion
+    .. _ITU-R BT.601: https://en.wikipedia.org/wiki/YCbCr#ITU-R_BT.601_conversion
     """
 
     def __init__(self, camera, size=None):
@@ -385,8 +385,8 @@ class PiBayerArray(PiArrayOutput):
         This class now supports the V2 module properly, and handles flipped
         images, and forced sensor modes correctly.
 
-    .. _de-mosaicing: http://en.wikipedia.org/wiki/Demosaicing
-    .. _Bayer pattern: http://en.wikipedia.org/wiki/Bayer_filter
+    .. _de-mosaicing: https://en.wikipedia.org/wiki/Demosaicing
+    .. _Bayer pattern: https://en.wikipedia.org/wiki/Bayer_filter
     """
     BAYER_OFFSETS = {
         0: ((0, 0), (1, 0), (0, 1), (1, 1)),
@@ -484,7 +484,7 @@ class PiBayerArray(PiArrayOutput):
         dimensional, with the last dimension being the color planes (see
         *output_dims* parameter on the constructor).
 
-        .. _de-mosaic: http://en.wikipedia.org/wiki/Demosaicing
+        .. _de-mosaic: https://en.wikipedia.org/wiki/Demosaicing
         """
         if self._demo is None:
             # Construct 3D representation of Bayer data (if necessary)
@@ -600,8 +600,8 @@ class PiMotionArray(PiArrayOutput):
         This class is not suitable for real-time analysis of motion vector
         data. See the :class:`PiMotionAnalysis` class instead.
 
-    .. _macro-blocks: http://en.wikipedia.org/wiki/Macroblock
-    .. _sum of absolute differences: http://en.wikipedia.org/wiki/Sum_of_absolute_differences
+    .. _macro-blocks: https://en.wikipedia.org/wiki/Macroblock
+    .. _sum of absolute differences: https://en.wikipedia.org/wiki/Sum_of_absolute_differences
     """
 
     def flush(self):

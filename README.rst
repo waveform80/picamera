@@ -19,11 +19,11 @@ Links
   instructions is more likely to be useful
 
 
-.. _Raspberry Pi: http://www.raspberrypi.org/
-.. _camera: http://www.raspberrypi.org/camera
-.. _PyPI: http://pypi.python.org/pypi/picamera/
-.. _documentation: http://picamera.readthedocs.io/
+.. _Raspberry Pi: https://www.raspberrypi.org/
+.. _camera: https://www.raspberrypi.org/learning/getting-started-with-picamera/
+.. _PyPI: https://pypi.python.org/pypi/picamera/
+.. _documentation: https://picamera.readthedocs.io/
 .. _source code: https://github.com/waveform80/picamera
 .. _bug tracker: https://github.com/waveform80/picamera/issues
-.. _BSD license: http://opensource.org/licenses/BSD-3-Clause
+.. _BSD license: https://opensource.org/licenses/BSD-3-Clause
 

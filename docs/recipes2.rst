@@ -676,8 +676,10 @@ classes implement base functionality but aren't technically "abstract"):
 The following table details which :class:`PiCamera` methods use which encoder
 classes, and which method they call to construct these encoders:
 
+.. tabularcolumns:: |p{52mm}|p{42mm}|p{53mm}|
+
 +--------------------------------------+---------------------------------------+------------------------------------+
-| Method(s)                            | Call                                  | Returns                            |
+| Method(s)                            | Calls                                 | Returns                            |
 +======================================+=======================================+====================================+
 | :meth:`~PiCamera.capture`            | :meth:`~PiCamera._get_image_encoder`  | :class:`PiCookedOneImageEncoder`   |
 | :meth:`~PiCamera.capture_continuous` |                                       | :class:`PiRawOneImageEncoder`      |
@@ -975,24 +977,24 @@ acts as a flash LED with the Python script above.
 .. versionadded:: 1.10
 
 
-.. _YUV: http://en.wikipedia.org/wiki/YUV
+.. _YUV: https://en.wikipedia.org/wiki/YUV
 .. _YUV420: https://en.wikipedia.org/wiki/YUV#Y.E2.80.B2UV420p_.28and_Y.E2.80.B2V12_or_YV12.29_to_RGB888_conversion
-.. _RGB: http://en.wikipedia.org/wiki/RGB
-.. _RGBA: http://en.wikipedia.org/wiki/RGBA_color_space
+.. _RGB: https://en.wikipedia.org/wiki/RGB
+.. _RGBA: https://en.wikipedia.org/wiki/RGBA_color_space
 .. _numpy: http://www.numpy.org/
-.. _ring buffer: http://en.wikipedia.org/wiki/Circular_buffer
+.. _ring buffer: https://en.wikipedia.org/wiki/Circular_buffer
 .. _OV5647: http://www.ovt.com/products/sensor.php?id=66
 .. _IMX219: http://www.sony.net/Products/SC-HP/new_pro/april_2014/imx219_e.html
-.. _Bayer CFA: http://en.wikipedia.org/wiki/Bayer_filter
-.. _de-mosaicing: http://en.wikipedia.org/wiki/Demosaicing
-.. _color balance: http://en.wikipedia.org/wiki/Color_balance
-.. _macro-block: http://en.wikipedia.org/wiki/Macroblock
-.. _magnitude of the vector: http://en.wikipedia.org/wiki/Magnitude_%28mathematics%29#Euclidean_vectors
-.. _Sum of Absolute Differences: http://en.wikipedia.org/wiki/Sum_of_absolute_differences
-.. _rolling shutter: http://en.wikipedia.org/wiki/Rolling_shutter
-.. _VideoCore device tree blob: http://www.raspberrypi.org/documentation/configuration/pin-configuration.md
-.. _flash metering: http://en.wikipedia.org/wiki/Through-the-lens_metering#Through_the_lens_flash_metering
-.. _Broadcom pin numbers: http://raspberrypi.stackexchange.com/questions/12966/what-is-the-difference-between-board-and-bcm-for-gpio-pin-numbering
+.. _Bayer CFA: https://en.wikipedia.org/wiki/Bayer_filter
+.. _de-mosaicing: https://en.wikipedia.org/wiki/Demosaicing
+.. _color balance: https://en.wikipedia.org/wiki/Color_balance
+.. _macro-block: https://en.wikipedia.org/wiki/Macroblock
+.. _magnitude of the vector: https://en.wikipedia.org/wiki/Magnitude_%28mathematics%29#Euclidean_vector_space
+.. _Sum of Absolute Differences: https://en.wikipedia.org/wiki/Sum_of_absolute_differences
+.. _rolling shutter: https://en.wikipedia.org/wiki/Rolling_shutter
+.. _VideoCore device tree blob: https://www.raspberrypi.org/documentation/configuration/pin-configuration.md
+.. _flash metering: https://en.wikipedia.org/wiki/Through-the-lens_metering#Through_the_lens_flash_metering
+.. _Broadcom pin numbers: https://raspberrypi.stackexchange.com/questions/12966/what-is-the-difference-between-board-and-bcm-for-gpio-pin-numbering
 .. _OpenCV: http://opencv.org/
 .. _magic number: https://en.wikipedia.org/wiki/Magic_number_(programming)#Magic_numbers_in_files
 .. _pistreaming: https://github.com/waveform80/pistreaming/

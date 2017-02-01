@@ -142,9 +142,11 @@ and the input port of the renderer:
 .. code-block:: pycon
 
     >>> camera.outputs[0]
-    <MMALVideoPort "vc.ril.camera:out:0": format=MMAL_FOURCC('I420') buffers=1x7680 frames=320x240@0fps>
+    <MMALVideoPort "vc.ril.camera:out:0": format=MMAL_FOURCC('I420')
+    buffers=1x7680 frames=320x240@0fps>
     >>> preview.inputs[0]
-    <MMALVideoPort "vc.ril.video_render:in:0" format=MMAL_FOURCC('I420') buffers=2x15360 frames=160x64@0fps>
+    <MMALVideoPort "vc.ril.video_render:in:0" format=MMAL_FOURCC('I420')
+    buffers=2x15360 frames=160x64@0fps>
 
 Several things to note here:
 
@@ -170,7 +172,8 @@ and give it a frame-rate:
     >>> camera.outputs[0].framerate = 30
     >>> camera.outputs[0].commit()
     >>> camera.outputs[0]
-    <MMALVideoPort "vc.ril.camera:out:0(I420)": format=MMAL_FOURCC('I420') buffers=1x460800 frames=640x480@30fps>
+    <MMALVideoPort "vc.ril.camera:out:0(I420)": format=MMAL_FOURCC('I420')
+    buffers=1x460800 frames=640x480@30fps>
 
 Note that the changes to the configuration won't actually take effect until
 the :meth:`MMALPort.commit` call. After the port is committed, note that the
@@ -219,9 +222,11 @@ on the Pi's screen. Let's query the port configurations now:
 .. code-block:: pycon
 
     >>> camera.outputs[0]
-    <MMALVideoPort "vc.ril.camera:out:0(OPQV)": format=MMAL_FOURCC('OPQV') buffers=10x128 frames=640x480@30fps>
+    <MMALVideoPort "vc.ril.camera:out:0(OPQV)": format=MMAL_FOURCC('OPQV')
+    buffers=10x128 frames=640x480@30fps>
     >>> preview.inputs[0]
-    <MMALVideoPort "vc.ril.video_render:in:0(OPQV)": format=MMAL_FOURCC('OPQV') buffers=10x128 frames=640x480@30fps>
+    <MMALVideoPort "vc.ril.video_render:in:0(OPQV)": format=MMAL_FOURCC('OPQV')
+    buffers=10x128 frames=640x480@30fps>
 
 One interesting thing to note is that the connection has implicitly
 reconfigured the camera's output port to use the OPAQUE ("OPQV") format. This
@@ -343,7 +348,8 @@ activate the output port:
     >>> camera.outputs[2].framesize = (640, 480)
     >>> camera.outputs[2].commit()
     >>> camera.outputs[2]
-    <MMALVideoPort "vc.ril.camera:out:2(RGB3)": format=MMAL_FOURCC('RGB3') buffers=1x921600 frames=640x480@0fps>
+    <MMALVideoPort "vc.ril.camera:out:2(RGB3)": format=MMAL_FOURCC('RGB3')
+    buffers=1x921600 frames=640x480@0fps>
     >>> camera.outputs[2].enable()
 
 Unfortunately, that didn't seem to do much! An output port that is
@@ -407,19 +413,23 @@ it data from our capture file, writing the output to another file:
 
     >>> encoder = mo.MMALImageEncoder()
     >>> encoder.inputs
-    (<MMALVideoPort "vc.ril.image_encode:in:0": format=MMAL_FOURCC('RGB2') buffers=1x15360 frames=96x80@0fps>,)
+    (<MMALVideoPort "vc.ril.image_encode:in:0": format=MMAL_FOURCC('RGB2')
+    buffers=1x15360 frames=96x80@0fps>,)
     >>> encoder.outputs
-    (<MMALVideoPort "vc.ril.image_encode:out:0": format=MMAL_FOURCC('GIF ') buffers=1x81920 frames=0x0@0fps>,)
+    (<MMALVideoPort "vc.ril.image_encode:out:0": format=MMAL_FOURCC('GIF ')
+    buffers=1x81920 frames=0x0@0fps>,)
     >>> encoder.inputs[0].format = mmal.MMAL_ENCODING_RGB24
     >>> encoder.inputs[0].framesize = (640, 480)
     >>> encoder.inputs[0].commit()
     >>> encoder.outputs[0].copy_from(encoder.inputs[0])
     >>> encoder.outputs[0]
-    <MMALVideoPort "vc.ril.image_encode:out:0": format=MMAL_FOURCC('RGB3') buffers=1x81920 frames=640x480@0fps>
+    <MMALVideoPort "vc.ril.image_encode:out:0": format=MMAL_FOURCC('RGB3')
+    buffers=1x81920 frames=640x480@0fps>
     >>> encoder.outputs[0].format = mmal.MMAL_ENCODING_JPEG
     >>> encoder.outputs[0].commit()
     >>> encoder.outputs[0]
-    <MMALVideoPort "vc.ril.image_encode:out:0(JPEG)": format=MMAL_FOURCC('JPEG') buffers=1x307200 frames=0x0@0fps>
+    <MMALVideoPort "vc.ril.image_encode:out:0(JPEG)": format=MMAL_FOURCC('JPEG')
+    buffers=1x307200 frames=0x0@0fps>
     >>> encoder.outputs[0].params[mmal.MMAL_PARAMETER_JPEG_Q_FACTOR] = 90
 
 Just pausing for a moment, let's re-cap what we've got: an image encoder
@@ -482,7 +492,8 @@ from earlier and just assign a different output file to ``jpg_data``:
     <MMALConnection "vc.ril.camera:out:2/vc.ril.image_encode:in:0">
     >>> encoder.connection.enable()
     >>> encoder.inputs[0]
-    <MMALVideoPort "vc.ril.image_encode:in:0(OPQV)": format=MMAL_FOURCC('OPQV') buffers=10x128 frames=640x480@0fps>
+    <MMALVideoPort "vc.ril.image_encode:in:0(OPQV)": format=MMAL_FOURCC('OPQV')
+    buffers=10x128 frames=640x480@0fps>
     >>> jpg_data = io.open('direct.jpg', 'wb')
     >>> encoder.outputs[0].enable(image_callback)
     >>> camera.outputs[2].params[mmal.MMAL_PARAMETER_CAPTURE] = True

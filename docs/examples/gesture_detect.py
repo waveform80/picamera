@@ -49,4 +49,3 @@ with picamera.PiCamera(resolution='VGA', framerate=24) as camera:
                 camera.wait_recording(1)
         finally:
             camera.stop_recording()
-
