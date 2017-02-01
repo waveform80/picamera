@@ -318,7 +318,7 @@ read-out time, is the sensor's `gain`_. Specifically, the gain given by the
 :attr:`~PiCamera.analog_gain` attribute (the corresponding
 :attr:`~PiCamera.digital_gain` is simply post-processing which we'll cover
 later). However, there's an obvious issue: how is this gain "analog" if we're
-dealing with simple digital photon counts?
+dealing with digital photon counts?
 
 Time to reveal the first lie: the sensor elements are not simple digital
 counters but are in fact analog components that build up charge as more photons
@@ -336,15 +336,16 @@ attributes can be used to "influence" it.
   attributes may be adjusted.
 
 * Setting :attr:`~PiCamera.exposure_mode` to values other than ``'off'``
-  permits the gains to "float" according to the auto-exposure mode selected.
-  The camera firmware always prefers to adjust the analog gain when possible,
-  as digital gain produces more noise. Some examples of the factors that the
-  auto-exposure modes target:
+  permits the gains to "float" (change) according to the auto-exposure mode
+  selected.  Where possible, the camera firmware prefers to adjust the analog
+  gain rather than the digital gain, because increasing the digital gain
+  produces more noise. Some examples of the adjustments made for different
+  auto-exposure modes include:
 
-  - ``'sports'`` prefers higher gain to increasing exposure time (i.e. line
-    read-out time) to reduce motion blur.
+  - ``'sports'`` reduces motion blur by preferentially increasing gain rather
+    than exposure time (i.e. line read-out time).
 
-  - ``'night'`` is intended as a stills mode so it permits very long exposure
+  - ``'night'`` is intended as a stills mode, so it permits very long exposure
     times while attempting to keep gains low.
 
 * The :attr:`~PiCamera.iso` attribute effectively represents another set of
@@ -353,20 +354,20 @@ attributes can be used to "influence" it.
   - With the V1 camera module, ISO 100 attempts to use an overall gain of 1.0.
     ISO 200 attempts to use an overall gain of 2.0, and so on.
 
-  - With the V2 camera module, calibration was performed against the relevant
-    standard. Hence ISO 100 produces an overall gain of ~1.84. ISO 60 produces
-    overall gain of 1.0, and ISO 800 of 14.72.
+  - With the V2 camera module, ISO 100 produces an overall gain of ~1.84. ISO
+    60 produces overall gain of 1.0, and ISO 800 of 14.72 (the V2 camera module
+    was calibrated against the `ISO film speed`_ standard).
 
 .. note::
 
     Camera sensors tend to have a border of non-sensing pixels (elements that
     are covered from light). These are used to determine what level of charge
-    represents "optically black".
+    represents "optically black". 
 
     The camera's elements are affected by heat (thermal radiation, after all,
     is just part of the `electromagnetic spectrum`_ close to the visible
-    portion) which would result in different black levels at different ambient
-    temperatures if such compensation were not performed.
+    portion). Without the non-sensing pixels you would get different black
+    levels at different ambient temperatures.
 
 Division of labor
 -----------------
@@ -450,8 +451,8 @@ Background processes
 We've alluded briefly to some of the GPU processing going on in the sections
 above (gain control, exposure time, white balance, frame encoding, etc). Time
 to reveal the final lie: the GPU is not, as depicted in the prior section, one
-monolithic component. Rather it is composed of numerous components each of
-which play a role in the camera's operation.
+discrete component. Rather it is composed of numerous components each of which
+play a role in the camera's operation.
 
 The diagram below depicts a more accurate representation of the GPU side of the
 BCM2835 SoC. From this we get our first glimpse of the frame processing
@@ -459,7 +460,7 @@ BCM2835 SoC. From this we get our first glimpse of the frame processing
 being recorded. The components that data passes through are as follows:
 
 1. Starting at the camera module, some minor processing happens. Specifically,
-   flips (horizontal and vertical), line skipping, and pixel `binning`_ is
+   flips (horizontal and vertical), line skipping, and pixel `binning`_ are
    configured on the sensor's registers. Pixel binning actually happens on the
    sensor itself, prior to the ADC to improve signal-to-noise ratios. See
    :attr:`~PiCamera.hflip`, :attr:`~PiCamera.vflip`, and
@@ -470,64 +471,68 @@ being recorded. The components that data passes through are as follows:
    line data into RAM.
 
 3. Next the GPU's `image signal processor`_ (ISP) performs several
-   post-processing steps on the frame data.  These include (in order):
+   post-processing steps on the frame data(?).  
 
-    - Transposition. If any rotation has been requested, transpose the input to
-      take care of it (rotation is always implemented by some combination of
+   These include (in order):
+
+    - **Transposition**: If any rotation has been requested, the input is transposed to
+      rotate the image (rotation is always implemented by some combination of
       transposition and flips).
 
-    - Black level compensation. Camera sensors typically include a border of
-      non-light sensing elements which are used to determine what level of
+    - **Black level compensation**: Use the non-light sensing elements (typically in a covered border) to determine what level of
       charge represents "optically black".
 
-    - Lens shading. The camera firmware includes a table that corrects for
+    - **Lens shading**: The camera firmware includes a table that corrects for
       chromatic distortion from the standard module's lens. This is one reason
-      that third party modules incorporating different lenses may show
-      non-uniform color across a frame.
+      why third party modules incorporating different lenses may show
+      non-uniform color across a frame (across an image?).
 
-    - White balance. The red and blue gains are applied to correct the `color
+    - **White balance**: The red and blue gains are applied to correct the `color
       balance`_. See :attr:`~PiCamera.awb_gains` and
       :attr:`~PiCamera.awb_mode`.
 
-    - Digital gain. As mentioned above, this is a straight-forward
-      post-processing step that applies a gain to the Bayer values. See
+    - **Digital gain**: As mentioned above, this is a straight-forward
+      post-processing step that applies a gain to the Bayer values (? -link?). See
       :attr:`~PiCamera.digital_gain`.
 
-    - Bayer de-noise. This is a noise reduction algorithm run on the frame
-      while it is still in Bayer format.
+    - **Bayer de-noise**: This is a noise reduction algorithm run on the frame
+      data while it is still in Bayer format.
 
-    - De-mosaic. The frame data is converted from Bayer format to `YUV420`_
+    - **De-mosaic:** The frame data is converted from Bayer format to `YUV420`_
       which is the format used by the remainder of the pipeline.
 
-    - YCbCr de-noise. Another noise reduction algorithm, this time with the
+    - **YCbCr de-noise**: Another noise reduction algorithm, this time with the
       frame in YUV420 format. See :attr:`~PiCamera.image_denoise` and
       :attr:`~PiCamera.video_denoise`.
 
-    - Sharpening. An algorithm to enhance edges in the frame. See
+    - **Sharpening**: An algorithm to enhance edges in the image. See
       :attr:`~PiCamera.sharpness`.
 
-    - Color processing. The :attr:`~PiCamera.brightness`,
+    - **Color processing**: The :attr:`~PiCamera.brightness`,
       :attr:`~PiCamera.contrast`, and :attr:`~PiCamera.saturation` adjustments
       are implemented.
 
-    - Distortion. The distortion introduced by the camera's lens is corrected.
+    - **Distortion**: The distortion introduced by the camera's lens is corrected.
 
-    - Resizing. At this point, the frame is resized to the requested output
-      resolution (all prior stages have been performed on "full" frame at
-      whatever resolution the sensor is configured to produce). See
+    - **Resizing**: At this point, the frame is resized to the requested output
+      resolution (all prior stages have been performed on "full" frame data
+      at whatever resolution the sensor is configured to produce). See
       :attr:`~PiCamera.resolution`.
 
    Some of these steps can be controlled directly (e.g. brightness, noise
    reduction), others can only be influenced (e.g. digital gain), and the
    remainder are not user-configurable at all (e.g. demosaic and lens shading).
+   
+   At this point the frame is effectively “complete”.
+   
+.. Do you mean analog gain in the above, rather than digital?
 
-4. At this point the frame is effectively "complete". When dealing with
-   pipelines producing "unencoded" output (YUV, RGB, etc.) the pipeline ends
-   here (the ISP might be used to convert to RGB, but that's all) with the
-   frame data getting copied to the CPU via `DMA`_.
+4. If you are producing "unencoded" output (YUV, RGB, etc.) the pipeline ends
+   at this point, with the frame data getting copied over to the CPU via
+   `DMA`_. The ISP might be used to convert to RGB, but that's all.
 
-5. In the case of pipelines producing encoded output (H264, MJPEG, MPEG2, etc.)
-   the next step is one of the encoding blocks (the H264 block in this case).
+5. If you are producing encoded output (H264, MJPEG, MPEG2, etc.)
+   the next step is one of the encoding blocks, the H264 block in this case.
    The encoding blocks are specialized hardware designed specifically to
    produce particular encodings. For example, the JPEG block will include
    hardware for performing lots of parallel `discrete cosine transforms`_
@@ -536,11 +541,10 @@ being recorded. The components that data passes through are as follows:
 
 6. Once encoded, the output is copied to the CPU via `DMA`_.
 
-7. Coordinating these components is the VPU; this is the general purpose
-   component in the GPU running VCOS (ThreadX), and it is this that configures
-   and controls the other components in response to messages from VCHI.
-   Currently the most complete documentation of the VPU is available from the
-   `videocoreiv repository`_.
+7. Coordinating these components is the VPU, the general purpose component in
+   the GPU running VCOS (ThreadX). The VPU configures and controls the other
+   components in response to messages from VCHI.  Currently the most complete
+   documentation of the VPU is available from the `videocoreiv repository`_.
 
 .. image:: images/gpu_architecture.*
     :align: center
@@ -983,3 +987,4 @@ abstraction layers which necessarily obscure (but hopefully simplify) the
 .. _gain: https://en.wikipedia.org/wiki/Gain_(electronics)
 .. _electromagnetic spectrum: https://en.wikipedia.org/wiki/Electromagnetic_spectrum
 .. _DMA: https://en.wikipedia.org/wiki/Direct_memory_access
+.. _ISO film speed: https://en.wikipedia.org/wiki/Film_speed#Current_system:_ISO
