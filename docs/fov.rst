@@ -944,13 +944,20 @@ MMAL framework). However, not all OPAQUE encodings are equivalent:
   single image OPAQUE input (or YUV; in later firmwares it also
   supports RGB or BGR output).
 
-* The resizer theoretically accepts OPAQUE input (though the author hasn't
-  managed to get this working at the time of writing) but will only produce
-  YUV/RGBA/BGRA output.
+* The VPU resizer (:class:`~picamera.mmalobj.MMALResizer`) theoretically
+  accepts OPAQUE input (though the author hasn't managed to get this working at
+  the time of writing) but will only produce YUV, RGBA, and BGRA output, not
+  RGB or BGR.
+
+* The ISP resizer (:class:`~picamera.mmalobj.MMALISPResizer`, not currently
+  used by picamera's high level API, but available from the
+  :mod:`~picamera.mmalobj` layer) accepts OPAQUE input, and will produce almost
+  any unencoded output (including YUV, RGB, BGR, RGBA, and BGRA) but not
+  OPAQUE.
 
 The :mod:`~picamera.mmalobj` layer introduced in picamera 1.11 is aware of
 these OPAQUE encoding differences and attempts to configure connections between
-components with the most efficient formats possible. However, it is not aware
+components using the most efficient formats possible. However, it is not aware
 of firmware revisions so if you're playing with MMAL components via this layer
 be prepared to do some tinkering to get your pipeline working.
 
