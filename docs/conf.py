@@ -91,6 +91,8 @@ pygments_style = 'sphinx'
 #modindex_common_prefix = []
 #keep_warnings = False
 imgmath_image_format = 'svg'
+if on_rtd:
+    tags.add('rtd')
 
 # -- Autodoc configuration ------------------------------------------------
 

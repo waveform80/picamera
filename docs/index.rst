@@ -30,6 +30,22 @@ Table of Contents
    license
 
 
+.. only:: builder_html and rtd
+
+    Versions and Formats
+    ====================
+
+    To view older releases of these documents, or to download the documents in
+    other formats like PDF or EPub (e.g. for offline viewing on an e-reader),
+    click on the "Read the Docs" logo at the bottom left of the screen (or tap
+    the menu icon then tap the "Read the Docs" logo at the bottom on mobile
+    platforms). This will reveal a menu listing the available versions of these
+    documents, and downloads in alternate formats.
+
+    .. image:: images/versions.*
+        :align: center
+
+
 Indices and tables
 ==================
 
