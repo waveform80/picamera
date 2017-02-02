@@ -494,6 +494,12 @@ running as root with ``sudo python``), you can also control the LED via the
 
 .. literalinclude:: examples/led_control.py
 
+.. note::
+
+    The camera LED cannot currently be controlled when the module is attached
+    to a Raspberry Pi 3 Model B as the GPIO that controls the LED has moved to
+    a GPIO expander not directly accessible to the ARM processor.
+
 .. warning::
 
     Be aware when you first use the LED property it will set the GPIO library
