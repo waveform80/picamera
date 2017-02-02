@@ -842,7 +842,7 @@ class PiVideoEncoder(PiEncoder):
             framerate = self.parent.framerate + self.parent.framerate_delta
         else:
             framerate = self.input_port.framerate
-        timeout = max(10.0, float(self._intra_period / framerate) * 3.0)
+        timeout = max(15.0, float(self._intra_period / framerate) * 3.0)
         if self._intra_period > 1:
             self.request_key_frame()
         if not self.event.wait(timeout):
