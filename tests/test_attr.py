@@ -90,9 +90,9 @@ def test_annotate_text(camera, previewing):
         camera.annotate_text = ''
         assert camera.annotate_text == ''
         camera.annotate_text = 'foo'
-        assert camera.annotate_text == u'foo'
+        assert camera.annotate_text == 'foo'
         camera.annotate_text = 'foo bar baz quux xyzzy'
-        assert camera.annotate_text == u'foo bar baz quux xyzzy'
+        assert camera.annotate_text == 'foo bar baz quux xyzzy'
         with pytest.raises(picamera.PiCameraValueError):
             camera.annotate_text = ('abcd' * 64) + 'a'
         with pytest.raises(picamera.PiCameraValueError):
