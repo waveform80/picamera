@@ -834,9 +834,10 @@ class MMALPort(MMALControlPort):
     __slots__ = ('_opaque_subformat', '_pool', '_stopped', '_connection')
 
     # A mapping of corrected definitions of supported_formats for ports with
-    # particular names (older firmwares either raised EINVAL, ENOSYS, or just
+    # particular names. Older firmwares either raised EINVAL, ENOSYS, or just
     # reported the wrong things for various ports; these lists are derived from
-    # querying newer firmwares or in some cases guessing sensible defaults).
+    # querying newer firmwares or in some cases guessing sensible defaults
+    # (for ports where even the newer firmwares get stuff wrong).
     _supported_formats_patch = {
         'vc.ril.camera:out:2': [
             mmal.MMAL_ENCODING_I420,
@@ -873,6 +874,62 @@ class MMALPort(MMALControlPort):
             mmal.MMAL_ENCODING_BMP,
             mmal.MMAL_ENCODING_PPM,
             mmal.MMAL_ENCODING_TGA,
+            ],
+        'vc.ril.resize:in:0': [
+            mmal.MMAL_ENCODING_RGBA,
+            mmal.MMAL_ENCODING_BGRA,
+            mmal.MMAL_ENCODING_RGB16,
+            mmal.MMAL_ENCODING_I420,
+            # several invalid encodings (lowercase versions of the priors)
+            # appear here in modern firmwares but since they don't map to any
+            # constants they're excluded
+            mmal.MMAL_ENCODING_I420_SLICE,
+            ],
+        'vc.ril.resize:out:0': [
+            mmal.MMAL_ENCODING_RGBA,
+            mmal.MMAL_ENCODING_BGRA,
+            mmal.MMAL_ENCODING_RGB16,
+            mmal.MMAL_ENCODING_I420,
+            # same invalid encodings as above here
+            mmal.MMAL_ENCODING_I420_SLICE,
+            ],
+        'vc.ril.isp:in:0': [
+            mmal.MMAL_ENCODING_BAYER_SBGGR8,
+            mmal.MMAL_ENCODING_BAYER_SBGGR10DPCM8,
+            mmal.MMAL_ENCODING_BAYER_SBGGR10P,
+            mmal.MMAL_ENCODING_BAYER_SBGGR12P,
+            mmal.MMAL_ENCODING_YUYV,
+            mmal.MMAL_ENCODING_YVYU,
+            mmal.MMAL_ENCODING_VYUY,
+            mmal.MMAL_ENCODING_UYVY,
+            mmal.MMAL_ENCODING_I420,
+            mmal.MMAL_ENCODING_YV12,
+            mmal.MMAL_ENCODING_I422,
+            mmal.MMAL_ENCODING_RGB24,
+            mmal.MMAL_ENCODING_BGR24,
+            mmal.MMAL_ENCODING_RGBA,
+            mmal.MMAL_ENCODING_BGRA,
+            mmal.MMAL_ENCODING_RGB16,
+            mmal.MMAL_ENCODING_YUVUV128,
+            mmal.MMAL_ENCODING_NV12,
+            mmal.MMAL_ENCODING_NV21,
+            ],
+        'vc.ril.isp:out:0': [
+            mmal.MMAL_ENCODING_YUYV,
+            mmal.MMAL_ENCODING_YVYU,
+            mmal.MMAL_ENCODING_VYUY,
+            mmal.MMAL_ENCODING_UYVY,
+            mmal.MMAL_ENCODING_I420,
+            mmal.MMAL_ENCODING_YV12,
+            mmal.MMAL_ENCODING_I422,
+            mmal.MMAL_ENCODING_RGB24,
+            mmal.MMAL_ENCODING_BGR24,
+            mmal.MMAL_ENCODING_RGBA,
+            mmal.MMAL_ENCODING_BGRA,
+            mmal.MMAL_ENCODING_RGB16,
+            mmal.MMAL_ENCODING_YUVUV128,
+            mmal.MMAL_ENCODING_NV12,
+            mmal.MMAL_ENCODING_NV21,
             ],
         'vc.null_sink:in:0': [
             mmal.MMAL_ENCODING_I420,
