@@ -833,6 +833,56 @@ class MMALPort(MMALControlPort):
     """
     __slots__ = ('_opaque_subformat', '_pool', '_stopped', '_connection')
 
+    # A mapping of corrected definitions of supported_formats for ports with
+    # particular names (older firmwares either raised EINVAL, ENOSYS, or just
+    # reported the wrong things for various ports; these lists are derived from
+    # querying newer firmwares or in some cases guessing sensible defaults).
+    _supported_formats_patch = {
+        'vc.ril.camera:out:2': [
+            mmal.MMAL_ENCODING_I420,
+            mmal.MMAL_ENCODING_NV12,
+            mmal.MMAL_ENCODING_I422,
+            mmal.MMAL_ENCODING_YUYV,
+            mmal.MMAL_ENCODING_YVYU,
+            mmal.MMAL_ENCODING_VYUY,
+            mmal.MMAL_ENCODING_UYVY,
+            mmal.MMAL_ENCODING_BGR24,
+            mmal.MMAL_ENCODING_BGRA,
+            mmal.MMAL_ENCODING_RGB16,
+            mmal.MMAL_ENCODING_YV12,
+            mmal.MMAL_ENCODING_NV21,
+            mmal.MMAL_ENCODING_RGB24,
+            mmal.MMAL_ENCODING_RGBA,
+            ],
+        'vc.ril.image_encode:in:0': [
+            mmal.MMAL_ENCODING_RGB16,
+            mmal.MMAL_ENCODING_RGB24,
+            mmal.MMAL_ENCODING_RGBA,
+            mmal.MMAL_ENCODING_BGRA,
+            mmal.MMAL_ENCODING_I420,
+            mmal.MMAL_ENCODING_I422,
+            mmal.MMAL_ENCODING_NV12,
+            mmal.MMAL_ENCODING_YUYV,
+            mmal.MMAL_ENCODING_YVYU,
+            mmal.MMAL_ENCODING_VYUY,
+            ],
+        'vc.ril.image_encode:out:0': [
+            mmal.MMAL_ENCODING_JPEG,
+            mmal.MMAL_ENCODING_GIF,
+            mmal.MMAL_ENCODING_PNG,
+            mmal.MMAL_ENCODING_BMP,
+            mmal.MMAL_ENCODING_PPM,
+            mmal.MMAL_ENCODING_TGA,
+            ],
+        'vc.null_sink:in:0': [
+            mmal.MMAL_ENCODING_I420,
+            mmal.MMAL_ENCODING_RGB24,
+            mmal.MMAL_ENCODING_BGR24,
+            mmal.MMAL_ENCODING_RGBA,
+            mmal.MMAL_ENCODING_BGRA,
+            ],
+        }
+
     def __init__(self, port, opaque_subformat='OPQV'):
         super(MMALPort, self).__init__(port)
         self.opaque_subformat = opaque_subformat
@@ -903,45 +953,32 @@ class MMALPort(MMALControlPort):
             mp = self.params[mmal.MMAL_PARAMETER_SUPPORTED_ENCODINGS]
         except PiCameraMMALError as e:
             if e.status in (mmal.MMAL_EINVAL, mmal.MMAL_ENOSYS):
-                # Workaround: old firmwares raise EINVAL when camera's still
-                # port is queried for supported formats. The following is the
+                # Workaround: old firmwares raise EINVAL or ENOSYS when various
+                # ports are queried for supported formats. The following is the
                 # correct sequence for old firmwares (note: swapped RGB24 and
-                # BGR24 order). We also fill out a bogus list for the null
-                # sink here
+                # BGR24 order in still port) ... probably (vc.ril.camera:out:2
+                # is definitely right, the rest are largely guessed based on
+                # queries of later firmwares)
                 try:
-                    return {
-                        'vc.ril.camera:out:2': [
-                            mmal.MMAL_ENCODING_I420,
-                            mmal.MMAL_ENCODING_NV12,
-                            mmal.MMAL_ENCODING_I422,
-                            mmal.MMAL_ENCODING_YUYV,
-                            mmal.MMAL_ENCODING_YVYU,
-                            mmal.MMAL_ENCODING_VYUY,
-                            mmal.MMAL_ENCODING_UYVY,
-                            mmal.MMAL_ENCODING_BGR24,
-                            mmal.MMAL_ENCODING_BGRA,
-                            mmal.MMAL_ENCODING_RGB16,
-                            mmal.MMAL_ENCODING_YV12,
-                            mmal.MMAL_ENCODING_NV21,
-                            mmal.MMAL_ENCODING_RGB24,
-                            mmal.MMAL_ENCODING_RGBA,
-                            ],
-                        'vc.null_sink:in:0': [
-                            mmal.MMAL_ENCODING_I420,
-                            mmal.MMAL_ENCODING_RGB24,
-                            mmal.MMAL_ENCODING_BGR24,
-                            mmal.MMAL_ENCODING_RGBA,
-                            mmal.MMAL_ENCODING_BGRA,
-                            ],
-                        }[self.name]
+                    return MMALPort._supported_formats_patch[self.name]
                 except KeyError:
                     raise e
             else:
                 raise
         else:
-            return [
+            result = [
                 v for v in mp.encoding if v != 0
                 ][:mp.hdr.size // ct.sizeof(ct.c_uint32)]
+            # Workaround: Fix incorrect result on MMALImageEncoder.outputs[0]
+            # from modern firmwares
+            if self.name == 'vc.ril.image_encode:out:0' and result == [
+                    mmal.MMAL_ENCODING_MP2V, mmal.MMAL_ENCODING_MP2V,
+                    mmal.MMAL_ENCODING_H264, mmal.MMAL_ENCODING_H264,
+                    mmal.MMAL_ENCODING_VP7, mmal.MMAL_ENCODING_VP7,
+                    mmal.MMAL_ENCODING_VP6, mmal.MMAL_ENCODING_VP6]:
+                return MMALPort._supported_formats_patch[self.name]
+            else:
+                return result
 
     def _get_bitrate(self):
         return self._port[0].format[0].bitrate
