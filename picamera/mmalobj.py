@@ -774,7 +774,17 @@ class MMALControlPort(MMALObject):
 
     @property
     def name(self):
-        return self._port[0].name.decode('ascii')
+        result = self._port[0].name.decode('ascii')
+        if result.endswith(')'):
+            try:
+                # strip (format) from port names as it doesn't really belong
+                # there (it doesn't identify the port in any way) and makes
+                # matching some of the correctional cases a pain
+                return result[:result.rindex('(')]
+            except ValueError:
+                return result
+        else:
+            return result
 
     @property
     def type(self):
