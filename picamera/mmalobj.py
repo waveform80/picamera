@@ -1933,6 +1933,10 @@ class MMALBaseConnection(MMALObject):
             formats = ()
         self._source = source
         self._target = target
+        try:
+            iter(formats)
+        except TypeError:
+            formats = (formats,)
         self._negotiate_format(formats)
         source._connection = self
         target._connection = self
