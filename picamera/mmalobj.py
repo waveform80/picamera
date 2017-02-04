@@ -2159,6 +2159,8 @@ class MMALConnection(MMALBaseConnection):
         if self._callback is not None:
             self._wrapper = mmal.MMAL_CONNECTION_CALLBACK_T(wrapper)
             self._connection[0].callback = self._wrapper
+            self._source.params[mmal.MMAL_PARAMETER_ZERO_COPY] = True
+            self._target.params[mmal.MMAL_PARAMETER_ZERO_COPY] = True
         mmal_check(
             mmal.mmal_connection_enable(self._connection),
             prefix="Failed to enable connection")
@@ -3563,6 +3565,7 @@ class MMALPythonConnection(MMALBaseConnection):
             else:
                 # Connected MMAL input ports don't know they're connected so
                 # provide a dummy callback
+                self._target.params[mmal.MMAL_PARAMETER_ZERO_COPY] = True
                 self._target.enable(lambda port, buf: True)
             if isinstance(self._source, MMALPythonPort):
                 # Connected python output ports are nothing more than thin
@@ -3571,6 +3574,7 @@ class MMALPythonConnection(MMALBaseConnection):
             else:
                 # Connected MMAL output ports are made to transfer their
                 # data to the Python input port
+                self._source.params[mmal.MMAL_PARAMETER_ZERO_COPY] = True
                 self._source.enable(self._transfer)
 
     def disable(self):
