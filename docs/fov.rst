@@ -26,14 +26,14 @@ Misconception #1
 ----------------
 
 The Pi's camera module is basically a mobile phone camera module. Mobile phone
-digital cameras differ from larger, more expensive, camerals (`DSLRs`_) in a
+digital cameras differ from larger, more expensive, cameras (`DSLRs`_) in a
 few respects. The most important of these, for understanding the Pi's camera,
 is that many mobile cameras (including the Pi's camera module) use a `rolling
 shutter`_ to capture images. When the camera needs to capture an image, it
 reads out pixels from the sensor a row at a time rather than capturing all
 pixel values at once.
 
-In fact, the "global shutter" on DSLRs typically also read out pixels a row at
+In fact, the "global shutter" on DSLRs typically also reads out pixels a row at
 a time. The major difference is that a DSLR will have a physical shutter that
 covers the sensor.  Hence in a DSLR the procedure for capturing an image is to
 open the shutter, letting the sensor "view" the scene, close the shutter, then
@@ -49,8 +49,8 @@ Misconception #2
 The notion that the camera is effectively idle until we tell it to capture a
 frame is also misleading. Don't think of the camera as a still image camera.
 Think of it as a video camera. Specifically one that, as soon as it is
-initialized, is constantly streaming frames (or rows of frames) down the ribbon
-cable to the Pi for processing.
+initialized, is constantly streaming frames (or rather rows of frames) down the
+ribbon cable to the Pi for processing.
 
 The camera may seem idle, and your script may be doing nothing with the camera,
 but still numerous tasks are going on in the background (automatic gain
@@ -227,8 +227,8 @@ Sensor elements --> Frame 1
 3 3 3 3 3 3 3 3 --> 3 3 3 3 3 3 3 3
 = = = = = = = = === = = = = = = = =
 
-At this stage, Frame 1 would be sent off for processing and Frame 2 would be
-read into a new buffer:
+At this stage, Frame 1 would be sent off for post-processing and Frame 2 would
+be read into a new buffer:
 
 = = = = = = = = === = = = = = = = =
 Sensor elements --> Frame 2
