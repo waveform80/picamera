@@ -410,10 +410,10 @@ long (before exhausting the disk cache).
 If you are intending to perform processing on the frames after capture, you may
 be better off just capturing video and decoding frames from the resulting file
 rather than dealing with individual JPEG captures. Thankfully this is
-relatively easy as the JPEG format has a well designed `magic number`_ (``FF
-D8``) which cannot appear anywhere else in the JPEG data. This means we can use
-a :ref:`custom output <custom_outputs>` to separate the frames out of an MJPEG
-video recording by inspecting the first two bytes of each buffer:
+relatively easy as the JPEG format has a simple `magic number`_ (``FF D8``).
+This means we can use a :ref:`custom output <custom_outputs>` to separate the
+frames out of an MJPEG video recording by inspecting the first two bytes of
+each buffer:
 
 .. literalinclude:: examples/rapid_capture_mjpeg.py
 

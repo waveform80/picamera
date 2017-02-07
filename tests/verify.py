@@ -41,6 +41,7 @@ import os
 import io
 import re
 import math
+import struct
 import subprocess
 from PIL import Image
 
@@ -53,6 +54,128 @@ RAW_FORMATS = {
     'bgr':  3,
     'bgra': 4,
     }
+
+# From http://www.w3.org/Graphics/JPEG/itu-t81.pdf
+JPEG_MARKERS = {
+    b'\x00': (0,  'PAD'),   # byte stuffing in entropy coded data
+    b'\xff': (0,  'PAD'),   # padding
+    b'\xc0': (-1, 'SOF0'),  # start of frame (baseline)
+    b'\xc1': (-1, 'SOF1'),  # start of frame (extended sequential)
+    b'\xc2': (-1, 'SOF2'),  # start of frame (progressive)
+    b'\xc3': (-1, 'SOF3'),  # start of frame (spatial lossless)
+    b'\xc4': (-1, 'DHT'),   # define huffman tables
+    b'\xc5': (-1, 'SOF5'),  # start of frame (differential sequential)
+    b'\xc6': (-1, 'SOF6'),  # start of frame (differential progressive)
+    b'\xc7': (-1, 'SOF7'),  # start of frame (differential spatial)
+    b'\xc8': (-1, 'JPG'),   # extension
+    b'\xc9': (-1, 'SOF9'),  # start of frame (extended sequential, arithmetic coding)
+    b'\xca': (-1, 'SOF10'), # start of frame (progressive, arithmetic coding)
+    b'\xcb': (-1, 'SOF11'), # start of frame (spatial lossless, arithmetic coding)
+    b'\xcc': (4,  'DAC'),   # define arithmetic coding conditioning
+    b'\xcd': (-1, 'SOF13'), # start of frame (differential sequential, arithmetic coding)
+    b'\xce': (-1, 'SOF14'), # start of frame (differential progressive, arithmetic coding)
+    b'\xcf': (-1, 'SOF15'), # start of frame (differential spatial, arithmetic coding)
+    b'\xd0': (0,  'RST0'),  # restart index 0
+    b'\xd1': (0,  'RST1'),  # restart index 1
+    b'\xd2': (0,  'RST2'),  # restart index 2
+    b'\xd3': (0,  'RST3'),  # restart index 3
+    b'\xd4': (0,  'RST4'),  # restart index 4
+    b'\xd5': (0,  'RST5'),  # restart index 5
+    b'\xd6': (0,  'RST6'),  # restart index 6
+    b'\xd7': (0,  'RST7'),  # restart index 7
+    b'\xd8': (0,  'SOI'),   # start of image
+    b'\xd9': (0,  'EOI'),   # end of image
+    b'\xda': (-1, 'SOS'),   # start of scan (followed by entropy-coded data)
+    b'\xdb': (-1, 'DQT'),   # define quantization tables
+    b'\xdc': (4,  'DNL'),   # define number of lines
+    b'\xdd': (4,  'DRI'),   # define restart interval
+    b'\xde': (-1, 'DHP'),   # define hierarchical progression
+    b'\xdf': (4,  'EXP'),   # expand reference component
+    b'\xe0': (-1, 'APP0'),  # app marker 0
+    b'\xe1': (-1, 'APP1'),  # app marker 1
+    b'\xe2': (-1, 'APP2'),  # app marker 2
+    b'\xe3': (-1, 'APP3'),  # app marker 3
+    b'\xe4': (-1, 'APP4'),  # app marker 4
+    b'\xe5': (-1, 'APP5'),  # app marker 5
+    b'\xe6': (-1, 'APP6'),  # app marker 6
+    b'\xe7': (-1, 'APP7'),  # app marker 7
+    b'\xe8': (-1, 'APP8'),  # app marker 8
+    b'\xe9': (-1, 'APP9'),  # app marker 9
+    b'\xea': (-1, 'APP10'), # app marker 10
+    b'\xeb': (-1, 'APP11'), # app marker 11
+    b'\xec': (-1, 'APP12'), # app marker 12
+    b'\xed': (-1, 'APP13'), # app marker 13
+    b'\xee': (-1, 'APP14'), # app marker 14
+    b'\xef': (-1, 'APP15'), # app marker 15
+    b'\xfe': (-1, 'COM'),   # comment
+    }
+
+def parse_jpeg(stream):
+    # digraph G {
+    #   start->markers
+    #   markers->entropy
+    #   markers->markers
+    #   entropy->markers
+    #   entropy->entropy
+    #   markers->finish
+    #   entropy->finish
+    # }
+    state = 'start'
+    mark = stream.read(1)
+    while True:
+        if state == 'entropy':
+            if mark != b'\xff':
+                mark = stream.read(1)
+                continue
+        else:
+            assert mark == b'\xff', 'marker byte is not FF'
+        try:
+            mark_len, mark_type = JPEG_MARKERS[stream.read(1)]
+        except KeyError:
+            assert False, 'invalid JPEG marker'
+        if mark_len == -1:
+            mark_len, = struct.unpack('>H', stream.read(2))
+        elif mark_len > 0:
+            check_len, = struct.unpack('>H', stream.read(2))
+            assert mark_len == check_len, 'incorrect marker length'
+        else:
+            assert mark_len == 0, 'invalid marker length'
+        if mark_len:
+            mark_data = stream.read(mark_len - 2)
+        else:
+            mark_data = b''
+        if state == 'start':
+            assert mark_type == 'SOI'
+            state = 'markers'
+        elif state == 'markers':
+            if mark_type == 'SOS':
+                state = 'entropy'
+            elif mark_type == 'EOI':
+                break
+            else:
+                pass
+        elif state == 'entropy':
+            if mark_type == 'PAD':
+                pass
+            elif mark_type == 'EOI':
+                break
+            else:
+                state = 'markers'
+        else:
+            assert False, 'invalid state'
+        mark = stream.read(1)
+
+
+def verify_jpeg(stream, resolution):
+    pos = stream.tell()
+    image = Image.open(stream)
+    # check PIL can read the JPEG and that the resolution is as expected
+    assert image.size == resolution
+    stream.seek(pos)
+    # parse the JPEG manually, which also has the effect of seeking just past
+    # the end of the JPEG (so if this is an MJPEG our next call will deal with
+    # the next frame)
+    parse_jpeg(stream)
 
 
 def verify_video(filename_or_obj, format, resolution):
@@ -81,7 +204,18 @@ def verify_video(filename_or_obj, format, resolution):
         # Check the stream size is an exact multiple of the one of the possible
         # frame sizes
         assert (stream.tell() % size1 == 0) or (stream.tell() % size2 == 0)
-    else:
+    elif format == 'mjpeg':
+        if isinstance(filename_or_obj, str):
+            f = io.open(filename_or_obj, 'rb')
+        else:
+            f = filename_or_obj
+        pos = f.tell()
+        f.seek(0, io.SEEK_END)
+        f_end = f.tell()
+        f.seek(pos)
+        while f.tell() < f_end:
+            verify_jpeg(f, resolution)
+    elif format == 'h264':
         if isinstance(filename_or_obj, str):
             p = subprocess.Popen([
                 'avconv',
@@ -115,6 +249,8 @@ def verify_video(filename_or_obj, format, resolution):
                     ), 'Unexpected avconv output: %s' % line
                 return
         assert False, 'Failed to locate stream analysis in avconv output'
+    else:
+        assert False, 'Unable to verify format %s' % format
 
 
 def verify_image(filename_or_obj, format, resolution):
