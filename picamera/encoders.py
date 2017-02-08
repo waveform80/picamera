@@ -371,7 +371,6 @@ class PiEncoder(object):
         self.exception = None
         self._open_output(output)
         with self.parent._encoders_lock:
-            self.output_port.params[mmal.MMAL_PARAMETER_ZERO_COPY] = True
             self.output_port.enable(self._callback)
             if self.DEBUG > 0:
                 mo.print_pipeline(self.output_port)
