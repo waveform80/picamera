@@ -955,7 +955,8 @@ class PiImageEncoder(PiEncoder):
 
     encoder_type = mo.MMALImageEncoder
 
-    def _create_encoder(self, format, quality=85, thumbnail=(64, 48, 35)):
+    def _create_encoder(
+            self, format, quality=85, thumbnail=(64, 48, 35), restart=0):
         """
         Extends the base :meth:`~PiEncoder._create_encoder` implementation to
         configure the image encoder for JPEG, PNG, etc.
@@ -975,6 +976,9 @@ class PiImageEncoder(PiEncoder):
 
         if format == 'jpeg':
             self.output_port.params[mmal.MMAL_PARAMETER_JPEG_Q_FACTOR] = quality
+            if restart > 0:
+                # Don't set if zero as old firmwares don't support this param
+                self.output_port.params[mmal.MMAL_PARAMETER_JPEG_RESTART_INTERVAL] = restart
             if thumbnail is None:
                 mp = mmal.MMAL_PARAMETER_THUMBNAIL_CONFIG_T(
                     mmal.MMAL_PARAMETER_HEADER_T(

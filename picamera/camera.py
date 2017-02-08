@@ -1333,6 +1333,10 @@ class PiCamera(object):
           ranging from 1 to 100. Defaults to 85. Please note that JPEG quality
           is not a percentage and `definitions of quality`_ vary widely.
 
+        * *restart* - Defines the restart interval for the JPEG encoder as a
+          number of JPEG MCUs. The actual restart interval used will be a
+          multiple of the number of MCUs per row in the resulting image.
+
         * *thumbnail* - Defines the size and quality of the thumbnail to embed
           in the Exif metadata. Specifying ``None`` disables thumbnail
           generation.  Otherwise, specify a tuple of ``(width, height,
