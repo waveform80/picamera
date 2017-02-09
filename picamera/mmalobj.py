@@ -1196,23 +1196,24 @@ class MMALPort(MMALControlPort):
             self._port[0].buffer_size = max(512 * 1024, self._port[0].buffer_size_recommended)
         if callback:
             assert self._stopped
-            self._stopped = False
-            self._wrapper = mmal.MMAL_PORT_BH_CB_T(wrapper)
-            mmal_check(
-                mmal.mmal_port_enable(self._port, self._wrapper),
-                prefix="Unable to enable port %s" % self.name)
             assert self._pool is None
+            self._stopped = False
             self._pool = MMALPortPool(self)
-            # If this port is an output port, send it all the buffers
-            # in the pool. If it's an input port, don't bother: the user
-            # will presumably want to feed buffers to it manually
-            if self._port[0].type == mmal.MMAL_PORT_TYPE_OUTPUT:
-                try:
+            try:
+                self._wrapper = mmal.MMAL_PORT_BH_CB_T(wrapper)
+                mmal_check(
+                    mmal.mmal_port_enable(self._port, self._wrapper),
+                    prefix="Unable to enable port %s" % self.name)
+                # If this port is an output port, send it all the buffers
+                # in the pool. If it's an input port, don't bother: the user
+                # will presumably want to feed buffers to it manually
+                if self._port[0].type == mmal.MMAL_PORT_TYPE_OUTPUT:
                     self._pool.send_all_buffers(block=False)
-                except:
-                    self._pool.close()
-                    self._pool = None
-                    raise
+            except:
+                self._pool.close()
+                self._pool = None
+                self._stopped = True
+                raise
         else:
             super(MMALPort, self).enable()
 
