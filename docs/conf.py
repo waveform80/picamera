@@ -174,10 +174,11 @@ latex_show_urls = 'footnote'
 
 epub_basename = _setup.__project__
 #epub_theme = 'epub'
-epub_title = '%s %s Documentation' % (project, version)
+#epub_title = html_title
 epub_author = _setup.__author__
-epub_tocdepth = 3
-epub_show_urls = 'footnote'
+epub_identifier = 'https://picamera.readthedocs.io/'
+#epub_tocdepth = 3
+epub_show_urls = 'no'
 #epub_use_index = True
 
 # -- Options for manual page output ---------------------------------------
