@@ -277,6 +277,8 @@ class PiEncoder(object):
 
     def _callback_write(self, buf, key=PiVideoFrameType.frame):
         """
+        _callback_write(buf, key=PiVideoFrameType.frame)
+
         Writes output on behalf of the encoder callback function.
 
         This method is called by :meth:`_callback` to handle writing to an
@@ -312,6 +314,8 @@ class PiEncoder(object):
 
     def _open_output(self, output, key=PiVideoFrameType.frame):
         """
+        _open_output(output, key=PiVideoFrameType.frame)
+
         Opens *output* and associates it with *key* in :attr:`outputs`.
 
         If *output* is a string, this method opens it as a filename and keeps
@@ -331,6 +335,8 @@ class PiEncoder(object):
 
     def _close_output(self, key=PiVideoFrameType.frame):
         """
+        _close_output(key=PiVideoFrameType.frame)
+
         Closes the output associated with *key* in :attr:`outputs`.
 
         Closes the output object associated with the specified *key*, and
@@ -564,6 +570,8 @@ class PiRawMixin(PiEncoder):
 
     def _callback_write(self, buf, key=PiVideoFrameType.frame):
         """
+        _callback_write(buf, key=PiVideoFrameType.frame)
+
         Overridden to strip alpha bytes when required.
         """
         if self._strip_alpha:

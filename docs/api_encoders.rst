@@ -12,6 +12,12 @@ frames for output to disk. However, picamera also has classes representing
 these classes directly, but advanced users may find them useful as base classes
 for :ref:`custom_encoders`.
 
+.. note::
+
+    It is strongly recommended that you familiarize yourself with the
+    :mod:`~picamera.mmalobj` layer before attempting to understand the encoder
+    classes as they deal with several concepts native to that layer.
+
 The inheritance diagram for the following classes is displayed below:
 
 .. image:: images/encoder_classes.*

@@ -722,6 +722,8 @@ class PiCameraCircularIO(CircularIO):
             self, output, size=None, seconds=None,
             first_frame=PiVideoFrameType.sps_header):
         """
+        copy_to(output, size=None, seconds=None, first_frame=PiVideoFrameType.sps_header)
+
         Copies content from the stream to *output*.
 
         By default, this method copies all complete frames from the circular
