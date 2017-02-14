@@ -551,8 +551,8 @@ of how picamera operates under the hood.
 
 The major difference between picamera and a "typical" MMAL setup is that upon
 construction, the :class:`~picamera.PiCamera` class constructs both a
-:class:`MMALCamera` (accessible as ``camera._camera``) *and* a
-:class:`MMALSplitter` (accessible as ``camera._splitter``). The splitter
+:class:`MMALCamera` (accessible as ``PiCamera._camera``) *and* a
+:class:`MMALSplitter` (accessible as ``PiCamera._splitter``). The splitter
 remains permanently attached to the camera's video port (output port 1).
 Furthermore, there's *always* something connected to the camera's preview port;
 by default it's a :class:`MMALNullSink` component which is switched with a
@@ -572,7 +572,7 @@ Debugging Facilities
 
 Before we move onto the pure Python components it's worth mentioning the
 debugging capabilities built into ``mmalobj``. Firstly, most objects have
-useful :func:`repr` outputs (in particular, it can be useful to simply "print"
+useful :func:`repr` outputs (in particular, it can be useful to simply evaluate
 a :class:`MMALBuffer` to see what flags it's got and how much data is stored in
 it). Also, there's the :func:`print_pipeline` function. Give this a port and
 it'll dump a human-readable version of your pipeline leading up to that port:
@@ -581,10 +581,10 @@ it'll dump a human-readable version of your pipeline leading up to that port:
 
     >>> preview.inputs[0].enable(lambda port, buf: True)
     >>> buf = preview.inputs[0].get_buffer()
-    >>> print(repr(buf))
+    >>> buf
     <MMALBuffer object: flags=_____ length=0>
     >>> buf.flags = mmal.MMAL_BUFFER_HEADER_FLAG_FRAME_END
-    >>> print(repr(buf))
+    >>> buf
     <MMALBuffer object: flags=E____ length=0>
     >>> buf.release()
     >>> preview.inputs[0].disable()
@@ -681,7 +681,7 @@ in mind from the perspective of performance.
 Performance Hints
 -----------------
 
-Generally you want to your transform callbacks to be *fast*. To avoid dropping
+Generally you want to your frame handlers to be *fast*. To avoid dropping
 frames they've got to run in less than a frame's time (e.g.  33ms at 30fps).
 Bear in mind that a significant amount of time is going to be spent shuttling
 the huge RGB frames around so you've actually got much less than 33ms available
@@ -710,8 +710,8 @@ library`_ to perform compositing on YUV420 in the manner just described:
 
 It's a sensible idea to perform any overlay rendering you want to do in a
 separate thread and then just handle compositing your overlay onto the frame in
-the transform's callback method. Anything you can do to avoid buffer copying is
-a bonus here.
+the :meth:`MMALPythonComponent._handle_frame` method. Anything you can do to
+avoid buffer copying is a bonus here.
 
 Here's a final (rather large) demonstration that puts all these things together
 to construct a :class:`MMALPythonComponent` derivative with two purposes:

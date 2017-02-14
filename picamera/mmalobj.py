@@ -3480,7 +3480,7 @@ class MMALPythonTarget(MMALPythonComponent):
         """
         return self._event.wait(timeout)
 
-    def _callback(self, port, buf):
+    def _handle_frame(self, port, buf):
         self._stream.write(buf.data)
         if buf.flags & self._done:
             self._event.set()
