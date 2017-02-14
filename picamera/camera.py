@@ -2791,26 +2791,25 @@ class PiCamera(object):
         values (e.g. 400 or 800). Lower sensitivities tend to produce less
         "noisy" (smoother) images, but operate poorly in low light conditions.
 
-        When set, the property adjusts the sensitivity of the camera. Valid
+        When set, the property adjusts the sensitivity of the camera (by
+        adjusting the :attr:`analog_gain` and :attr:`digital_gain`). Valid
         values are between 0 (auto) and 1600. The actual value used when iso is
         explicitly set will be one of the following values (whichever is
         closest): 100, 200, 320, 400, 500, 640, 800.
 
+        On the V1 camera module, non-zero ISO values attempt to fix overall
+        gain at various levels. For example, ISO 100 attempts to provide an
+        overall gain of 1.0, ISO 200 attempts to provide overall gain of 2.0,
+        etc. The algorithm prefers analog gain over digital gain to reduce
+        noise.
+
+        On the V2 camera module, ISO 100 attempts to produce overall gain of
+        ~1.84, and ISO 800 attempts to produce overall gain of ~14.72 (the V2
+        camera module was calibrated against the `ISO film speed`_ standard).
+
         The attribute can be adjusted while previews or recordings are in
         progress. The default value is 0 which means automatically determine a
         value according to image-taking conditions.
-
-        .. note::
-
-            You can query the :attr:`analog_gain` and :attr:`digital_gain`
-            attributes to determine the actual gains being used by the camera.
-            If both are 1.0 this equates to ISO 100.  Please note that this
-            capability requires an up to date firmware (#692 or later).
-
-        .. note::
-
-            With iso settings other than 0 (auto), the :attr:`exposure_mode`
-            property becomes non-functional.
 
         .. note::
 
@@ -2822,8 +2821,15 @@ class PiCamera(object):
             will permit settings up to 1600 in case the underlying firmware
             permits such settings in particular circumstances.
 
+        .. note::
+
+            Certain :attr:`exposure_mode` values override the ISO setting. For
+            example, ``'off'`` fixes :attr:`analog_gain` and
+            :attr:`digital_gain` entirely, preventing this property from
+            adjusting them when set.
 
         .. _sensitivity of the camera to light: https://en.wikipedia.org/wiki/Film_speed#Digital
+        .. _ISO film speed: https://en.wikipedia.org/wiki/Film_speed#Current_system:_ISO
         """)
 
     def _get_meter_mode(self):
@@ -2947,11 +2953,14 @@ class PiCamera(object):
 
             Exposure mode ``'off'`` is special: this disables the camera's
             automatic gain control, fixing the values of :attr:`digital_gain`
-            and :attr:`analog_gain`. Please note that these properties are not
-            directly settable, and default to low values when the camera is
+            and :attr:`analog_gain`.
+
+            Please note that these properties are not directly settable
+            (although they can be influenced by setting :attr:`iso` *prior* to
+            fixing the gains), and default to low values when the camera is
             first initialized. Therefore it is important to let them settle on
-            higher values before disabling automatic gain control otherwise
-            all frames captured will appear black.
+            higher values before disabling automatic gain control otherwise all
+            frames captured will appear black.
         """.format(values=docstring_values(EXPOSURE_MODES)))
 
     def _get_flash_mode(self):
