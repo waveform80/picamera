@@ -219,7 +219,7 @@ class PiCamera(object):
     MAX_RESOLUTION = PiCameraMaxResolution # modified by PiCamera.__init__
     MAX_FRAMERATE = PiCameraMaxFramerate # modified by PiCamera.__init__
     DEFAULT_ANNOTATE_SIZE = 32
-    CAPTURE_TIMEOUT = 30
+    CAPTURE_TIMEOUT = 60
 
     METER_MODES = {
         'average': mmal.MMAL_PARAM_EXPOSUREMETERINGMODE_AVERAGE,
