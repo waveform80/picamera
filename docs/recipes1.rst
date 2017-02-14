@@ -181,6 +181,13 @@ most likely be completely white or at least heavily over-exposed.
     subjects may appear distorted if they move relative to the camera. This
     effect will be exaggerated by using longer exposure times.
 
+When using long exposures, it is often preferable to use
+:attr:`~PiCamera.framerate_range` instead of :attr:`~PiCamera.framerate`. This
+allows the camera to vary the framerate on the fly and use shorter framerates
+where possible (leading to shorter capture delays). This hasn't been used in
+the script above as the shutter speed is forced to 6 seconds (the maximum
+possible on the V1 camera module) which would make a framerate range pointless.
+
 
 .. _streaming_capture:
 

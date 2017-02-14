@@ -93,10 +93,10 @@ class PiVideoFrame(namedtuple('PiVideoFrame', (
     'complete',      # whether the frame is complete or not
     ))):
     """
-    This class is a namedtuple derivative used to store information about a
-    video frame. It is recommended that you access the information stored by
-    this class by attribute name rather than position (for example:
-    ``frame.index`` rather than ``frame[0]``).
+    This class is a :func:`~collections.namedtuple` derivative used to store
+    information about a video frame. It is recommended that you access the
+    information stored by this class by attribute name rather than position
+    (for example: ``frame.index`` rather than ``frame[0]``).
 
     .. attribute:: index
 

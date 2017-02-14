@@ -44,6 +44,7 @@ import ctypes as ct
 import threading
 from fractions import Fraction
 from operator import itemgetter
+from collections import namedtuple
 
 from . import bcm_host, mmal, mmalobj as mo
 from .exc import (
@@ -93,6 +94,31 @@ def docstring_values(values, indent=8):
         sorted(values.items(), key=itemgetter(1)))
 
 
+class PiCameraFramerateRange(namedtuple('PiCameraFramerateRange', ('low', 'high'))):
+    """
+    This class is a :func:`~collections.namedtuple` derivative used to store
+    the low and high limits of a range of framerates. It is recommended that
+    you access the information stored by this class by attribute rather than
+    position (for example: ``camera.framerate_range.low`` rather than
+    ``camera.framerate_range[0]``).
+
+    .. attribute:: low
+
+        The lowest framerate that the camera is permitted to use (inclusive).
+        When the :attr:`~PiCamera.framerate_range` attribute is queried, this
+        value will always be returned as a :class:`~fractions.Fraction`.
+
+    .. attribute:: high
+
+        The highest framerate that the camera is permitted to use (inclusive).
+        When the :attr:`~PiCamera.framerate_range` attribute is queried, this
+        value will always be returned as a :class:`~fractions.Fraction`.
+
+    .. versionadded:: 1.13
+    """
+    __slots__ = ()
+
+
 class PiCameraMaxResolution(object):
     """
     Singleton representing the maximum resolution of the camera module.
@@ -116,12 +142,13 @@ class PiCamera(object):
     will represent. Only the Raspberry Pi compute module currently supports
     more than one camera.
 
-    The *sensor_mode*, *resolution*, *framerate*, and *clock_mode* parameters
-    provide initial values for the :attr:`sensor_mode`, :attr:`resolution`,
-    :attr:`framerate`, and :attr:`clock_mode` attributes of the class (these
-    attributes are all relatively expensive to set individually, hence setting
-    them all upon construction is a speed optimization). Please refer to the
-    attribute documentation for more information and default values.
+    The *sensor_mode*, *resolution*, *framerate*, *framerate_range*, and
+    *clock_mode* parameters provide initial values for the :attr:`sensor_mode`,
+    :attr:`resolution`, :attr:`framerate`, :attr:`framerate_range`, and
+    :attr:`clock_mode` attributes of the class (these attributes are all
+    relatively expensive to set individually, hence setting them all upon
+    construction is a speed optimization). Please refer to the attribute
+    documentation for more information and default values.
 
     The *stereo_mode* and *stereo_decimate* parameters configure dual cameras
     on a compute module for sterescopic mode. These parameters can only be set
@@ -179,6 +206,9 @@ class PiCamera(object):
     .. versionchanged:: 1.11
         Added *clock_mode* parameter, and permitted setting of resolution as
         appropriately formatted string.
+
+    .. versionchanged:: 1.13
+        Added *framerate_range* parameter.
 
     .. _Compute Module: https://www.raspberrypi.org/documentation/hardware/computemodule/cmio-camera.md
     """
@@ -325,7 +355,7 @@ class PiCamera(object):
     def __init__(
             self, camera_num=0, stereo_mode='none', stereo_decimate=False,
             resolution=None, framerate=None, sensor_mode=0, led_pin=None,
-            clock_mode='reset'):
+            clock_mode='reset', framerate_range=None):
         bcm_host.bcm_host_init()
         mimetypes.add_type('application/h264',  '.h264',  False)
         mimetypes.add_type('application/mjpeg', '.mjpg',  False)
@@ -375,32 +405,47 @@ class PiCamera(object):
                         info.cameras[camera_num].max_width,
                         info.cameras[camera_num].max_height,
                         )
-            if PiCamera.MAX_FRAMERATE is PiCameraMaxFramerate:
-                if self._revision.upper() == 'OV5647':
-                    PiCamera.MAX_FRAMERATE = 90
-                else:
-                    PiCamera.MAX_FRAMERATE = 120
-            if resolution is None:
-                # Get screen resolution
-                w = ct.c_uint32()
-                h = ct.c_uint32()
-                if bcm_host.graphics_get_display_size(0, w, h) == -1:
-                    w = 1280
-                    h = 720
-                else:
-                    w = int(w.value)
-                    h = int(h.value)
-                resolution = mo.PiResolution(w, h)
-            elif resolution is PiCameraMaxResolution:
-                resolution = PiCamera.MAX_RESOLUTION
+        if PiCamera.MAX_FRAMERATE is PiCameraMaxFramerate:
+            if self._revision.upper() == 'OV5647':
+                PiCamera.MAX_FRAMERATE = 90
             else:
-                resolution = mo.to_resolution(resolution)
+                PiCamera.MAX_FRAMERATE = 120
+        if resolution is None:
+            # Get screen resolution
+            w = ct.c_uint32()
+            h = ct.c_uint32()
+            if bcm_host.graphics_get_display_size(0, w, h) == -1:
+                w = 1280
+                h = 720
+            else:
+                w = int(w.value)
+                h = int(h.value)
+            resolution = mo.PiResolution(w, h)
+        elif resolution is PiCameraMaxResolution:
+            resolution = PiCamera.MAX_RESOLUTION
+        else:
+            resolution = mo.to_resolution(resolution)
+        if framerate_range is None:
             if framerate is None:
                 framerate = 30
             elif framerate is PiCameraMaxFramerate:
                 framerate = PiCamera.MAX_FRAMERATE
             else:
                 framerate = mo.to_fraction(framerate)
+        elif framerate is not None:
+            raise PiCameraValueError(
+                "Can't specify framerate and framerate_range")
+        else:
+            try:
+                low, high = framerate_range
+            except TypeError:
+                raise PiCameraValueError(
+                    "framerate_range must have (low, high) values")
+            if low is PiCameraMaxFramerate:
+                low = PiCamera.MAX_FRAMERATE
+            if high is PiCameraMaxFramerate:
+                high = PiCamera.MAX_FRAMERATE
+            framerate = (mo.to_fraction(low), mo.to_fraction(high))
         try:
             stereo_mode = self.STEREO_MODES[stereo_mode]
         except KeyError:
@@ -2008,30 +2053,13 @@ class PiCamera(object):
         else:
             preview_resolution = self._camera.outputs[self.CAMERA_PREVIEW_PORT].framesize
         try:
-            cc = self._camera_config
-            cc.max_stills_w = resolution.width
-            cc.max_stills_h = resolution.height
-            cc.stills_yuv422 = 0
-            cc.one_shot_stills = 1
-            cc.max_preview_video_w = resolution.width
-            cc.max_preview_video_h = resolution.height
-            cc.num_preview_video_frames = max(3, framerate // 10)
-            cc.stills_capture_circular_buffer_height = 0
-            cc.fast_preview_resume = 0
-            cc.use_stc_timestamp = clock_mode
-            self._camera.control.params[mmal.MMAL_PARAMETER_CAMERA_CONFIG] = cc
-
-            # Determine the FPS range for the requested framerate
-            if framerate >= 1.0:
-                fps_low = 1
-                fps_high = framerate
-            elif framerate >= 0.166:
-                fps_low = Fraction(166, 1000)
-                fps_high = Fraction(999, 1000)
+            try:
+                fps_low, fps_high = framerate
+            except TypeError:
+                fps_low = fps_high = framerate
             else:
-                fps_low = Fraction(50, 1000)
-                fps_high = Fraction(166, 1000)
-            mp = mmal.MMAL_PARAMETER_FPS_RANGE_T(
+                framerate = 0
+            fps_range = mmal.MMAL_PARAMETER_FPS_RANGE_T(
                 mmal.MMAL_PARAMETER_HEADER_T(
                     mmal.MMAL_PARAMETER_FPS_RANGE,
                     ct.sizeof(mmal.MMAL_PARAMETER_FPS_RANGE_T)
@@ -2039,21 +2067,33 @@ class PiCamera(object):
                 fps_low=mo.to_rational(fps_low),
                 fps_high=mo.to_rational(fps_high),
                 )
+
+            cc = self._camera_config
+            cc.max_stills_w = resolution.width
+            cc.max_stills_h = resolution.height
+            cc.stills_yuv422 = 0
+            cc.one_shot_stills = 1
+            cc.max_preview_video_w = resolution.width
+            cc.max_preview_video_h = resolution.height
+            cc.num_preview_video_frames = max(3, fps_high // 10)
+            cc.stills_capture_circular_buffer_height = 0
+            cc.fast_preview_resume = 0
+            cc.use_stc_timestamp = clock_mode
+            self._camera.control.params[mmal.MMAL_PARAMETER_CAMERA_CONFIG] = cc
+
+            # Clamp preview resolution to camera's resolution
             if (
                     preview_resolution.width > resolution.width or
                     preview_resolution.height > resolution.height
                     ):
                 preview_resolution = resolution
             for port in self._camera.outputs:
-                port.params[mmal.MMAL_PARAMETER_FPS_RANGE] = mp
+                port.params[mmal.MMAL_PARAMETER_FPS_RANGE] = fps_range
                 if port.index == self.CAMERA_PREVIEW_PORT:
                     port.framesize = preview_resolution
                 else:
                     port.framesize = resolution
-                if framerate < 1:
-                    port.framerate = 0
-                else:
-                    port.framerate = framerate
+                port.framerate = framerate
                 port.commit()
         except:
             # If anything goes wrong, restore original resolution and
@@ -2080,7 +2120,7 @@ class PiCamera(object):
         self._check_camera_open()
         self._check_recording_stopped()
         value = mo.to_fraction(value, den_limit=256)
-        if not (0 <= value <= self.MAX_FRAMERATE):
+        if not (0 < value <= self.MAX_FRAMERATE):
             raise PiCameraValueError("Invalid framerate: %.2ffps" % value)
         sensor_mode = self.sensor_mode
         clock_mode = self.CLOCK_MODES[self.clock_mode]
@@ -2097,8 +2137,10 @@ class PiCamera(object):
 
         When queried, the :attr:`framerate` property returns the rate at which
         the camera's video and preview ports will operate as a
-        :class:`~fractions.Fraction` instance which can be easily converted to
-        an :class:`int` or :class:`float`.
+        :class:`~fractions.Fraction` instance (which can be easily converted to
+        an :class:`int` or :class:`float`). If :attr:`framerate_range` has been
+        set, then :attr:`framerate` will be 0 which indicates that a dynamic
+        range of framerates is being used.
 
         .. note::
 
@@ -2112,11 +2154,12 @@ class PiCamera(object):
             accurate and also permits direct use with math operators).
 
         When set, the property configures the camera so that the next call to
-        recording and previewing methods will use the new framerate.  The
-        framerate can be specified as an :ref:`int <typesnumeric>`, :ref:`float
-        <typesnumeric>`, :class:`~fractions.Fraction`, or a ``(numerator,
-        denominator)`` tuple. For example, the following definitions are all
-        equivalent::
+        recording and previewing methods will use the new framerate. Setting
+        this property implicitly sets :attr:`framerate_range` so that the low
+        and high values are equal to the new framerate. The framerate can be
+        specified as an :ref:`int <typesnumeric>`, :ref:`float <typesnumeric>`,
+        :class:`~fractions.Fraction`, or a ``(numerator, denominator)`` tuple.
+        For example, the following definitions are all equivalent::
 
             from fractions import Fraction
 
@@ -2156,7 +2199,9 @@ class PiCamera(object):
         sensor_mode = self.sensor_mode
         clock_mode = self.CLOCK_MODES[self.clock_mode]
         resolution = self.resolution
-        framerate = self.framerate
+        framerate = Fraction(self.framerate)
+        if framerate == 0:
+            framerate = self.framerate_range
         self._disable_camera()
         self._configure_camera(
             old_sensor_mode=sensor_mode, sensor_mode=value,
@@ -2201,7 +2246,9 @@ class PiCamera(object):
         except KeyError:
             raise PiCameraValueError("Invalid clock mode %s" % value)
         sensor_mode = self.sensor_mode
-        framerate = self.framerate
+        framerate = Fraction(self.framerate)
+        if framerate == 0:
+            framerate = self.framerate_range
         resolution = self.resolution
         self._disable_camera()
         self._configure_camera(
@@ -2242,7 +2289,9 @@ class PiCamera(object):
                     "Invalid resolution requested: %r" % (value,))
         sensor_mode = self.sensor_mode
         clock_mode = self.CLOCK_MODES[self.clock_mode]
-        framerate = self.framerate
+        framerate = Fraction(self.framerate)
+        if framerate == 0:
+            framerate = self.framerate_range
         self._disable_camera()
         self._configure_camera(
             sensor_mode=sensor_mode, framerate=framerate,
@@ -2295,8 +2344,87 @@ class PiCamera(object):
         .. _display resolution: https://en.wikipedia.org/wiki/Graphics_display_resolution
         """)
 
+    def _get_framerate_range(self):
+        self._check_camera_open()
+        port_num = (
+            self.CAMERA_VIDEO_PORT
+            if self._encoders else
+            self.CAMERA_PREVIEW_PORT
+            )
+        mp = self._camera.outputs[port_num].params[mmal.MMAL_PARAMETER_FPS_RANGE]
+        return PiCameraFramerateRange(
+            mo.to_fraction(mp.fps_low), mo.to_fraction(mp.fps_high))
+    def _set_framerate_range(self, value):
+        self._check_camera_open()
+        self._check_recording_stopped()
+        low, high = value
+        low = mo.to_fraction(low, den_limit=256)
+        high = mo.to_fraction(high, den_limit=256)
+        if not (0 < low <= self.MAX_FRAMERATE):
+            raise PiCameraValueError("Invalid low framerate: %.2ffps" % low)
+        if not (0 < high <= self.MAX_FRAMERATE):
+            raise PiCameraValueError("Invalid high framerate: %.2ffps" % high)
+        if high < low:
+            raise PiCameraValueError("framerate_range is backwards")
+        sensor_mode = self.sensor_mode
+        clock_mode = self.CLOCK_MODES[self.clock_mode]
+        resolution = self.resolution
+        self._disable_camera()
+        self._configure_camera(
+            sensor_mode=sensor_mode, framerate=(low, high),
+            resolution=resolution, clock_mode=clock_mode)
+        self._configure_splitter()
+        self._enable_camera()
+    framerate_range = property(_get_framerate_range, _set_framerate_range, doc="""\
+        Retrieves or sets a range between which the camera's framerate is
+        allowed to float.
+
+        When queried, the :attr:`framerate_range` property returns a
+        :func:`~collections.namedtuple` derivative with ``low`` and ``high``
+        components (index 0 and 1 respectively) which specify the limits of the
+        permitted framerate range.
+
+        When set, the property configures the camera so that the next call to
+        recording and previewing methods will use the new framerate range.
+        Setting this property will implicitly set the :attr:`framerate`
+        property to 0 (indicating that a dynamic range of framerates is in use
+        by the camera).
+
+        .. note::
+
+            Use of this property prevents use of :attr:`framerate_delta` (there
+            would be little point in making fractional adjustments to the
+            framerate when the framerate itself is variable).
+
+        The low and high framerates can be specified as :ref:`int
+        <typesnumeric>`, :ref:`float <typesnumeric>`, or
+        :class:`~fractions.Fraction` values. For example, the following
+        definitions are all equivalent::
+
+            from fractions import Fraction
+
+            camera.framerate_range = (0.16666, 30)
+            camera.framerate_range = (Fraction(1, 6), 30 / 1)
+            camera.framerate_range = (Fraction(1, 6), Fraction(30, 1))
+
+        The camera must not be closed, and no recording must be active when the
+        property is set.
+
+        .. note::
+
+            This attribute, like :attr:`framerate`, determines the mode that
+            the camera operates in. The actual sensor framerate and resolution
+            used by the camera is influenced, but not directly set, by this
+            property. See :attr:`sensor_mode` for more information.
+
+        .. versionadded:: 1.13
+        """)
+
     def _get_framerate_delta(self):
         self._check_camera_open()
+        if self.framerate == 0:
+            raise PiCameraValueError(
+                'framerate_delta cannot be used with framerate_range')
         port_num = (
             self.CAMERA_VIDEO_PORT
             if self._encoders else
@@ -2305,6 +2433,9 @@ class PiCamera(object):
         return self._camera.outputs[port_num].params[mmal.MMAL_PARAMETER_FRAME_RATE] - self.framerate
     def _set_framerate_delta(self, value):
         self._check_camera_open()
+        if self.framerate == 0:
+            raise PiCameraValueError(
+                'framerate_delta cannot be used with framerate_range')
         value = mo.to_fraction(self.framerate + value, den_limit=256)
         self._camera.outputs[self.CAMERA_PREVIEW_PORT].params[mmal.MMAL_PARAMETER_FRAME_RATE] = value
         self._camera.outputs[self.CAMERA_VIDEO_PORT].params[mmal.MMAL_PARAMETER_FRAME_RATE] = value
@@ -2349,7 +2480,14 @@ class PiCamera(object):
 
         .. note::
 
-            This property is reset to 0 when :attr:`framerate` is set.
+            This property is implicitly reset to 0 when :attr:`framerate` or
+            :attr:`framerate_range` is set. When :attr:`framerate` is 0
+            (indicating that :attr:`framerate_range` is set), this property
+            cannot be used.  (there would be little point in making fractional
+            adjustments to the framerate when the framerate itself is
+            variable).
+
+        .. versionadded:: 1.11
         """)
 
     def _get_still_stats(self):

@@ -2,9 +2,13 @@ from picamera import PiCamera
 from time import sleep
 from fractions import Fraction
 
-# Set a framerate of 1/6fps, then set shutter
-# speed to 6s and ISO to 800
-camera = PiCamera(resolution=(1280, 720), framerate=Fraction(1, 6))
+# Force sensor mode 3 (the long exposure mode), set
+# the framerate to 1/6fps, the shutter speed to 6s,
+# and ISO to 800 (for maximum gain)
+camera = PiCamera(
+    resolution=(1280, 720),
+    framerate=Fraction(1, 6),
+    sensor_mode=3)
 camera.shutter_speed = 6000000
 camera.iso = 800
 # Give the camera a good long time to set gains and

@@ -282,3 +282,22 @@ def verify_image(filename_or_obj, format, resolution):
         assert img.format.lower() == format.lower()
         img.verify()
 
+
+# For comparison of floating point values. See PEP485 for more information.
+try:
+    from math import isclose
+except ImportError:
+    # Backported from https://github.com/PythonCHB/close_pep
+    from math import isinf
+    def isclose(a, b, rel_tol=1e-9, abs_tol=0.0):
+        if rel_tol < 0.0 or abs_tol < 0.0:
+            raise ValueError('error tolerances must be non-negative')
+        if a == b:
+            return True
+        if isinf(a) or isinf(b):
+            return False
+        diff = abs(b - a)
+        return (((diff <= abs(rel_tol * b)) or
+                 (diff <= abs(rel_tol * a))) or
+                 (diff <= abs_tol))
+
