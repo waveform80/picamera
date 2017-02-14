@@ -327,6 +327,17 @@ hit them. The analog gain influences how this charge is built-up. An
 digital value during line read-out (in fact the ADC's speed is a large portion
 of the minimum line read-out time).
 
+.. note::
+
+    Camera sensors also tend to have a border of non-sensing pixels (elements
+    that are covered from light). These are used to determine what level of
+    charge represents "optically black". 
+
+    The camera's elements are affected by heat (thermal radiation, after all,
+    is just part of the `electromagnetic spectrum`_ close to the visible
+    portion). Without the non-sensing pixels you would get different black
+    levels at different ambient temperatures.
+
 The analog gain cannot be *directly* controlled in picamera, but various
 attributes can be used to "influence" it.
 
@@ -358,16 +369,12 @@ attributes can be used to "influence" it.
     60 produces overall gain of 1.0, and ISO 800 of 14.72 (the V2 camera module
     was calibrated against the `ISO film speed`_ standard).
 
-.. note::
-
-    Camera sensors tend to have a border of non-sensing pixels (elements that
-    are covered from light). These are used to determine what level of charge
-    represents "optically black". 
-
-    The camera's elements are affected by heat (thermal radiation, after all,
-    is just part of the `electromagnetic spectrum`_ close to the visible
-    portion). Without the non-sensing pixels you would get different black
-    levels at different ambient temperatures.
+  Hence, one might be tempted to think that :attr:`~PiCamera.iso` provides a
+  means of fixing the gains, but this isn't entirely true: the
+  :attr:`~PiCamera.exposure_mode` setting takes precedence (setting the
+  exposure mode to ``'off'`` will fix the gains no matter what ISO is later
+  set, and some exposure modes like ``'spotlight'`` also override ISO-adjusted
+  gains).
 
 Division of labor
 -----------------
@@ -456,8 +463,8 @@ play a role in the camera's operation.
 
 The diagram below depicts a more accurate representation of the GPU side of the
 BCM2835 SoC. From this we get our first glimpse of the frame processing
-"pipeline" and why it is called such. In the diagram above, an H264 video is
-being recorded. The components that data passes through are as follows:
+"pipeline" and why it is called such. In the diagram, an H264 video is being
+recorded. The components that data passes through are as follows:
 
 1. Starting at the camera module, some minor processing happens. Specifically,
    flips (horizontal and vertical), line skipping, and pixel `binning`_ are
@@ -471,28 +478,29 @@ being recorded. The components that data passes through are as follows:
    line data into RAM.
 
 3. Next the GPU's `image signal processor`_ (ISP) performs several
-   post-processing steps on the frame data(?).  
+   post-processing steps on the frame data.
 
    These include (in order):
 
-    - **Transposition**: If any rotation has been requested, the input is transposed to
-      rotate the image (rotation is always implemented by some combination of
-      transposition and flips).
+    - **Transposition**: If any rotation has been requested, the input is
+      transposed to rotate the image (rotation is always implemented by some
+      combination of transposition and flips).
 
-    - **Black level compensation**: Use the non-light sensing elements (typically in a covered border) to determine what level of
-      charge represents "optically black".
+    - **Black level compensation**: Use the non-light sensing elements
+      (typically in a covered border) to determine what level of charge
+      represents "optically black".
 
     - **Lens shading**: The camera firmware includes a table that corrects for
       chromatic distortion from the standard module's lens. This is one reason
       why third party modules incorporating different lenses may show
       non-uniform color across a frame (across an image?).
 
-    - **White balance**: The red and blue gains are applied to correct the `color
-      balance`_. See :attr:`~PiCamera.awb_gains` and
+    - **White balance**: The red and blue gains are applied to correct the
+      `color balance`_. See :attr:`~PiCamera.awb_gains` and
       :attr:`~PiCamera.awb_mode`.
 
     - **Digital gain**: As mentioned above, this is a straight-forward
-      post-processing step that applies a gain to the Bayer values (? -link?). See
+      post-processing step that applies a gain to the `Bayer values`_. See
       :attr:`~PiCamera.digital_gain`.
 
     - **Bayer de-noise**: This is a noise reduction algorithm run on the frame
@@ -501,7 +509,7 @@ being recorded. The components that data passes through are as follows:
     - **De-mosaic:** The frame data is converted from Bayer format to `YUV420`_
       which is the format used by the remainder of the pipeline.
 
-    - **YCbCr de-noise**: Another noise reduction algorithm, this time with the
+    - **YUV de-noise**: Another noise reduction algorithm, this time with the
       frame in YUV420 format. See :attr:`~PiCamera.image_denoise` and
       :attr:`~PiCamera.video_denoise`.
 
@@ -512,7 +520,8 @@ being recorded. The components that data passes through are as follows:
       :attr:`~PiCamera.contrast`, and :attr:`~PiCamera.saturation` adjustments
       are implemented.
 
-    - **Distortion**: The distortion introduced by the camera's lens is corrected.
+    - **Distortion**: The distortion introduced by the camera's lens is
+      corrected.
 
     - **Resizing**: At this point, the frame is resized to the requested output
       resolution (all prior stages have been performed on "full" frame data
@@ -520,12 +529,11 @@ being recorded. The components that data passes through are as follows:
       :attr:`~PiCamera.resolution`.
 
    Some of these steps can be controlled directly (e.g. brightness, noise
-   reduction), others can only be influenced (e.g. digital gain), and the
-   remainder are not user-configurable at all (e.g. demosaic and lens shading).
-   
+   reduction), others can only be influenced (e.g. analog and digital gain),
+   and the remainder are not user-configurable at all (e.g. demosaic and lens
+   shading).
+
    At this point the frame is effectively “complete”.
-   
-.. Do you mean analog gain in the above, rather than digital?
 
 4. If you are producing "unencoded" output (YUV, RGB, etc.) the pipeline ends
    at this point, with the frame data getting copied over to the CPU via
@@ -556,7 +564,7 @@ There are a couple of feedback loops running within the pipeline described
 above. When :attr:`~PiCamera.exposure_mode` is not ``'off'``, automatic gain
 control (AGC) gathers statistics from each frame (prior to the de-mosaic phase
 in the ISP). It tweaks the analog and digital gains, and the exposure time
-(line read-out time) attempting to nudge subsequent frames towards a target Y'
+(line read-out time) attempting to nudge subsequent frames towards a target Y
 (`luminance`_) value.
 
 Likewise, when :attr:`~PiCamera.awb_mode` is not ``'off'``, automatic white
@@ -603,7 +611,7 @@ reduces accordingly and the scene returns more or less to normal:
     >>> float(camera.analog_gain)
     1.0
 
-The camera's AGC loop attempts to produce a scene with a target Y'
+The camera's AGC loop attempts to produce a scene with a target Y
 (`luminance`_) value (or values) within the constraints set by things like ISO,
 shutter speed, and so forth. The target Y' value can be adjusted with the
 :attr:`~PiCamera.exposure_compensation` attribute which is measured in
@@ -639,43 +647,43 @@ Sensor Modes
 The Pi's camera modules have a discrete set of modes that they can use to
 output data to the GPU. On the V1 module these are as follows:
 
-+---+------------+--------------+-------------+-------+-------+---------+---------+
-| # | Resolution | Aspect Ratio | Framerates  | Video | Image | FoV     | Binning |
-+===+============+==============+=============+=======+=======+=========+=========+
-| 1 | 1920x1080  | 16:9         | 1-30fps     | x     |       | Partial | None    |
-+---+------------+--------------+-------------+-------+-------+---------+---------+
-| 2 | 2592x1944  | 4:3          | 1-15fps     | x     | x     | Full    | None    |
-+---+------------+--------------+-------------+-------+-------+---------+---------+
-| 3 | 2592x1944  | 4:3          | 0.1666-1fps | x     | x     | Full    | None    |
-+---+------------+--------------+-------------+-------+-------+---------+---------+
-| 4 | 1296x972   | 4:3          | 1-42fps     | x     |       | Full    | 2x2     |
-+---+------------+--------------+-------------+-------+-------+---------+---------+
-| 5 | 1296x730   | 16:9         | 1-49fps     | x     |       | Full    | 2x2     |
-+---+------------+--------------+-------------+-------+-------+---------+---------+
-| 6 | 640x480    | 4:3          | 42.1-60fps  | x     |       | Full    | 4x4     |
-+---+------------+--------------+-------------+-------+-------+---------+---------+
-| 7 | 640x480    | 4:3          | 60.1-90fps  | x     |       | Full    | 4x4     |
-+---+------------+--------------+-------------+-------+-------+---------+---------+
++---+------------+--------------+-----------------+-------+-------+---------+---------+
+| # | Resolution | Aspect Ratio | Framerates      | Video | Image | FoV     | Binning |
++===+============+==============+=================+=======+=======+=========+=========+
+| 1 | 1920x1080  | 16:9         | 1 < fps <= 30   | x     |       | Partial | None    |
++---+------------+--------------+-----------------+-------+-------+---------+---------+
+| 2 | 2592x1944  | 4:3          | 1 < fps <= 15   | x     | x     | Full    | None    |
++---+------------+--------------+-----------------+-------+-------+---------+---------+
+| 3 | 2592x1944  | 4:3          | 1/6 <= fps <= 1 | x     | x     | Full    | None    |
++---+------------+--------------+-----------------+-------+-------+---------+---------+
+| 4 | 1296x972   | 4:3          | 1 < fps <= 42   | x     |       | Full    | 2x2     |
++---+------------+--------------+-----------------+-------+-------+---------+---------+
+| 5 | 1296x730   | 16:9         | 1 < fps <= 49   | x     |       | Full    | 2x2     |
++---+------------+--------------+-----------------+-------+-------+---------+---------+
+| 6 | 640x480    | 4:3          | 42 < fps <= 60  | x     |       | Full    | 4x4     |
++---+------------+--------------+-----------------+-------+-------+---------+---------+
+| 7 | 640x480    | 4:3          | 60 < fps <= 90  | x     |       | Full    | 4x4     |
++---+------------+--------------+-----------------+-------+-------+---------+---------+
 
 On the V2 module, these are:
 
-+---+------------+--------------+------------+-------+-------+---------+---------+
-| # | Resolution | Aspect Ratio | Framerates | Video | Image | FoV     | Binning |
-+===+============+==============+============+=======+=======+=========+=========+
-| 1 | 1920x1080  | 16:9         | 0.1-30fps  | x     |       | Partial | None    |
-+---+------------+--------------+------------+-------+-------+---------+---------+
-| 2 | 3280x2464  | 4:3          | 0.1-15fps  | x     | x     | Full    | None    |
-+---+------------+--------------+------------+-------+-------+---------+---------+
-| 3 | 3280x2464  | 4:3          | 0.1-15fps  | x     | x     | Full    | None    |
-+---+------------+--------------+------------+-------+-------+---------+---------+
-| 4 | 1640x1232  | 4:3          | 0.1-40fps  | x     |       | Full    | 2x2     |
-+---+------------+--------------+------------+-------+-------+---------+---------+
-| 5 | 1640x922   | 16:9         | 0.1-40fps  | x     |       | Full    | 2x2     |
-+---+------------+--------------+------------+-------+-------+---------+---------+
-| 6 | 1280x720   | 16:9         | 40-90fps   | x     |       | Partial | 2x2     |
-+---+------------+--------------+------------+-------+-------+---------+---------+
-| 7 | 640x480    | 4:3          | 40-90fps   | x     |       | Partial | 2x2     |
-+---+------------+--------------+------------+-------+-------+---------+---------+
++---+------------+--------------+-------------------+-------+-------+---------+---------+
+| # | Resolution | Aspect Ratio | Framerates        | Video | Image | FoV     | Binning |
++===+============+==============+===================+=======+=======+=========+=========+
+| 1 | 1920x1080  | 16:9         | 1/10 <= fps <= 30 | x     |       | Partial | None    |
++---+------------+--------------+-------------------+-------+-------+---------+---------+
+| 2 | 3280x2464  | 4:3          | 1/10 <= fps <= 15 | x     | x     | Full    | None    |
++---+------------+--------------+-------------------+-------+-------+---------+---------+
+| 3 | 3280x2464  | 4:3          | 1/10 <= fps <= 15 | x     | x     | Full    | None    |
++---+------------+--------------+-------------------+-------+-------+---------+---------+
+| 4 | 1640x1232  | 4:3          | 1/10 <= fps <= 40 | x     |       | Full    | 2x2     |
++---+------------+--------------+-------------------+-------+-------+---------+---------+
+| 5 | 1640x922   | 16:9         | 1/10 <= fps <= 40 | x     |       | Full    | 2x2     |
++---+------------+--------------+-------------------+-------+-------+---------+---------+
+| 6 | 1280x720   | 16:9         | 40 < fps <= 90    | x     |       | Partial | 2x2     |
++---+------------+--------------+-------------------+-------+-------+---------+---------+
+| 7 | 640x480    | 4:3          | 40 < fps <= 90    | x     |       | Partial | 2x2     |
++---+------------+--------------+-------------------+-------+-------+---------+---------+
 
 .. note::
 
@@ -981,6 +989,7 @@ abstraction layers which necessarily obscure (but hopefully simplify) the
 .. _binning: http://www.andor.com/learning-academy/ccd-binning-what-does-binning-mean
 .. _rolling shutter: https://en.wikipedia.org/wiki/Rolling_shutter
 .. _Bayer filter: https://en.wikipedia.org/wiki/Bayer_filter
+.. _Bayer values: https://en.wikipedia.org/wiki/Bayer_filter
 .. _f-stop: https://en.wikipedia.org/wiki/F-number
 .. _luminance: https://en.wikipedia.org/wiki/Relative_luminance
 .. _YUV420: https://en.wikipedia.org/wiki/YUV#Y.E2.80.B2UV420p_.28and_Y.E2.80.B2V12_or_YV12.29_to_RGB888_conversion
