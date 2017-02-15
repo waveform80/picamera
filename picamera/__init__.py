@@ -85,7 +85,7 @@ from picamera.exc import (
     PiCameraPortDisabled,
     mmal_check,
     )
-from picamera.mmalobj import PiResolution
+from picamera.mmalobj import PiResolution, PiFramerateRange
 from picamera.camera import PiCamera
 from picamera.display import PiDisplay
 from picamera.frames import PiVideoFrame, PiVideoFrameType

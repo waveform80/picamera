@@ -94,31 +94,6 @@ def docstring_values(values, indent=8):
         sorted(values.items(), key=itemgetter(1)))
 
 
-class PiCameraFramerateRange(namedtuple('PiCameraFramerateRange', ('low', 'high'))):
-    """
-    This class is a :func:`~collections.namedtuple` derivative used to store
-    the low and high limits of a range of framerates. It is recommended that
-    you access the information stored by this class by attribute rather than
-    position (for example: ``camera.framerate_range.low`` rather than
-    ``camera.framerate_range[0]``).
-
-    .. attribute:: low
-
-        The lowest framerate that the camera is permitted to use (inclusive).
-        When the :attr:`~PiCamera.framerate_range` attribute is queried, this
-        value will always be returned as a :class:`~fractions.Fraction`.
-
-    .. attribute:: high
-
-        The highest framerate that the camera is permitted to use (inclusive).
-        When the :attr:`~PiCamera.framerate_range` attribute is queried, this
-        value will always be returned as a :class:`~fractions.Fraction`.
-
-    .. versionadded:: 1.13
-    """
-    __slots__ = ()
-
-
 class PiCameraMaxResolution(object):
     """
     Singleton representing the maximum resolution of the camera module.
@@ -2352,7 +2327,7 @@ class PiCamera(object):
             self.CAMERA_PREVIEW_PORT
             )
         mp = self._camera.outputs[port_num].params[mmal.MMAL_PARAMETER_FPS_RANGE]
-        return PiCameraFramerateRange(
+        return mo.PiFramerateRange(
             mo.to_fraction(mp.fps_low), mo.to_fraction(mp.fps_high))
     def _set_framerate_range(self, value):
         self._check_camera_open()

@@ -288,6 +288,37 @@ class PiResolution(namedtuple('PiResolution', ('width', 'height'))):
         return '%dx%d' % (self.width, self.height)
 
 
+class PiFramerateRange(namedtuple('PiFramerateRange', ('low', 'high'))):
+    """
+    This class is a :func:`~collections.namedtuple` derivative used to store
+    the low and high limits of a range of framerates. It is recommended that
+    you access the information stored by this class by attribute rather than
+    position (for example: ``camera.framerate_range.low`` rather than
+    ``camera.framerate_range[0]``).
+
+    .. attribute:: low
+
+        The lowest framerate that the camera is permitted to use (inclusive).
+        When the :attr:`~picamera.PiCamera.framerate_range` attribute is
+        queried, this value will always be returned as a
+        :class:`~fractions.Fraction`.
+
+    .. attribute:: high
+
+        The highest framerate that the camera is permitted to use (inclusive).
+        When the :attr:`~picamera.PiCamera.framerate_range` attribute is
+        queried, this value will always be returned as a
+        :class:`~fractions.Fraction`.
+
+    .. versionadded:: 1.13
+    """
+
+    __slots__ = () # workaround python issue #24931
+
+    def __str__(self):
+        return '%s..%s' % (self.low, self.high)
+
+
 def open_stream(stream, output=True, buffering=65536):
     """
     This is the core of picamera's IO-semantics. It returns a tuple of a

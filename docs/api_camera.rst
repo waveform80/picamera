@@ -34,6 +34,12 @@ PiVideoFrame
 
 
 PiResolution
-==================
+============
 
 .. autoclass:: PiResolution(width, height)
+
+
+PiFramerateRange
+================
+
+.. autoclass:: PiFramerateRange(low, high)
