@@ -493,7 +493,7 @@ recorded. The components that data passes through are as follows:
     - **Lens shading**: The camera firmware includes a table that corrects for
       chromatic distortion from the standard module's lens. This is one reason
       why third party modules incorporating different lenses may show
-      non-uniform color across a frame (across an image?).
+      non-uniform color across a frame.
 
     - **White balance**: The red and blue gains are applied to correct the
       `color balance`_. See :attr:`~PiCamera.awb_gains` and
@@ -521,7 +521,9 @@ recorded. The components that data passes through are as follows:
       are implemented.
 
     - **Distortion**: The distortion introduced by the camera's lens is
-      corrected.
+      corrected. At present this stage does nothing as the stock lens isn't a
+      `fish-eye lens`_; it exists as an option should a future sensor require
+      it.
 
     - **Resizing**: At this point, the frame is resized to the requested output
       resolution (all prior stages have been performed on "full" frame data
@@ -1004,3 +1006,4 @@ abstraction layers which necessarily obscure (but hopefully simplify) the
 .. _electromagnetic spectrum: https://en.wikipedia.org/wiki/Electromagnetic_spectrum
 .. _DMA: https://en.wikipedia.org/wiki/Direct_memory_access
 .. _ISO film speed: https://en.wikipedia.org/wiki/Film_speed#Current_system:_ISO
+.. _fish-eye lens: https://en.wikipedia.org/wiki/Fisheye_lens
