@@ -57,11 +57,9 @@ from .exc import (
     PiCameraMMALError,
     PiCameraDeprecated,
     PiCameraFallback,
-    mmal_check,
     )
 from .encoders import (
     PiVideoFrame,
-    PiVideoFrameType,
     PiVideoEncoder,
     PiRawVideoEncoder,
     PiCookedVideoEncoder,

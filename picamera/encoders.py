@@ -45,8 +45,6 @@ import ctypes as ct
 from . import bcm_host, mmal, mmalobj as mo
 from .frames import PiVideoFrame, PiVideoFrameType
 from .exc import (
-    mmal_check,
-    PiCameraError,
     PiCameraMMALError,
     PiCameraValueError,
     PiCameraIOError,
