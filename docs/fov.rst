@@ -331,7 +331,7 @@ of the minimum line read-out time).
 
     Camera sensors also tend to have a border of non-sensing pixels (elements
     that are covered from light). These are used to determine what level of
-    charge represents "optically black". 
+    charge represents "optically black".
 
     The camera's elements are affected by heat (thermal radiation, after all,
     is just part of the `electromagnetic spectrum`_ close to the visible

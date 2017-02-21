@@ -2491,6 +2491,13 @@ class PiCamera(object):
         processing time for captures increases and that white balance and gain
         won't necessarily match the preview.
 
+        .. warning::
+
+            Enabling the still statistics pass will `override fixed white
+            balance`_ gains (set via :attr:`awb_gains` and :attr:`awb_mode`).
+
+        .. _override fixed white balance: https://www.raspberrypi.org/forums/viewtopic.php?p=875772&sid=92fa4ea70d1fe24590a4cdfb4a10c489#p875772
+
         .. versionadded:: 1.9
         """)
 
@@ -2721,7 +2728,13 @@ class PiCamera(object):
         The default value is ``'off'``. All possible values for the attribute
         can be obtained from the ``PiCamera.DRC_STRENGTHS`` attribute.
 
+        .. warning::
+
+            Enabling DRC will `override fixed white balance`_ gains (set via
+            :attr:`awb_gains` and :attr:`awb_mode`).
+
         .. _dynamic range compression: https://en.wikipedia.org/wiki/Gain_compression
+        .. _override fixed white balance: https://www.raspberrypi.org/forums/viewtopic.php?p=875772&sid=92fa4ea70d1fe24590a4cdfb4a10c489#p875772
 
         .. versionadded:: 1.6
         """.format(values=docstring_values(DRC_STRENGTHS)))
@@ -3009,7 +3022,9 @@ class PiCamera(object):
 
             AWB mode ``'off'`` is special: this disables the camera's automatic
             white balance permitting manual control of the white balance via
-            the :attr:`awb_gains` property.
+            the :attr:`awb_gains` property. However, even with AWB disabled,
+            some attributes (specifically :attr:`still_stats` and
+            :attr:`drc_strength`) can cause AWB re-calculations.
         """.format(values=docstring_values(AWB_MODES)))
 
     def _get_awb_gains(self):
@@ -3058,7 +3073,9 @@ class PiCamera(object):
         .. note::
 
             This attribute only has an effect when :attr:`awb_mode` is set to
-            ``'off'``.
+            ``'off'``. Also note that even with AWB disabled, some attributes
+            (specifically :attr:`still_stats` and :attr:`drc_strength`) can
+            cause AWB re-calculations.
 
         .. versionchanged:: 1.6
             Prior to version 1.6, this attribute was write-only.
