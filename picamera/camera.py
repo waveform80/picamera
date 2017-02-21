@@ -3331,24 +3331,18 @@ class PiCamera(object):
 
     def _get_vflip(self):
         self._check_camera_open()
-        mp = self._camera.outputs[0].params[mmal.MMAL_PARAMETER_MIRROR]
-        return mp.value in (mmal.MMAL_PARAM_MIRROR_VERTICAL, mmal.MMAL_PARAM_MIRROR_BOTH)
+        return self._camera.outputs[0].params[mmal.MMAL_PARAMETER_MIRROR] in (
+            mmal.MMAL_PARAM_MIRROR_VERTICAL, mmal.MMAL_PARAM_MIRROR_BOTH)
     def _set_vflip(self, value):
         self._check_camera_open()
-        mp = mmal.MMAL_PARAMETER_MIRROR_T(
-            mmal.MMAL_PARAMETER_HEADER_T(
-                mmal.MMAL_PARAMETER_MIRROR,
-                ct.sizeof(mmal.MMAL_PARAMETER_MIRROR_T)
-                ),
-            {
-                (False, False): mmal.MMAL_PARAM_MIRROR_NONE,
-                (True,  False): mmal.MMAL_PARAM_MIRROR_VERTICAL,
-                (False, True):  mmal.MMAL_PARAM_MIRROR_HORIZONTAL,
-                (True,  True):  mmal.MMAL_PARAM_MIRROR_BOTH,
-                }[(bool(value), self.hflip)]
-            )
+        value = {
+            (False, False): mmal.MMAL_PARAM_MIRROR_NONE,
+            (True,  False): mmal.MMAL_PARAM_MIRROR_VERTICAL,
+            (False, True):  mmal.MMAL_PARAM_MIRROR_HORIZONTAL,
+            (True,  True):  mmal.MMAL_PARAM_MIRROR_BOTH,
+            }[(bool(value), self.hflip)]
         for port in self._camera.outputs:
-            port.params[mmal.MMAL_PARAMETER_MIRROR] = mp
+            port.params[mmal.MMAL_PARAMETER_MIRROR] = value
     vflip = property(_get_vflip, _set_vflip, doc="""\
         Retrieves or sets whether the camera's output is vertically flipped.
 
@@ -3360,24 +3354,18 @@ class PiCamera(object):
 
     def _get_hflip(self):
         self._check_camera_open()
-        mp = self._camera.outputs[0].params[mmal.MMAL_PARAMETER_MIRROR]
-        return mp.value in (mmal.MMAL_PARAM_MIRROR_HORIZONTAL, mmal.MMAL_PARAM_MIRROR_BOTH)
+        return self._camera.outputs[0].params[mmal.MMAL_PARAMETER_MIRROR] in (
+            mmal.MMAL_PARAM_MIRROR_HORIZONTAL, mmal.MMAL_PARAM_MIRROR_BOTH)
     def _set_hflip(self, value):
         self._check_camera_open()
-        mp = mmal.MMAL_PARAMETER_MIRROR_T(
-            mmal.MMAL_PARAMETER_HEADER_T(
-                mmal.MMAL_PARAMETER_MIRROR,
-                ct.sizeof(mmal.MMAL_PARAMETER_MIRROR_T)
-                ),
-            {
-                (False, False): mmal.MMAL_PARAM_MIRROR_NONE,
-                (True,  False): mmal.MMAL_PARAM_MIRROR_VERTICAL,
-                (False, True):  mmal.MMAL_PARAM_MIRROR_HORIZONTAL,
-                (True,  True):  mmal.MMAL_PARAM_MIRROR_BOTH,
-                }[(self.vflip, bool(value))]
-            )
+        value = {
+            (False, False): mmal.MMAL_PARAM_MIRROR_NONE,
+            (True,  False): mmal.MMAL_PARAM_MIRROR_VERTICAL,
+            (False, True):  mmal.MMAL_PARAM_MIRROR_HORIZONTAL,
+            (True,  True):  mmal.MMAL_PARAM_MIRROR_BOTH,
+            }[(self.vflip, bool(value))]
         for port in self._camera.outputs:
-            port.params[mmal.MMAL_PARAMETER_MIRROR] = mp
+            port.params[mmal.MMAL_PARAMETER_MIRROR] = value
     hflip = property(_get_hflip, _set_hflip, doc="""\
         Retrieves or sets whether the camera's output is horizontally flipped.
 
