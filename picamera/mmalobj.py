@@ -1143,6 +1143,7 @@ class MMALPort(MMALControlPort):
             else:
                 if modified_buf is None:
                     buf.release()
+                    return
                 else:
                     buf = modified_buf
         try:
