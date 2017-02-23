@@ -695,6 +695,14 @@ On the V2 module, these are:
     requested resolution (within reason). Read on for details of mode
     selection.
 
+.. note::
+
+    Sensor mode 3 on the V2 module appears to be a duplicate, but this is
+    deliberate. The sensor modes of the V2 module were designed to mimic the
+    closest equivalent sensor modes of the V1 module. Long exposures on the
+    V1 module required a separate sensor mode; this wasn't required on the V2
+    module leading to the duplication of mode 2.
+
 Modes with full `field of view`_ (FoV) capture from the whole area of the
 camera's sensor (2592x1944 pixels for the V1 camera, 3280x2464 for the V2
 camera).  Modes with partial FoV capture from the center of the sensor. The
