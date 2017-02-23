@@ -93,14 +93,21 @@ def bytes_to_yuv(data, resolution):
             'Incorrect buffer length for resolution %dx%d' % (width, height))
     # Separate out the Y, U, and V values from the array
     a = np.frombuffer(data, dtype=np.uint8)
-    Y = a[:y_len]
-    U = a[y_len:-uv_len]
-    V = a[-uv_len:]
+    Y = a[:y_len].reshape((fheight, fwidth))
+    Uq = a[y_len:-uv_len].reshape((fheight // 2, fwidth // 2))
+    Vq = a[-uv_len:].reshape((fheight // 2, fwidth // 2))
     # Reshape the values into two dimensions, and double the size of the
     # U and V values (which only have quarter resolution in YUV4:2:0)
-    Y = Y.reshape((fheight, fwidth))
-    U = U.reshape((fheight // 2, fwidth // 2)).repeat(2, axis=0).repeat(2, axis=1)
-    V = V.reshape((fheight // 2, fwidth // 2)).repeat(2, axis=0).repeat(2, axis=1)
+    U = np.empty_like(Y)
+    V = np.empty_like(Y)
+    U[0::2, 0::2] = Uq
+    U[0::2, 1::2] = Uq
+    U[1::2, 0::2] = Uq
+    U[1::2, 1::2] = Uq
+    V[0::2, 0::2] = Vq
+    V[0::2, 1::2] = Vq
+    V[1::2, 0::2] = Vq
+    V[1::2, 1::2] = Vq
     # Stack the channels together and crop to the actual resolution
     return np.dstack((Y, U, V))[:height, :width]
 
