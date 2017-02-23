@@ -570,9 +570,11 @@ in the ISP). It tweaks the analog and digital gains, and the exposure time
 (`luminance`_) value.
 
 Likewise, when :attr:`~PiCamera.awb_mode` is not ``'off'``, automatic white
-balance (AWB) gathers statistics from each frame (again, prior to de-mosaic).
-It adjusts the red and blue gains (:attr:`~PiCamera.awb_gains`) attempting to
-nudge subsequent frames towards the expected `color balance`_.
+balance (AWB) gathers statistics from frames (again, prior to de-mosaic).
+Typically AWB anslysis only occurs on 1 out of every 3 streamed frames as it is
+computationally expensive. It adjusts the red and blue gains
+(:attr:`~PiCamera.awb_gains`) attempting to nudge subsequent frames towards the
+expected `color balance`_.
 
 You can observe the effect of the AGC loop quite easily during daylight.
 Ensure the camera module is pointed at something bright like the sky or the
