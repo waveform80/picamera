@@ -31,7 +31,7 @@ Release 1.13 (2017-02-24)
 * Recording overlays is now possible, but currently requires using the lower
   level :mod:`~picamera.mmalobj` layer (`#196`_)
 * Capturing YUV arrays via :class:`~picamera.array.PiYUVArray` is faster,
-  thanks to GitHub user goosst (`#308_`)
+  thanks to GitHub user goosst (`#308`_)
 * Added the ability to specify a restart interval for JPEG encoding (`#369`_)
 * Added a property allowing users to manually specify a
   :attr:`~PiCamera.framerate_range` for the camera (`#374`_)
