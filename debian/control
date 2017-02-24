@@ -3,7 +3,7 @@ Maintainer: Dave Jones <dave@waveform.org.uk>
 Homepage: http://picamera.readthedocs.io/
 Section: python
 Priority: extra
-Build-Depends: debhelper (>= 8), python-all (>= 2.7), python-setuptools, python3-all, python3-setuptools, python-docutils, python-sphinx (>= 1.0.7+dfsg-1~)
+Build-Depends: debhelper (>= 8), python-all (>= 2.7), python-setuptools, python3-all, python3-setuptools, python-docutils, python-sphinx (>= 1.0.7+dfsg-1~), libjs-mathjax
 Standards-Version: 3.9.3
 X-Python-Version: >= 2.7
 X-Python3-Version: >= 3.2
@@ -33,7 +33,7 @@ Description: Pure Python interface to the Raspberry Pi's camera module.
 Package: python-picamera-docs
 Architecture: all
 Section: doc
-Depends: ${sphinxdoc:Depends}, ${misc:Depends}
+Depends: ${sphinxdoc:Depends}, ${misc:Depends}, libjs-mathjax
 Description: Documentation for the Python interface to the RPi's camera module.
  picamera is a library for working with the Raspberry Pi's camera module from
  within Python without having to resort to subprocesses. The majority of the

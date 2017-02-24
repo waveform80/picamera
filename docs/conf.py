@@ -70,8 +70,16 @@ sys.modules['numpy.lib.stride_tricks'] = sys.modules['numpy'].lib.stride_tricks
 
 # -- General configuration ------------------------------------------------
 
-needs_sphinx = '1.4.0'
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.viewcode', 'sphinx.ext.intersphinx', 'sphinx.ext.imgmath']
+extensions = ['sphinx.ext.autodoc', 'sphinx.ext.viewcode', 'sphinx.ext.intersphinx']
+if on_rtd:
+    needs_sphinx = '1.4.0'
+    extensions.append('sphinx.ext.imgmath')
+    imgmath_image_format = 'svg'
+    tags.add('rtd')
+else:
+    extensions.append('sphinx.ext.mathjax')
+    mathjax_path = '/usr/share/javascript/mathjax/MathJax.js?config=TeX-AMS_HTML'
+
 templates_path = ['_templates']
 source_suffix = '.rst'
 #source_encoding = 'utf-8-sig'
@@ -90,9 +98,6 @@ exclude_patterns = ['_build']
 pygments_style = 'sphinx'
 #modindex_common_prefix = []
 #keep_warnings = False
-imgmath_image_format = 'svg'
-if on_rtd:
-    tags.add('rtd')
 
 # -- Autodoc configuration ------------------------------------------------
 
