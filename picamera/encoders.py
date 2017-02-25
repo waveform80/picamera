@@ -562,7 +562,10 @@ class PiRawMixin(PiEncoder):
             self.output_port = self.resizer.outputs[0]
         else:
             self.output_port = self.input_port
-        self.output_port.format = self.RAW_ENCODINGS[format][0]
+        try:
+            self.output_port.format = self.RAW_ENCODINGS[format][0]
+        except KeyError:
+            raise PiCameraValueError('unknown format %s' % format)
         self.output_port.commit()
 
     def _callback_write(self, buf, key=PiVideoFrameType.frame):

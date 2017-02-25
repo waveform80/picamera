@@ -815,7 +815,7 @@ class PiCamera(object):
         self._preview = PiNullSink(
             self, self._camera.outputs[self.CAMERA_PREVIEW_PORT])
 
-    def add_overlay(self, source, size=None, **options):
+    def add_overlay(self, source, size=None, format=None, **options):
         """
         Adds a static overlay to the preview output.
 
@@ -825,23 +825,28 @@ class PiCamera(object):
         overlays can exist; each call to :meth:`add_overlay` returns a new
         :class:`PiOverlayRenderer` instance representing the overlay.
 
+        The *source* must be an object that supports the :ref:`buffer protocol
+        <bufferobjects>` in one of the supported unencoded formats: ``'yuv'``,
+        ``'rgb'``, ``'rgba'``, ``'bgr'``, or ``'bgra'``. The format can
+        specified explicitly with the optional *format* parameter. If not
+        specified, the method will attempt to guess the format based on the
+        length of *source* and the *size* (assuming 3 bytes per pixel for RGB,
+        and 4 bytes for RGBA).
+
         The optional *size* parameter specifies the size of the source image as
         a ``(width, height)`` tuple. If this is omitted or ``None`` then the
         size is assumed to be the same as the camera's current
         :attr:`resolution`.
 
-        The *source* must be an object that supports the :ref:`buffer protocol
-        <bufferobjects>` which has the same length as an image in `RGB`_ format
-        (colors represented as interleaved unsigned bytes) with the specified
-        *size* after the width has been rounded up to the nearest multiple of
-        32, and the height has been rounded up to the nearest multiple of 16.
-
-        For example, if *size* is ``(1280, 720)``, then *source* must be a
-        buffer with length 1280 × 720 × 3 bytes, or 2,764,800 bytes (because
-        1280 is a multiple of 32, and 720 is a multiple of 16 no extra rounding
-        is required).  However, if *size* is ``(97, 57)``, then *source* must
-        be a buffer with length 128 × 64 × 3 bytes, or 24,576 bytes (pixels
-        beyond column 97 and row 57 in the source will be ignored).
+        The length of *source* must take into account that widths are rounded
+        up to the nearest multiple of 32, and heights to the nearest multiple
+        of 16.  For example, if *size* is ``(1280, 720)``, and *format* is
+        ``'rgb'``, then *source* must be a buffer with length 1280 × 720 × 3
+        bytes, or 2,764,800 bytes (because 1280 is a multiple of 32, and 720 is
+        a multiple of 16 no extra rounding is required).  However, if *size* is
+        ``(97, 57)``, and *format* is ``'rgb'`` then *source* must be a buffer
+        with length 128 × 64 × 3 bytes, or 24,576 bytes (pixels beyond column
+        97 and row 57 in the source will be ignored).
 
         New overlays default to *layer* 0, whilst the preview defaults to layer
         2. Higher numbered layers obscure lower numbered layers, hence new
@@ -876,11 +881,15 @@ class PiCamera(object):
             and may reduce the update rate.
 
         .. _RGB: https://en.wikipedia.org/wiki/RGB
+        .. _RGBA: https://en.wikipedia.org/wiki/RGBA_color_space
 
         .. versionadded:: 1.8
+
+        .. versionchanged:: 1.13
+            Added *format* parameter
         """
         self._check_camera_open()
-        renderer = PiOverlayRenderer(self, source, size, **options)
+        renderer = PiOverlayRenderer(self, source, size, format, **options)
         self._overlays.append(renderer)
         return renderer
 

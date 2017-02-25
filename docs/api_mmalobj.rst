@@ -869,3 +869,20 @@ MMAL pipeline:
     outputs which can be extremely useful with simple :func:`print` calls for
     debugging.
 
+
+Utility Functions
+=================
+
+The following functions are provided to ease certain common operations in the
+picamera library. Users of ``mmalobj`` may find them handy in various
+situations:
+
+.. autofunction:: open_stream
+
+.. autofunction:: close_stream
+
+.. autofunction:: to_resolution
+
+.. autofunction:: to_rational
+
+.. autofunction:: buffer_bytes

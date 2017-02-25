@@ -446,10 +446,32 @@ def to_fraction(value, den_limit=65536):
 
 def to_rational(value):
     """
-    Converts *value* to an MMAL_RATIONAL_T.
+    Converts *value* (which can be anything accepted by :func:`to_fraction`) to
+    an MMAL_RATIONAL_T structure.
     """
     value = to_fraction(value)
     return mmal.MMAL_RATIONAL_T(value.numerator, value.denominator)
+
+
+def buffer_bytes(buf):
+    """
+    Given an object which implements the :ref:`buffer protocol
+    <bufferobjects>`, this function returns a tuple consisting of a
+    :ref:`memoryview` object cast to a one-dimensional buffer of unsigned
+    bytes, and the length of the object.
+    """
+    if not isinstance(buf, memoryview):
+        buf = memoryview(buf)
+    if buf.ndim > 1 or buf.itemsize > 1:
+        try:
+            # On Python 3 we can just cast the memory to unsigned bytes
+            buf = buf.cast('B')
+        except AttributeError:
+            # On Python 2 we re-construct the memory as a byte-string; this is
+            # much less efficient (involves copying the entire buffer) but
+            # Python 2 lacks cast()
+            buf = memoryview(buf.tobytes())
+    return buf, len(buf)
 
 
 def debug_pipeline(port):
@@ -1591,20 +1613,21 @@ class MMALBuffer(object):
                 ct.byref(buf, self._buf[0].offset),
                 self._buf[0].length)
     def _set_data(self, value):
-        if isinstance(value, memoryview) and (value.ndim > 1 or value.itemsize > 1):
-            value = value.cast('B')
-        data_len = len(value)
-        if data_len:
-            assert data_len <= self.size
-            bp = ct.c_uint8 * data_len
+        value, value_len = buffer_bytes(value)
+        if value_len:
+            if value_len > self.size:
+                raise PiCameraValueError(
+                    'data is too large for buffer (%d > %d)' % (
+                        value_len, self.size))
+            bp = ct.c_uint8 * value_len
             try:
                 sp = bp.from_buffer(value)
             except TypeError:
                 sp = bp.from_buffer_copy(value)
             with self as buf:
-                ct.memmove(buf, sp, data_len)
+                ct.memmove(buf, sp, value_len)
         self._buf[0].offset = 0
-        self._buf[0].length = data_len
+        self._buf[0].length = value_len
     data = property(_get_data, _set_data, doc="""\
         The data held in the buffer as a :class:`bytes` string. You can set
         this attribute to modify the data in the buffer. Acceptable values

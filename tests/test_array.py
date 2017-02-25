@@ -309,6 +309,50 @@ def test_overlay_array2(camera, mode):
     camera.remove_overlay(overlay)
     assert not camera.overlays
 
+def test_overlay_array3(camera, mode):
+    resolution, framerate = mode
+    # Construct an array 32x32x3 array, make sure it's auto-detected as RGB
+    a = np.zeros((32, 32, 3), dtype=np.uint8)
+    overlay = camera.add_overlay(a, (32, 32))
+    try:
+        assert overlay.renderer.inputs[0].format == mmal.MMAL_ENCODING_RGB24
+    finally:
+        camera.remove_overlay(overlay)
+    # Make sure it works with an explicit specification of RGB or BGR
+    overlay = camera.add_overlay(a, (32, 32), 'rgb')
+    try:
+        assert overlay.renderer.inputs[0].format == mmal.MMAL_ENCODING_RGB24
+    finally:
+        camera.remove_overlay(overlay)
+    overlay = camera.add_overlay(a, (32, 32), 'bgr')
+    try:
+        assert overlay.renderer.inputs[0].format == mmal.MMAL_ENCODING_BGR24
+    finally:
+        camera.remove_overlay(overlay)
+    # Construct an array 32x32x4 array, make sure it's auto-detected as RGBA
+    a = np.zeros((32, 32, 4), dtype=np.uint8)
+    overlay = camera.add_overlay(a, (32, 32))
+    try:
+        assert overlay.renderer.inputs[0].format == mmal.MMAL_ENCODING_RGBA
+    finally:
+        camera.remove_overlay(overlay)
+    # Make sure it works with an explicit specification of RGBA or BGRA
+    overlay = camera.add_overlay(a, (32, 32), 'rgba')
+    try:
+        assert overlay.renderer.inputs[0].format == mmal.MMAL_ENCODING_RGBA
+    finally:
+        camera.remove_overlay(overlay)
+    overlay = camera.add_overlay(a, (32, 32), 'bgra')
+    try:
+        assert overlay.renderer.inputs[0].format == mmal.MMAL_ENCODING_BGRA
+    finally:
+        camera.remove_overlay(overlay)
+    # Make sure it fails with RGB or BGR
+    with pytest.raises(picamera.PiCameraError):
+        overlay = camera.add_overlay(a, (32, 32), 'rgb')
+    with pytest.raises(picamera.PiCameraError):
+        overlay = camera.add_overlay(a, (32, 32), 'bgr')
+
 def test_bayer_bad(camera):
     stream = picamera.array.PiBayerArray(camera)
     stream.write(b'\x00' * 12000000)
