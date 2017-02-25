@@ -1,3 +1,45 @@
+picamera (1.13) stable; urgency=low
+
+  * 10 second captures should now work with the V2 module as the default
+    CAPTURE_TIMEOUT has been increased to 60 seconds (#284)
+  * A bug in PiCameraCircularIO.copy_to caused it to copy nothing when it
+    encountered "unknown" timestamps in the stream (#302, #319, #357)
+  * A silly typo in code used by PiRGBArray was fixed (#321)
+  * A bug in PiCamera.capture_continuous which caused duplicate frames in the
+    output was fixed (#311)
+  * Bitrate limits were removed on MJPEG, and full checking of H264 bitrates
+    and macroblocks/s was implemented (#315)
+  * A bug was fixed in the sensor_mode attribute which prevented it from being
+    set after construction (#324)
+  * A bug in the custom encoders example was fixed (#337)
+  * Fixed a rare race condition that occurred when multiple splitter ports were
+    in use (#344)
+  * Recording overlays is now possible, but currently requires using the lower
+    level mmalobj layer (#196)
+  * Capturing YUV arrays via PiYUVArray is faster, thanks to GitHub user
+    goosst (#308)
+  * Added the ability to specify a restart interval for JPEG encoding (#369)
+  * Added a property allowing users to manually specify a framerate_range for
+    the camera (#374)
+  * Added support for partially transparent overlays in RGBA format (#199)
+  * Improved MJPEG web-streaming recipe, many thanks to GitHub user BigNerd95!
+    (#375)
+  * The Advanced Recipes chapter has been thoroughly re-worked and I would
+    encourage anyone using the camera for Computer Vision purposes to re-read
+    that chapter
+  * The Camera Hardware chapter has been extended to include a thorough
+    introduction to the low level operation of the camera module. This is
+    important for understanding the limitations and peculiarities of the
+    system
+  * Anyone interested in using a lower level API to control the camera (which
+    includes capabilities like manipulating frames before they hit the video
+    encoder) should read the API - mmalobj chapter
+  * Finally, some work was done on enhancing the PDF and EPub versions of the
+    documentation. These should now be much more useable in hard-copy and on
+    e-readers
+
+ -- Dave Jones <dave@waveform.org.uk>  Sat, 25 Feb 2017 20:12:34 +0000
+
 picamera (1.12) stable; urgency=low
 
   * Fixed issue with unencoded captures in Python 3 (#297)
