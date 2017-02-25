@@ -7,7 +7,7 @@ Change log
 .. currentmodule:: picamera
 
 
-Release 1.13 (2017-02-24)
+Release 1.13 (2017-02-25)
 =========================
 
 1.13 includes numerous bug fixes and several major enhancements, mostly in the
@@ -35,6 +35,9 @@ Release 1.13 (2017-02-24)
 * Added the ability to specify a restart interval for JPEG encoding (`#369`_)
 * Added a property allowing users to manually specify a
   :attr:`~PiCamera.framerate_range` for the camera (`#374`_)
+* Added support for partially transparent overlays in RGBA format (`#199`_)
+* Improved MJPEG web-streaming recipe, many thanks to GitHub user BigNerd95!
+  (`#375`_)
 
 Substantial work has also gone into improving the documentation. In particular:
 
@@ -52,6 +55,7 @@ Substantial work has also gone into improving the documentation. In particular:
   e-readers
 
 .. _#196: https://github.com/waveform80/picamera/issues/196
+.. _#199: https://github.com/waveform80/picamera/issues/199
 .. _#284: https://github.com/waveform80/picamera/issues/284
 .. _#302: https://github.com/waveform80/picamera/issues/302
 .. _#308: https://github.com/waveform80/picamera/issues/308
@@ -65,6 +69,7 @@ Substantial work has also gone into improving the documentation. In particular:
 .. _#357: https://github.com/waveform80/picamera/issues/357
 .. _#369: https://github.com/waveform80/picamera/issues/369
 .. _#374: https://github.com/waveform80/picamera/issues/374
+.. _#375: https://github.com/waveform80/picamera/issues/375
 
 
 Release 1.12 (2016-07-03)
