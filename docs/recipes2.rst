@@ -432,7 +432,7 @@ Unencoded video capture
 =======================
 
 Just as unencoded RGB data can be captured as images, the Pi's camera module
-can also an unencoded stream of RGB (or YUV) video data. Combining this with
+can also capture an unencoded stream of RGB (or YUV) video data. Combining this with
 the methods presented in :ref:`custom_outputs` (via the classes from
 :mod:`picamera.array`), we can produce a fairly rapid color detection script:
 

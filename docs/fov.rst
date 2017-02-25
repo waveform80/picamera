@@ -283,7 +283,7 @@ is largely determined by how slow the sensor can be made to read lines (at the
 hardware level this is down to the size of registers for holding things like
 line read-out times).
 
-This can be expression in the word equation:
+This can be expressed in the word equation:
 :math:`\frac{1\text{s}}{\text{min framerate in fps}} = \text{max exposure time
 in s}`
 
@@ -571,7 +571,7 @@ in the ISP). It tweaks the analog and digital gains, and the exposure time
 
 Likewise, when :attr:`~PiCamera.awb_mode` is not ``'off'``, automatic white
 balance (AWB) gathers statistics from frames (again, prior to de-mosaic).
-Typically AWB anslysis only occurs on 1 out of every 3 streamed frames as it is
+Typically AWB analysis only occurs on 1 out of every 3 streamed frames as it is
 computationally expensive. It adjusts the red and blue gains
 (:attr:`~PiCamera.awb_gains`) attempting to nudge subsequent frames towards the
 expected `color balance`_.
