@@ -410,7 +410,7 @@ class PiOverlayRenderer(PiRenderer):
             self.renderer.inputs[0].framesize = parent.resolution
         self.renderer.inputs[0].framerate = 0
         if format is None:
-            source, source_len = mo.buffer_bytes(source)
+            source_len = mo.buffer_bytes(source)
             plane_size = self.renderer.inputs[0].framesize.pad()
             plane_len = plane_size.width * plane_size.height
             try:

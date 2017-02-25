@@ -49,6 +49,8 @@ from threading import Thread, Event
 from collections import namedtuple
 from fractions import Fraction
 from itertools import cycle
+from functools import reduce
+from operator import mul
 
 from . import bcm_host, mmal
 from .streams import BufferIO
@@ -456,22 +458,12 @@ def to_rational(value):
 def buffer_bytes(buf):
     """
     Given an object which implements the :ref:`buffer protocol
-    <bufferobjects>`, this function returns a tuple consisting of a
-    :ref:`memoryview` object cast to a one-dimensional buffer of unsigned
-    bytes, and the length of the object.
+    <bufferobjects>`, this function returns the size of the object in bytes.
+    The object can be multi-dimensional or include items larger than byte-size.
     """
     if not isinstance(buf, memoryview):
-        buf = memoryview(buf)
-    if buf.ndim > 1 or buf.itemsize > 1:
-        try:
-            # On Python 3 we can just cast the memory to unsigned bytes
-            buf = buf.cast('B')
-        except AttributeError:
-            # On Python 2 we re-construct the memory as a byte-string; this is
-            # much less efficient (involves copying the entire buffer) but
-            # Python 2 lacks cast()
-            buf = memoryview(buf.tobytes())
-    return buf, len(buf)
+        m = memoryview(buf)
+    return m.itemsize * reduce(mul, m.shape)
 
 
 def debug_pipeline(port):
@@ -1613,7 +1605,7 @@ class MMALBuffer(object):
                 ct.byref(buf, self._buf[0].offset),
                 self._buf[0].length)
     def _set_data(self, value):
-        value, value_len = buffer_bytes(value)
+        value_len = buffer_bytes(value)
         if value_len:
             if value_len > self.size:
                 raise PiCameraValueError(

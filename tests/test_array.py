@@ -336,15 +336,11 @@ def test_overlay_array3(camera, mode):
         assert overlay.renderer.inputs[0].format == mmal.MMAL_ENCODING_RGBA
     finally:
         camera.remove_overlay(overlay)
-    # Make sure it works with an explicit specification of RGBA or BGRA
+    # Make sure it works with an explicit specification of RGBA (we don't
+    # test BGRA as old firmwares don't supported it on renderers)
     overlay = camera.add_overlay(a, (32, 32), 'rgba')
     try:
         assert overlay.renderer.inputs[0].format == mmal.MMAL_ENCODING_RGBA
-    finally:
-        camera.remove_overlay(overlay)
-    overlay = camera.add_overlay(a, (32, 32), 'bgra')
-    try:
-        assert overlay.renderer.inputs[0].format == mmal.MMAL_ENCODING_BGRA
     finally:
         camera.remove_overlay(overlay)
     # Make sure it fails with RGB or BGR
