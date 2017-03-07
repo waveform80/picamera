@@ -4,7 +4,7 @@
 License
 =======
 
-Copyright 2013-2015 `Dave Jones`_
+Copyright 2013-2017 `Dave Jones`_
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
