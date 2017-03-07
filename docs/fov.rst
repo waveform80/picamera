@@ -562,22 +562,25 @@ recorded. The components that data passes through are as follows:
 Feedback loops
 --------------
 
-There are a couple of feedback loops running within the pipeline described
-above. When :attr:`~PiCamera.exposure_mode` is not ``'off'``, automatic gain
+There are a couple of feedback loops running within the process described
+above:
+1. When :attr:`~PiCamera.exposure_mode` is not ``'off'``, automatic gain
 control (AGC) gathers statistics from each frame (prior to the de-mosaic phase
-in the ISP). It tweaks the analog and digital gains, and the exposure time
-(line read-out time) attempting to nudge subsequent frames towards a target Y
+in the ISP, step 3 in the previous diagram). The AGC tweaks the analog and digital gains, and the exposure time
+(line read-out time), attempting to nudge subsequent frames towards a target Y
 (`luminance`_) value.
 
-Likewise, when :attr:`~PiCamera.awb_mode` is not ``'off'``, automatic white
-balance (AWB) gathers statistics from frames (again, prior to de-mosaic).
-Typically AWB analysis only occurs on 1 out of every 3 streamed frames as it is
+.. Is not off really the best way to phrase this, is this all the settings will allow. Can't you just say "on".
+
+2. When :attr:`~PiCamera.awb_mode` is not ``'off'``, automatic white
+balance (AWB) gathers statistics from frames (again, prior to the de-mosaic phase).
+Typically AWB analysis only occurs on 1 out of every 3 streamed frames because it is
 computationally expensive. It adjusts the red and blue gains
-(:attr:`~PiCamera.awb_gains`) attempting to nudge subsequent frames towards the
+(:attr:`~PiCamera.awb_gains`), attempting to nudge subsequent frames towards the
 expected `color balance`_.
 
-You can observe the effect of the AGC loop quite easily during daylight.
-Ensure the camera module is pointed at something bright like the sky or the
+|**You can observe the effect of the AGC loop quite easily during daylight.**
+|Ensure the camera module is pointed at something bright, like the sky or the
 view through a window, and query the camera's analog gain and exposure time:
 
 .. code-block:: pycon
@@ -601,9 +604,9 @@ firmware has drastically reduced it to compensate for the higher sensor gain:
     198
 
 You can force a longer exposure time with the :attr:`~PiCamera.shutter_speed`
-attribute at which point the scene will become quite washed out (because both
-the gain and exposure time are now fixed). If you let the gain float again by
-setting :attr:`~PiCamera.iso` back to automatic (0) you should find the gain
+attribute, at which point the scene will become quite washed out, because both
+the gain and exposure time are now fixed. If you let the gain float again by
+setting :attr:`~PiCamera.iso` back to automatic (0), you should find the gain
 reduces accordingly and the scene returns more or less to normal:
 
 .. code-block:: pycon
@@ -617,11 +620,11 @@ reduces accordingly and the scene returns more or less to normal:
 
 The camera's AGC loop attempts to produce a scene with a target Y
 (`luminance`_) value (or values) within the constraints set by things like ISO,
-shutter speed, and so forth. The target Y' value can be adjusted with the
-:attr:`~PiCamera.exposure_compensation` attribute which is measured in
+shutter speed, and so forth. The target Y value can be adjusted with the
+:attr:`~PiCamera.exposure_compensation` attribute, which is measured in
 increments of 1/6th of an `f-stop`_. So if, whilst the exposure time is fixed,
-you increase the luminance that the camera is aiming for by a couple of stops,
-then wait a few seconds you should find that the gain has increased
+you increase the luminance that the camera is aiming for by a couple of stops and
+then wait a few seconds, you should find that the gain has increased
 accordingly:
 
 .. code-block:: pycon
@@ -699,15 +702,15 @@ On the V2 module, these are:
 
 .. note::
 
-    Sensor mode 3 on the V2 module appears to be a duplicate, but this is
+    Sensor mode 3 on the V2 module appears to be a duplicate of sensor mode 2, but this is
     deliberate. The sensor modes of the V2 module were designed to mimic the
     closest equivalent sensor modes of the V1 module. Long exposures on the
     V1 module required a separate sensor mode; this wasn't required on the V2
     module leading to the duplication of mode 2.
 
-Modes with full `field of view`_ (FoV) capture from the whole area of the
+Modes with full `field of view`_ (FoV) capture images from the whole area of the
 camera's sensor (2592x1944 pixels for the V1 camera, 3280x2464 for the V2
-camera).  Modes with partial FoV capture from the center of the sensor. The
+camera).  Modes with partial FoV capture images just from the center of the sensor. The
 combination of FoV limiting, and `binning`_ is used to achieve the requested
 resolution.
 
@@ -717,6 +720,8 @@ view for the V1 camera:
 .. image:: images/sensor_area_1.png
     :width: 640px
     :align: center
+    
+.. Could do with the inner frames on this image being labelled as partial FoV.
 
 While the various fields of view for the V2 camera are illustrated in the
 following image:
@@ -724,10 +729,12 @@ following image:
 .. image:: images/sensor_area_2.png
     :width: 640px
     :align: center
+    
+.. See comment on previous image
 
-The sensor's mode can be forced with the *sensor_mode* parameter in the
-:class:`PiCamera` constructor (using one of the values from the # column in the
-tables above). This parameter defaults to 0 indicating that the mode should be
+You can manually select the sensor's mode with the *sensor_mode* parameter in the
+:class:`PiCamera` constructor, using one of the values from the # column in the
+tables above. This parameter defaults to 0, indicating that the mode should be
 selected automatically based on the requested :attr:`~PiCamera.resolution` and
 :attr:`~PiCamera.framerate`. The rules governing which sensor mode is selected
 are as follows:
@@ -739,9 +746,9 @@ are as follows:
   only two exist, both with the maximum resolution).
 
 * The closer the requested :attr:`~PiCamera.resolution` is to the mode's
-  resolution the better, but downscaling from a higher sensor resolution to a
+  resolution, the better. Downscaling from a higher sensor resolution to a
   lower output resolution is preferable to upscaling from a lower sensor
-  resolution.
+  resolution to a higher output resolution.
 
 * The requested :attr:`~PiCamera.framerate` should be within the range of the
   sensor mode.
@@ -749,22 +756,21 @@ are as follows:
 * The closer the aspect ratio of the requested :attr:`~PiCamera.resolution` to
   the mode's resolution, the better. Attempts to set resolutions with aspect
   ratios other than 4:3 or 16:9 (which are the only ratios directly supported
-  by the modes in the tables above) will choose the mode which maximizes the
+  by the modes in the tables above), result in the selection of the mode which maximizes the
   resulting `field of view`_ (FoV).
 
-A few examples are given below to clarify the operation of this heuristic (note
-these examples assume the V1 camera module):
+Here are a few examples for the V1 camera module to clarify the operation of this process:
 
 * If you set the :attr:`~PiCamera.resolution` to 1024x768 (a 4:3 aspect ratio),
-  and :attr:`~PiCamera.framerate` to anything less than 42fps, the 1296x972
+  and the :attr:`~PiCamera.framerate` to anything less than 42fps, the 1296x972
   mode (4) will be selected, and the GPU will downscale the result to
   1024x768.
 
 * If you set the :attr:`~PiCamera.resolution` to 1280x720 (a 16:9 wide-screen
-  aspect ratio), and :attr:`~PiCamera.framerate` to anything less than 49fps,
+  aspect ratio), and the :attr:`~PiCamera.framerate` to anything less than 49fps,
   the 1296x730 mode (5) will be selected and downscaled appropriately.
 
-* Setting :attr:`~PiCamera.resolution` to 1920x1080 and
+* Setting the :attr:`~PiCamera.resolution` to 1920x1080 and the
   :attr:`~PiCamera.framerate` to 30fps exceeds the resolution of both the
   1296x730 and 1296x972 modes (i.e. they would require upscaling), so the
   1920x1080 mode (1) is selected instead, despite it having a reduced FoV.
@@ -779,6 +785,28 @@ these examples assume the V1 camera module):
   is what causes the flicker you sometimes see when a preview is running while
   a still image is captured).
 
+.. I think most of this information would be much better expressed as a table ans subsequent sentence, I have attempted below
+
++--------------------------------+-----------------+------------------------------------------------------+
+| Resolution                     | Framerate (fps) | Result                                               |
++================================+=================+======================================================+
+| 1024x768 (a 4:3 aspect ratio)  | < 42            | The 1296x972 mode (4) will be selected, and the GPU  |
+|                                |                 | will downscale the result to 1024x768.               |
++--------------------------------+-----------------+------------------------------------------------------+
+| 1280x720 (a 16:9 wide-screen   | < 49            | The 1296x730 mode (5) will be selected and           |
+| aspect ratio)                  |                 | downscaled appropriately.                            |
++--------------------------------+-----------------+------------------------------------------------------+
+| 1920x1080                      | 30              | This exceeds the resolution of both the 1296x730 and |
+|                                |                 | 1296x972 modes (i.e. they would require upscaling),  | 
+|                                |                 | so the 1920x1080 mode (1) is selected instead,       |
+|                                |                 | despite it having a reduced FoV.                     |
++--------------------------------+-----------------+------------------------------------------------------+
+| 800x600                        | 60              | This selects the 640x480 60fps mode, even though it  |                             
+|                                |                 | requires upscaling because the algorithm considers   |
+|                                |                 | the framerate to take precedence in this case.       |
++--------------------------------+-----------------+------------------------------------------------------+
+
+Any attempt to capture an image without using the video port will (temporarily) select the 2592x1944 mode while the capture is performed (this is what causes the flicker you sometimes see when a preview is running while a still image is captured).
 
 .. _hardware_limits:
 
@@ -797,19 +825,19 @@ image and video processing:
   higher horizontal resolutions will fail.
 
 * The maximum resolution of the V2 camera may require additional GPU memory
-  when operating at low framerates (<1fps). Increase ``gpu_mem`` in
-  ``/boot/config.txt`` if you encounter "out of resources" errors when
-  attempting long-exposure captures with a V2 module.
+  when operating at low framerates (<1fps). If you encounter "out of resources" errors when
+  attempting long-exposure captures with a V2 module, increase ``gpu_mem`` in
+  ``/boot/config.txt``.
 
 * The maximum resolution of the V2 camera can also cause issues with previews.
   Currently, picamera runs previews at the same resolution as captures
-  (equivalent to ``-fp`` in ``raspistill``).  You may need to increase
-  ``gpu_mem`` in ``/boot/config.txt`` to achieve full resolution operation with
-  the V2 camera module, or configure the preview to use a lower
+  (equivalent to ``-fp`` in ``raspistill``). To achieve full resolution operation with
+  the V2 camera module, you may need to increase
+  ``gpu_mem`` in ``/boot/config.txt``, or configure the preview to use a lower
   :attr:`~PiPreviewRenderer.resolution` than the camera itself.
 
 * The maximum framerate of the camera depends on several factors. With
-  overclocking, 120fps has been achieved on a V2 module but 90fps is the
+  overclocking, 120fps has been achieved on a V2 module, but 90fps is the
   maximum supported framerate.
 
 * The maximum exposure time is currently 6 seconds on the V1 camera
@@ -826,18 +854,19 @@ MMAL
 
 The MMAL layer below picamera provides a greatly simplified interface to the
 camera firmware running on the GPU. Conceptually, it presents the camera with
-three "ports": the still port, the video port, and the preview port. The
+three "ports": the **still port**, the **video port**, and the **preview port**. The
 following sections describe how these ports are used by picamera and how they
 influence the camera's behaviour.
 
 The Still Port
 --------------
 
-Firstly, the still port. Whenever this is used to capture images, it (briefly)
+Whenever the still port is used to capture images, it (briefly)
 forces the camera's mode to one of the two supported still modes (see
-:ref:`camera_modes`) so that images are captured using the full area of the
+:ref:`camera_modes`), meaning that images are captured using the full area of the
 sensor. It also uses a strong noise reduction algorithm on captured images so
 that they appear higher quality.
+.. They "appear" to be higher quality, or they "are" higher quality? This almost makes it seem like the images appear to be a higher quality than they actually are.
 
 The still port is used by the various :meth:`~PiCamera.capture` methods when
 their *use_video_port* parameter is ``False`` (which it is by default).
@@ -847,11 +876,11 @@ The Video Port
 
 The video port is somewhat simpler in that it never changes the camera's mode.
 The video port is used by the :meth:`~PiCamera.start_recording` method (for
-recording video), and is also used by the various :meth:`~PiCamera.capture`
+recording video), and also by the various :meth:`~PiCamera.capture`
 methods when their *use_video_port* parameter is ``True``. Images captured from
 the video port tend to have a "grainy" appearance, much more akin to a video
-frame than the images captured by the still port (this is due to the still port
-using the stronger noise reduction algorithm).
+frame than the images captured by the still port. This is because the still port
+uses a stronger noise reduction algorithm than the video port.
 
 The Preview Port
 ----------------
@@ -868,7 +897,7 @@ sink is destroyed and the preview port is connected to an instance of
 Pipelines
 ---------
 
-This section attempts to provide detail of what MMAL pipelines picamera
+This section provides some detail about the MMAL pipelines picamera
 constructs in response to various method calls.
 
 The firmware provides various encoders which can be attached to the still and
@@ -882,6 +911,8 @@ these states:
 
 .. image:: images/still_port_capture.*
     :align: center
+    
+.. The text in these images is too small to read easily. They could do with some adjustment. Given that you are building up complexity in this document, I would leave the splitter off this diagram and simply introduce it in the next one. It makes me think I am missing something in the text until I go on to the next bit and find out about it. For this diagram it is unnecessary.
 
 As you have probably noticed in the diagram above, the video port is a little
 more complex. In order to permit simultaneous video recording and image capture
@@ -898,27 +929,29 @@ the camera's configuration moves through the following states:
 
 .. image:: images/video_port_capture.*
     :align: center
+    
+.. Stick with "record" or "recording" but don't switch between the two, it makes it seem like the two are different somehow.
 
-When the ``resize`` parameter is passed to one of the aforementioned methods, a
+When the ``resize`` parameter is passed to one of the methods above, a
 resizer component is placed between the camera's ports and the encoder, causing
 the output to be resized before it reaches the encoder. This is particularly
 useful for video recording, as the H.264 encoder cannot cope with full
 resolution input (the GPU hardware can only handle frame widths up to 1920
-pixels). Hence, when performing full frame video recording, the camera's setup
+pixels). So, when performing full frame video recording, the camera's setup
 looks like this:
 
 .. image:: images/video_fullfov_record.*
     :align: center
 
-Finally, when performing unencoded captures an encoder is (naturally) not
-required.  Instead data is taken directly from the camera's ports. However,
-various firmware limitations require acrobatics in the pipeline to achieve
-requested encodings.
+Finally, when performing unencoded captures an encoder is obviously not
+required.  Instead, data is taken directly from the camera's ports. However,
+various firmware limitations require adjustments within the pipeline in order to achieve
+the requested encodings.
 
 For example, in older firmwares the camera's still port cannot be configured
-for RGB output (due to a faulty buffer size check). However, they can be
-configured for YUV output so in this case picamera configures the still port
-for YUV output, attaches as resizer (configured with the same input and output
+for RGB output (due to a faulty buffer size check), but they can be
+configured for YUV output. So in this case, picamera configures the still port
+for YUV output, attaches a resizer (configured with the same input and output
 resolution), then configures the resizer's output for RGBA (the resizer doesn't
 support RGB for some reason). It then runs the capture and strips the redundant
 alpha bytes off the data.
@@ -933,20 +966,20 @@ Encodings
 ---------
 
 The ports used to connect MMAL components together pass image data around in
-particular encodings. Often, this is the `YUV420`_ encoding (this is the
-"preferred" internal format for the pipeline). On rare occasions, it is `RGB`_
-(RGB is a large and rather inefficient format). However, another format
-sometimes used is the "OPAQUE" encoding.
+particular encodings. Often, this is the `YUV420`_ encoding, this is the
+"preferred" internal format for the pipeline, and on rare occasions it's `RGB`_
+(RGB is a large and rather inefficient format). However, there is another format
+available, called the "OPAQUE" encoding.
 
 "OPAQUE" is the most efficient encoding to use when connecting MMAL components
-as it simply passes pointers around under the hood rather than full frame data
+as it simply passes pointers (?) around under the hood rather than full frame data
 (as such it's not really an encoding at all, but it's treated as such by the
 MMAL framework). However, not all OPAQUE encodings are equivalent:
 
 * The preview port's OPAQUE encoding contains a single image.
 
-* The video port's OPAQUE encoding contains two images (used for motion
-  estimation by various encoders).
+* The video port's OPAQUE encoding contains two images. These are used for motion
+  estimation by various encoders.
 
 * The still port's OPAQUE encoding contains strips of a single image.
 
@@ -957,12 +990,12 @@ MMAL framework). However, not all OPAQUE encodings are equivalent:
 
 * The H264 video encoder in older firmwares only accepts the dual image
   OPAQUE format (it will accept full-frame YUV input instead though). In newer
-  firmwares it now accepts the single image OPAQUE format too (presumably
-  constructing the second image itself for motion estimation).
+  firmwares it now accepts the single image OPAQUE format too, presumably
+  constructing the second image itself for motion estimation.
 
 * The splitter accepts single or dual image OPAQUE input, but only outputs
-  single image OPAQUE input (or YUV; in later firmwares it also
-  supports RGB or BGR output).
+  single image OPAQUE input, or YUV. In later firmwares it also
+  supports RGB or BGR output.
 
 * The VPU resizer (:class:`~picamera.mmalobj.MMALResizer`) theoretically
   accepts OPAQUE input (though the author hasn't managed to get this working at
@@ -972,24 +1005,24 @@ MMAL framework). However, not all OPAQUE encodings are equivalent:
 * The ISP resizer (:class:`~picamera.mmalobj.MMALISPResizer`, not currently
   used by picamera's high level API, but available from the
   :mod:`~picamera.mmalobj` layer) accepts OPAQUE input, and will produce almost
-  any unencoded output (including YUV, RGB, BGR, RGBA, and BGRA) but not
+  any unencoded output, including YUV, RGB, BGR, RGBA, and BGRA, but not
   OPAQUE.
 
-The :mod:`~picamera.mmalobj` layer introduced in picamera 1.11 is aware of
+The :mod:`~picamera.mmalobj` layer, introduced in picamera 1.11, is aware of
 these OPAQUE encoding differences and attempts to configure connections between
 components using the most efficient formats possible. However, it is not aware
-of firmware revisions so if you're playing with MMAL components via this layer
+of firmware revisions, so if you're playing with MMAL components via this layer
 be prepared to do some tinkering to get your pipeline working.
 
 Please note that the description above is MMAL's greatly simplified
 presentation of the imaging pipeline. This is far removed from what actually
-happens at the GPU's ISP level (described roughly in earlier sections).
+happens at the GPU's ISP level (described roughly in earlier sections - link).
 However, as MMAL is the API under-pinning the picamera library (along with the
 official ``raspistill`` and ``raspivid`` applications) it is worth
 understanding.
 
-In other words, by using picamera you are passing through (at least) two
-abstraction layers which necessarily obscure (but hopefully simplify) the
+In other words, by using picamera you are passing through at least two
+abstraction layers, which necessarily obscure (but hopefully simplify) the
 "true" operation of the camera.
 
 

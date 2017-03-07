@@ -147,7 +147,7 @@ up to date:
     switch back to using ``apt`` to manage it with the following commands::
 
         $ sudo apt-get update
-        $ sudo apt-get install --reinstall libraspberrypi0 libraspberrypi-{bin,dev,doc} z
+        $ sudo apt-get install --reinstall libraspberrypi0 libraspberrypi-{bin,dev,doc} \
         >   raspberrypi-bootloader
         $ sudo rm /boot/.firmware_revision
 
