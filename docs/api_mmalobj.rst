@@ -464,7 +464,7 @@ to the input port:
 
 .. code-block:: pycon
 
-    >>> encoder.inputs[0].enable(lamdba port, buf: True)
+    >>> encoder.inputs[0].enable(lambda port, buf: True)
     >>> buf = encoder.inputs[0].get_buffer()
     >>> buf.data = rgb_data.read()
     >>> encoder.inputs[0].send_buffer(buf)
