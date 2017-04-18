@@ -96,7 +96,8 @@ class CustomInstallCommand(install):
     def run(self):
         # Make sure we're installing on a Raspberry Pi
         on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
-        if not on_rtd:
+        pi_gen = os.environ.get('PI_GEN', None) == 'True'
+        if not on_rtd and not pi_gen:
             try:
                 with io.open('/proc/cpuinfo', 'r') as cpuinfo:
                     found = False
