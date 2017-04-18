@@ -564,23 +564,22 @@ Feedback loops
 
 There are a couple of feedback loops running within the process described
 above:
+
 1. When :attr:`~PiCamera.exposure_mode` is not ``'off'``, automatic gain
-control (AGC) gathers statistics from each frame (prior to the de-mosaic phase
-in the ISP, step 3 in the previous diagram). The AGC tweaks the analog and digital gains, and the exposure time
-(line read-out time), attempting to nudge subsequent frames towards a target Y
-(`luminance`_) value.
+   control (AGC) gathers statistics from each frame (prior to the de-mosaic
+   phase in the ISP, step 3 in the previous diagram). The AGC tweaks the analog
+   and digital gains, and the exposure time (line read-out time), attempting to
+   nudge subsequent frames towards a target Y (`luminance`_) value.
 
-.. Is not off really the best way to phrase this, is this all the settings will allow. Can't you just say "on".
+2. When :attr:`~PiCamera.awb_mode` is not ``'off'``, automatic white balance
+   (AWB) gathers statistics from frames (again, prior to the de-mosaic phase).
+   Typically AWB analysis only occurs on 1 out of every 3 streamed frames
+   because it is computationally expensive. It adjusts the red and blue gains
+   (:attr:`~PiCamera.awb_gains`), attempting to nudge subsequent frames towards
+   the expected `color balance`_.
 
-2. When :attr:`~PiCamera.awb_mode` is not ``'off'``, automatic white
-balance (AWB) gathers statistics from frames (again, prior to the de-mosaic phase).
-Typically AWB analysis only occurs on 1 out of every 3 streamed frames because it is
-computationally expensive. It adjusts the red and blue gains
-(:attr:`~PiCamera.awb_gains`), attempting to nudge subsequent frames towards the
-expected `color balance`_.
-
-|**You can observe the effect of the AGC loop quite easily during daylight.**
-|Ensure the camera module is pointed at something bright, like the sky or the
+You can observe the effect of the AGC loop quite easily during daylight.
+Ensure the camera module is pointed at something bright, like the sky or the
 view through a window, and query the camera's analog gain and exposure time:
 
 .. code-block:: pycon
@@ -702,17 +701,17 @@ On the V2 module, these are:
 
 .. note::
 
-    Sensor mode 3 on the V2 module appears to be a duplicate of sensor mode 2, but this is
-    deliberate. The sensor modes of the V2 module were designed to mimic the
-    closest equivalent sensor modes of the V1 module. Long exposures on the
-    V1 module required a separate sensor mode; this wasn't required on the V2
-    module leading to the duplication of mode 2.
+    Sensor mode 3 on the V2 module appears to be a duplicate of sensor mode 2,
+    but this is deliberate. The sensor modes of the V2 module were designed to
+    mimic the closest equivalent sensor modes of the V1 module. Long exposures
+    on the V1 module required a separate sensor mode; this wasn't required on
+    the V2 module leading to the duplication of mode 2.
 
-Modes with full `field of view`_ (FoV) capture images from the whole area of the
-camera's sensor (2592x1944 pixels for the V1 camera, 3280x2464 for the V2
-camera).  Modes with partial FoV capture images just from the center of the sensor. The
-combination of FoV limiting, and `binning`_ is used to achieve the requested
-resolution.
+Modes with full `field of view`_ (FoV) capture images from the whole area of
+the camera's sensor (2592x1944 pixels for the V1 camera, 3280x2464 for the V2
+camera).  Modes with partial FoV capture images just from the center of the
+sensor. The combination of FoV limiting, and `binning`_ is used to achieve the
+requested resolution.
 
 The image below illustrates the difference between full and partial field of
 view for the V1 camera:
@@ -720,8 +719,6 @@ view for the V1 camera:
 .. image:: images/sensor_area_1.png
     :width: 640px
     :align: center
-    
-.. Could do with the inner frames on this image being labelled as partial FoV.
 
 While the various fields of view for the V2 camera are illustrated in the
 following image:
@@ -729,15 +726,13 @@ following image:
 .. image:: images/sensor_area_2.png
     :width: 640px
     :align: center
-    
-.. See comment on previous image
 
-You can manually select the sensor's mode with the *sensor_mode* parameter in the
-:class:`PiCamera` constructor, using one of the values from the # column in the
-tables above. This parameter defaults to 0, indicating that the mode should be
-selected automatically based on the requested :attr:`~PiCamera.resolution` and
-:attr:`~PiCamera.framerate`. The rules governing which sensor mode is selected
-are as follows:
+You can manually select the sensor's mode with the *sensor_mode* parameter in
+the :class:`PiCamera` constructor, using one of the values from the # column in
+the tables above. This parameter defaults to 0, indicating that the mode should
+be selected automatically based on the requested :attr:`~PiCamera.resolution`
+and :attr:`~PiCamera.framerate`. The rules governing which sensor mode is
+selected are as follows:
 
 * The capture mode must be acceptable. All modes can be used for video
   recording, or for image captures from the video port (i.e. when
@@ -756,10 +751,11 @@ are as follows:
 * The closer the aspect ratio of the requested :attr:`~PiCamera.resolution` to
   the mode's resolution, the better. Attempts to set resolutions with aspect
   ratios other than 4:3 or 16:9 (which are the only ratios directly supported
-  by the modes in the tables above), result in the selection of the mode which maximizes the
-  resulting `field of view`_ (FoV).
+  by the modes in the tables above), result in the selection of the mode which
+  maximizes the resulting `field of view`_ (FoV).
 
-Here are a few examples for the V1 camera module to clarify the operation of this process:
+Here are a few examples for the V1 camera module to clarify the operation of
+this process:
 
 * If you set the :attr:`~PiCamera.resolution` to 1024x768 (a 4:3 aspect ratio),
   and the :attr:`~PiCamera.framerate` to anything less than 42fps, the 1296x972
@@ -767,8 +763,8 @@ Here are a few examples for the V1 camera module to clarify the operation of thi
   1024x768.
 
 * If you set the :attr:`~PiCamera.resolution` to 1280x720 (a 16:9 wide-screen
-  aspect ratio), and the :attr:`~PiCamera.framerate` to anything less than 49fps,
-  the 1296x730 mode (5) will be selected and downscaled appropriately.
+  aspect ratio), and the :attr:`~PiCamera.framerate` to anything less than
+  49fps, the 1296x730 mode (5) will be selected and downscaled appropriately.
 
 * Setting the :attr:`~PiCamera.resolution` to 1920x1080 and the
   :attr:`~PiCamera.framerate` to 30fps exceeds the resolution of both the
@@ -797,11 +793,11 @@ Here are a few examples for the V1 camera module to clarify the operation of thi
 | aspect ratio)                  |                 | downscaled appropriately.                            |
 +--------------------------------+-----------------+------------------------------------------------------+
 | 1920x1080                      | 30              | This exceeds the resolution of both the 1296x730 and |
-|                                |                 | 1296x972 modes (i.e. they would require upscaling),  | 
+|                                |                 | 1296x972 modes (i.e. they would require upscaling),  |
 |                                |                 | so the 1920x1080 mode (1) is selected instead,       |
 |                                |                 | despite it having a reduced FoV.                     |
 +--------------------------------+-----------------+------------------------------------------------------+
-| 800x600                        | 60              | This selects the 640x480 60fps mode, even though it  |                             
+| 800x600                        | 60              | This selects the 640x480 60fps mode, even though it  |
 |                                |                 | requires upscaling because the algorithm considers   |
 |                                |                 | the framerate to take precedence in this case.       |
 +--------------------------------+-----------------+------------------------------------------------------+
@@ -911,7 +907,7 @@ these states:
 
 .. image:: images/still_port_capture.*
     :align: center
-    
+
 .. The text in these images is too small to read easily. They could do with some adjustment. Given that you are building up complexity in this document, I would leave the splitter off this diagram and simply introduce it in the next one. It makes me think I am missing something in the text until I go on to the next bit and find out about it. For this diagram it is unnecessary.
 
 As you have probably noticed in the diagram above, the video port is a little
@@ -929,8 +925,6 @@ the camera's configuration moves through the following states:
 
 .. image:: images/video_port_capture.*
     :align: center
-    
-.. Stick with "record" or "recording" but don't switch between the two, it makes it seem like the two are different somehow.
 
 When the ``resize`` parameter is passed to one of the methods above, a
 resizer component is placed between the camera's ports and the encoder, causing

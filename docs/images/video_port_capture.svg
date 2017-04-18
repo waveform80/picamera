@@ -13,7 +13,7 @@
    height="419.91068"
    id="svg5772"
    version="1.1"
-   inkscape:version="0.48.4 r9939"
+   inkscape:version="0.91 r13725"
    sodipodi:docname="video_port_capture.svg">
   <defs
      id="defs5774">
@@ -39,17 +39,17 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="0.98994949"
-     inkscape:cx="358.33432"
-     inkscape:cy="195.38528"
+     inkscape:zoom="1.979899"
+     inkscape:cx="316.6207"
+     inkscape:cy="300.86369"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="false"
-     inkscape:window-width="958"
-     inkscape:window-height="1027"
-     inkscape:window-x="960"
+     inkscape:window-width="1920"
+     inkscape:window-height="1056"
+     inkscape:window-x="0"
      inkscape:window-y="24"
-     inkscape:window-maximized="0"
+     inkscape:window-maximized="1"
      fit-margin-top="0"
      fit-margin-left="0"
      fit-margin-right="0"
@@ -62,7 +62,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -220,7 +220,7 @@
          style="fill:none;stroke:#222222;stroke-width:2;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none" />
       <path
          transform="translate(-49.500007,-32.785716)"
-         d="m 116.78572,103.07647 c 0,8.08703 -6.55583,14.64286 -14.64286,14.64286 -8.087027,0 -14.642857,-6.55583 -14.642857,-14.64286 0,-8.087027 6.55583,-14.642858 14.642857,-14.642858 8.08703,0 14.64286,6.555831 14.64286,14.642858 z"
+         d="M 116.78572,103.07647 A 14.642858,14.642858 0 0 1 102.14286,117.71933 14.642858,14.642858 0 0 1 87.500003,103.07647 14.642858,14.642858 0 0 1 102.14286,88.433612 14.642858,14.642858 0 0 1 116.78572,103.07647 Z"
          sodipodi:ry="14.642858"
          sodipodi:rx="14.642858"
          sodipodi:cy="103.07647"
@@ -281,7 +281,7 @@
     </g>
     <path
        style="fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       d="M 153.66096,88.307778 177.12494,75.587607"
+       d="M 153.66096,88.307778 177.12494,75.587606"
        id="path3963"
        inkscape:connector-type="polyline"
        inkscape:connector-curvature="0"
@@ -481,7 +481,7 @@
          sodipodi:cy="103.07647"
          sodipodi:rx="14.642858"
          sodipodi:ry="14.642858"
-         d="m 116.78572,103.07647 c 0,8.08703 -6.55583,14.64286 -14.64286,14.64286 -8.087027,0 -14.642857,-6.55583 -14.642857,-14.64286 0,-8.087027 6.55583,-14.642858 14.642857,-14.642858 8.08703,0 14.64286,6.555831 14.64286,14.642858 z"
+         d="M 116.78572,103.07647 A 14.642858,14.642858 0 0 1 102.14286,117.71933 14.642858,14.642858 0 0 1 87.500003,103.07647 14.642858,14.642858 0 0 1 102.14286,88.433612 14.642858,14.642858 0 0 1 116.78572,103.07647 Z"
          transform="translate(-49.500007,-32.785716)" />
       <rect
          style="fill:none;stroke:#222222;stroke-width:2;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0"
@@ -594,7 +594,7 @@
            y="25.037045" /></flowRegion><flowPara
          id="flowPara6289" /></flowRoot>    <text
        xml:space="preserve"
-       style="font-size:9px;font-style:normal;font-weight:bold;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans;-inkscape-font-specification:Sans Bold"
+       style="font-style:normal;font-weight:bold;font-size:9px;line-height:125%;font-family:Sans;-inkscape-font-specification:'Sans Bold';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none"
        x="187.88837"
        y="29.077654"
        id="text6291"
@@ -602,10 +602,10 @@
          sodipodi:role="line"
          id="tspan6293"
          x="187.88837"
-         y="29.077654">1. Before record</tspan></text>
+         y="29.077654">1. Before recording</tspan></text>
     <text
        xml:space="preserve"
-       style="font-size:9px;font-style:normal;font-weight:bold;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans;-inkscape-font-specification:Sans Bold"
+       style="font-style:normal;font-weight:bold;font-size:9px;line-height:125%;font-family:Sans;-inkscape-font-specification:'Sans Bold';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none"
        x="405.07114"
        y="32.108112"
        id="text6295"
@@ -613,10 +613,10 @@
          sodipodi:role="line"
          id="tspan6297"
          x="405.07114"
-         y="32.108112">2. During record</tspan></text>
+         y="32.108112">2. During recording</tspan></text>
     <text
        xml:space="preserve"
-       style="font-size:9px;font-style:normal;font-weight:bold;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans;-inkscape-font-specification:Sans Bold"
+       style="font-style:normal;font-weight:bold;font-size:9px;line-height:125%;font-family:Sans;-inkscape-font-specification:'Sans Bold';text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none"
        x="162.63457"
        y="193.73253"
        id="text6299"
@@ -624,7 +624,7 @@
          sodipodi:role="line"
          id="tspan6301"
          x="162.63457"
-         y="193.73253">5. After record</tspan></text>
+         y="193.73253">5. After recording</tspan></text>
     <path
        style="fill:none;stroke:#000000;stroke-width:4;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;marker-end:url(#Arrow1Mend)"
        d="m 247.48737,72.514214 c 36.36549,-37.637274 72.73099,-29.497252 109.09648,0"
@@ -821,7 +821,7 @@
          style="fill:none;stroke:#222222;stroke-width:2;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none" />
       <path
          transform="translate(-49.500007,-32.785716)"
-         d="m 116.78572,103.07647 c 0,8.08703 -6.55583,14.64286 -14.64286,14.64286 -8.087027,0 -14.642857,-6.55583 -14.642857,-14.64286 0,-8.087027 6.55583,-14.642858 14.642857,-14.642858 8.08703,0 14.64286,6.555831 14.64286,14.642858 z"
+         d="M 116.78572,103.07647 A 14.642858,14.642858 0 0 1 102.14286,117.71933 14.642858,14.642858 0 0 1 87.500003,103.07647 14.642858,14.642858 0 0 1 102.14286,88.433612 14.642858,14.642858 0 0 1 116.78572,103.07647 Z"
          sodipodi:ry="14.642858"
          sodipodi:rx="14.642858"
          sodipodi:cy="103.07647"
