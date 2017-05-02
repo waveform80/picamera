@@ -1,7 +1,7 @@
 # vim: set et sw=4 sts=4 fileencoding=utf-8:
 #
 # Python camera library for the Rasperry-Pi camera module
-# Copyright (c) 2013-2017 Dave Jones <dave@waveform.org.uk>
+# Copyright (c) 2013-2015 Dave Jones <dave@waveform.org.uk>
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -71,7 +71,7 @@ class PiRenderer(object):
 
     def __init__(
             self, parent, layer=0, alpha=255, fullscreen=True, window=None,
-            crop=None, rotation=0, vflip=False, hflip=False):
+            crop=None, rotation=0, vflip=False, hflip=False, noaspect=False):
         # Create and enable the renderer component
         self._rotation = 0
         self._vflip = False
@@ -81,6 +81,7 @@ class PiRenderer(object):
             self.layer = layer
             self.alpha = alpha
             self.fullscreen = fullscreen
+            self.noaspect = noaspect
             if window is not None:
                 self.window = window
             if crop is not None:
@@ -175,6 +176,23 @@ class PiRenderer(object):
         :attr:`window` property can be used to control the precise size of the
         renderer display. The property can be set while recordings or previews
         are active.
+        """)
+
+    def _get_noaspect(self):
+        return self.renderer.inputs[0].params[mmal.MMAL_PARAMETER_DISPLAYREGION].noaspect.value != mmal.MMAL_FALSE
+    def _set_noaspect(self, value):
+        mp = self.renderer.inputs[0].params[mmal.MMAL_PARAMETER_DISPLAYREGION]
+        mp.set = mmal.MMAL_DISPLAY_SET_NOASPECT
+        mp.noaspect = bool(value)
+        self.renderer.inputs[0].params[mmal.MMAL_PARAMETER_DISPLAYREGION] = mp
+    noaspect = property(_get_noaspect, _set_noaspect, doc="""\
+        Retrieves or sets whether the renderer respects the aspect ratio.
+
+        The :attr:`noaspect` property is a bool which controls whether the
+        renderer respects the aspect ratio of the source. When set to ``True``, the
+        aspect ratio of the source is anamorphed. This can help with things like 16:9 widescreen composite
+        outputs for previews without having to change the cameras output ratio.
+        The property can be set while recordings or previews are active.
         """)
 
     def _get_window(self):
@@ -397,10 +415,10 @@ class PiOverlayRenderer(PiRenderer):
     def __init__(
             self, parent, source, resolution=None, format=None, layer=0,
             alpha=255, fullscreen=True, window=None, crop=None, rotation=0,
-            vflip=False, hflip=False):
+            vflip=False, hflip=False, noaspect=False):
         super(PiOverlayRenderer, self).__init__(
             parent, layer, alpha, fullscreen, window, crop,
-            rotation, vflip, hflip)
+            rotation, vflip, hflip, noaspect)
 
         # Copy format from camera's preview port, then adjust the encoding to
         # RGB888 or RGBA and optionally adjust the resolution and size
@@ -466,10 +484,10 @@ class PiPreviewRenderer(PiRenderer):
     def __init__(
             self, parent, source, resolution=None, layer=2, alpha=255,
             fullscreen=True, window=None, crop=None, rotation=0, vflip=False,
-            hflip=False):
+            hflip=False, noaspect=False):
         super(PiPreviewRenderer, self).__init__(
             parent, layer, alpha, fullscreen, window, crop,
-            rotation, vflip, hflip)
+            rotation, vflip, hflip, noaspect)
         self._parent = parent
         if resolution is not None:
             resolution = mo.to_resolution(resolution)
