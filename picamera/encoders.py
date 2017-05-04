@@ -890,7 +890,7 @@ class PiVideoEncoder(PiEncoder):
                 self.frame.split_size + buf.length,
             timestamp=
                 None
-                if buf.pts in (0, mmal.MMAL_TIME_UNKNOWN) else
+                if buf.pts in (0, mmal.MMAL_TIME_UNKNOWN.value) else
                 buf.pts,
             complete=
                 bool(buf.flags & mmal.MMAL_BUFFER_HEADER_FLAG_FRAME_END),
