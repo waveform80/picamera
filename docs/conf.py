@@ -92,6 +92,7 @@ release = _setup.__version__
 #language = None
 #today_fmt = '%B %d, %Y'
 exclude_patterns = ['_build']
+highlight_language = 'python3'
 #default_role = None
 #add_function_parentheses = True
 #add_module_names = True
