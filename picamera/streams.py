@@ -713,16 +713,25 @@ class PiCameraCircularIO(CircularIO):
                     break
         return pos
 
+    def _find_frames(self, frames, first_frame):
+        pos = None
+        for count, frame in enumerate(reversed(self.frames)):
+            if first_frame in (None, frame.frame_type):
+                pos = frame.position
+            if frames < count:
+                break
+        return pos
+
     def _find_all(self, first_frame):
         for frame in self.frames:
             if first_frame in (None, frame.frame_type):
                 return frame.position
 
     def copy_to(
-            self, output, size=None, seconds=None,
+            self, output, size=None, seconds=None, frames=None,
             first_frame=PiVideoFrameType.sps_header):
         """
-        copy_to(output, size=None, seconds=None, first_frame=PiVideoFrameType.sps_header)
+        copy_to(output, size=None, seconds=None, frames=None, first_frame=PiVideoFrameType.sps_header)
 
         Copies content from the stream to *output*.
 
@@ -732,8 +741,9 @@ class PiCameraCircularIO(CircularIO):
         If *size* is specified then the copy will be limited to the whole
         number of frames that fit within the specified number of bytes. If
         *seconds* if specified, then the copy will be limited to that number of
-        seconds worth of frames. Only one of *size* or *seconds* can be
-        specified.  If neither is specified, all frames are copied.
+        seconds worth of frames. If *frames* is specified then the copy will
+        be limited to that number of frames. Only one of *size*, *seconds*, or
+        *frames* can be specified.  If none is specified, all frames are copied.
 
         If *first_frame* is specified, it defines the frame type of the first
         frame to be copied. By default this is
@@ -744,13 +754,14 @@ class PiCameraCircularIO(CircularIO):
         .. warning::
 
             Note that if a frame of the specified type (e.g. SPS header) cannot
-            be found within the specified number of seconds or bytes then this
-            method will simply copy nothing (but no error will be raised).
+            be found within the specified number of seconds, bytes, or frames,
+            then this method will simply copy nothing (but no error will be
+            raised).
 
         The stream's position is not affected by this method.
         """
-        if size is not None and seconds is not None:
-            raise PiCameraValueError('You cannot specify both size and seconds')
+        if (size, seconds, frames).count(None) < 2:
+            raise PiCameraValueError('You can only specify one of size, seconds, or frames')
         if isinstance(output, bytes):
             output = output.decode('utf-8')
         opened = isinstance(output, str)
@@ -764,6 +775,8 @@ class PiCameraCircularIO(CircularIO):
                         pos = self._find_size(size, first_frame)
                     elif seconds is not None:
                         pos = self._find_seconds(seconds, first_frame)
+                    elif frames is not None:
+                        pos = self._find_frames(frames, first_frame)
                     else:
                         pos = self._find_all(first_frame)
                     # Copy chunks efficiently from the position found

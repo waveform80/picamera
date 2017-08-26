@@ -331,3 +331,16 @@ def test_camera_stream_copy_seconds():
     stream.copy_to(output, seconds=10)
     assert output.getvalue() == b'hkkffkkff'
 
+def test_camera_stream_copy_frames():
+    camera = mock.Mock()
+    encoder = mock.Mock()
+    camera._encoders = {1: encoder}
+    stream = PiCameraCircularIO(camera, size=10)
+    for data, frame in generate_frames('hkffkff'):
+        encoder.frame = frame
+        stream.write(data)
+    output = io.BytesIO()
+    stream.copy_to(output, frames=1)
+    assert output.getvalue() == b''
+    stream.copy_to(output, frames=10)
+    assert output.getvalue() == b'hkkffkkff'
