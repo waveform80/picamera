@@ -71,7 +71,7 @@ class PiRenderer(object):
 
     def __init__(
             self, parent, layer=0, alpha=255, fullscreen=True, window=None,
-            crop=None, rotation=0, vflip=False, hflip=False, noaspect=False):
+            crop=None, rotation=0, vflip=False, hflip=False, anamorphic=False):
         # Create and enable the renderer component
         self._rotation = 0
         self._vflip = False
@@ -81,7 +81,7 @@ class PiRenderer(object):
             self.layer = layer
             self.alpha = alpha
             self.fullscreen = fullscreen
-            self.noaspect = noaspect
+            self.anamorphic = anamorphic
             if window is not None:
                 self.window = window
             if crop is not None:
@@ -178,17 +178,17 @@ class PiRenderer(object):
         are active.
         """)
 
-    def _get_noaspect(self):
-        return self.renderer.inputs[0].params[mmal.MMAL_PARAMETER_DISPLAYREGION].noaspect.value != mmal.MMAL_FALSE
-    def _set_noaspect(self, value):
+    def _get_anamorphic(self):
+        return self.renderer.inputs[0].params[mmal.MMAL_PARAMETER_DISPLAYREGION].anamorphic.value != mmal.MMAL_FALSE
+    def _set_anamorphic(self, value):
         mp = self.renderer.inputs[0].params[mmal.MMAL_PARAMETER_DISPLAYREGION]
         mp.set = mmal.MMAL_DISPLAY_SET_NOASPECT
-        mp.noaspect = bool(value)
+        mp.anamorphic = bool(value)
         self.renderer.inputs[0].params[mmal.MMAL_PARAMETER_DISPLAYREGION] = mp
-    noaspect = property(_get_noaspect, _set_noaspect, doc="""\
-        Retrieves or sets whether the renderer respects the aspect ratio.
+    anamorphic = property(_get_anamorphic, _set_anamorphic, doc="""\
+        Retrieves or sets whether the renderer is anamorphic or respects the aspect ratio.
 
-        The :attr:`noaspect` property is a bool which controls whether the
+        The :attr:`anamorphic` property is a bool which controls whether the
         renderer respects the aspect ratio of the source. When set to ``True``, the
         aspect ratio of the source is anamorphed. This can help with things like 16:9 widescreen composite
         outputs for previews without having to change the cameras output ratio.
@@ -415,10 +415,10 @@ class PiOverlayRenderer(PiRenderer):
     def __init__(
             self, parent, source, resolution=None, format=None, layer=0,
             alpha=255, fullscreen=True, window=None, crop=None, rotation=0,
-            vflip=False, hflip=False, noaspect=False):
+            vflip=False, hflip=False, anamorphic=False):
         super(PiOverlayRenderer, self).__init__(
             parent, layer, alpha, fullscreen, window, crop,
-            rotation, vflip, hflip, noaspect)
+            rotation, vflip, hflip, anamorphic)
 
         # Copy format from camera's preview port, then adjust the encoding to
         # RGB888 or RGBA and optionally adjust the resolution and size
@@ -484,10 +484,10 @@ class PiPreviewRenderer(PiRenderer):
     def __init__(
             self, parent, source, resolution=None, layer=2, alpha=255,
             fullscreen=True, window=None, crop=None, rotation=0, vflip=False,
-            hflip=False, noaspect=False):
+            hflip=False, anamorphic=False):
         super(PiPreviewRenderer, self).__init__(
             parent, layer, alpha, fullscreen, window, crop,
-            rotation, vflip, hflip, noaspect)
+            rotation, vflip, hflip, anamorphic)
         self._parent = parent
         if resolution is not None:
             resolution = mo.to_resolution(resolution)
