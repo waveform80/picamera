@@ -11,3 +11,4 @@ numpy==1.11.0
 py==1.4.31
 pytest==2.8.7
 wsgiref==0.1.2
+pymp4==1.1.0
