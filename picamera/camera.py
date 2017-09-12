@@ -67,6 +67,7 @@ from .encoders import (
     PiRawMultiImageEncoder,
     PiCookedOneImageEncoder,
     PiCookedMultiImageEncoder,
+    PiMP4VideoEncoder
     )
 from .renderers import (
     PiPreviewRenderer,
@@ -716,9 +717,12 @@ class PiCamera(object):
         pipeline). Finally, *options* includes extra keyword arguments that
         should be passed verbatim to the encoder.
         """
-        encoder_class = (
-                PiRawVideoEncoder if format in self.RAW_FORMATS else
-                PiCookedVideoEncoder)
+        if format in self.RAW_FORMATS:
+            encoder_class = PiRawVideoEncoder
+        elif format == 'mp4':
+            encoder_class = PiMP4VideoEncoder
+        else:
+            encoder_class = PiCookedVideoEncoder
         return encoder_class(
                 self, camera_port, output_port, format, resize, **options)
 

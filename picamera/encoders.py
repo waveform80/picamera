@@ -1205,7 +1205,7 @@ class PiRawMultiImageEncoder(PiMultiImageEncoder, PiRawImageMixin):
 
 class PiMP4Output(MP4Muxer):
     def __init__(self, parent_encoder, output):
-        super(MP4Muxer, self).__init__()
+        super(PiMP4Output, self).__init__()
         # Use mmal to open the given output
         self.output = mo.open_stream(output)
         if not self.output[0].seekable():
