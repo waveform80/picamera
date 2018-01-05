@@ -179,11 +179,11 @@ class PiRenderer(object):
         """)
 
     def _get_anamorphic(self):
-        return self.renderer.inputs[0].params[mmal.MMAL_PARAMETER_DISPLAYREGION].anamorphic.value != mmal.MMAL_FALSE
+        return self.renderer.inputs[0].params[mmal.MMAL_PARAMETER_DISPLAYREGION].noaspect.value != mmal.MMAL_FALSE
     def _set_anamorphic(self, value):
         mp = self.renderer.inputs[0].params[mmal.MMAL_PARAMETER_DISPLAYREGION]
         mp.set = mmal.MMAL_DISPLAY_SET_NOASPECT
-        mp.anamorphic = bool(value)
+        mp.noaspect = bool(value)
         self.renderer.inputs[0].params[mmal.MMAL_PARAMETER_DISPLAYREGION] = mp
     anamorphic = property(_get_anamorphic, _set_anamorphic, doc="""\
         Retrieves or sets whether the renderer is anamorphic or respects the aspect ratio.
