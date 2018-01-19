@@ -7,7 +7,6 @@ preview = mo.MMALRenderer()
 # read the input as h264
 source.outputs[0].format = mmal.MMAL_ENCODING_H264
 source.outputs[0].framerate = 25
-source.outputs[0]._format[0].flags = mmal.MMAL_ES_FORMAT_FLAG_FRAMED
 source.outputs[0].framesize = (1280,720)
 source.outputs[0].commit()
 
