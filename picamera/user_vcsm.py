@@ -98,9 +98,9 @@ vcsm_vc_hdl_from_hdl = _lib.vcsm_vc_hdl_from_hdl
 vcsm_vc_hdl_from_hdl.argtypes = [ct.c_uint]
 vcsm_vc_hdl_from_hdl.restype = ct.c_uint
 
-vscm_lock = _lib.vscm_lock
-vscm_lock.argtypes = [ct.c_uint]
-vscm_lock.restype = ct.c_void_p
+vcsm_lock = _lib.vcsm_lock
+vcsm_lock.argtypes = [ct.c_uint]
+vcsm_lock.restype = ct.c_void_p
 
 vcsm_unlock_ptr = _lib.vcsm_unlock_ptr
 vcsm_unlock_ptr.argtypes = [ct.c_void_p]
