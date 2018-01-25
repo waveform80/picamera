@@ -1336,6 +1336,18 @@ class MMAL_PARAMETER_CAMERA_RX_TIMING_T(ct.Structure):
         ('cpi_timing2',         ct.c_uint32),
         ]
 
+class MMAL_PARAMETER_LENS_SHADING_T(ct.Structure):
+    _fields_ = [
+        ('hdr',                 MMAL_PARAMETER_HEADER_T),
+        ('enabled',             MMAL_BOOL_T),
+        ('grid_cell_size',      ct.c_uint32),
+        ('grid_width',          ct.c_uint32),
+        ('grid_stride',         ct.c_uint32),
+        ('grid_height',         ct.c_uint32),
+        ('mem_handle_table',    ct.c_uint32),
+        ('ref_transform',       ct.c_uint32),
+        ]
+        
 # mmal_parameters_video.h ####################################################
 
 (
