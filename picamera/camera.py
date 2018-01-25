@@ -2674,7 +2674,7 @@ class PiCamera(object):
     def _set_digital_gain(self, value):
         self._check_camera_open()
         self._camera.control.params[mmal.MMAL_PARAMETER_DIGITAL_GAIN] = value
-    digital_gain = property(_get_digital_gain, doc="""\
+    digital_gain = property(_get_digital_gain, _set_digital_gain, doc="""\
         Retrieves the current digital gain of the camera.
 
         When queried, this property returns the digital gain currently being
