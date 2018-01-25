@@ -2641,7 +2641,7 @@ class PiCamera(object):
         self._check_camera_open()
         return mo.to_fraction(
             self._camera.control.params[mmal.MMAL_PARAMETER_CAMERA_SETTINGS].analog_gain)
-    def _set_analog_gain(self):
+    def _set_analog_gain(self, value):
         self._check_camera_open()
         self._camera.control.params[mmal.MMAL_PARAMETER_ANALOG_GAIN] = value
     analog_gain = property(_get_analog_gain, _set_analog_gain, doc="""\
@@ -2671,7 +2671,7 @@ class PiCamera(object):
         self._check_camera_open()
         return mo.to_fraction(
             self._camera.control.params[mmal.MMAL_PARAMETER_CAMERA_SETTINGS].digital_gain)
-    def _set_digital_gain(self):
+    def _set_digital_gain(self, value):
         self._check_camera_open()
         self._camera.control.params[mmal.MMAL_PARAMETER_DIGITAL_GAIN] = value
     digital_gain = property(_get_digital_gain, doc="""\
