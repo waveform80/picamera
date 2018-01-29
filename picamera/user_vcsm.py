@@ -1,7 +1,9 @@
 # vim: set et sw=4 sts=4 fileencoding=utf-8:
 #
 # Python header conversion
-# Copyright (c) 2013-2017 Richard Bowman <richard.bowman@cantab.net>
+# Copyright (c) 2017 Richard Bowman <richard.bowman@cantab.net>
+# Following the style of mmal.py which is
+# Copyright (c) 2013-2017 Dave Jones <dave@waveform.org.uk>
 #
 # Original headers
 # Copyright (c) 2012, Broadcom Europe Ltd
@@ -30,6 +32,16 @@
 # CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
+
+"""
+Wraps the VideoCore Shared Memory library in Python.
+
+This Python module wraps the necessary functions from the Raspberry Pi 
+``userland`` module to allow shared memory use in ``picamera``.  Currently
+this is only used to load a custom lens shading table.  Please see the
+comments in [user_vcsm.h](https://github.com/raspberrypi/userland/
+blob/master/host_applications/linux/libs/sm/user-vcsm.h).
+"""
 
 from __future__ import (
     unicode_literals,
