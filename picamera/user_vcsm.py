@@ -1,9 +1,9 @@
 # vim: set et sw=4 sts=4 fileencoding=utf-8:
 #
 # Python header conversion
-# Copyright (c) 2017 Richard Bowman <richard.bowman@cantab.net>
-# Following the style of mmal.py which is
 # Copyright (c) 2013-2017 Dave Jones <dave@waveform.org.uk>
+# Please blame this particular file on
+# Richard Bowman <richard.bowman@cantab.net>
 #
 # Original headers
 # Copyright (c) 2012, Broadcom Europe Ltd
