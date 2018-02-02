@@ -46,7 +46,7 @@ from fractions import Fraction
 from operator import itemgetter
 from collections import namedtuple
 
-from . import bcm_host, mmal, mmalobj as mo
+from . import bcm_host, mmal, mmalobj as mo, vcsmobj
 from .exc import (
     PiCameraError,
     PiCameraValueError,
@@ -115,9 +115,10 @@ class PiCamera(object):
     will represent. Only the Raspberry Pi compute module currently supports
     more than one camera.
 
-    The *sensor_mode*, *resolution*, *framerate*, *framerate_range*, and
-    *clock_mode* parameters provide initial values for the :attr:`sensor_mode`,
-    :attr:`resolution`, :attr:`framerate`, :attr:`framerate_range`, and
+    The *sensor_mode*, *resolution*, *framerate*, *framerate_range*, 
+    *lens_shading_table*, and *clock_mode* parameters provide initial values 
+    for the :attr:`sensor_mode`, :attr:`resolution`, :attr:`framerate`, 
+    :attr:`framerate_range`, :attr:`lens_shading_table` and
     :attr:`clock_mode` attributes of the class (these attributes are all
     relatively expensive to set individually, hence setting them all upon
     construction is a speed optimization). Please refer to the attribute
@@ -182,6 +183,9 @@ class PiCamera(object):
 
     .. versionchanged:: 1.13
         Added *framerate_range* parameter.
+        
+    .. versionchanged:: 1.13
+        Made *analog_gain* and *digital_gain* writeable and added *lens_shading_table* argument.
 
     .. _Compute Module: https://www.raspberrypi.org/documentation/hardware/computemodule/cmio-camera.md
     """
@@ -328,7 +332,7 @@ class PiCamera(object):
     def __init__(
             self, camera_num=0, stereo_mode='none', stereo_decimate=False,
             resolution=None, framerate=None, sensor_mode=0, led_pin=None,
-            clock_mode='reset', framerate_range=None):
+            clock_mode='reset', lens_shading_table=None, framerate_range=None):
         bcm_host.bcm_host_init()
         mimetypes.add_type('application/h264',  '.h264',  False)
         mimetypes.add_type('application/mjpeg', '.mjpg',  False)
@@ -364,6 +368,7 @@ class PiCamera(object):
         self._overlays = []
         self._raw_format = 'yuv'
         self._image_effect_params = None
+        self._lens_shading_table = None
         with mo.MMALCameraInfo() as camera_info:
             info = camera_info.control.params[mmal.MMAL_PARAMETER_CAMERA_INFO]
             self._revision = 'ov5647'
@@ -429,7 +434,7 @@ class PiCamera(object):
             raise PiCameraValueError('Invalid clock mode: %s' % clock_mode)
         try:
             self._init_camera(camera_num, stereo_mode, stereo_decimate)
-            self._configure_camera(sensor_mode, framerate, resolution, clock_mode)
+            self._configure_camera(sensor_mode, framerate, resolution, clock_mode, lens_shading_table)
             self._init_preview()
             self._init_splitter()
             self._camera.enable()
@@ -2004,7 +2009,7 @@ class PiCamera(object):
 
     def _configure_camera(
             self, sensor_mode, framerate, resolution, clock_mode,
-            old_sensor_mode=0):
+            lens_shading_table=None, old_sensor_mode=0):
         """
         An internal method for setting a new camera mode, framerate,
         resolution, and/or clock_mode.
@@ -2021,6 +2026,7 @@ class PiCamera(object):
             (port.framesize, port.framerate, port.params[mmal.MMAL_PARAMETER_FPS_RANGE])
             for port in self._camera.outputs
             ]
+        self._upload_lens_shading_table(lens_shading_table)
         if old_sensor_mode != 0 or sensor_mode != 0:
             self._camera.control.params[mmal.MMAL_PARAMETER_CAMERA_CUSTOM_SENSOR_CONFIG] = sensor_mode
         if not self._camera.control.enabled:
@@ -2107,10 +2113,11 @@ class PiCamera(object):
         sensor_mode = self.sensor_mode
         clock_mode = self.CLOCK_MODES[self.clock_mode]
         resolution = self.resolution
+        lens_shading_table = self.lens_shading_table
         self._disable_camera()
         self._configure_camera(
             sensor_mode=sensor_mode, framerate=value, resolution=resolution,
-            clock_mode=clock_mode)
+            clock_mode=clock_mode, lens_shading_table=lens_shading_table)
         self._configure_splitter()
         self._enable_camera()
     framerate = property(_get_framerate, _set_framerate, doc="""\
@@ -2182,13 +2189,14 @@ class PiCamera(object):
         clock_mode = self.CLOCK_MODES[self.clock_mode]
         resolution = self.resolution
         framerate = Fraction(self.framerate)
+        lens_shading_table = self.lens_shading_table
         if framerate == 0:
             framerate = self.framerate_range
         self._disable_camera()
         self._configure_camera(
             old_sensor_mode=sensor_mode, sensor_mode=value,
             framerate=framerate, resolution=resolution,
-            clock_mode=clock_mode)
+            clock_mode=clock_mode, lens_shading_table=lens_shading_table)
         self._configure_splitter()
         self._enable_camera()
     sensor_mode = property(_get_sensor_mode, _set_sensor_mode, doc="""\
@@ -2216,6 +2224,115 @@ class PiCamera(object):
 
         .. versionadded:: 1.9
         """)
+        
+    def _lens_shading_table_shape(self, sensor_mode=None)
+        """Calculate the correct shape for a lens shading table.
+        
+        The lens shading table is not the full resolution of the camera - it
+        is defined with one point per 64x64 pixel block.  This means the table
+        should be 1/64 times the size of the sensor, rounding **up** to the 
+        nearest integer.
+        """
+        if sensor_mode is None:
+            sensor_mode = self.sensor_mode
+        #TODO: make sure the resolution is appropriate to the camera mode!
+        full_resolution = [self.MAX_RESOLUTION.width, self.MAX_RESOLUTION.height]
+        return (4,) + tuple([(r // 64) + 1 for r in full_resolution[::-1]])
+        
+    def _validate_lens_shading_table(self, lens_shading_table, sensor_mode):
+        """Check a lens shading table is valid and raise an exception if not."""
+        table_shape = self._lens_shading_table_shape(sensor_mode)
+        if lens_shading_table.shape != table_shape:
+            raise PiCameraValueError("The lens shading table should have shape {} "
+                                     "for mode {}".format(table_shape, sensor_mode))
+        if lens_shading_table.dtype != np.uint8:
+            raise PiCameraValueError("Lens shading tables must be uint8")
+            
+    def _upload_lens_shading_table(self, lens_shading_table, sensor_mode):
+        """Actually commit the lens shading table to the camera."""
+        if lens_shading_table is None:
+            self._lens_shading_table = None
+            # Given that we reset the camera each time anyway, hopefully we revert
+            # to built-in lens shading correction by simply doing nothing here!
+            return
+            
+        self._validate_lens_shading_table(lens_shading_table, sensor_mode)
+            
+        # This sets the lens shading table based on the example code by 6by9
+        # https://github.com/6by9/lens_shading/
+        vcsmobj.ensure_vcsm_init() # make sure the shared memory service is initialised
+        shared_memory = vcsmobj.VideoCoreSharedMemory(grid_width*grid_height*4, "ls_grid") # allocate shared memory on the GPU
+
+        lens_shading_parameters = mmal.MMAL_PARAMETER_LENS_SHADING_T(
+            hdr = mmal.MMAL_PARAMETER_HEADER_T(
+                mmal.MMAL_PARAMETER_LENS_SHADING_OVERRIDE,
+                ct.sizeof(mmal.MMAL_PARAMETER_LENS_SHADING_T),
+                ),
+            enabled = mmal.MMAL_TRUE,
+            grid_cell_size = 64,
+            grid_width = grid_width,
+            grid_stride = grid_width,
+            grid_height = grid_height,
+            mem_handle_table = shared_memory.handle,
+            ref_transform = 3,# TODO: figure out what this should be properly!!!
+            )
+
+        contiguous_lens_shading_table = np.ascontiguousarray(lens_shading_table) # make sure the array is contiguous in memory
+        shared_memory.copy_from_array(contiguous_lens_shading_table) # copy in the array
+        self._camera.control.params[mmal.MMAL_PARAMETER_LENS_SHADING_OVERRIDE] = lens_shading_parameters
+
+    def _get_lens_shading_table(self):
+        self._check_camera_open()
+        return self._lens_shading_table
+    def _set_lens_shading_table(self, value):
+        self._check_camera_open()
+        self._check_recording_stopped()
+        #TODO: validate the table here?
+        sensor_mode = self.sensor_mode
+        clock_mode = self.CLOCK_MODES[self.clock_mode]
+        resolution = self.resolution
+        framerate = Fraction(self.framerate)
+        if framerate == 0:
+            framerate = self.framerate_range
+        self._disable_camera()
+        self._configure_camera(
+            old_sensor_mode=sensor_mode, sensor_mode=sensor_mode,
+            framerate=framerate, resolution=resolution,
+            clock_mode=clock_mode, lens_shading_table=value)
+        self._configure_splitter()
+        self._enable_camera()
+    lens_shading_table = property(_get_lens_shading_table, 
+                                  _set_lens_shading_table, doc="""\
+        Retrieves or sets the lens shading correction table.
+
+        This is an advanced property which can be used to control the camera's
+        lens shading correction.  By default, images from the camera are 
+        corrected for vignetting by applying different amounts of gain to each
+        pixel.  The lens shading table sets this gain, so if you are using a 
+        lens other than the one supplied with the camera, this property should
+        allow you to remove vignetting artefacts from your images.  NB this 
+        correction is not applied to the raw Bayer data captured with the 
+        option ``bayer=True``.
+        
+
+        .. note::
+
+            By default, this property is None, and the camera's built-in lens
+            shading is used, which is correct for the lens supplied with the
+            camera module.  It is not currently possible to read the lens 
+            shading table back from the GPU, so this property will only have a
+            useful value if you have previously set it manually.
+            
+            Also, using this property with binned or cropped modes of the
+            camera may produce unpredictable results.
+
+        The initial value of this property can be specified with the
+        *lens_shading_table* parameter in the :class:`PiCamera` constructor.
+        As it is an expensive parameter to set otherwise, it is best to use
+        the constructor rather than to change the property afterwards.
+
+        .. versionadded:: 1.14
+        """)
 
     def _get_clock_mode(self):
         self._check_camera_open()
@@ -2228,6 +2345,7 @@ class PiCamera(object):
         except KeyError:
             raise PiCameraValueError("Invalid clock mode %s" % value)
         sensor_mode = self.sensor_mode
+        lens_shading_table = self.lens_shading_table
         framerate = Fraction(self.framerate)
         if framerate == 0:
             framerate = self.framerate_range
@@ -2235,7 +2353,8 @@ class PiCamera(object):
         self._disable_camera()
         self._configure_camera(
             sensor_mode=sensor_mode, framerate=framerate,
-            resolution=resolution, clock_mode=clock_mode)
+            resolution=resolution, clock_mode=clock_mode, 
+            lens_shading_table=lens_shading_table)
         self._configure_splitter()
         self._enable_camera()
     clock_mode = property(_get_clock_mode, _set_clock_mode, doc="""\
@@ -2272,12 +2391,14 @@ class PiCamera(object):
         sensor_mode = self.sensor_mode
         clock_mode = self.CLOCK_MODES[self.clock_mode]
         framerate = Fraction(self.framerate)
+        lens_shading_table = self.lens_shading_table
         if framerate == 0:
             framerate = self.framerate_range
         self._disable_camera()
         self._configure_camera(
             sensor_mode=sensor_mode, framerate=framerate,
-            resolution=value, clock_mode=clock_mode)
+            resolution=value, clock_mode=clock_mode,
+            lens_shading_table=lens_shading_table)
         self._configure_splitter()
         self._enable_camera()
     resolution = property(_get_resolution, _set_resolution, doc="""
@@ -2351,10 +2472,12 @@ class PiCamera(object):
         sensor_mode = self.sensor_mode
         clock_mode = self.CLOCK_MODES[self.clock_mode]
         resolution = self.resolution
+        lens_shading_table = self.lens_shading_table
         self._disable_camera()
         self._configure_camera(
             sensor_mode=sensor_mode, framerate=(low, high),
-            resolution=resolution, clock_mode=clock_mode)
+            resolution=resolution, clock_mode=clock_mode,
+            lens_shading_table=lens_shading_table)
         self._configure_splitter()
         self._enable_camera()
     framerate_range = property(_get_framerate_range, _set_framerate_range, doc="""\
