@@ -136,6 +136,7 @@ class VideoCoreSharedMemory():
 
         .. versionadded:: 1.14
         """
+        ensure_vcsm_init()
         self._handle = vcsm.vcsm_malloc(size, name)
         self._size = size
         if self._handle == 0:
@@ -157,13 +158,14 @@ class VideoCoreSharedMemory():
         """) 
         
     def _get_videocore_handle(self):
-        return self._handle
+        return vcsm.vcsm_vc_hdl_from_hdl(self._handle)
+
     videocore_handle = property(_get_videocore_handle, doc="""\
         A handle to access the shared memory from the GPU
 
         The handle identifies the block of shared memory to the GPU.  It
         cannot, for safety reasons, be used to read or write memory from
-        the CPU, so it is only useful when passing memory to the GPU.
+        the CPU, so it is only useful when passing data to the GPU.
 
         .. versionadded:: 1.14
         """)
@@ -227,6 +229,4 @@ class VideoCoreSharedMemory():
         """
         if not source.flags['C_CONTIGUOUS']:
             raise ValueError("Only contiguous arrays can be copied to shared memory.")
-        if source.itemsize != 1:
-            raise TypeError("You may only copy 8-bit integers.")
         self.copy_from_buffer(source.ctypes.data_as(ctypes.c_void_p), source.size)

@@ -2250,6 +2250,8 @@ class PiCamera(object):
         # avoids a hard dependency on numpy.
         if lens_shading_table.dtype.name != "uint8":
             raise PiCameraValueError("Lens shading tables must be uint8")
+        if not lens_shading_table.flags['C_CONTIGUOUS']:
+            raise ValueError("The lens shading table must be a C-contiguous numpy array") # make sure the array is contiguous in memory
             
     def _upload_lens_shading_table(self, lens_shading_table, sensor_mode=None):
         """Actually commit the lens shading table to the camera."""
@@ -2263,7 +2265,6 @@ class PiCamera(object):
         nchannels, grid_height, grid_width = lens_shading_table.shape
         # This sets the lens shading table based on the example code by 6by9
         # https://github.com/6by9/lens_shading/
-        vcsmobj.ensure_vcsm_init() # make sure the shared memory service is initialised
         shared_memory = vcsmobj.VideoCoreSharedMemory(grid_width*grid_height*4, "ls_grid") # allocate shared memory on the GPU
 
         lens_shading_parameters = mmal.MMAL_PARAMETER_LENS_SHADING_T(
@@ -2280,8 +2281,6 @@ class PiCamera(object):
             ref_transform = 3,# TODO: figure out what this should be properly!!!
             )
 
-        if not lens_shading_table.flags['C_CONTIGUOUS']:
-            raise ValueError("The lens shading table must be a C-contiguous numpy array") # make sure the array is contiguous in memory
         shared_memory.copy_from_array(lens_shading_table) # copy in the array
         self._camera.control.params[mmal.MMAL_PARAMETER_LENS_SHADING_OVERRIDE] = lens_shading_parameters
 
