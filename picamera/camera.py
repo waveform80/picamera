@@ -184,7 +184,7 @@ class PiCamera(object):
     .. versionchanged:: 1.13
         Added *framerate_range* parameter.
         
-    .. versionchanged:: 1.13
+    .. versionchanged:: 1.14
         Made *analog_gain* and *digital_gain* writeable and added *lens_shading_table* argument.
 
     .. _Compute Module: https://www.raspberrypi.org/documentation/hardware/computemodule/cmio-camera.md
@@ -327,6 +327,7 @@ class PiCamera(object):
         '_raw_format',
         '_image_effect_params',
         '_exif_tags',
+        '_lens_shading_table',
         )
 
     def __init__(
@@ -2225,7 +2226,7 @@ class PiCamera(object):
         .. versionadded:: 1.9
         """)
         
-    def _lens_shading_table_shape(self, sensor_mode=None)
+    def _lens_shading_table_shape(self, sensor_mode=None):
         """Calculate the correct shape for a lens shading table.
         
         The lens shading table is not the full resolution of the camera - it
@@ -2245,10 +2246,12 @@ class PiCamera(object):
         if lens_shading_table.shape != table_shape:
             raise PiCameraValueError("The lens shading table should have shape {} "
                                      "for mode {}".format(table_shape, sensor_mode))
-        if lens_shading_table.dtype != np.uint8:
+        # Ensure the array is uint8.  NB the slightly odd string comparison
+        # avoids a hard dependency on numpy.
+        if lens_shading_table.dtype.name != "uint8":
             raise PiCameraValueError("Lens shading tables must be uint8")
             
-    def _upload_lens_shading_table(self, lens_shading_table, sensor_mode):
+    def _upload_lens_shading_table(self, lens_shading_table, sensor_mode=None):
         """Actually commit the lens shading table to the camera."""
         if lens_shading_table is None:
             self._lens_shading_table = None
@@ -2277,8 +2280,9 @@ class PiCamera(object):
             ref_transform = 3,# TODO: figure out what this should be properly!!!
             )
 
-        contiguous_lens_shading_table = np.ascontiguousarray(lens_shading_table) # make sure the array is contiguous in memory
-        shared_memory.copy_from_array(contiguous_lens_shading_table) # copy in the array
+        if not lens_shading_table.flags['C_CONTIGUOUS']:
+            raise ValueError("The lens shading table must be a C-contiguous numpy array") # make sure the array is contiguous in memory
+        shared_memory.copy_from_array(lens_shading_table) # copy in the array
         self._camera.control.params[mmal.MMAL_PARAMETER_LENS_SHADING_OVERRIDE] = lens_shading_parameters
 
     def _get_lens_shading_table(self):

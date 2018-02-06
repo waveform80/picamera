@@ -53,7 +53,7 @@ from __future__ import (
 # Make Py2's str equivalent to Py3's
 str = type('')
 
-import user_vcsm as vcsm
+from . import user_vcsm as vcsm
 import warnings
 import contextlib
 import ctypes
@@ -103,7 +103,7 @@ def ensure_vcsm_init():
     if _vcsm_manager is None:
         _vcsm_manager = VideoCoreSharedMemoryServiceManager()
         
- def vcsm_exit():
+def vcsm_exit():
     """Close the VideoCore shared memory service down.
     
     It is not clear whether multiple init/close cycles are allowed in 
