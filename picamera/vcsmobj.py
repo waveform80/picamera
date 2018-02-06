@@ -63,7 +63,10 @@ import ctypes
 # or the interpreter closing, but I have not yet found it.
 
 class VideoCoreSharedMemoryServiceManager():
-    """Class to manage initialising/closing the VCSM service."""
+    """Class to manage initialising/closing the VCSM service.
+
+    .. versionadded:: 1.14
+    """
     def __init__(self):
         ret = vcsm.vcsm_init()
         if ret == 0:
@@ -92,6 +95,8 @@ def ensure_vcsm_init():
     The VideoCore shared memory service must be initialised in order to
     use any of the other functions.  When this module is unloaded or 
     Python closes, it should release the library.
+
+    .. versionadded:: 1.14
     """
     #TODO: find a better way to cleanly close the library.
     global _vcsm_manager
@@ -105,6 +110,8 @@ def ensure_vcsm_init():
     one run of Python.  This method should only be called once.  It is
     also probably not required - the library should be shut down cleanly
     when the garbage collector cleans up after the module.
+
+    .. versionadded:: 1.14
     """
     if _vcsm_manager is not None:
         _vcsm_manager.exit()
@@ -126,6 +133,8 @@ class VideoCoreSharedMemory():
         On creation, this object will create some VC shared memory by
         calling vcsm_malloc.  It will call vcsm_free to free the memory
         when the object is deleted.
+
+        .. versionadded:: 1.14
         """
         self._handle = vcsm.vcsm_malloc(size, name)
         self._size = size
@@ -136,6 +145,29 @@ class VideoCoreSharedMemory():
     def __del__(self):
         vcsm.vcsm_free(self._handle)
         
+    def _get_handle(self):
+        return self._handle
+    handle = property(_get_handle, doc="""\
+        The handle of the underlying VideoCore shared memory
+
+        The handle identifies the block of shared memory, and is used by
+        the various functions wrapped in ``user_vcsm.py``.
+
+        .. versionadded:: 1.14
+        """) 
+        
+    def _get_videocore_handle(self):
+        return self._handle
+    videocore_handle = property(_get_videocore_handle, doc="""\
+        A handle to access the shared memory from the GPU
+
+        The handle identifies the block of shared memory to the GPU.  It
+        cannot, for safety reasons, be used to read or write memory from
+        the CPU, so it is only useful when passing memory to the GPU.
+
+        .. versionadded:: 1.14
+        """)
+        
     @contextlib.contextmanager
     def lock(self):
         """Lock the shared memory and return a pointer to it.
@@ -145,6 +177,9 @@ class VideoCoreSharedMemory():
         sm = VideoCoreSharedMemory(128, "test")
         with sm.lock() as pointer:
             #copy stuff into the block
+        ```
+
+        .. versionadded:: 1.14
         """
         pointer = vcsm.vcsm_lock(self._handle)
         try:
@@ -166,6 +201,8 @@ class VideoCoreSharedMemory():
                 By default, a warning will be raised if you copy in a buffer
                 that is smaller than the allocated memory.  Set this to False
                 to suppress the warning.
+
+        .. versionadded:: 1.14
         """
         if size is None:
             size = self._size
@@ -185,6 +222,8 @@ class VideoCoreSharedMemory():
                 
         NB the array must be contiguous.  This will be checked but, in order to avoid
         a hard dependency on numpy, it will not be made contiguous automatically.
+
+        .. versionadded:: 1.14
         """
         if not source.flags['C_CONTIGUOUS']:
             raise ValueError("Only contiguous arrays can be copied to shared memory.")

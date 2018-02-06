@@ -2257,7 +2257,7 @@ class PiCamera(object):
             return
             
         self._validate_lens_shading_table(lens_shading_table, sensor_mode)
-            
+        nchannels, grid_height, grid_width = lens_shading_table.shape
         # This sets the lens shading table based on the example code by 6by9
         # https://github.com/6by9/lens_shading/
         vcsmobj.ensure_vcsm_init() # make sure the shared memory service is initialised
@@ -2273,7 +2273,7 @@ class PiCamera(object):
             grid_width = grid_width,
             grid_stride = grid_width,
             grid_height = grid_height,
-            mem_handle_table = shared_memory.handle,
+            mem_handle_table = shared_memory.videocore_handle,
             ref_transform = 3,# TODO: figure out what this should be properly!!!
             )
 
