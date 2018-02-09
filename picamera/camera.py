@@ -2283,6 +2283,7 @@ class PiCamera(object):
 
         shared_memory.copy_from_array(lens_shading_table) # copy in the array
         self._camera.control.params[mmal.MMAL_PARAMETER_LENS_SHADING_OVERRIDE] = lens_shading_parameters
+        self._lens_shading_table = lens_shading_table
 
     def _get_lens_shading_table(self):
         self._check_camera_open()
