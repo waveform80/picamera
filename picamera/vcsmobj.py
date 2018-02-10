@@ -83,8 +83,7 @@ class VideoCoreSharedMemoryServiceManager():
     
     def __del__(self):
         #TODO: find a reliable way to call this before Python shuts down!
-        #TODO: get rid of the print statement as it's confusing/annoying.
-        print("Closing VideoCore Shared Memory service on garbage collection.")
+        #print("Closing VideoCore Shared Memory service on garbage collection.")
         if self._initialised:
             self.exit()
 
