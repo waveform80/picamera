@@ -106,12 +106,12 @@ develop: tags
 	@# Loads of stuff simply doesn't support py3.2 anymore; easiest to
 	@# install from a requirements file
 	if $(PYTHON) -V | grep "^Python 3\.2\."; then \
-		$(PIP) install -r py32dev_requirements.txt \
-		$(PYTHON) setup.py develop \
+		$(PIP) install -r py32dev_requirements.txt; \
+		$(PYTHON) setup.py develop; \
 	else \
-		$(PIP) install -U setuptools \
-		$(PIP) install -U pip \
-		$(PIP) install -e .[doc,test] \
+		$(PIP) install -U setuptools; \
+		$(PIP) install -U pip; \
+		$(PIP) install -e .[doc,test]; \
 	fi
 
 test:
