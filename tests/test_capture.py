@@ -39,7 +39,6 @@ str = type('')
 
 import io
 import os
-import time
 import tempfile
 import picamera
 import pytest
@@ -257,3 +256,13 @@ def test_capture_bytes_filename(camera, tmpdir):
 def test_capture_bytes_format(camera, tmpdir):
     camera.capture(str(tmpdir.join('test.jpg')), b'jpeg')
 
+def test_capture_continuous_repeat(camera):
+    stream = io.BytesIO()
+    images = []
+    for image in camera.capture_continuous(stream, format='yuv', burst=True):
+        images.append(stream.getvalue())
+        if len(images) == 2:
+            break
+        stream.seek(0)
+        stream.truncate()
+    assert images[0] != images[1]
