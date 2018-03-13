@@ -54,7 +54,7 @@ except ImportError:
     pass
 
 __project__      = 'picamera'
-__version__      = '1.13'
+__version__      = '1.13-lens_shading.0'
 __author__       = 'Dave Jones'
 __author_email__ = 'dave@waveform.org.uk'
 __url__          = 'http://picamera.readthedocs.io/'
