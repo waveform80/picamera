@@ -48,9 +48,11 @@ within a virtual Python environment:
 .. code-block:: console
 
     $ sudo apt-get install lsb-release build-essential git git-core \
-    >   exuberant-ctags virtualenvwrapper python-virtualenv python3-virtualenv \
-    >   python-dev python3-dev libjpeg8-dev zlib1g-dev libav-tools
+        exuberant-ctags virtualenvwrapper python-virtualenv python3-virtualenv \
+        python-dev python3-dev libjpeg8-dev zlib1g-dev libav-tools
     $ cd
+    $ echo "source /usr/share/virtualenvwrapper/virtualenvwrapper.sh" >> .bashrc
+    $ source .bashrc
     $ mkvirtualenv -p /usr/bin/python3 picamera
     $ workon picamera
     (picamera) $ git clone https://github.com/waveform80/picamera.git
