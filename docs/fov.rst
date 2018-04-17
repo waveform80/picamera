@@ -527,8 +527,9 @@ recorded. The components that data passes through are as follows:
 
     - **Resizing**: At this point, the frame is resized to the requested output
       resolution (all prior stages have been performed on "full" frame data
-      at whatever resolution the sensor is configured to produce). See
-      :attr:`~PiCamera.resolution`.
+      at whatever resolution the sensor is configured to produce). Firstly, the
+      zoom is applied (see :attr:`~PiCamera.zoom`) and then the image is resized
+      to the requested resolution (see :attr:`~PiCamera.resolution`).
 
    Some of these steps can be controlled directly (e.g. brightness, noise
    reduction), others can only be influenced (e.g. analog and digital gain),
