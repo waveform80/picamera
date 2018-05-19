@@ -601,6 +601,10 @@ class PiVideoEncoder(PiEncoder):
                 parent, camera_port, input_port, format, resize, **options)
         self._next_output = []
         self.frame = None
+        self.chunk_timestamp = None
+        self.next_pts = 0
+        self.last_pts = 0
+        self.split_pts = 0
 
     def _create_encoder(
             self, format, bitrate=17000000, intra_period=None, profile='high',
@@ -807,6 +811,7 @@ class PiVideoEncoder(PiEncoder):
                 timestamp=0,
                 complete=False,
                 )
+        self.chunk_timestamp = None
         if motion_output is not None:
             self._open_output(motion_output, PiVideoFrameType.motion_data)
         super(PiVideoEncoder, self).start(output)
@@ -856,6 +861,7 @@ class PiVideoEncoder(PiEncoder):
         if not self.event.wait(timeout):
             raise PiCameraRuntimeError('Timed out waiting for a split point')
         self.event.clear()
+        return self.split_pts
 
     def _callback_write(self, buf, key=PiVideoFrameType.frame):
         """
@@ -863,6 +869,24 @@ class PiVideoEncoder(PiEncoder):
         splitting video recording to the next output when :meth:`split` is
         called.
         """
+        timestamp = (
+            None
+            if buf.pts in (0, mmal.MMAL_TIME_UNKNOWN) else
+            buf.pts
+        )
+        complete = bool(buf.flags & mmal.MMAL_BUFFER_HEADER_FLAG_FRAME_END)
+        # Uncomment to observe skipped frames:
+        # if timestamp:
+        #     while self.next_pts and timestamp > self.next_pts:
+        #         print("<SKIP!>")
+        #         self.next_pts += 1000000 / self.parent.framerate
+        #     self.next_pts = timestamp + 1000000 / self.parent.framerate
+        if timestamp is None:
+            timestamp = self.chunk_timestamp
+        if complete:
+            self.chunk_timestamp = None
+        else:
+            self.chunk_timestamp = timestamp
         self.frame = PiVideoFrame(
             index=
                 self.frame.index + 1
@@ -888,12 +912,8 @@ class PiVideoEncoder(PiEncoder):
                 self.frame.split_size
                 if buf.flags & mmal.MMAL_BUFFER_HEADER_FLAG_CODECSIDEINFO else
                 self.frame.split_size + buf.length,
-            timestamp=
-                None
-                if buf.pts in (0, mmal.MMAL_TIME_UNKNOWN) else
-                buf.pts,
-            complete=
-                bool(buf.flags & mmal.MMAL_BUFFER_HEADER_FLAG_FRAME_END),
+            timestamp=timestamp,
+            complete=complete,
             )
         if self._intra_period == 1 or (buf.flags & mmal.MMAL_BUFFER_HEADER_FLAG_CONFIG):
             with self.outputs_lock:
@@ -915,9 +935,12 @@ class PiVideoEncoder(PiEncoder):
                                 timestamp=self.frame.timestamp,
                                 complete=self.frame.complete,
                                 )
+                self.split_pts = self.last_pts
                 self.event.set()
         if buf.flags & mmal.MMAL_BUFFER_HEADER_FLAG_CODECSIDEINFO:
             key = PiVideoFrameType.motion_data
+        if self.frame.timestamp:
+            self.last_pts = self.frame.timestamp
         return super(PiVideoEncoder, self)._callback_write(buf, key)
 
 
