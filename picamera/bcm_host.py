@@ -91,11 +91,11 @@ vcos_fourcc_t = ct.c_int32
 
 def VCOS_ALIGN_UP(value, round_to):
     # Note: this function assumes round_to is some power of 2.
-    return (value + (round_to - 1)) & ~(round_to - 1)
+    return int(value + (round_to - 1)) & ~(round_to - 1)
 
 def VCOS_ALIGN_DOWN(value, round_to):
     # Note: this function assumes round_to is some power of 2.
-    return value & ~(round_to - 1)
+    return int(value) & ~(round_to - 1)
 
 # vc_image_types.h ###########################################################
 

@@ -38,7 +38,7 @@ An object-oriented wrapper for the VideoCore Shared Memory library.
 
 This module is intended as a friendly Python wrapper for the VideoCore shared
 memory API exposed by [user_vcsm.h](https://github.com/raspberrypi/userland/
-blob/master/host_applications/linux/libs/sm/user-vcsm.h) in the Raspberry Pi 
+blob/master/host_applications/linux/libs/sm/user-vcsm.h) in the Raspberry Pi
 userland code.
 """
 
@@ -74,13 +74,13 @@ class VideoCoreSharedMemoryServiceManager():
         else:
             raise Error("Error initialising VideoCore Shared Memory "
                         "interface.  Code {}".format(ret))
-    
+
     def exit(self):
         """Shut down the VCSM service.  Should be called only once."""
         assert self._initialised, "The VCSM service is not running."
         vcsm.vcsm_exit()
         self._initialised = False
-    
+
     def __del__(self):
         #TODO: find a reliable way to call this before Python shuts down!
         #print("Closing VideoCore Shared Memory service on garbage collection.")
@@ -90,9 +90,9 @@ class VideoCoreSharedMemoryServiceManager():
 _vcsm_manager = None
 def ensure_vcsm_init():
     """Initialise the shared memory interface if required.
-    
+
     The VideoCore shared memory service must be initialised in order to
-    use any of the other functions.  When this module is unloaded or 
+    use any of the other functions.  When this module is unloaded or
     Python closes, it should release the library.
 
     .. versionadded:: 1.14
@@ -101,11 +101,11 @@ def ensure_vcsm_init():
     global _vcsm_manager
     if _vcsm_manager is None:
         _vcsm_manager = VideoCoreSharedMemoryServiceManager()
-        
+
 def vcsm_exit():
     """Close the VideoCore shared memory service down.
-    
-    It is not clear whether multiple init/close cycles are allowed in 
+
+    It is not clear whether multiple init/close cycles are allowed in
     one run of Python.  This method should only be called once.  It is
     also probably not required - the library should be shut down cleanly
     when the garbage collector cleans up after the module.
@@ -117,18 +117,18 @@ def vcsm_exit():
         _vcsm_manager = None
     else:
         warnings.warn("The VCSM service can't be closed - it's not open.")
-        
+
 class VideoCoreSharedMemory():
     """This class manages a chunk of VideoCore shared memory."""
     def __init__(self, size, name):
         """Create a chunk of shared memory.
-        
+
         Arguments:
             size: unsigned integer
                 The size of the block of memory, in bytes
             name: string
                 A name for the block of shared memory.
-                
+
         On creation, this object will create some VC shared memory by
         calling vcsm_malloc.  It will call vcsm_free to free the memory
         when the object is deleted.
@@ -136,15 +136,15 @@ class VideoCoreSharedMemory():
         .. versionadded:: 1.14
         """
         ensure_vcsm_init()
-        self._handle = vcsm.vcsm_malloc(size, name)
+        self._handle = vcsm.vcsm_malloc(size, name.encode())
         self._size = size
         if self._handle == 0:
             raise Error("Could not allocate VC shared memory block "
                         "'{}' with size {} bytes".format(name, size))
-                        
+
     def __del__(self):
         vcsm.vcsm_free(self._handle)
-        
+
     def _get_handle(self):
         return self._handle
     handle = property(_get_handle, doc="""\
@@ -154,8 +154,8 @@ class VideoCoreSharedMemory():
         the various functions wrapped in ``user_vcsm.py``.
 
         .. versionadded:: 1.14
-        """) 
-        
+        """)
+
     def _get_videocore_handle(self):
         return vcsm.vcsm_vc_hdl_from_hdl(self._handle)
 
@@ -168,11 +168,11 @@ class VideoCoreSharedMemory():
 
         .. versionadded:: 1.14
         """)
-        
+
     @contextlib.contextmanager
     def lock(self):
         """Lock the shared memory and return a pointer to it.
-        
+
         Usage:
         ```
         sm = VideoCoreSharedMemory(128, "test")
@@ -187,10 +187,10 @@ class VideoCoreSharedMemory():
             yield pointer
         finally:
             vcsm.vcsm_unlock_hdl(self._handle)
-            
+
     def copy_from_buffer(self, source, size=None, warn_if_small=True):
         """Copy data from a buffer to shared memory.
-        
+
         Arguments:
             buffer: ctypes.c_void_p
                 A pointer to the location of the memory you want to copy in.
@@ -213,14 +213,14 @@ class VideoCoreSharedMemory():
             warnings.warn("The allocated memory won't be filled by the array passed in.")
         with self.lock() as destination:
             ctypes.memmove(destination, source, size)
-        
+
     def copy_from_array(self, source):
         """Copy the contents of a numpy array into the buffer.
-        
+
         Arguments:
             source: numpy.ndarray
                 The data to copy into the buffer.  Must be np.uint8 datatype.
-                
+
         NB the array must be contiguous.  This will be checked but, in order to avoid
         a hard dependency on numpy, it will not be made contiguous automatically.
 
