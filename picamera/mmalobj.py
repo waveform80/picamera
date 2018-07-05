@@ -1346,8 +1346,8 @@ class MMALVideoPort(MMALPort):
         video = self._port[0].format[0].es[0].video
         video.width = bcm_host.VCOS_ALIGN_UP(value.width, 32)
         video.height = bcm_host.VCOS_ALIGN_UP(value.height, 16)
-        video.crop.width = value.width
-        video.crop.height = value.height
+        video.crop.width = int(value.width)
+        video.crop.height = int(value.height)
     framesize = property(_get_framesize, _set_framesize, doc="""\
         Retrieves or sets the size of the port's video frames as a (width,
         height) tuple. This attribute implicitly handles scaling the given
