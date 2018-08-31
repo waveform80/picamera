@@ -461,7 +461,7 @@ def buffer_bytes(buf):
     <bufferobjects>`, this function returns the size of the object in bytes.
     The object can be multi-dimensional or include items larger than byte-size.
     """
-    if not isinstance(buf, memoryview):
+    if isinstance(buf, memoryview):
         m = memoryview(buf)
     return m.itemsize * reduce(mul, m.shape)
 
