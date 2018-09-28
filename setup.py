@@ -2,7 +2,7 @@
 # vim: set et sw=4 sts=4 fileencoding=utf-8:
 #
 # Python camera library for the Rasperry-Pi camera module
-# Copyright (c) 2013-2017 Dave Jones <dave@waveform.org.uk>
+# Copyright (c) 2013-2018 Dave Jones <dave@waveform.org.uk>
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -30,18 +30,16 @@
 
 """A pure Python interface for the Raspberry Pi camera module."""
 
-import io
 import os
 import sys
 from setuptools import setup, find_packages
-from setuptools.command.install import install
 
 if sys.version_info[0] == 2:
     if not sys.version_info >= (2, 7):
-        raise ValueError('This package requires Python 2.7 or newer')
+        raise ValueError('This package requires Python 2.7 or above')
 elif sys.version_info[0] == 3:
     if not sys.version_info >= (3, 2):
-        raise ValueError('This package requires Python 3.2 or newer')
+        raise ValueError('This package requires Python 3.2 or above')
 else:
     raise ValueError('Unrecognized major version of Python')
 
@@ -61,38 +59,40 @@ __url__          = 'http://picamera.readthedocs.io/'
 __platforms__    = 'ALL'
 
 __classifiers__ = [
-    'Development Status :: 5 - Production/Stable',
-    'Environment :: Console',
-    'Intended Audience :: Developers',
-    'License :: OSI Approved :: BSD License',
-    'Operating System :: POSIX :: Linux',
-    'Programming Language :: Python :: 2.7',
-    'Programming Language :: Python :: 3.2',
-    'Programming Language :: Python :: 3.3',
-    'Programming Language :: Python :: 3.4',
-    'Programming Language :: Python :: 3.5',
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 2.7",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.2",
+    "Programming Language :: Python :: 3.3",
+    "Programming Language :: Python :: 3.4",
+    "Programming Language :: Python :: 3.5",
+    "Programming Language :: Python :: 3.6",
     'Topic :: Multimedia :: Graphics :: Capture :: Digital Camera',
-    ]
+]
 
 __keywords__ = [
     'raspberrypi',
     'camera',
-    ]
+]
 
 __requires__ = [
-    ]
+]
 
 __extra_requires__ = {
     'doc':   ['sphinx'],
     'test':  ['coverage', 'pytest', 'mock', 'Pillow', 'numpy'],
     'array': ['numpy'],
-    }
+}
 
 __entry_points__ = {
-    }
+}
 
 
 def main():
+    import io
     with io.open(os.path.join(HERE, 'README.rst'), 'r') as readme:
         setup(
             name                 = __project__,
@@ -107,7 +107,7 @@ def main():
                 c.rsplit('::', 1)[1].strip()
                 for c in __classifiers__
                 if c.startswith('License ::')
-                ][0],
+            ][0],
             keywords             = __keywords__,
             packages             = find_packages(),
             include_package_data = True,
@@ -115,9 +115,8 @@ def main():
             install_requires     = __requires__,
             extras_require       = __extra_requires__,
             entry_points         = __entry_points__,
-            )
+        )
 
 
 if __name__ == '__main__':
     main()
-

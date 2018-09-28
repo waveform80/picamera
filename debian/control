@@ -3,8 +3,18 @@ Maintainer: Dave Jones <dave@waveform.org.uk>
 Homepage: http://picamera.readthedocs.io/
 Section: python
 Priority: extra
-Build-Depends: debhelper (>= 8), python-all (>= 2.7), python-setuptools, python3-all, python3-setuptools, python-docutils, python-sphinx (>= 1.0.7+dfsg-1~), libjs-mathjax
-Standards-Version: 3.9.3
+Build-Depends:
+ debhelper (>= 8),
+ dh-python,
+ python-all (>= 2.7),
+ python-setuptools,
+ python3-all,
+ python3-setuptools,
+ python3-sphinx,
+ libjs-mathjax
+Standards-Version: 3.9.6
+Vcs-Git: https://github.com/waveform80/picamera.git
+Vcs-Browser: https://github.com/waveform80/picamera
 X-Python-Version: >= 2.7
 X-Python3-Version: >= 3.2
 

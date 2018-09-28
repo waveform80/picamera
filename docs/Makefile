@@ -5,7 +5,7 @@
 SPHINXOPTS    =
 SPHINXBUILD   = sphinx-build
 PAPER         =
-BUILDDIR      = _build
+BUILDDIR      = ../build
 DOT_DIAGRAMS  := $(wildcard images/*.dot)
 MSC_DIAGRAMS  := $(wildcard images/*.mscgen)
 GPI_DIAGRAMS  := $(wildcard images/*.gpi)

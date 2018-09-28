@@ -2,7 +2,7 @@
 # vim: set et sw=4 sts=4 fileencoding=utf-8:
 #
 # Python camera library for the Rasperry-Pi camera module
-# Copyright (c) 2013-2016 Dave Jones <dave@waveform.org.uk>
+# Copyright (c) 2013-2018 Dave Jones <dave@waveform.org.uk>
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -30,10 +30,10 @@
 
 import sys
 import os
+from datetime import datetime
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
 import setup as _setup
-import datetime as dt
 
 # Mock out certain modules while building documentation
 class Mock(object):
@@ -86,7 +86,7 @@ source_suffix = '.rst'
 #source_encoding = 'utf-8-sig'
 master_doc = 'index'
 project = _setup.__project__.title()
-copyright = '2013-%d %s' % (dt.datetime.now().year, _setup.__author__)
+copyright = '2013-%s %s' % (datetime.now().year, _setup.__author__)
 version = _setup.__version__
 release = _setup.__version__
 #language = None
@@ -111,21 +111,22 @@ autodoc_default_flags = ['members']
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3.5', None),
     'numpy':  ('https://docs.scipy.org/doc/numpy/', None),
-    }
+    'colorzero': ('https://colorzero.readthedocs.io/en/latest/', None),
+}
 
 # -- Options for HTML output ----------------------------------------------
 
 if on_rtd:
     html_theme = 'sphinx_rtd_theme'
+    pygments_style = 'default'
     #html_theme_options = {}
-    #html_theme_path = []
     #html_sidebars = {}
 else:
     html_theme = 'default'
     #html_theme_options = {}
-    #html_theme_path = []
     #html_sidebars = {}
 html_title = '%s %s Documentation' % (project, version)
+#html_theme_path = []
 #html_short_title = None
 #html_logo = None
 #html_favicon = None
@@ -167,7 +168,7 @@ latex_documents = [
         _setup.__author__,             # author
         'manual',                      # documentclass
         True,                          # documents ref'd from toctree only
-        ),
+    ),
 ]
 
 #latex_logo = None
@@ -192,7 +193,7 @@ epub_show_urls = 'no'
 
 man_pages = []
 
-#man_show_urls = False
+man_show_urls = True
 
 # -- Options for Texinfo output -------------------------------------------
 
