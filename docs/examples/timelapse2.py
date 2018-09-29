@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 
 def wait():
     # Calculate the delay to the start of the next hour
-    next_hour = (datetime.now() + timedelta(hour=1)).replace(
+    next_hour = (datetime.now() + timedelta(hours=1)).replace(
         minute=0, second=0, microsecond=0)
     delay = (next_hour - datetime.now()).seconds
     sleep(delay)
