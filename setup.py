@@ -80,6 +80,7 @@ __keywords__ = [
     ]
 
 __requires__ = [
+    'pymp4'
     ]
 
 __extra_requires__ = {

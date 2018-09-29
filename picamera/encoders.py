@@ -53,6 +53,7 @@ from .exc import (
     PiCameraAlphaStripping,
     PiCameraResolutionRounded,
     )
+from .mp4 import MP4Muxer
 
 
 class PiEncoder(object):
@@ -1201,3 +1202,56 @@ class PiRawMultiImageEncoder(PiMultiImageEncoder, PiRawImageMixin):
         super(PiRawMultiImageEncoder, self)._next_output(key)
         self._image_size = self._frame_size
 
+
+class PiMP4Output(MP4Muxer):
+    def __init__(self, parent_encoder, output):
+        super(PiMP4Output, self).__init__()
+        # Use mmal to open the given output
+        self.output = mo.open_stream(output)
+        if not self.output[0].seekable():
+            raise PiCameraIOError('To mux a H.264 stream online the stream must be seekable.')
+        # Store the encoder, we will need to know the frame properties
+        self.parent_encoder = parent_encoder
+        # Store the initial position, we need it for seeking correctly
+        self._init_stream_pos = self.output[0].tell()
+        # Output the initial part of the MP4
+        self.begin()
+
+    def _write(self, data):
+        # Forward call to the real stream
+        self.output[0].write(data)
+
+    def _seek(self, offset):
+        # Forward call to the real stream
+        self.output[0].seek(self._init_stream_pos + offset)
+
+    def write(self, data):
+        # This call comes from _callback_write. We pipe the data into the muxer,
+        # which will call _write and we write it to the stream
+        self.append(data,
+            self.parent_encoder.frame.frame_type == PiVideoFrameType.sps_header,
+            self.parent_encoder.frame.complete)
+
+    def flush(self):
+        # This call comes from _close_output. We write the final part of the MP4...
+        self.end(self.parent_encoder.output_port.framerate,
+                 self.parent_encoder.output_port.framesize)
+        # ...and close the stream we acquired, if needed
+        mo.close_stream(self.output[0], self.output[1])
+        self.output = None
+
+
+class PiMP4VideoEncoder(PiVideoEncoder):
+    def __init__(self, parent, camera_port, input_port, format, resize, **options):
+        if format != 'mp4':
+            raise PiCameraValueError('Unsupported format %s' % format)
+        # Force SPS headers, we need them to extract SPS info for muxing
+        options['inline_headers'] = True
+        # Force h264 as a format.
+        super(PiMP4VideoEncoder, self).__init__(parent, camera_port, input_port, 'h264', resize, **options)
+
+    def _open_output(self, output, key=PiVideoFrameType.frame):
+        if key == PiVideoFrameType.frame:
+            # Override this output with a MP4 muxer
+            output = PiMP4Output(self, output)
+        super(PiMP4VideoEncoder, self)._open_output(output, key)
