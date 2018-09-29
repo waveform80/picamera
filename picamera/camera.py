@@ -2641,14 +2641,29 @@ class PiCamera(object):
         self._check_camera_open()
         return mo.to_fraction(
             self._camera.control.params[mmal.MMAL_PARAMETER_CAMERA_SETTINGS].analog_gain)
-    analog_gain = property(_get_analog_gain, doc="""\
-        Retrieves the current analog gain of the camera.
+    def _set_analog_gain(self, value):
+        self._check_camera_open()
+        self._camera.control.params[mmal.MMAL_PARAMETER_ANALOG_GAIN] = value
+    analog_gain = property(_get_analog_gain, _set_analog_gain, doc="""\
+        Retrieves or sets the current analog gain of the camera.
 
         When queried, this property returns the analog gain currently being
         used by the camera. The value represents the analog gain of the sensor
         prior to digital conversion. The value is returned as a
         :class:`~fractions.Fraction` instance.
+        
+        When set, the property adjusts the analog gain of the camera, which
+        most obviously affects the brightness and noise of subsequently captured
+        images. Analog gain can be adjusted while previews or recordings are
+        running.
 
+        .. note::
+
+            Setting the analog gain requires up-to-date userland libraries and
+            firmware on your Raspberry Pi.  Setting the analog gain will raise
+            a PiCameraMMALError if your userland libraries do not support setting
+            the analog gain.
+            
         .. versionadded:: 1.6
         """)
 
@@ -2656,13 +2671,29 @@ class PiCamera(object):
         self._check_camera_open()
         return mo.to_fraction(
             self._camera.control.params[mmal.MMAL_PARAMETER_CAMERA_SETTINGS].digital_gain)
-    digital_gain = property(_get_digital_gain, doc="""\
+    def _set_digital_gain(self, value):
+        self._check_camera_open()
+        self._camera.control.params[mmal.MMAL_PARAMETER_DIGITAL_GAIN] = value
+    digital_gain = property(_get_digital_gain, _set_digital_gain, doc="""\
         Retrieves the current digital gain of the camera.
 
         When queried, this property returns the digital gain currently being
         used by the camera. The value represents the digital gain the camera
         applies after conversion of the sensor's analog output. The value is
         returned as a :class:`~fractions.Fraction` instance.
+        
+        When set, the property adjusts the digital gain of the camera, which
+        most obviously affects the brightness and noise of subsequently captured
+        images. Digital gain can be adjusted while previews or recordings are
+        running.
+
+        .. note::
+
+            Setting the digital gain requires up-to-date userland libraries and
+            firmware on your Raspberry Pi.  Setting the digital gain will raise
+            a PiCameraMMALError if your userland libraries do not support setting
+            the digital gain.
+            
 
         .. versionadded:: 1.6
         """)
