@@ -3422,6 +3422,11 @@ class PiCamera(object):
         the "Region of Interest" or ROI). The default value is ``(0.0, 0.0,
         1.0, 1.0)`` which indicates that everything should be included. The
         property can be set while recordings or previews are in progress.
+
+        The `zoom` is applied to the processed image, after rotation and rescale.
+        If rotation has been used, zoom is composed of ``(y, x, h, w)`` instead.
+        The values `w` and `h` can modify the aspect ratio of the image: use equal
+        values for `w` and `h` if you want to keep the same the aspect ratio. 
         """)
 
     def _get_crop(self):

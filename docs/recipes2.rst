@@ -839,6 +839,9 @@ for the revision number if you are unsure):
 | Raspberry Pi Zero rev 1.2 and  | ``/videocore/pins_pi0``    |
 | rev 1.3                        |                            |
 +--------------------------------+----------------------------+
+| Raspberry Pi Zero Wireless     | ``/videocore/pins_pi0w``   |
+| rev 1.1                        |                            |
++--------------------------------+----------------------------+
 
 Under the section for your particular model of Pi you will find ``pin_config``
 and ``pin_defines`` sections. Under the ``pin_config`` section you need to

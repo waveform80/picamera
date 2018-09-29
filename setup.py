@@ -92,28 +92,6 @@ __entry_points__ = {
     }
 
 
-class CustomInstallCommand(install):
-    def run(self):
-        # Make sure we're installing on a Raspberry Pi
-        on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
-        if not on_rtd:
-            try:
-                with io.open('/proc/cpuinfo', 'r') as cpuinfo:
-                    found = False
-                    for line in cpuinfo:
-                        if line.startswith('Hardware'):
-                            found = True
-                            label, value = line.strip().split(':', 1)
-                            value = value.strip()
-                            if value not in ('BCM2708', 'BCM2709', 'BCM2835', 'BCM2836'):
-                                raise ValueError('This system does not appear to be a Raspberry Pi')
-                    if not found:
-                        raise ValueError('Unable to determine if this system is a Raspberry Pi')
-            except IOError:
-                raise ValueError('Unable to open /proc/cpuinfo')
-        install.run(self)
-
-
 def main():
     with io.open(os.path.join(HERE, 'README.rst'), 'r') as readme:
         setup(
@@ -137,7 +115,6 @@ def main():
             install_requires     = __requires__,
             extras_require       = __extra_requires__,
             entry_points         = __entry_points__,
-            cmdclass             = {'install': CustomInstallCommand},
             )
 
 
