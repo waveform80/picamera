@@ -109,6 +109,9 @@ def vcsm_exit():
     one run of Python.  This method should only be called once.  It is
     also probably not required - the library should be shut down cleanly
     when the garbage collector cleans up after the module.
+    
+    You probably do not want to call this function manually, but it is 
+    here for completeness.
 
     .. versionadded:: 1.14
     """
