@@ -144,7 +144,9 @@ up to date:
     Previously, these documents have suggested using the ``rpi-update`` utility
     to update the Pi's firmware; this is now discouraged. If you have
     previously used the ``rpi-update`` utility to update your firmware, you can
-    switch back to using ``apt`` to manage it with the following commands::
+    switch back to using ``apt`` to manage it with the following commands:
+
+    .. code-block:: console
 
         $ sudo apt-get update
         $ sudo apt-get install --reinstall libraspberrypi0 libraspberrypi-{bin,dev,doc} \

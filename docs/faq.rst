@@ -141,7 +141,9 @@ the first entry in the list will be the version that ``import picamera`` will
 import.
 
 If you receive the error "No module named pkg_resources", you need to install
-the ``pip`` utility. This can be done with the following command in Raspbian::
+the ``pip`` utility. This can be done with the following command in Raspbian:
+
+.. code-block:: console
 
     $ sudo apt-get install python-pip
 
