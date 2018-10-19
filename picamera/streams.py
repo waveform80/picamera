@@ -525,23 +525,14 @@ class CircularIO(io.IOBase):
 
 
 class PiCameraDequeHack(deque):
-    def __init__(self, camera, splitter_port=1):
+    def __init__(self, stream):
         super(PiCameraDequeHack, self).__init__()
-        try:
-            camera._encoders
-        except AttributeError:
-            raise PiCameraValueError('camera must be a valid PiCamera object')
-        self.camera = camera
-        self.splitter_port = splitter_port
+        self.stream = stream
 
     def append(self, item):
-        encoder = self.camera._encoders[self.splitter_port]
-        if encoder.frame.complete:
-            # If the chunk being appended is the end of a new frame, include
-            # the frame's metadata from the camera
-            return super(PiCameraDequeHack, self).append((item, encoder.frame))
-        else:
-            return super(PiCameraDequeHack, self).append((item, None))
+        # Include the frame's metadata.
+        frame = self.stream.get_frame()
+        return super(PiCameraDequeHack, self).append((item, frame))
 
     def pop(self):
         return super(PiCameraDequeHack, self).pop()[0]
@@ -673,8 +664,22 @@ class PiCameraCircularIO(CircularIO):
         if seconds is not None:
             size = bitrate * seconds // 8
         super(PiCameraCircularIO, self).__init__(size)
-        self._data = PiCameraDequeHack(camera, splitter_port)
+        try:
+            camera._encoders
+        except AttributeError:
+            raise PiCameraValueError('camera must be a valid PiCamera object')
+        self.camera = camera
+        self.splitter_port = splitter_port
+        self._data = PiCameraDequeHack(self)
         self.frames = PiCameraDequeFrames(self)
+
+    def get_frame(self):
+        """
+        Return frame metadata from latest frame, when it is complete.
+        """
+        encoder = self.camera._encoders[self.splitter_port]
+        frame = encoder.frame
+        return (frame if frame.complete else None)
 
     def clear(self):
         """
@@ -701,17 +706,22 @@ class PiCameraCircularIO(CircularIO):
 
     def _find_seconds(self, seconds, first_frame):
         pos = None
+        prev = None
+        first = None
         last = None
-        seconds = int(seconds * 1000000)
+        if seconds is not None:
+            seconds = int(seconds * 1000000)
         for frame in reversed(self.frames):
             if first_frame in (None, frame.frame_type):
                 pos = frame.position
+                first = prev
             if frame.timestamp is not None:
                 if last is None:
                     last = frame.timestamp
-                elif last - frame.timestamp >= seconds:
+                elif (seconds is not None) and (last - frame.timestamp >= seconds):
                     break
-        return pos
+                prev = frame.timestamp
+        return (pos, first, last)
 
     def _find_frames(self, frames, first_frame):
         pos = None
@@ -771,6 +781,8 @@ class PiCameraCircularIO(CircularIO):
             with self.lock:
                 save_pos = self.tell()
                 try:
+                    start_ts = None
+                    end_ts = None
                     if size is not None:
                         pos = self._find_size(size, first_frame)
                     elif seconds is not None:
@@ -778,7 +790,7 @@ class PiCameraCircularIO(CircularIO):
                     elif frames is not None:
                         pos = self._find_frames(frames, first_frame)
                     else:
-                        pos = self._find_all(first_frame)
+                        (pos, start_ts, end_ts) = self._find_seconds(seconds, first_frame)
                     # Copy chunks efficiently from the position found
                     if pos is not None:
                         self.seek(pos)
@@ -787,6 +799,7 @@ class PiCameraCircularIO(CircularIO):
                             if not buf:
                                 break
                             output.write(buf)
+                    return (start_ts, end_ts)
                 finally:
                     self.seek(save_pos)
         finally:

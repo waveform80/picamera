@@ -1103,7 +1103,7 @@ class PiCamera(object):
                     'There is no recording in progress on '
                     'port %d' % splitter_port)
         else:
-            encoder.split(output, options.get('motion_output'))
+            return encoder.split(output, options.get('motion_output'))
 
     def request_key_frame(self, splitter_port=1):
         """
