@@ -80,10 +80,12 @@ def filenames_format_options(request):
     request.addfinalizer(fin)
     return filename1, filename2, request.param.format, request.param.options
 
+
 # Run tests with a variety of format specs
 @pytest.fixture(params=RECORDING_CASES)
 def format_options(request):
     return request.param.format, request.param.options
+
 
 def expected_failures(resolution, format, options):
     if resolution == (2592, 1944) and 'resize' not in options:
@@ -126,6 +128,7 @@ def test_record_to_file(camera, previewing, mode, filenames_format_options):
     if verify2:
         verify_video(filename2, format, resolution)
 
+
 def test_record_to_stream(camera, previewing, mode, format_options):
     format, options = format_options
     resolution, framerate = mode
@@ -157,6 +160,7 @@ def test_record_to_stream(camera, previewing, mode, format_options):
         stream2.seek(0)
         verify_video(stream2, format, resolution)
 
+
 def test_record_sequence_to_file(camera, mode, tempdir):
     resolution, framerate = mode
     expected_failures(resolution, 'h264', {})
@@ -165,6 +169,7 @@ def test_record_sequence_to_file(camera, mode, tempdir):
         camera.wait_recording(1)
     for filename in filenames:
         verify_video(filename, 'h264', resolution)
+
 
 def test_record_sequence_to_stream(camera, mode):
     resolution, framerate = mode
@@ -175,6 +180,7 @@ def test_record_sequence_to_stream(camera, mode):
     for stream in streams:
         stream.seek(0)
         verify_video(stream, 'h264', resolution)
+
 
 def test_circular_record(camera, mode):
     resolution, framerate = mode
@@ -204,6 +210,7 @@ def test_circular_record(camera, mode):
     temp.seek(0)
     verify_video(temp, 'h264', resolution)
 
+
 def test_split_and_capture(camera, mode):
     resolution, framerate = mode
     expected_failures(resolution, 'h264', {})
@@ -224,6 +231,7 @@ def test_split_and_capture(camera, mode):
     verify_image(c_stream1, 'jpeg', resolution)
     verify_video(v_stream1, 'h264', resolution)
     verify_video(v_stream2, 'h264', resolution)
+
 
 def test_multi_res_record(camera, mode):
     resolution, framerate = mode
@@ -247,6 +255,7 @@ def test_multi_res_record(camera, mode):
     verify_video(v_stream1, 'h264', resolution)
     verify_video(v_stream2, 'h264', new_res)
 
+
 def test_macroblock_limit(camera):
     res, fps = camera.resolution, camera.framerate
     try:
@@ -258,13 +267,15 @@ def test_macroblock_limit(camera):
         camera.resolution = res
         camera.framerate = fps
 
-class SizeTest(object):
-    def __init__(self):
-        self.size = 0
-    def write(self, s):
-        self.size += len(s)
 
 def test_multi_res_record_len(camera, mode):
+
+    class SizeTest(object):
+        def __init__(self):
+            self.size = 0
+        def write(self, s):
+            self.size += len(s)
+
     resolution, framerate = mode
     expected_failures(resolution, 'h264', {})
     output1 = SizeTest()
@@ -284,17 +295,19 @@ def test_multi_res_record_len(camera, mode):
     assert output2.size > 0
     assert output1.size > output2.size
 
-class MotionTest(object):
-    def __init__(self, camera):
-        width, height = camera.resolution
-        self.rows = (height + 15) // 16
-        self.cols = (width + 15) // 16
-        self.cols += 1
-    def write(self, s):
-        assert len(s) == self.cols * self.rows * 4
-        return len(s)
 
 def test_motion_record(camera, mode):
+
+    class MotionTest(object):
+        def __init__(self, camera):
+            width, height = camera.resolution
+            self.rows = (height + 15) // 16
+            self.cols = (width + 15) // 16
+            self.cols += 1
+        def write(self, s):
+            assert len(s) == self.cols * self.rows * 4
+            return len(s)
+
     resolution, framerate = mode
     expected_failures(resolution, 'h264', {})
     camera.start_recording(
@@ -304,6 +317,7 @@ def test_motion_record(camera, mode):
         camera.wait_recording(1)
     finally:
         camera.stop_recording()
+
 
 def test_record_bad_format(camera):
     with pytest.raises(picamera.PiCameraValueError):
@@ -315,25 +329,22 @@ def test_record_bad_format(camera):
     with pytest.raises(picamera.PiCameraValueError):
         camera.start_recording('test.h264', format='mp4')
 
+
 def test_record_bad_timestamp(camera):
-    # Frame timestamps should be None or positive integers. Prior to #357
+    # Frame timestamps should be positive integers in all cases. Prior to #357
     # getting fixed a None timestamp (from a 0 PTS) would be followed by a
     # large negative timestamp (from an unrecognized TIME_UNKNOWN timestamp)
+
     class Timestamps(object):
         def __init__(self, camera):
             self.camera = camera
             self.timestamps = []
-            self.none_count = 0
         def write(self, buf):
-            if self.camera.frame.complete:
-                self.timestamps.append(self.camera.frame.timestamp)
-                if self.camera.frame.timestamp is None:
-                    self.none_count += 1
+            self.timestamps.append(self.camera.frame.timestamp)
+
     output = Timestamps(camera)
     camera.start_recording(output, 'h264')
-    while output.none_count < 2:
-        camera.wait_recording(1)
+    camera.wait_recording(1)
     camera.stop_recording()
     for timestamp in output.timestamps:
-        assert timestamp is None or timestamp >= 0
-
+        assert timestamp >= 0
