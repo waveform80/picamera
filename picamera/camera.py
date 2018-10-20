@@ -1086,6 +1086,9 @@ class PiCamera(object):
         and *inline_headers* must be ``True`` when :meth:`start_recording` is
         called (this is the default).
 
+        The method returns the meta-data of the first :class:`PiVideoFrame`
+        that is written to the new output.
+
         .. versionchanged:: 1.3
             The *splitter_port* parameter was added
 

@@ -150,10 +150,9 @@ class PiVideoFrame(namedtuple('PiVideoFrame', (
         .. warning::
 
             Currently, the camera occasionally returns "time unknown" values in
-            this field which picamera represents as ``None``. If you are
-            querying this property you will need to check the value is not
-            ``None`` before using it. This happens for SPS header "frames",
-            for example.
+            this field. In this case, picamera will simply re-use the timestamp
+            of the previous frame (under the assumption that time never goes
+            backwards). This happens for SPS header "frames", for example.
 
     .. attribute:: complete
 
@@ -213,4 +212,3 @@ class PiVideoFrame(namedtuple('PiVideoFrame', (
                 'PiVideoFrame.frame_type for equality with '
                 'PiVideoFrameType.sps_header instead'))
         return self.frame_type == PiVideoFrameType.sps_header
-
