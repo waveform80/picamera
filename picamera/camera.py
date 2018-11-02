@@ -1,7 +1,7 @@
 # vim: set et sw=4 sts=4 fileencoding=utf-8:
 #
 # Python camera library for the Rasperry-Pi camera module
-# Copyright (c) 2013-2017 Dave Jones <dave@waveform.org.uk>
+# Copyright (c) 2013-2015 Dave Jones <dave@waveform.org.uk>
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -182,6 +182,9 @@ class PiCamera(object):
 
     .. versionchanged:: 1.13
         Added *framerate_range* parameter.
+		
+    .. versionchanged:: q1.13
+        Added *noaspect* parameter.
 
     .. _Compute Module: https://www.raspberrypi.org/documentation/hardware/computemodule/cmio-camera.md
     """
@@ -315,6 +318,7 @@ class PiCamera(object):
         '_preview_layer',
         '_preview_fullscreen',
         '_preview_window',
+        '_preview_noaspect',
         '_splitter',
         '_splitter_connection',
         '_encoders_lock',
@@ -357,6 +361,7 @@ class PiCamera(object):
         self._preview_layer = 2
         self._preview_fullscreen = True
         self._preview_window = None
+        self._preview_noaspect = None
         self._splitter = None
         self._splitter_connection = None
         self._encoders_lock = threading.Lock()
@@ -796,6 +801,7 @@ class PiCamera(object):
         options.setdefault('alpha', self._preview_alpha)
         options.setdefault('fullscreen', self._preview_fullscreen)
         options.setdefault('window', self._preview_window)
+        options.setdefault('noaspect', self._preview_noaspect)
         renderer = PiPreviewRenderer(
             self, self._camera.outputs[self.CAMERA_PREVIEW_PORT], **options)
         self._preview = renderer
