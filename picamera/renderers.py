@@ -1,7 +1,7 @@
 # vim: set et sw=4 sts=4 fileencoding=utf-8:
 #
 # Python camera library for the Rasperry-Pi camera module
-# Copyright (c) 2013-2015 Dave Jones <dave@waveform.org.uk>
+# Copyright (c) 2013-2017 Dave Jones <dave@waveform.org.uk>
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -52,21 +52,18 @@ class PiRenderer(object):
     Wraps :class:`~mmalobj.MMALRenderer` for use by PiCamera.
 
     The *parent* parameter specifies the :class:`PiCamera` instance that has
-    constructed this renderer. The *layer* parameter specifies the layer that
-    the renderer will inhabit. Higher numbered layers obscure lower numbered
-    layers (unless they are partially transparent). The initial opacity of the
-    renderer is specified by the *alpha* parameter (which defaults to 255,
-    meaning completely opaque). The *fullscreen* parameter which defaults to
-    ``True`` indicates whether the renderer should occupy the entire display.
-    Finally, the *window* parameter (which only has meaning when *fullscreen*
-    is ``False``) is a four-tuple of ``(x, y, width, height)`` which gives the
-    screen coordinates that the renderer should occupy when it isn't
-    full-screen.
+    constructed this renderer. All other parameters set the initial values
+    of the correspondingly named attributes (e.g. the *layer* parameter
+    sets the initial value of the :attr:`layer` attribute, the *crop* parameter
+    sets the initial value of the :attr:`crop` attribute, etc).
 
     This base class isn't directly used by :class:`PiCamera`, but the two
     derivatives defined below, :class:`PiOverlayRenderer` and
     :class:`PiPreviewRenderer`, are used to produce overlays and the camera
     preview respectively.
+
+    .. versionchanged:: 1.14
+        Added *anamorphic* parameter
     """
 
     def __init__(
@@ -186,13 +183,20 @@ class PiRenderer(object):
         mp.noaspect = bool(value)
         self.renderer.inputs[0].params[mmal.MMAL_PARAMETER_DISPLAYREGION] = mp
     anamorphic = property(_get_anamorphic, _set_anamorphic, doc="""\
-        Retrieves or sets whether the renderer is anamorphic or respects the aspect ratio.
+        Retrieves or sets whether the renderer is `anamorphic`_.
 
         The :attr:`anamorphic` property is a bool which controls whether the
-        renderer respects the aspect ratio of the source. When set to ``True``, the
-        aspect ratio of the source is anamorphed. This can help with things like 16:9 widescreen composite
-        outputs for previews without having to change the cameras output ratio.
-        The property can be set while recordings or previews are active.
+        renderer respects the `aspect ratio`_ of the source. When ``False``
+        (the default) the source aspect ratio is respected. When set to
+        ``True``, the aspect ratio of the source is anamorphed. This can help
+        with things like 16:9 widescreen composite outputs for previews without
+        having to change the cameras output ratio. The property can be set
+        while recordings or previews are active.
+
+        .. versionadded:: 1.14
+
+        .. _aspect ratio: https://en.wikipedia.org/wiki/Aspect_ratio_(image)
+        .. _anamorphic: https://en.wikipedia.org/wiki/Anamorphic_widescreen
         """)
 
     def _get_window(self):
@@ -397,6 +401,9 @@ class PiOverlayRenderer(PiRenderer):
 
     .. versionchanged:: 1.13
         Added *format* parameter
+
+    .. versionchanged:: 1.14
+        Added *anamorphic* parameter
     """
 
     SOURCE_BPP = {
@@ -475,10 +482,14 @@ class PiPreviewRenderer(PiRenderer):
     This class descends from :class:`PiRenderer` and adds an
     :class:`~mmalobj.MMALConnection` to connect the renderer to an MMAL port.
     The *source* parameter specifies the :class:`~mmalobj.MMALPort` to connect
-    to the renderer.
+    to the renderer. The *resolution* parameter can be used to override the
+    framesize of the *source*. See :attr:`resolution` for details of when this
+    is useful.
 
-    The *layer*, *alpha*, *fullscreen*, and *window* parameters are the same
-    as in :class:`PiRenderer`.
+    All other parameters are the same as in :class:`PiRenderer`.
+
+    .. versionchanged:: 1.14
+        Added *anamorphic* parameter
     """
 
     def __init__(
@@ -524,18 +535,18 @@ class PiPreviewRenderer(PiRenderer):
         to set a lower resolution for the preview that the camera's resolution.
 
         When queried, the :attr:`resolution` property returns ``None`` if the
-        preview's resolution is derived from the camera's. In this case, changing
-        the camera's resolution will also cause the preview's resolution to
-        change. Otherwise, it returns the current preview resolution as a
-        tuple.
+        preview's resolution is derived from the camera's. In this case,
+        changing the camera's resolution will also cause the preview's
+        resolution to change. Otherwise, it returns the current preview
+        resolution as a tuple.
 
         .. note::
 
             The preview resolution cannot be greater than the camera's
-            resolution (in either access). If you set a preview resolution,
-            then change the camera's resolution below the preview's resolution,
-            this property will silently revert to ``None``, meaning the
-            preview's resolution will follow the camera's resolution.
+            resolution. If you set a preview resolution, then change the
+            camera's resolution below the preview's resolution, this property
+            will silently revert to ``None``, meaning the preview's resolution
+            will follow the camera's resolution.
 
         When set, the property reconfigures the preview renderer with the new
         resolution.  As a special case, setting the property to ``None`` will
@@ -592,5 +603,3 @@ class PiNullSink(object):
 
     def __exit__(self, exc_type, exc_value, exc_tb):
         self.close()
-
-

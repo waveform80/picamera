@@ -56,9 +56,9 @@ def camera(request):
 # Activates and deactivates preview mode to test things in both states
 @pytest.fixture(params=(False, True))
 def previewing(request, camera):
-    if request.param and not camera.previewing:
+    if request.param and not camera.preview:
         camera.start_preview()
-    if not request.param and camera.previewing:
+    if not request.param and camera.preview:
         camera.stop_preview()
     return request.param
 
