@@ -1086,6 +1086,9 @@ class PiCamera(object):
         and *inline_headers* must be ``True`` when :meth:`start_recording` is
         called (this is the default).
 
+        The method returns the meta-data of the first :class:`PiVideoFrame`
+        that is written to the new output.
+
         .. versionchanged:: 1.3
             The *splitter_port* parameter was added
 
@@ -1103,7 +1106,7 @@ class PiCamera(object):
                     'There is no recording in progress on '
                     'port %d' % splitter_port)
         else:
-            encoder.split(output, options.get('motion_output'))
+            return encoder.split(output, options.get('motion_output'))
 
     def request_key_frame(self, splitter_port=1):
         """

@@ -82,26 +82,27 @@ def test_seek_tell():
 def test_read():
     stream = CircularIO(10)
     stream.write(b'abcdef')
+    # Circular buffer drops whole writes, so this will drop "abcdef"
     stream.write(b'ghijklm')
     stream.seek(0)
-    assert stream.read(1) == b'd'
-    assert stream.read(4) == b'efgh'
-    assert stream.read() == b'ijklm'
-    assert stream.tell() == 10
+    assert stream.read(1) == b'g'
+    assert stream.read(4) == b'hijk'
+    assert stream.read() == b'lm'
+    assert stream.tell() == 7
     assert stream.read() == b''
     stream.seek(0)
-    assert stream.read() == b'defghijklm'
+    assert stream.read() == b'ghijklm'
 
 def test_read1():
     stream = CircularIO(10)
     stream.write(b'abcdef')
+    # Circular buffer drops whole writes, so this will drop "abcdef"
     stream.write(b'ghijklm')
     stream.seek(0)
-    assert stream.read1() == b'def'
+    assert stream.read1() == b'ghijklm'
     stream.seek(0)
-    assert stream.read1(5) == b'def'
-    assert stream.read1(3) == b'ghi'
-    assert stream.read1() == b'jklm'
+    assert stream.read1(5) == b'ghijk'
+    assert stream.read1(3) == b'lm'
     assert stream.read1() == b''
 
 def test_write():
@@ -114,19 +115,23 @@ def test_write():
     assert stream.getvalue() == b'\x00\x00abc'
     assert stream.tell() == 5
     stream.write(b'def')
+    # Chunks are now '\x00\x00', 'abc', 'def'
     assert stream.getvalue() == b'\x00\x00abcdef'
     assert stream.tell() == 8
     stream.write(b'ghijklm')
+    # Chunks are now 'def', 'ghijklm'
     assert stream.getvalue() == b'defghijklm'
     assert stream.tell() == 10
     stream.seek(1)
     stream.write(b'aaa')
+    # Chunks are now 'daa', 'ahijklm'
     assert stream.getvalue() == b'daaahijklm'
     assert stream.tell() == 4
     stream.seek(-2, io.SEEK_END)
     stream.write(b'bbb')
-    assert stream.tell() == 10
-    assert stream.getvalue() == b'aaahijkbbb'
+    # Chunks are now 'ahijkbb', 'b'
+    assert stream.tell() == 8
+    assert stream.getvalue() == b'ahijkbbb'
 
 def test_truncate():
     stream = CircularIO(10)
@@ -142,7 +147,7 @@ def test_truncate():
     assert stream.read() == b'\x00\x00'
     stream.truncate(4)
     stream.seek(0)
-    assert stream.read() == b'defg'
+    assert stream.read() == b'ghij'
     with pytest.raises(ValueError):
         stream.truncate(-1)
 

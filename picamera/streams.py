@@ -41,6 +41,8 @@ str = type('')
 import io
 from threading import RLock
 from collections import deque
+from operator import attrgetter
+from weakref import ref
 
 from picamera.exc import PiCameraValueError
 from picamera.frames import PiVideoFrame, PiVideoFrameType
@@ -231,6 +233,35 @@ class CircularIO(io.IOBase):
     `ring buffer`_ with a fixed maximum size. Once the maximum size is reached,
     writing effectively loops round to the beginning to the ring and starts
     overwriting the oldest content.
+
+    Actually, this ring buffer is slightly different to "traditional" ring
+    buffers. This ring buffer is optimized for camera usage which is expected
+    to be read-light, write-heavy, and with writes *mostly* aligned to frame
+    boundaries. Internally, the stream simply references each chunk written and
+    drops references each time the overall size of the stream would exceed the
+    specified limit.
+
+    As a result the ring buffer doesn't stay strictly at its allocated limit as
+    traditional ring buffers do. It also drops entire writes when the limit is
+    reached (this is a desirable behaviour because it means that often whole
+    frames are dropped from the start of the stream, rather than leaving
+    partial frames at the start as in a traditional ring buffer). For example:
+
+    .. code-block:: pycon
+
+        >>> stream = CircularIO(size=10)
+        >>> stream.write(b'abc')
+        >>> stream.write(b'def')
+        >>> stream.getvalue()
+        b'abcdef'
+        >>> stream.write(b'ghijk')
+        >>> stream.getvalue()
+        b'defghijk'
+
+    In a traditional ring buffer, one would expect the last ``getvalue()`` call
+    to return ``'bcdefghijk'`` as only the first character would be lost at the
+    limit of 10 bytes. However, this ring buffer has dropped the entire write
+    of ``'abc'``.
 
     The *size* parameter specifies the maximum size of the stream in bytes. The
     :meth:`read`, :meth:`tell`, and :meth:`seek` methods all operate
@@ -505,43 +536,25 @@ class CircularIO(io.IOBase):
                 if b:
                     self.write(b)
             # If the stream is now beyond the specified size limit, remove
-            # chunks (or part of a chunk) until the size is within the limit
-            # again
+            # whole chunks until the size is within the limit again
             while self._length > self._size:
-                chunk = self._data[0]
-                if self._length - len(chunk) >= self._size:
-                    # Need to remove the entire chunk
-                    self._data.popleft()
-                    self._length -= len(chunk)
-                    self._pos -= len(chunk)
-                    self._pos_index -= 1
-                    # no need to adjust self._pos_offset
-                else:
-                    # need to remove the head of the chunk
-                    self._data[0] = chunk[self._length - self._size:]
-                    self._pos -= self._length - self._size
-                    self._length = self._size
+                chunk = self._data.popleft()
+                self._length -= len(chunk)
+                self._pos -= len(chunk)
+                self._pos_index -= 1
+                # no need to adjust self._pos_offset
             return result
 
 
 class PiCameraDequeHack(deque):
-    def __init__(self, camera, splitter_port=1):
+    def __init__(self, stream):
         super(PiCameraDequeHack, self).__init__()
-        try:
-            camera._encoders
-        except AttributeError:
-            raise PiCameraValueError('camera must be a valid PiCamera object')
-        self.camera = camera
-        self.splitter_port = splitter_port
+        self.stream = ref(stream)  # avoid a circular ref
 
     def append(self, item):
-        encoder = self.camera._encoders[self.splitter_port]
-        if encoder.frame.complete:
-            # If the chunk being appended is the end of a new frame, include
-            # the frame's metadata from the camera
-            return super(PiCameraDequeHack, self).append((item, encoder.frame))
-        else:
-            return super(PiCameraDequeHack, self).append((item, None))
+        # Include the frame's metadata.
+        frame = self.stream()._get_frame()
+        return super(PiCameraDequeHack, self).append((item, frame))
 
     def pop(self):
         return super(PiCameraDequeHack, self).pop()[0]
@@ -557,23 +570,33 @@ class PiCameraDequeHack(deque):
         return super(PiCameraDequeHack, self).__setitem__(index, (value, frame))
 
     def __iter__(self):
-        for item, frame in super(PiCameraDequeHack, self).__iter__():
+        for item, frame in self.iter_both(False):
             yield item
+
+    def __reversed__(self):
+        for item, frame in self.iter_both(True):
+            yield item
+
+    def iter_both(self, reverse):
+        if reverse:
+            return super(PiCameraDequeHack, self).__reversed__()
+        else:
+            return super(PiCameraDequeHack, self).__iter__()
 
 
 class PiCameraDequeFrames(object):
     def __init__(self, stream):
         super(PiCameraDequeFrames, self).__init__()
-        self.stream = stream
+        self.stream = ref(stream)  # avoid a circular ref
 
     def __iter__(self):
-        with self.stream.lock:
+        with self.stream().lock:
             pos = 0
-            for item, frame in super(PiCameraDequeHack, self.stream._data).__iter__():
+            for item, frame in self.stream()._data.iter_both(False):
                 pos += len(item)
                 if frame:
-                    # Rewrite the video_size and split_size attributes according
-                    # to the current position of the chunk
+                    # Rewrite the video_size and split_size attributes
+                    # according to the current position of the chunk
                     frame = PiVideoFrame(
                         index=frame.index,
                         frame_type=frame.frame_type,
@@ -582,16 +605,16 @@ class PiCameraDequeFrames(object):
                         split_size=pos,
                         timestamp=frame.timestamp,
                         complete=frame.complete,
-                        )
+                    )
                     # Only yield the frame meta-data if the start of the frame
                     # still exists in the stream
                     if pos - frame.frame_size >= 0:
                         yield frame
 
     def __reversed__(self):
-        with self.stream.lock:
-            pos = self.stream._length
-            for item, frame in super(PiCameraDequeHack, self.stream._data).__reversed__():
+        with self.stream().lock:
+            pos = self.stream()._length
+            for item, frame in self.stream()._data.iter_both(True):
                 if frame:
                     frame = PiVideoFrame(
                         index=frame.index,
@@ -673,8 +696,30 @@ class PiCameraCircularIO(CircularIO):
         if seconds is not None:
             size = bitrate * seconds // 8
         super(PiCameraCircularIO, self).__init__(size)
-        self._data = PiCameraDequeHack(camera, splitter_port)
-        self.frames = PiCameraDequeFrames(self)
+        try:
+            camera._encoders
+        except AttributeError:
+            raise PiCameraValueError('camera must be a valid PiCamera object')
+        self.camera = camera
+        self.splitter_port = splitter_port
+        self._data = PiCameraDequeHack(self)
+        self._frames = PiCameraDequeFrames(self)
+
+    def _get_frame(self):
+        """
+        Return frame metadata from latest frame, when it is complete.
+        """
+        encoder = self.camera._encoders[self.splitter_port]
+        return encoder.frame if encoder.frame.complete else None
+
+    @property
+    def frames(self):
+        """
+        An iterable which contains the meta-data (:class:`PiVideoFrame`
+        objects) for all complete frames currently stored in the circular
+        buffer.
+        """
+        return self._frames
 
     def clear(self):
         """
@@ -689,43 +734,31 @@ class PiCameraCircularIO(CircularIO):
             self.seek(0)
             self.truncate()
 
-    def _find_size(self, size, first_frame):
-        pos = None
-        for frame in reversed(self.frames):
+    def _find(self, field, criteria, first_frame):
+        first = last = None
+        attr = attrgetter(field)
+        for frame in reversed(self._frames):
+            if last is None:
+                last = frame
             if first_frame in (None, frame.frame_type):
-                pos = frame.position
-            if size < frame.frame_size:
+                first = frame
+            if last is not None and attr(last) - attr(frame) >= criteria:
                 break
-            size -= frame.frame_size
-        return pos
-
-    def _find_seconds(self, seconds, first_frame):
-        pos = None
-        last = None
-        seconds = int(seconds * 1000000)
-        for frame in reversed(self.frames):
-            if first_frame in (None, frame.frame_type):
-                pos = frame.position
-            if frame.timestamp is not None:
-                if last is None:
-                    last = frame.timestamp
-                elif last - frame.timestamp >= seconds:
+                if last is not None and attr(last) - attr(frame) >= criteria:
                     break
-        return pos
-
-    def _find_frames(self, frames, first_frame):
-        pos = None
-        for count, frame in enumerate(reversed(self.frames)):
-            if first_frame in (None, frame.frame_type):
-                pos = frame.position
-            if frames < count:
-                break
-        return pos
+        return first, last
 
     def _find_all(self, first_frame):
-        for frame in self.frames:
+        chunks = []
+        first = last = None
+        for frame in reversed(self._frames):
+            last = frame
+            break
+        for frame in self._frames:
             if first_frame in (None, frame.frame_type):
-                return frame.position
+                first = frame
+                break
+        return first, last
 
     def copy_to(
             self, output, size=None, seconds=None, frames=None,
@@ -743,7 +776,7 @@ class PiCameraCircularIO(CircularIO):
         *seconds* if specified, then the copy will be limited to that number of
         seconds worth of frames. If *frames* is specified then the copy will
         be limited to that number of frames. Only one of *size*, *seconds*, or
-        *frames* can be specified.  If none is specified, all frames are copied.
+        *frames* can be specified. If none is specified, all frames are copied.
 
         If *first_frame* is specified, it defines the frame type of the first
         frame to be copied. By default this is
@@ -761,7 +794,8 @@ class PiCameraCircularIO(CircularIO):
         The stream's position is not affected by this method.
         """
         if (size, seconds, frames).count(None) < 2:
-            raise PiCameraValueError('You can only specify one of size, seconds, or frames')
+            raise PiCameraValueError(
+                'You can only specify one of size, seconds, or frames')
         if isinstance(output, bytes):
             output = output.decode('utf-8')
         opened = isinstance(output, str)
@@ -769,27 +803,31 @@ class PiCameraCircularIO(CircularIO):
             output = io.open(output, 'wb')
         try:
             with self.lock:
-                save_pos = self.tell()
-                try:
-                    if size is not None:
-                        pos = self._find_size(size, first_frame)
-                    elif seconds is not None:
-                        pos = self._find_seconds(seconds, first_frame)
-                    elif frames is not None:
-                        pos = self._find_frames(frames, first_frame)
-                    else:
-                        pos = self._find_all(first_frame)
-                    # Copy chunks efficiently from the position found
-                    if pos is not None:
-                        self.seek(pos)
-                        while True:
-                            buf = self.read1()
-                            if not buf:
-                                break
-                            output.write(buf)
-                finally:
-                    self.seek(save_pos)
+                if size is not None:
+                    first, last = self._find('video_size', size, first_frame)
+                elif seconds is not None:
+                    seconds = int(seconds * 1000000)
+                    first, last = self._find('timestamp', seconds, first_frame)
+                elif frames is not None:
+                    first, last = self._find('index', frames, first_frame)
+                else:
+                    first, last = self._find_all(first_frame)
+                # Copy chunk references into a holding buffer; this allows us
+                # to release the lock on the stream quickly (in case recording
+                # is on-going)
+                chunks = []
+                if first is not None and last is not None:
+                    pos = 0
+                    for buf, frame in self._data.iter_both(False):
+                        if pos > last.position + last.frame_size:
+                            break
+                        elif pos >= first.position:
+                            chunks.append(buf)
+                        pos += len(buf)
+            # Perform the actual I/O, copying chunks to the output
+            for buf in chunks:
+                output.write(buf)
+            return first, last
         finally:
             if opened:
                 output.close()
-

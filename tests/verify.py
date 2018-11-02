@@ -46,6 +46,8 @@ import subprocess
 from PIL import Image
 
 
+FFMPEG = os.environ.get('PICAMERA_FFMPEG', 'ffmpeg')
+
 RAW_FORMATS = {
     # name   bytes-per-pixel
     'yuv':  1.5,
@@ -218,18 +220,18 @@ def verify_video(filename_or_obj, format, resolution):
     elif format == 'h264':
         if isinstance(filename_or_obj, str):
             p = subprocess.Popen([
-                'avconv',
+                FFMPEG,
                 '-f', format,
                 '-i', filename_or_obj,
                 ], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         else:
             p = subprocess.Popen([
-                'avconv',
+                FFMPEG,
                 '-f', format,
                 '-i', '-',
                 ], stdin=filename_or_obj, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         out = p.communicate()[0]
-        assert p.returncode == 1, 'avconv returned unexpected code %d' % p.returncode
+        assert p.returncode == 1, 'ffmpeg returned unexpected code %d' % p.returncode
         state = 'start'
         for line in out.splitlines():
             line = line.decode('utf-8').strip()
@@ -237,18 +239,20 @@ def verify_video(filename_or_obj, format, resolution):
                 state = 'input'
             elif state == 'input' and re.match(r'^Duration', line):
                 state = 'dur'
-            elif state == 'dur' and re.match(r'^Stream #0\.0', line):
+            elif state == 'dur' and re.match(r'^Stream #0[.:]0', line):
                 assert re.match(
-                    r'^Stream #0\.0: '
+                    r'^Stream #0[.:]0: '
                     r'Video: %s( \(.*\))?, '
-                    r'yuvj?420p, '
+                    r'yuvj?420p(\(progressive\))?, '
                     r'%dx%d( \[PAR \d+:\d+ DAR \d+:\d+\])?, '
                     r'\d+ fps(, \d+ tbr)?, \d+k? tbn(, \d+k? tbc)?$' % (
                         format, width, height),
                     line
-                    ), 'Unexpected avconv output: %s' % line
+                    ), 'Unexpected ffmpeg output: %s' % line
                 return
-        assert False, 'Failed to locate stream analysis in avconv output'
+            else:
+                state = 'start'
+        assert False, 'Failed to locate stream analysis in ffmpeg output'
     else:
         assert False, 'Unable to verify format %s' % format
 
