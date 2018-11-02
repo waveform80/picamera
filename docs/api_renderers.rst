@@ -35,4 +35,3 @@ PiNullSink
 ==========
 
 .. autoclass:: PiNullSink
-

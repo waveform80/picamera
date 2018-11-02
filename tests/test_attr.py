@@ -351,6 +351,10 @@ def test_preview_fullscreen(camera, previewing):
     if previewing:
         boolean_attr(camera.preview, 'fullscreen')
 
+def test_preview_anamorphic(camera, previewing):
+    if previewing:
+        boolean_attr(camera.preview, 'anamorphic')
+
 def test_preview_window(camera, previewing):
     if previewing:
         camera.preview.window = (0, 0, 320, 240)
