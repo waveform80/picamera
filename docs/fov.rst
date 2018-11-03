@@ -1027,7 +1027,7 @@ abstraction layers, which necessarily obscure (but hopefully simplify) the
 .. _real-time operating system: https://en.wikipedia.org/wiki/Real-time_operating_system
 .. _system on a chip: https://en.wikipedia.org/wiki/System_on_a_chip
 .. _image signal processor: https://en.wikipedia.org/wiki/Image_processor
-.. _binning: http://www.andor.com/learning-academy/ccd-binning-what-does-binning-mean
+.. _binning: https://andor.oxinst.com/learning/view/article/ccd-binning
 .. _rolling shutter: https://en.wikipedia.org/wiki/Rolling_shutter
 .. _Bayer filter: https://en.wikipedia.org/wiki/Bayer_filter
 .. _Bayer values: https://en.wikipedia.org/wiki/Bayer_filter
