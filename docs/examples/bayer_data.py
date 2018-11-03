@@ -58,7 +58,7 @@ data = data.reshape(reshape)[:crop[0], :crop[1]]
 # values A, B, C, D and arranged like so:
 #
 #  byte 1   byte 2   byte 3   byte 4   byte 5
-# AAAAAAAA BBBBBBBB CCCCCCCC DDDDDDDD AABBCCDD
+# AAAAAAAA BBBBBBBB CCCCCCCC DDDDDDDD DDCCBBAA
 #
 # Here, we convert our data into a 16-bit array, shift all values left by
 # 2-bits and unpack the low-order bits from every 5th byte in each row,
@@ -66,7 +66,7 @@ data = data.reshape(reshape)[:crop[0], :crop[1]]
 
 data = data.astype(np.uint16) << 2
 for byte in range(4):
-    data[:, byte::5] |= ((data[:, 4::5] >> ((4 - byte) * 2)) & 0b11)
+    data[:, byte::5] |= ((data[:, 4::5] >> (byte * 2)) & 0b11)
 data = np.delete(data, np.s_[4::5], 1)
 
 # Now to split the data up into its red, green, and blue components. The
