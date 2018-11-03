@@ -446,6 +446,12 @@ through the center and overlay it on the preview as a simple cross-hair:
 
 .. literalinclude:: examples/image_overlay_array.py
 
+.. note::
+
+    The above example works in Python 3.x only. In Python 2.7,
+    :func:`memoryview` lacks the necessary interface to work with overlays; use
+    ``np.getbuffer(a)`` instead of ``memoryview(a)``.
+
 Given that overlaid renderers can be hidden (by moving them below the preview's
 :attr:`~PiRenderer.layer` which defaults to 2), made semi-transparent (with the
 :attr:`~PiRenderer.alpha` property), and resized so that they don't :attr:`fill

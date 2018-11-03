@@ -462,8 +462,8 @@ def buffer_bytes(buf):
     The object can be multi-dimensional or include items larger than byte-size.
     """
     if not isinstance(buf, memoryview):
-        m = memoryview(buf)
-    return m.itemsize * reduce(mul, m.shape)
+        buf = memoryview(buf)
+    return buf.itemsize * reduce(mul, buf.shape)
 
 
 def debug_pipeline(port):
