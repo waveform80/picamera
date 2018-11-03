@@ -1995,7 +1995,7 @@ class PiCamera(object):
         try:
             if buf.command == mmal.MMAL_EVENT_ERROR:
                 raise PiCameraRuntimeError(
-                    "No data recevied from sensor. Check all connections, "
+                    "No data received from sensor. Check all connections, "
                     "including the SUNNY chip on the camera board")
             elif buf.command != mmal.MMAL_EVENT_PARAMETER_CHANGED:
                 raise PiCameraRuntimeError(
