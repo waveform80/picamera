@@ -2195,7 +2195,7 @@ class PiCamera(object):
     def sensor_modes(self):
         """
         Returns a mapping describing the available sensor modes for the
-        camera model.
+        camera's :attr:`revision`.
 
         This read-only attribute returns a dictionary mapping sensor mode
         numbers (1..7) to instances of :class:`PiSensorMode` which contain the
@@ -2203,6 +2203,8 @@ class PiCamera(object):
         Note that the default mode (0) is not represented, as this indicates
         that the mode should be selected automatically by the firmware based
         on the requested :attr:`resolution` and :attr:`framerate`.
+
+        .. versionadded:: 1.14
         """
         return PiCamera.SENSOR_MODES[self.revision]
 
