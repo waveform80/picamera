@@ -194,6 +194,27 @@ class PiCamera(object):
     DEFAULT_ANNOTATE_SIZE = 32
     CAPTURE_TIMEOUT = 60
 
+    SENSOR_MODES = {
+        'ov5647': {
+            1: mo.PiSensorMode('1080p', (1, 30), full_fov=False),
+            2: mo.PiSensorMode('2592x1944', (1, 15), still=True),
+            3: mo.PiSensorMode('2592x1944', (1/6, 1), still=True),
+            4: mo.PiSensorMode('1296x972', (1, 42)),
+            5: mo.PiSensorMode('1296x730', (1, 49)),
+            6: mo.PiSensorMode('VGA', (42, 60)),
+            7: mo.PiSensorMode('VGA', (60, 90)),
+            },
+        'imx219': {
+            1: mo.PiSensorMode('1080p', (1/10, 30), full_fov=False),
+            2: mo.PiSensorMode('3280x2464', (1/10, 15), still=True),
+            3: mo.PiSensorMode('3280x2464', (1/10, 15), still=True),
+            4: mo.PiSensorMode('1640x1232', (1/10, 40)),
+            5: mo.PiSensorMode('1640x922', (1/10, 40)),
+            6: mo.PiSensorMode('720p', (40, 90), full_fov=False),
+            7: mo.PiSensorMode('VGA', (40, 90), full_fov=False),
+            },
+        }
+
     METER_MODES = {
         'average': mmal.MMAL_PARAM_EXPOSUREMETERINGMODE_AVERAGE,
         'spot':    mmal.MMAL_PARAM_EXPOSUREMETERINGMODE_SPOT,
@@ -508,7 +529,8 @@ class PiCamera(object):
         # Create a null-sink component, enable it and connect it to the
         # camera's preview port. If nothing is connected to the preview port,
         # the camera doesn't measure exposure and captured images gradually
-        # fade to black (issue #22)
+        # fade to black (issue #22; subsequently fixed in firmware but there's
+        # no harm in leaving this in place for the sake of backwards compat)
         self._preview = PiNullSink(
             self, self._camera.outputs[self.CAMERA_PREVIEW_PORT])
 
@@ -1769,10 +1791,10 @@ class PiCamera(object):
 
         By default several Exif tags are automatically applied to any images
         taken with the :meth:`capture` method: ``IFD0.Make`` (which is set to
-        ``RaspberryPi``), ``IFD0.Model`` (which is set to ``RP_OV5647``), and
-        three timestamp tags: ``IFD0.DateTime``, ``EXIF.DateTimeOriginal``, and
-        ``EXIF.DateTimeDigitized`` which are all set to the current date and
-        time just before the picture is taken.
+        ``RaspberryPi``), ``IFD0.Model`` (which is set to the camera's revision
+        string), and three timestamp tags: ``IFD0.DateTime``,
+        ``EXIF.DateTimeOriginal``, and ``EXIF.DateTimeDigitized`` which are all
+        set to the current date and time just before the picture is taken.
 
         If you wish to set additional Exif tags, or override any of the
         aforementioned tags, simply add entries to the exif_tags map before
@@ -1875,9 +1897,9 @@ class PiCamera(object):
 
         .. note::
 
-            At present, the camera's LED cannot be controlled on the Pi 3
+            At present, the camera's LED cannot be controlled on the Pi 3 or 3+
             (the GPIOs used to control the camera LED were re-routed to GPIO
-            expander on the Pi 3).
+            expander on these models).
 
         .. warning::
 
@@ -1886,8 +1908,8 @@ class PiCamera(object):
             resets the camera (as can happen with a CSI-2 timeout), the LED may
             also be reset. If you wish to guarantee that the LED remain off at
             all times, you may prefer to use the ``disable_camera_led`` option
-            in `config.txt`_ (this has the added advantage that sudo privileges
-            and GPIO access are not required, at least for LED control).
+            in `config.txt`_ (this has the added advantage that GPIO access is
+            not required, at least for LED control).
 
         .. _config.txt: https://www.raspberrypi.org/documentation/configuration/config-txt.md
         """)
@@ -2169,6 +2191,21 @@ class PiCamera(object):
         default to 30 if not specified.
         """)
 
+    @property
+    def sensor_modes(self):
+        """
+        Returns a mapping describing the available sensor modes for the
+        camera model.
+
+        This read-only attribute returns a dictionary mapping sensor mode
+        numbers (1..7) to instances of :class:`PiSensorMode` which contain the
+        resolution, range of framerates, and other details about the mode.
+        Note that the default mode (0) is not represented, as this indicates
+        that the mode should be selected automatically by the firmware based
+        on the requested :attr:`resolution` and :attr:`framerate`.
+        """
+        return PiCamera.SENSOR_MODES[self.revision]
+
     def _get_sensor_mode(self):
         self._check_camera_open()
         return self._camera.control.params[mmal.MMAL_PARAMETER_CAMERA_CUSTOM_SENSOR_CONFIG]
@@ -2337,8 +2374,7 @@ class PiCamera(object):
             self.CAMERA_PREVIEW_PORT
             )
         mp = self._camera.outputs[port_num].params[mmal.MMAL_PARAMETER_FPS_RANGE]
-        return mo.PiFramerateRange(
-            mo.to_fraction(mp.fps_low), mo.to_fraction(mp.fps_high))
+        return mo.PiFramerateRange(mp.fps_low, mp.fps_high)
     def _set_framerate_range(self, value):
         self._check_camera_open()
         self._check_recording_stopped()
@@ -2795,6 +2831,16 @@ class PiCamera(object):
         explicitly set will be one of the following values (whichever is
         closest): 100, 200, 320, 400, 500, 640, 800.
 
+        .. note::
+
+            Some users on the Pi camera forum have noted that higher ISO values
+            than 800 (specifically up to 1600) can be achieved in certain
+            conditions with :attr:`exposure_mode` set to ``'sports'`` and
+            :attr:`iso` set to 0.  It doesn't appear to be possible to manually
+            request an ISO setting higher than 800, but the picamera library
+            will permit settings up to 1600 in case the underlying firmware
+            permits such settings in particular circumstances.
+
         On the V1 camera module, non-zero ISO values attempt to fix overall
         gain at various levels. For example, ISO 100 attempts to provide an
         overall gain of 1.0, ISO 200 attempts to provide overall gain of 2.0,
@@ -2808,16 +2854,6 @@ class PiCamera(object):
         The attribute can be adjusted while previews or recordings are in
         progress. The default value is 0 which means automatically determine a
         value according to image-taking conditions.
-
-        .. note::
-
-            Some users on the Pi camera forum have noted that higher ISO values
-            than 800 (specifically up to 1600) can be achieved in certain
-            conditions with :attr:`exposure_mode` set to ``'sports'`` and
-            :attr:`iso` set to 0.  It doesn't appear to be possible to manually
-            request an ISO setting higher than 800, but the picamera library
-            will permit settings up to 1600 in case the underlying firmware
-            permits such settings in particular circumstances.
 
         .. note::
 
