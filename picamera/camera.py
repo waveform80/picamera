@@ -2013,11 +2013,11 @@ class PiCamera(object):
         resolution, and/or clock_mode.
 
         This method is used by the setters of the :attr:`resolution`,
-        :attr:`framerate`, and :attr:`sensor_mode` properties. It assumes the
-        camera is currently disabled. The *old_mode* and *new_mode* arguments
-        are required to ensure correct operation on older firmwares
-        (specifically that we don't try to set the sensor mode when both old
-        and new modes are 0 or automatic).
+        :attr:`framerate`, :attr:`framerate_range`, and :attr:`sensor_mode`
+        properties. It assumes the camera is currently disabled. The *old_mode*
+        and *new_mode* arguments are required to ensure correct operation on
+        older firmwares (specifically that we don't try to set the sensor mode
+        when both old and new modes are 0 or automatic).
         """
         old_cc = mmal.MMAL_PARAMETER_CAMERA_CONFIG_T.from_buffer_copy(self._camera_config)
         old_ports = [

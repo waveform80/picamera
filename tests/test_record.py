@@ -263,6 +263,9 @@ def test_macroblock_limit(camera):
         camera.framerate = 31
         with pytest.raises(picamera.PiCameraValueError):
             camera.start_recording(os.devnull, 'h264')
+        camera.framerate_range = (15, 31)
+        with pytest.raises(picamera.PiCameraValueError):
+            camera.start_recording(os.devnull, 'h264')
     finally:
         camera.resolution = res
         camera.framerate = fps

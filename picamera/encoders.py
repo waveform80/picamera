@@ -727,7 +727,15 @@ class PiVideoEncoder(PiEncoder):
                     'the selected H.264 profile and level' %
                     (self.output_port.framesize, macroblocks_limit))
             if self.parent:
-                framerate = self.parent.framerate + self.parent.framerate_delta
+                if self.parent.framerate == 0:
+                    # Take the upper limit of the framerate range as we're
+                    # only interested in the macroblock limit. No need to
+                    # bother with framerate delta here as it doesn't work with
+                    # range
+                    framerate = self.parent.framerate_range[1]
+                else:
+                    framerate = (
+                        self.parent.framerate + self.parent.framerate_delta)
             else:
                 framerate = self.input_port.framerate
             if w * h * framerate > macroblocks_per_s_limit:
