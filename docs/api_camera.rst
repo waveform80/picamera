@@ -43,3 +43,9 @@ PiFramerateRange
 ================
 
 .. autoclass:: PiFramerateRange(low, high)
+
+
+PiSensorMode
+============
+
+.. autoclass:: PiSensorMode(resolution, framerates, video, still, full_fov)

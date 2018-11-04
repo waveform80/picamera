@@ -317,8 +317,64 @@ class PiFramerateRange(namedtuple('PiFramerateRange', ('low', 'high'))):
 
     __slots__ = () # workaround python issue #24931
 
+    def __new__(cls, low, high):
+        return super(PiFramerateRange, cls).__new__(cls, to_fraction(low),
+                                                    to_fraction(high))
+
     def __str__(self):
         return '%s..%s' % (self.low, self.high)
+
+
+class PiSensorMode(namedtuple('PiSensorMode', ('resolution', 'framerates',
+                                               'video', 'still', 'full_fov'))):
+    """
+    This class is a :func:`~collections.namedtuple` derivative used to store
+    the attributes describing a camera sensor mode.
+
+    .. attribute:: resolution
+
+        A :class:`PiResolution` specifying the size of frames output by the
+        camera in this mode.
+
+    .. attribute:: framerates
+
+        A :class:`PiFramerateRange` specifying the minimum and maximum
+        framerates supported by this sensor mode. Typically the low value is
+        exclusive and high value inclusive.
+
+    .. attribute:: video
+
+        A :class:`bool` indicating whether or not the mode is capable of
+        recording video. Currently this is always ``True``.
+
+    .. attribute:: still
+
+        A :class:`bool` indicating whether the mode can be used for still
+        captures (cases where a capture method is called with
+        ``use_video_port`` set to ``False``).
+
+    .. attribute:: full_fov
+
+        A :class:`bool` indicating whether the full width of the sensor
+        area is used to capture frames. This can be ``True`` even when the
+        resolution is less than the camera's maximum resolution due to binning
+        and skipping. See :ref:`camera_modes` for a diagram of the available
+        fields of view.
+    """
+
+    __slots__ = () # workaround python issue #24931
+
+    def __new__(cls, resolution, framerates, video=True, still=False,
+                full_fov=True):
+        return super(PiSensorMode, cls).__new__(
+            cls,
+            resolution
+                if isinstance(resolution, PiResolution) else
+                to_resolution(resolution),
+            framerates
+                if isinstance(framerates, PiFramerateRange) else
+                PiFramerateRange(*framerates),
+            video, still, full_fov)
 
 
 def open_stream(stream, output=True, buffering=65536):
