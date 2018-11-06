@@ -183,6 +183,10 @@ class PiCamera(object):
     .. versionchanged:: 1.13
         Added *framerate_range* parameter.
 
+    .. versionchanged:: 1.14
+        Positional arguments are now deprecated; all arguments to the
+        constructor should be specified as keyword-args.
+
     .. _Compute Module: https://www.raspberrypi.org/documentation/hardware/computemodule/cmio-camera.md
     """
 
@@ -346,16 +350,46 @@ class PiCamera(object):
         '_exif_tags',
         )
 
-    def __init__(
-            self, camera_num=0, stereo_mode='none', stereo_decimate=False,
-            resolution=None, framerate=None, sensor_mode=0, led_pin=None,
-            clock_mode='reset', framerate_range=None):
+    def __init__(self, *args, **kwargs):
+        options = {
+            'camera_num': 0,
+            'stereo_mode': 'none',
+            'stereo_decimate': False,
+            'resolution': None,
+            'framerate': None,
+            'sensor_mode': 0,
+            'led_pin': None,
+            'clock_mode': 'reset',
+            'framerate_range': None,
+            }
+        arg_names = (
+            'camera_num',
+            'stereo_mode',
+            'stereo_decimate',
+            'resolution',
+            'framerate',
+            'sensor_mode',
+            'led_pin',
+            'clock_mode',
+            'framerate_range',
+            )
+        for arg_name, arg in zip(arg_names, args):
+            warnings.warn(
+                PiCameraDeprecated(
+                    'Specifying %s as a non-keyword argument is deprecated' %
+                    arg_name))
+            options[arg_name] = arg
+        for arg_name in arg_names:
+            options[arg_name] = kwargs.pop(arg_name, options[arg_name])
+        if kwargs:
+            raise TypeError('PiCamera.__init__ got an unexpected keyword '
+                            'argument %r' % kwargs.popitem()[0])
         bcm_host.bcm_host_init()
         mimetypes.add_type('application/h264',  '.h264',  False)
         mimetypes.add_type('application/mjpeg', '.mjpg',  False)
         mimetypes.add_type('application/mjpeg', '.mjpeg', False)
         self._used_led = False
-        if GPIO and led_pin is None:
+        if GPIO and options['led_pin'] is None:
             try:
                 led_pin = {
                     (0, 0): 2,  # compute module (default for cam 0)
@@ -363,13 +397,13 @@ class PiCamera(object):
                     (1, 0): 5,  # Pi 1 model B rev 1
                     (2, 0): 5,  # Pi 1 model B rev 2 or model A
                     (3, 0): 32, # Pi 1 model B+ or Pi 2 model B
-                    }[(GPIO.RPI_REVISION, camera_num)]
+                    }[(GPIO.RPI_REVISION, options['camera_num'])]
             except KeyError:
                 raise PiCameraError(
                         'Unable to determine default GPIO LED pin for RPi '
                         'revision %d and camera num %d' % (
-                            GPIO.RPI_REVISION, camera_num))
-        self._led_pin = led_pin
+                            GPIO.RPI_REVISION, options['camera_num']))
+        self._led_pin = options['led_pin']
         self._camera = None
         self._camera_config = None
         self._camera_exception = None
@@ -386,6 +420,7 @@ class PiCamera(object):
         self._raw_format = 'yuv'
         self._image_effect_params = None
         with mo.MMALCameraInfo() as camera_info:
+            camera_num = options['camera_num']
             info = camera_info.control.params[mmal.MMAL_PARAMETER_CAMERA_INFO]
             self._revision = 'ov5647'
             if camera_info.info_rev > 1:
@@ -404,7 +439,7 @@ class PiCamera(object):
                 PiCamera.MAX_FRAMERATE = 90
             else:
                 PiCamera.MAX_FRAMERATE = 120
-        if resolution is None:
+        if options['resolution'] is None:
             # Get screen resolution
             w = ct.c_uint32()
             h = ct.c_uint32()
@@ -415,23 +450,23 @@ class PiCamera(object):
                 w = int(w.value)
                 h = int(h.value)
             resolution = mo.PiResolution(w, h)
-        elif resolution is PiCameraMaxResolution:
+        elif options['resolution'] is PiCameraMaxResolution:
             resolution = PiCamera.MAX_RESOLUTION
         else:
-            resolution = mo.to_resolution(resolution)
-        if framerate_range is None:
-            if framerate is None:
+            resolution = mo.to_resolution(options['resolution'])
+        if options['framerate_range'] is None:
+            if options['framerate'] is None:
                 framerate = 30
-            elif framerate is PiCameraMaxFramerate:
+            elif options['framerate'] is PiCameraMaxFramerate:
                 framerate = PiCamera.MAX_FRAMERATE
             else:
-                framerate = mo.to_fraction(framerate)
-        elif framerate is not None:
+                framerate = mo.to_fraction(options['framerate'])
+        elif options['framerate'] is not None:
             raise PiCameraValueError(
                 "Can't specify framerate and framerate_range")
         else:
             try:
-                low, high = framerate_range
+                low, high = options['framerate_range']
             except TypeError:
                 raise PiCameraValueError(
                     "framerate_range must have (low, high) values")
@@ -441,16 +476,20 @@ class PiCamera(object):
                 high = PiCamera.MAX_FRAMERATE
             framerate = (mo.to_fraction(low), mo.to_fraction(high))
         try:
-            stereo_mode = self.STEREO_MODES[stereo_mode]
+            stereo_mode = self.STEREO_MODES[options['stereo_mode']]
         except KeyError:
-            raise PiCameraValueError('Invalid stereo mode: %s' % stereo_mode)
+            raise PiCameraValueError(
+                'Invalid stereo mode: %s' % options['stereo_mode'])
         try:
-            clock_mode = self.CLOCK_MODES[clock_mode]
+            clock_mode = self.CLOCK_MODES[options['clock_mode']]
         except KeyError:
-            raise PiCameraValueError('Invalid clock mode: %s' % clock_mode)
+            raise PiCameraValueError(
+                'Invalid clock mode: %s' % options['clock_mode'])
         try:
-            self._init_camera(camera_num, stereo_mode, stereo_decimate)
-            self._configure_camera(sensor_mode, framerate, resolution, clock_mode)
+            self._init_camera(camera_num, stereo_mode,
+                              options['stereo_decimate'])
+            self._configure_camera(options['sensor_mode'], framerate,
+                                   resolution, clock_mode)
             self._init_preview()
             self._init_splitter()
             self._camera.enable()
