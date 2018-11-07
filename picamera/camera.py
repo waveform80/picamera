@@ -43,7 +43,8 @@ import mimetypes
 import ctypes as ct
 import threading
 from fractions import Fraction
-from operator import itemgetter
+from operator import itemgetter, and_
+from functools import reduce
 from collections import namedtuple
 
 from . import bcm_host, mmal, mmalobj as mo
@@ -106,6 +107,15 @@ class PiCameraMaxFramerate(object):
 PiCameraMaxFramerate = PiCameraMaxFramerate()
 
 
+PiCameraConfig = namedtuple('PiCameraConfig', (
+    'sensor_mode',
+    'clock_mode',
+    'resolution',
+    'framerate',
+    'isp_blocks',
+))
+
+
 class PiCamera(object):
     """
     Provides a pure Python interface to the Raspberry Pi's camera module.
@@ -115,13 +125,14 @@ class PiCamera(object):
     will represent. Only the Raspberry Pi compute module currently supports
     more than one camera.
 
-    The *sensor_mode*, *resolution*, *framerate*, *framerate_range*, and
-    *clock_mode* parameters provide initial values for the :attr:`sensor_mode`,
-    :attr:`resolution`, :attr:`framerate`, :attr:`framerate_range`, and
-    :attr:`clock_mode` attributes of the class (these attributes are all
-    relatively expensive to set individually, hence setting them all upon
-    construction is a speed optimization). Please refer to the attribute
-    documentation for more information and default values.
+    The *sensor_mode*, *resolution*, *framerate*, *framerate_range*,
+    *clock_mode*, and *isp_blocks* parameters provide initial values for the
+    :attr:`sensor_mode`, :attr:`resolution`, :attr:`framerate`,
+    :attr:`framerate_range`, :attr:`clock_mode`, and :attr:`isp_blocks`
+    attributes of the class (these attributes are all relatively expensive to
+    set individually, hence setting them all upon construction is a speed
+    optimization). Please refer to the attribute documentation for more
+    information and default values.
 
     The *stereo_mode* and *stereo_decimate* parameters configure dual cameras
     on a compute module for sterescopic mode. These parameters can only be set
@@ -319,6 +330,17 @@ class PiCamera(object):
         'raw':          mmal.MMAL_PARAM_TIMESTAMP_MODE_RAW_STC,
         }
 
+    ISP_BLOCKS = {
+        'black-level':   1 << 2,
+        'lens-shading':  1 << 3,
+        'white-balance': 1 << 5,
+        'bad-pixel':     1 << 7,
+        'crosstalk':     1 << 9,
+        'demosaic':      1 << 11,
+        'gamma':         1 << 18,
+        'sharpening':    1 << 22,
+        }
+
     _METER_MODES_R    = {v: k for (k, v) in METER_MODES.items()}
     _EXPOSURE_MODES_R = {v: k for (k, v) in EXPOSURE_MODES.items()}
     _FLASH_MODES_R    = {v: k for (k, v) in FLASH_MODES.items()}
@@ -327,6 +349,7 @@ class PiCamera(object):
     _DRC_STRENGTHS_R  = {v: k for (k, v) in DRC_STRENGTHS.items()}
     _STEREO_MODES_R   = {v: k for (k, v) in STEREO_MODES.items()}
     _CLOCK_MODES_R    = {v: k for (k, v) in CLOCK_MODES.items()}
+    _ISP_BLOCKS_R     = {v: k for (k, v) in ISP_BLOCKS.items()}
 
     __slots__ = (
         '_used_led',
@@ -351,59 +374,7 @@ class PiCamera(object):
         )
 
     def __init__(self, *args, **kwargs):
-        options = {
-            'camera_num': 0,
-            'stereo_mode': 'none',
-            'stereo_decimate': False,
-            'resolution': None,
-            'framerate': None,
-            'sensor_mode': 0,
-            'led_pin': None,
-            'clock_mode': 'reset',
-            'framerate_range': None,
-            }
-        arg_names = (
-            'camera_num',
-            'stereo_mode',
-            'stereo_decimate',
-            'resolution',
-            'framerate',
-            'sensor_mode',
-            'led_pin',
-            'clock_mode',
-            'framerate_range',
-            )
-        for arg_name, arg in zip(arg_names, args):
-            warnings.warn(
-                PiCameraDeprecated(
-                    'Specifying %s as a non-keyword argument is deprecated' %
-                    arg_name))
-            options[arg_name] = arg
-        for arg_name in arg_names:
-            options[arg_name] = kwargs.pop(arg_name, options[arg_name])
-        if kwargs:
-            raise TypeError('PiCamera.__init__ got an unexpected keyword '
-                            'argument %r' % kwargs.popitem()[0])
-        bcm_host.bcm_host_init()
-        mimetypes.add_type('application/h264',  '.h264',  False)
-        mimetypes.add_type('application/mjpeg', '.mjpg',  False)
-        mimetypes.add_type('application/mjpeg', '.mjpeg', False)
-        self._used_led = False
-        if GPIO and options['led_pin'] is None:
-            try:
-                led_pin = {
-                    (0, 0): 2,  # compute module (default for cam 0)
-                    (0, 1): 30, # compute module (default for cam 1)
-                    (1, 0): 5,  # Pi 1 model B rev 1
-                    (2, 0): 5,  # Pi 1 model B rev 2 or model A
-                    (3, 0): 32, # Pi 1 model B+ or Pi 2 model B
-                    }[(GPIO.RPI_REVISION, options['camera_num'])]
-            except KeyError:
-                raise PiCameraError(
-                        'Unable to determine default GPIO LED pin for RPi '
-                        'revision %d and camera num %d' % (
-                            GPIO.RPI_REVISION, options['camera_num']))
-        self._led_pin = options['led_pin']
+        options = self._parse_options(args, kwargs)
         self._camera = None
         self._camera_config = None
         self._camera_exception = None
@@ -419,26 +390,108 @@ class PiCamera(object):
         self._overlays = []
         self._raw_format = 'yuv'
         self._image_effect_params = None
+        self._exif_tags = {}
+        self._used_led = None
+        self._led_pin = None
+        bcm_host.bcm_host_init()
+        try:
+            self._init_revision(options)
+            old_config, new_config = self._init_config(options)
+            self._init_led(options)
+            self._init_camera(options)
+            self._configure_camera(old_config, new_config)
+            self._init_preview()
+            self._init_splitter()
+            self._camera.enable()
+            self._init_defaults()
+        except:
+            self.close()
+            raise
+        else:
+            mimetypes.add_type('application/h264',  '.h264',  False)
+            mimetypes.add_type('application/mjpeg', '.mjpg',  False)
+            mimetypes.add_type('application/mjpeg', '.mjpeg', False)
+
+    @staticmethod
+    def _parse_options(args, kwargs):
+        """
+        Parse the constructor options.
+
+        In future versions we'll only support keyword args; for now (for
+        backwards compatibility) we'll allow the positional args that we
+        previously accepted but raise a deprecation warning for each.
+        """
+        options = {  # with defaults
+            'camera_num': 0,
+            'stereo_mode': 'none',
+            'stereo_decimate': False,
+            'resolution': None,
+            'framerate': None,
+            'sensor_mode': 0,
+            'led_pin': None,
+            'clock_mode': 'reset',
+            'framerate_range': None,
+            'isp_blocks': None,
+            }
+        arg_names = (
+            'camera_num',
+            'stereo_mode',
+            'stereo_decimate',
+            'resolution',
+            'framerate',
+            'sensor_mode',
+            'led_pin',
+            'clock_mode',
+            'framerate_range',
+            )
+        for arg_name, arg in zip(arg_names, args):
+            warnings.warn(
+                PiCameraDeprecated(
+                    'Specifying %s as a non-keyword argument is '
+                    'deprecated' % arg_name))
+            options[arg_name] = arg
+        for arg_name in options:
+            options[arg_name] = kwargs.pop(arg_name, options[arg_name])
+        if kwargs:
+            raise TypeError(
+                'PiCamera.__init__ got an unexpected keyword '
+                'argument %r' % kwargs.popitem()[0])
+        return options
+
+    def _init_revision(self, options):
+        """
+        Query the firmware for the attached camera revision; older firmwares
+        can't return the revision but only support the OV5647 sensor so we can
+        assume that revision in such a case. This is also where the placeholder
+        objects for MAX_RESOLUTION and MAX_FRAMERATE are replaced with their
+        actual values
+        """
         with mo.MMALCameraInfo() as camera_info:
             camera_num = options['camera_num']
             info = camera_info.control.params[mmal.MMAL_PARAMETER_CAMERA_INFO]
-            self._revision = 'ov5647'
+            revision = 'ov5647'
             if camera_info.info_rev > 1:
-                self._revision = info.cameras[camera_num].camera_name.decode('ascii')
-            self._exif_tags = {
-                'IFD0.Model': 'RP_%s' % self._revision,
-                'IFD0.Make': 'RaspberryPi',
-                }
+                revision = info.cameras[camera_num].camera_name.decode('ascii')
             if PiCamera.MAX_RESOLUTION is PiCameraMaxResolution:
                 PiCamera.MAX_RESOLUTION = mo.PiResolution(
                         info.cameras[camera_num].max_width,
                         info.cameras[camera_num].max_height,
                         )
         if PiCamera.MAX_FRAMERATE is PiCameraMaxFramerate:
-            if self._revision.upper() == 'OV5647':
+            if revision.lower() == 'ov5647':
                 PiCamera.MAX_FRAMERATE = 90
             else:
                 PiCamera.MAX_FRAMERATE = 120
+        self._revision = revision
+
+    @classmethod
+    def _init_config(cls, options):
+        """
+        Construct initial and desired configurations to pass to the
+        :meth:`_configure_camera` method. The initial configuration is mostly
+        hard-coded defaults. The desired configuration comes from the specified
+        options.
+        """
         if options['resolution'] is None:
             # Get screen resolution
             w = ct.c_uint32()
@@ -451,14 +504,15 @@ class PiCamera(object):
                 h = int(h.value)
             resolution = mo.PiResolution(w, h)
         elif options['resolution'] is PiCameraMaxResolution:
-            resolution = PiCamera.MAX_RESOLUTION
+            resolution = cls.MAX_RESOLUTION
         else:
             resolution = mo.to_resolution(options['resolution'])
+
         if options['framerate_range'] is None:
             if options['framerate'] is None:
                 framerate = 30
             elif options['framerate'] is PiCameraMaxFramerate:
-                framerate = PiCamera.MAX_FRAMERATE
+                framerate = cls.MAX_FRAMERATE
             else:
                 framerate = mo.to_fraction(options['framerate'])
         elif options['framerate'] is not None:
@@ -471,47 +525,76 @@ class PiCamera(object):
                 raise PiCameraValueError(
                     "framerate_range must have (low, high) values")
             if low is PiCameraMaxFramerate:
-                low = PiCamera.MAX_FRAMERATE
+                low = cls.MAX_FRAMERATE
             if high is PiCameraMaxFramerate:
-                high = PiCamera.MAX_FRAMERATE
+                high = cls.MAX_FRAMERATE
             framerate = (mo.to_fraction(low), mo.to_fraction(high))
+
+        try:
+            clock_mode = cls.CLOCK_MODES[options['clock_mode']]
+        except KeyError:
+            raise PiCameraValueError(
+                'Invalid clock mode: %s' % options['clock_mode'])
+
+        all_blocks = set(cls.ISP_BLOCKS.keys())
+        if options['isp_blocks'] is None:
+            isp_blocks = 0
+        else:
+            isp_blocks = set(options['isp_blocks'])
+            invalid = isp_blocks - all_blocks
+            if invalid:
+                raise PiCameraValueError(
+                    'Invalid ISP block: %s' % invalid.pop())
+            isp_blocks = reduce(and_, (~v for k, v in cls.ISP_BLOCKS.items()
+                                      if k not in isp_blocks), 0xFFFFFFFF)
+
+        old_config = PiCameraConfig(
+            sensor_mode=0,
+            clock_mode=clock_mode,
+            resolution=cls.MAX_RESOLUTION,
+            framerate=30,
+            isp_blocks=0)
+        new_config = PiCameraConfig(
+            sensor_mode=options['sensor_mode'],
+            clock_mode=clock_mode,
+            resolution=resolution,
+            framerate=framerate,
+            isp_blocks=isp_blocks)
+        return old_config, new_config
+
+    def _init_led(self, options):
+        """
+        Determine the GPIO pin to use for controlling the camera's LED, if any.
+        """
+        led_pin = options['led_pin']
+        if GPIO and led_pin is None:
+            try:
+                led_pin = {
+                    (0, 0): 2,  # compute module (default for cam 0)
+                    (0, 1): 30, # compute module (default for cam 1)
+                    (1, 0): 5,  # Pi 1 model B rev 1
+                    (2, 0): 5,  # Pi 1 model B rev 2 or model A
+                    (3, 0): 32, # Pi 1 model B+ or Pi 2 model B
+                    }[(GPIO.RPI_REVISION, options['camera_num'])]
+            except KeyError:
+                raise PiCameraError(
+                        'Unable to determine default GPIO LED pin for RPi '
+                        'revision %d and camera num %d' % (
+                            GPIO.RPI_REVISION, options['camera_num']))
+        self._used_led = False
+        self._led_pin = led_pin
+
+    def _init_camera(self, options):
+        """
+        Construct the MMAL camera component and perform all early configuration
+        on it (e.g. most stereoscopic configuration has to be done before the
+        camera is activated).
+        """
         try:
             stereo_mode = self.STEREO_MODES[options['stereo_mode']]
         except KeyError:
             raise PiCameraValueError(
                 'Invalid stereo mode: %s' % options['stereo_mode'])
-        try:
-            clock_mode = self.CLOCK_MODES[options['clock_mode']]
-        except KeyError:
-            raise PiCameraValueError(
-                'Invalid clock mode: %s' % options['clock_mode'])
-        try:
-            self._init_camera(camera_num, stereo_mode,
-                              options['stereo_decimate'])
-            self._configure_camera(options['sensor_mode'], framerate,
-                                   resolution, clock_mode)
-            self._init_preview()
-            self._init_splitter()
-            self._camera.enable()
-            self._init_defaults()
-        except:
-            self.close()
-            raise
-
-    def _init_led(self):
-        global GPIO
-        if GPIO:
-            try:
-                GPIO.setmode(GPIO.BCM)
-                GPIO.setwarnings(False)
-                GPIO.setup(self._led_pin, GPIO.OUT, initial=GPIO.LOW)
-                self._used_led = True
-            except RuntimeError:
-                # We're probably not running as root. In this case, forget the
-                # GPIO reference so we don't try anything further
-                GPIO = None
-
-    def _init_camera(self, num, stereo_mode, stereo_decimate):
         try:
             self._camera = mo.MMALCamera()
         except PiCameraMMALError as e:
@@ -521,7 +604,8 @@ class PiCamera(object):
                     "and ensure that the camera has been enabled.")
             else:
                 raise
-        self._camera_config = self._camera.control.params[mmal.MMAL_PARAMETER_CAMERA_CONFIG]
+        self._camera_config = self._camera.control.params[
+            mmal.MMAL_PARAMETER_CAMERA_CONFIG]
         # Don't attempt to set this if stereo mode isn't requested as it'll
         # break compatibility on older firmwares
         if stereo_mode != mmal.MMAL_STEREOSCOPIC_MODE_NONE:
@@ -532,14 +616,22 @@ class PiCamera(object):
                         ct.sizeof(mmal.MMAL_PARAMETER_STEREOSCOPIC_MODE_T),
                     ),
                     mode=stereo_mode,
-                    decimate=stereo_decimate,
+                    decimate=options['stereo_decimate'],
                     swap_eyes=False,
                     )
                 p.params[mmal.MMAL_PARAMETER_STEREOSCOPIC_MODE] = mp
         # Must be done *after* stereo-scopic setting
-        self._camera.control.params[mmal.MMAL_PARAMETER_CAMERA_NUM] = num
+        self._camera.control.params[
+            mmal.MMAL_PARAMETER_CAMERA_NUM] = options['camera_num']
 
     def _init_defaults(self):
+        """
+        Sets most camera settings to various default values.
+        """
+        self._exif_tags = {
+            'IFD0.Model': 'RP_%s' % self.revision,
+            'IFD0.Make': 'RaspberryPi',
+            }
         self.sharpness = 0
         self.contrast = 0
         self.brightness = 50
@@ -557,33 +649,47 @@ class PiCamera(object):
         self.zoom = (0.0, 0.0, 1.0, 1.0)
 
     def _init_splitter(self):
-        # Create a splitter component for the video port. This is to permit
-        # video recordings and captures where use_video_port=True to occur
-        # simultaneously (#26)
+        """
+        Create a splitter component for the video port. This is to permit video
+        recordings and captures where use_video_port=True to occur
+        simultaneously (#26)
+        """
         self._splitter = mo.MMALSplitter()
         self._splitter.inputs[0].connect(
                 self._camera.outputs[self.CAMERA_VIDEO_PORT]).enable()
 
     def _init_preview(self):
-        # Create a null-sink component, enable it and connect it to the
-        # camera's preview port. If nothing is connected to the preview port,
-        # the camera doesn't measure exposure and captured images gradually
-        # fade to black (issue #22; subsequently fixed in firmware but there's
-        # no harm in leaving this in place for the sake of backwards compat)
+        """
+        Create a null-sink component, enable it and connect it to the camera's
+        preview port. If nothing is connected to the preview port, the camera
+        doesn't measure exposure and captured images gradually fade to black
+        (issue #22; subsequently fixed in firmware but there's no harm in
+        leaving this in place for the sake of backwards compat).
+        """
         self._preview = PiNullSink(
             self, self._camera.outputs[self.CAMERA_PREVIEW_PORT])
 
     def _start_capture(self, port):
-        # Only enable capture if the port is the camera's still port, or if
-        # there's a single active encoder on the video splitter
+        """
+        Starts the camera capturing frames.
+
+        This method starts the camera feeding frames to any attached encoders,
+        but only enables capture if the port is the camera's still port, or if
+        there's a single active encoder on the video splitter.
+        """
         if (
                 port == self._camera.outputs[self.CAMERA_CAPTURE_PORT] or
                 len([e for e in self._encoders.values() if e.active]) == 1):
             port.params[mmal.MMAL_PARAMETER_CAPTURE] = True
 
     def _stop_capture(self, port):
-        # Only disable capture if the port is the camera's still port, or if
-        # there's a single active encoder on the video splitter
+        """
+        Stops the camera capturing frames.
+
+        This method stops the camera feeding frames to any attached encoders,
+        but only disables capture if the port is the camera's still port, or if
+        there's a single active encoder on the video splitter.
+        """
         if (
                 port == self._camera.outputs[self.CAMERA_CAPTURE_PORT] or
                 len([e for e in self._encoders.values() if e.active]) == 1):
@@ -651,7 +757,7 @@ class PiCamera(object):
             except AttributeError:
                 raise PiCameraValueError(
                     'Format must be specified when output has no filename')
-        (type, encoding) = mimetypes.guess_type(filename, strict=False)
+        type, encoding = mimetypes.guess_type(filename, strict=False)
         if not type:
             raise PiCameraValueError(
                 'Unable to determine type from filename %s' % filename)
@@ -1913,11 +2019,22 @@ class PiCamera(object):
 
     def _set_led(self, value):
         if not self._used_led:
-            self._init_led()
+            global GPIO
+            if GPIO:
+                try:
+                    GPIO.setmode(GPIO.BCM)
+                    GPIO.setwarnings(False)
+                    GPIO.setup(self._led_pin, GPIO.OUT, initial=GPIO.LOW)
+                    self._used_led = True
+                except RuntimeError:
+                    # We're probably not running as root. In this case, forget the
+                    # GPIO reference so we don't try anything further
+                    GPIO = None
+
         if not GPIO:
             raise PiCameraRuntimeError(
                 "GPIO library not found, or not accessible; please install "
-                "RPi.GPIO and run the script as root")
+                "RPi.GPIO or run the script as root")
         GPIO.output(self._led_pin, bool(value))
     led = property(None, _set_led, doc="""
         Sets the state of the camera's LED via GPIO.
@@ -2049,7 +2166,8 @@ class PiCamera(object):
         This method is used to ensure the splitter configuration is sane,
         typically after :meth:`_configure_camera` is called.
         """
-        self._splitter.inputs[0].copy_from(self._camera.outputs[self.CAMERA_VIDEO_PORT])
+        self._splitter.inputs[0].copy_from(
+            self._camera.outputs[self.CAMERA_VIDEO_PORT])
         self._splitter.inputs[0].commit()
 
     def _control_callback(self, port, buf):
@@ -2060,51 +2178,100 @@ class PiCamera(object):
                     "including the SUNNY chip on the camera board")
             elif buf.command != mmal.MMAL_EVENT_PARAMETER_CHANGED:
                 raise PiCameraRuntimeError(
-                    "Received unexpected camera control callback event, 0x%08x" % buf[0].cmd)
+                    "Received unexpected camera control callback event, "
+                    "0x%08x" % buf[0].cmd)
         except Exception as exc:
             # Pass the exception to the main thread; next time
             # check_camera_open() is called this will get raised
             self._camera_exception = exc
 
-    def _configure_camera(
-            self, sensor_mode, framerate, resolution, clock_mode,
-            old_sensor_mode=0):
+    def _get_config(self):
+        """
+        An internal method for obtaining configuration data to pass to the
+        :meth:`_configure_camera` method. This is a namedtuple consisting of
+        all configuration that cannot be changed while the camera is active.
+        """
+        port_num = (
+            self.CAMERA_VIDEO_PORT
+            if self._encoders else
+            self.CAMERA_PREVIEW_PORT
+            )
+        framerate = Fraction(self._camera.outputs[port_num].framerate)
+        if framerate == 0:
+            mp = self._camera.outputs[port_num].params[
+                mmal.MMAL_PARAMETER_FPS_RANGE]
+            framerate = mo.PiFramerateRange(mp.fps_low, mp.fps_high)
+        return PiCameraConfig(
+            sensor_mode=self._camera.control.params[
+                mmal.MMAL_PARAMETER_CAMERA_CUSTOM_SENSOR_CONFIG],
+            clock_mode=self._camera_config.use_stc_timestamp,
+            resolution=mo.PiResolution(
+                int(self._camera_config.max_stills_w),
+                int(self._camera_config.max_stills_h)
+                ),
+            framerate=framerate,
+            isp_blocks=self._camera.control.params[
+                mmal.MMAL_PARAMETER_CAMERA_ISP_BLOCK_OVERRIDE]
+        )
+
+    def _configure_camera(self, old, new):
         """
         An internal method for setting a new camera mode, framerate,
-        resolution, and/or clock_mode.
+        resolution, clock_mode, and/or ISP blocks.
 
         This method is used by the setters of the :attr:`resolution`,
-        :attr:`framerate`, :attr:`framerate_range`, and :attr:`sensor_mode`
-        properties. It assumes the camera is currently disabled. The *old_mode*
-        and *new_mode* arguments are required to ensure correct operation on
-        older firmwares (specifically that we don't try to set the sensor mode
-        when both old and new modes are 0 or automatic).
+        :attr:`framerate`, :attr:`framerate_range`, :attr:`sensor_mode`, and
+        :attr:`isp_blocks` properties. It assumes the camera is currently
+        disabled.
+
+        The *old* and *new* arguments are :class:`PiCameraConfig` structures.
+        Both are required to ensure correct operation on older firmwares
+        (specifically that we don't try to set the sensor mode when both old
+        and new modes are 0 or automatic).
         """
-        old_cc = mmal.MMAL_PARAMETER_CAMERA_CONFIG_T.from_buffer_copy(self._camera_config)
+        old_cc = mmal.MMAL_PARAMETER_CAMERA_CONFIG_T.from_buffer_copy(
+            self._camera_config)
         old_ports = [
-            (port.framesize, port.framerate, port.params[mmal.MMAL_PARAMETER_FPS_RANGE])
+            (
+                port.framesize,
+                port.framerate,
+                port.params[mmal.MMAL_PARAMETER_FPS_RANGE]
+            )
             for port in self._camera.outputs
-            ]
-        if old_sensor_mode != 0 or sensor_mode != 0:
-            self._camera.control.params[mmal.MMAL_PARAMETER_CAMERA_CUSTOM_SENSOR_CONFIG] = sensor_mode
+        ]
+        if old.sensor_mode != 0 or new.sensor_mode != 0:
+            # Old firmware support: only attempt to set sensor mode when
+            # explicitly requested
+            self._camera.control.params[
+                mmal.MMAL_PARAMETER_CAMERA_CUSTOM_SENSOR_CONFIG
+                ] = new.sensor_mode
         if not self._camera.control.enabled:
-            # Initial setup
+            # One-time initial setup
             self._camera.control.enable(self._control_callback)
-            preview_resolution = resolution
+            preview_resolution = new.resolution
         elif (
                 self._camera.outputs[self.CAMERA_PREVIEW_PORT].framesize ==
                 self._camera.outputs[self.CAMERA_VIDEO_PORT].framesize
                 ):
-            preview_resolution = resolution
+            preview_resolution = new.resolution
         else:
-            preview_resolution = self._camera.outputs[self.CAMERA_PREVIEW_PORT].framesize
+            preview_resolution = self._camera.outputs[
+                self.CAMERA_PREVIEW_PORT].framesize
         try:
+            # Old firmware support: only attempt to set ISP block override when
+            # explicitly requested
+            if (
+                    old.isp_blocks not in (0, 0xFFFFFFFF) or
+                    new.isp_blocks not in (0, 0xFFFFFFFF)):
+                self._camera.control.params[
+                    mmal.MMAL_PARAMETER_CAMERA_ISP_BLOCK_OVERRIDE
+                    ] = new.isp_blocks
             try:
-                fps_low, fps_high = framerate
+                fps_low, fps_high = new.framerate
             except TypeError:
-                fps_low = fps_high = framerate
+                fps_low = fps_high = new.framerate
             else:
-                framerate = 0
+                new = new._replace(framerate=0)
             fps_range = mmal.MMAL_PARAMETER_FPS_RANGE_T(
                 mmal.MMAL_PARAMETER_HEADER_T(
                     mmal.MMAL_PARAMETER_FPS_RANGE,
@@ -2115,31 +2282,31 @@ class PiCamera(object):
                 )
 
             cc = self._camera_config
-            cc.max_stills_w = resolution.width
-            cc.max_stills_h = resolution.height
+            cc.max_stills_w = new.resolution.width
+            cc.max_stills_h = new.resolution.height
             cc.stills_yuv422 = 0
             cc.one_shot_stills = 1
-            cc.max_preview_video_w = resolution.width
-            cc.max_preview_video_h = resolution.height
+            cc.max_preview_video_w = new.resolution.width
+            cc.max_preview_video_h = new.resolution.height
             cc.num_preview_video_frames = max(3, fps_high // 10)
             cc.stills_capture_circular_buffer_height = 0
             cc.fast_preview_resume = 0
-            cc.use_stc_timestamp = clock_mode
+            cc.use_stc_timestamp = new.clock_mode
             self._camera.control.params[mmal.MMAL_PARAMETER_CAMERA_CONFIG] = cc
 
             # Clamp preview resolution to camera's resolution
             if (
-                    preview_resolution.width > resolution.width or
-                    preview_resolution.height > resolution.height
+                    preview_resolution.width > new.resolution.width or
+                    preview_resolution.height > new.resolution.height
                     ):
-                preview_resolution = resolution
+                preview_resolution = new.resolution
             for port in self._camera.outputs:
                 port.params[mmal.MMAL_PARAMETER_FPS_RANGE] = fps_range
                 if port.index == self.CAMERA_PREVIEW_PORT:
                     port.framesize = preview_resolution
                 else:
-                    port.framesize = resolution
-                port.framerate = framerate
+                    port.framesize = new.resolution
+                port.framerate = new.framerate
                 port.commit()
         except:
             # If anything goes wrong, restore original resolution and
@@ -2168,13 +2335,9 @@ class PiCamera(object):
         value = mo.to_fraction(value, den_limit=256)
         if not (0 < value <= self.MAX_FRAMERATE):
             raise PiCameraValueError("Invalid framerate: %.2ffps" % value)
-        sensor_mode = self.sensor_mode
-        clock_mode = self.CLOCK_MODES[self.clock_mode]
-        resolution = self.resolution
+        config = self._get_config()
         self._disable_camera()
-        self._configure_camera(
-            sensor_mode=sensor_mode, framerate=value, resolution=resolution,
-            clock_mode=clock_mode)
+        self._configure_camera(config, config._replace(framerate=value))
         self._configure_splitter()
         self._enable_camera()
     framerate = property(_get_framerate, _set_framerate, doc="""\
@@ -2249,7 +2412,8 @@ class PiCamera(object):
 
     def _get_sensor_mode(self):
         self._check_camera_open()
-        return self._camera.control.params[mmal.MMAL_PARAMETER_CAMERA_CUSTOM_SENSOR_CONFIG]
+        return self._camera.control.params[
+            mmal.MMAL_PARAMETER_CAMERA_CUSTOM_SENSOR_CONFIG]
     def _set_sensor_mode(self, value):
         self._check_camera_open()
         self._check_recording_stopped()
@@ -2259,17 +2423,9 @@ class PiCamera(object):
                     "Invalid sensor mode: %d (valid range 0..7)" % value)
         except TypeError:
             raise PiCameraValueError("Invalid sensor mode: %s" % value)
-        sensor_mode = self.sensor_mode
-        clock_mode = self.CLOCK_MODES[self.clock_mode]
-        resolution = self.resolution
-        framerate = Fraction(self.framerate)
-        if framerate == 0:
-            framerate = self.framerate_range
+        config = self._get_config()
         self._disable_camera()
-        self._configure_camera(
-            old_sensor_mode=sensor_mode, sensor_mode=value,
-            framerate=framerate, resolution=resolution,
-            clock_mode=clock_mode)
+        self._configure_camera(config, config._replace(sensor_mode=value))
         self._configure_splitter()
         self._enable_camera()
     sensor_mode = property(_get_sensor_mode, _set_sensor_mode, doc="""\
@@ -2308,15 +2464,9 @@ class PiCamera(object):
             clock_mode = self.CLOCK_MODES[value]
         except KeyError:
             raise PiCameraValueError("Invalid clock mode %s" % value)
-        sensor_mode = self.sensor_mode
-        framerate = Fraction(self.framerate)
-        if framerate == 0:
-            framerate = self.framerate_range
-        resolution = self.resolution
+        config = self._get_config()
         self._disable_camera()
-        self._configure_camera(
-            sensor_mode=sensor_mode, framerate=framerate,
-            resolution=resolution, clock_mode=clock_mode)
+        self._configure_camera(config, config._replace(clock_mode=clock_mode))
         self._configure_splitter()
         self._enable_camera()
     clock_mode = property(_get_clock_mode, _set_clock_mode, doc="""\
@@ -2335,6 +2485,54 @@ class PiCamera(object):
         .. versionadded:: 1.11
         """)
 
+    def _get_isp_blocks(self):
+        self._check_camera_open()
+        # XXX Older firmware support?
+        value = self._camera.control.params[
+            mmal.MMAL_PARAMETER_CAMERA_ISP_BLOCK_OVERRIDE]
+        return {
+            v for k, v in self._ISP_BLOCKS_R.items()
+            if value == 0 or k & value
+            }
+    def _set_isp_blocks(self, value):
+        self._check_camera_open()
+        self._check_recording_stopped()
+        value = set(value)
+        invalid = value - set(self.ISP_BLOCKS.keys())
+        if invalid:
+            raise PiCameraValueerror("Invalid ISP block %s" % invalid.pop())
+        isp_blocks = reduce(and_, (~v for k, v in self.ISP_BLOCKS.items()
+                                  if k not in value), 0xFFFFFFFF)
+        config = self._get_config()
+        self._disable_camera()
+        self._configure_camera(config, config._replace(isp_blocks=isp_blocks))
+        self._configure_splitter()
+        self._enable_camera()
+    isp_blocks = property(_get_isp_blocks, _set_isp_blocks, doc="""\
+        Retrieves or sets which ISP blocks are enabled for processing.
+
+        This is an advanced property which can be used to disable various
+        processes within the camera's firmware. The value is a set of strings
+        indicating which blocks are currently active. Valid strings that can
+        be included are:
+
+        {values}
+
+        It is strongly recommended that modifications to this property are
+        done by union or difference rather than straight assignment. Control
+        for further ISP blocks may be added in future and this will ensure
+        your code does not inadvertantly disable blocks it does not intend to.
+        For instance to disable the block responsible for AWB gains::
+
+            camera.isp_blocks -= {{'white-balance'}}
+
+        Then to re-enable the same block::
+
+            camera.isp_blocks |= {{'white-balance'}}
+
+        .. versionadded:: 1.14
+        """.format(values=docstring_values(ISP_BLOCKS)))
+
     def _get_resolution(self):
         self._check_camera_open()
         return mo.PiResolution(
@@ -2350,15 +2548,9 @@ class PiCamera(object):
                 (0 < value.height <= self.MAX_RESOLUTION.height)):
             raise PiCameraValueError(
                     "Invalid resolution requested: %r" % (value,))
-        sensor_mode = self.sensor_mode
-        clock_mode = self.CLOCK_MODES[self.clock_mode]
-        framerate = Fraction(self.framerate)
-        if framerate == 0:
-            framerate = self.framerate_range
+        config = self._get_config()
         self._disable_camera()
-        self._configure_camera(
-            sensor_mode=sensor_mode, framerate=framerate,
-            resolution=value, clock_mode=clock_mode)
+        self._configure_camera(config, config._replace(resolution=value))
         self._configure_splitter()
         self._enable_camera()
     resolution = property(_get_resolution, _set_resolution, doc="""
@@ -2428,13 +2620,9 @@ class PiCamera(object):
             raise PiCameraValueError("Invalid high framerate: %.2ffps" % high)
         if high < low:
             raise PiCameraValueError("framerate_range is backwards")
-        sensor_mode = self.sensor_mode
-        clock_mode = self.CLOCK_MODES[self.clock_mode]
-        resolution = self.resolution
+        config = self._get_config()
         self._disable_camera()
-        self._configure_camera(
-            sensor_mode=sensor_mode, framerate=(low, high),
-            resolution=resolution, clock_mode=clock_mode)
+        self._configure_camera(config, config._replace(framerate=(low, high)))
         self._configure_splitter()
         self._enable_camera()
     framerate_range = property(_get_framerate_range, _set_framerate_range, doc="""\
@@ -2492,15 +2680,18 @@ class PiCamera(object):
             if self._encoders else
             self.CAMERA_PREVIEW_PORT
             )
-        return self._camera.outputs[port_num].params[mmal.MMAL_PARAMETER_FRAME_RATE] - self.framerate
+        return self._camera.outputs[port_num].params[
+            mmal.MMAL_PARAMETER_FRAME_RATE] - self.framerate
     def _set_framerate_delta(self, value):
         self._check_camera_open()
         if self.framerate == 0:
             raise PiCameraValueError(
                 'framerate_delta cannot be used with framerate_range')
         value = mo.to_fraction(self.framerate + value, den_limit=256)
-        self._camera.outputs[self.CAMERA_PREVIEW_PORT].params[mmal.MMAL_PARAMETER_FRAME_RATE] = value
-        self._camera.outputs[self.CAMERA_VIDEO_PORT].params[mmal.MMAL_PARAMETER_FRAME_RATE] = value
+        self._camera.outputs[self.CAMERA_PREVIEW_PORT].params[
+            mmal.MMAL_PARAMETER_FRAME_RATE] = value
+        self._camera.outputs[self.CAMERA_VIDEO_PORT].params[
+            mmal.MMAL_PARAMETER_FRAME_RATE] = value
     framerate_delta = property(_get_framerate_delta, _set_framerate_delta, doc="""\
         Retrieves or sets a fractional amount that is added to the camera's
         framerate for the purpose of minor framerate adjustments.
