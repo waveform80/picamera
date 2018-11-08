@@ -476,7 +476,7 @@ class PiBayerArray(PiArrayOutput):
         # byte
         data = data.astype(np.uint16) << 2
         for byte in range(4):
-            data[:, byte::5] |= ((data[:, 4::5] >> ((4 - byte) * 2)) & 3)
+            data[:, byte::5] |= ((data[:, 4::5] >> (byte * 2)) & 3)
         self.array = np.zeros(
             (data.shape[0], data.shape[1] * 4 // 5), dtype=np.uint16)
         for i in range(4):
@@ -906,4 +906,3 @@ class PiArrayTransform(mo.MMALPythonComponent):
         uninitialized.
         """
         return False
-
