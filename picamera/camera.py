@@ -1179,9 +1179,8 @@ class PiCamera(object):
           to maintain. For the ``'h264'`` format, use values between 10 and 40
           where 10 is extremely high quality, and 40 is extremely low (20-25 is
           usually a reasonable range for H.264 encoding). For the ``mjpeg``
-          format, use JPEG quality values between 1 and 100 (where higher
-          values are higher quality). Quality 0 is special and seems to be
-          a "reasonable quality" default.
+          format, the quality is ignored (it can be specified without error
+          though); *bitrate* alone controls the quality of the output.
 
         * *quantization* - Deprecated alias for *quality*.
 

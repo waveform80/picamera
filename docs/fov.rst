@@ -859,12 +859,11 @@ influence the camera's behaviour.
 The Still Port
 --------------
 
-Whenever the still port is used to capture images, it (briefly)
-forces the camera's mode to one of the two supported still modes (see
-:ref:`camera_modes`), meaning that images are captured using the full area of the
-sensor. It also uses a strong noise reduction algorithm on captured images so
-that they appear higher quality.
-.. They "appear" to be higher quality, or they "are" higher quality? This almost makes it seem like the images appear to be a higher quality than they actually are.
+Whenever the still port is used to capture images, it (briefly) forces the
+camera's mode to one of the two supported still modes (see
+:ref:`camera_modes`), meaning that images are captured using the full area of
+the sensor. It also uses a strong noise reduction algorithm on captured images
+so that they appear higher quality.
 
 The still port is used by the various :meth:`~PiCamera.capture` methods when
 their *use_video_port* parameter is ``False`` (which it is by default).

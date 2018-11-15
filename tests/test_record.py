@@ -62,7 +62,7 @@ RECORDING_CASES = (
     RecordingCase('h264',  '.h264', {'bitrate': 20000000, 'profile': 'main'}),
     RecordingCase('mjpeg', '.mjpg', {}),
     RecordingCase('mjpeg', '.mjpg', {'bitrate': 10000000}),
-    RecordingCase('mjpeg', '.mjpg', {'bitrate': 0, 'quality': 20}),
+    RecordingCase('mjpeg', '.mjpg', {'bitrate': 1000000}),
     ) + tuple(
     RecordingCase(fmt,     '.data', {})
     for fmt in RAW_FORMATS
