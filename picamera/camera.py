@@ -113,6 +113,7 @@ PiCameraConfig = namedtuple('PiCameraConfig', (
     'resolution',
     'framerate',
     'isp_blocks',
+    'colorspace',
 ))
 
 
@@ -341,6 +342,13 @@ class PiCamera(object):
         'sharpening':    1 << 22,
         }
 
+    COLORSPACES = {
+        'auto':   mmal.MMAL_COLOR_SPACE_UNKNOWN,
+        'jfif':   mmal.MMAL_COLOR_SPACE_JPEG_JFIF,
+        'bt601':  mmal.MMAL_COLOR_SPACE_ITUR_BT601,
+        'bt709':  mmal.MMAL_COLOR_SPACE_ITUR_BT709,
+        }
+
     _METER_MODES_R    = {v: k for (k, v) in METER_MODES.items()}
     _EXPOSURE_MODES_R = {v: k for (k, v) in EXPOSURE_MODES.items()}
     _FLASH_MODES_R    = {v: k for (k, v) in FLASH_MODES.items()}
@@ -350,6 +358,7 @@ class PiCamera(object):
     _STEREO_MODES_R   = {v: k for (k, v) in STEREO_MODES.items()}
     _CLOCK_MODES_R    = {v: k for (k, v) in CLOCK_MODES.items()}
     _ISP_BLOCKS_R     = {v: k for (k, v) in ISP_BLOCKS.items()}
+    _COLORSPACES_R    = {v: k for (k, v) in COLORSPACES.items()}
 
     __slots__ = (
         '_used_led',
@@ -432,6 +441,7 @@ class PiCamera(object):
             'clock_mode': 'reset',
             'framerate_range': None,
             'isp_blocks': None,
+            'colorspace': 'auto',
             }
         arg_names = (
             'camera_num',
@@ -536,6 +546,12 @@ class PiCamera(object):
             raise PiCameraValueError(
                 'Invalid clock mode: %s' % options['clock_mode'])
 
+        try:
+            colorspace = cls.COLORSPACES[options['colorspace']]
+        except KeyError:
+            raise PiCameraValueError(
+                'Invalid colorspace: %s' % options['colorspace'])
+
         all_blocks = set(cls.ISP_BLOCKS.keys())
         if options['isp_blocks'] is None:
             isp_blocks = 0
@@ -553,13 +569,15 @@ class PiCamera(object):
             clock_mode=clock_mode,
             resolution=cls.MAX_RESOLUTION,
             framerate=30,
-            isp_blocks=0)
+            isp_blocks=0,
+            colorspace='auto')
         new_config = PiCameraConfig(
             sensor_mode=options['sensor_mode'],
             clock_mode=clock_mode,
             resolution=resolution,
             framerate=framerate,
-            isp_blocks=isp_blocks)
+            isp_blocks=isp_blocks,
+            colorspace=colorspace)
         return old_config, new_config
 
     def _init_led(self, options):
@@ -2306,6 +2324,7 @@ class PiCamera(object):
                 else:
                     port.framesize = new.resolution
                 port.framerate = new.framerate
+                port.colorspace = new.colorspace
                 port.commit()
         except:
             # If anything goes wrong, restore original resolution and

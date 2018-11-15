@@ -66,7 +66,10 @@ def MMAL_FOURCC(s):
     return sum(ord(c) << (i * 8) for (i, c) in enumerate(s))
 
 def FOURCC_str(n):
-    return ''.join(chr(n >> i & 0xFF) for i in range(0, 32, 8))
+    if n == 0:
+        return '\\0'
+    else:
+        return ''.join(chr(n >> i & 0xFF) for i in range(0, 32, 8))
 
 MMAL_MAGIC = MMAL_FOURCC('mmal')
 

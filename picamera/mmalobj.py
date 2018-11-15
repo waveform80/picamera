@@ -585,7 +585,7 @@ def print_pipeline(port):
     Prints a human readable representation of the pipeline feeding the
     specified :class:`MMALVideoPort` *port*.
     """
-    rows = [[], [], [], [], []]
+    rows = [[], [], [], [], [], []]
     under_comp = False
     for obj in reversed(list(debug_pipeline(port))):
         if isinstance(obj, (MMALBaseComponent, MMALPythonBaseComponent)):
@@ -607,11 +607,14 @@ def print_pipeline(port):
             rows[3].append('%dbps' % (obj._port[0].format[0].bitrate,))
             if under_comp:
                 rows[4].append('frame')
-                under_comp = False
             rows[4].append('%dx%d@%sfps' % (
                 obj._port[0].format[0].es[0].video.width,
                 obj._port[0].format[0].es[0].video.height,
                 obj.framerate))
+            if under_comp:
+                rows[5].append('colorspc')
+                under_comp = False
+            rows[5].append(mmal.FOURCC_str(obj._port[0].format[0].es[0].video.color_space))
         elif isinstance(obj, MMALPythonPort):
             rows[0].append('[%d]' % obj._index)
             if under_comp:
@@ -633,17 +636,22 @@ def print_pipeline(port):
                 obj._format[0].es[0].video.width,
                 obj._format[0].es[0].video.height,
                 obj.framerate))
+            if under_comp:
+                rows[5].append('colorspc')
+            rows[5].append('???')
         elif isinstance(obj, (MMALConnection, MMALPythonConnection)):
             rows[0].append('')
             rows[1].append('')
             rows[2].append('-->')
             rows[3].append('')
             rows[4].append('')
+            rows[5].append('')
     if under_comp:
         rows[1].append('encoding')
         rows[2].append('buf')
         rows[3].append('bitrate')
         rows[4].append('frame')
+        rows[5].append('colorspc')
     cols = list(zip(*rows))
     max_lens = [max(len(s) for s in col) + 2 for col in cols]
     rows = [
@@ -1376,10 +1384,13 @@ class MMALVideoPort(MMALPort):
 
     def __repr__(self):
         if self._port is not None:
-            return '<MMALVideoPort "%s": format=MMAL_FOURCC(%r) buffers=%dx%d frames=%s@%sfps>' % (
+            return (
+                '<MMALVideoPort "%s": format=MMAL_FOURCC("%s") buffers=%dx%d '
+                'frames=%s@%sfps colorspace=MMAL_FOURCC("%s")>' % (
                 self.name, mmal.FOURCC_str(self.format),
                 self._port[0].buffer_num, self._port[0].buffer_size,
-                self.framesize, self.framerate)
+                self.framesize, self.framerate,
+                mmal.FOURCC_str(self.colorspace)))
         else:
             return '<MMALVideoPort closed>'
 
@@ -1420,6 +1431,17 @@ class MMALVideoPort(MMALPort):
         video.frame_rate.den = value.denominator
     framerate = property(_get_framerate, _set_framerate, doc="""\
         Retrieves or sets the framerate of the port's video frames in fps.
+
+        After setting this attribute, call :meth:`~MMALPort.commit` to make the
+        changes effective.
+        """)
+
+    def _get_colorspace(self):
+        return self._port[0].format[0].es[0].video.color_space
+    def _set_colorspace(self, value):
+        self._port[0].format[0].es[0].video.color_space = value
+    colorspace = property(_get_colorspace, _set_colorspace, doc="""\
+        Retrieves or sets the color-space of the port's frames.
 
         After setting this attribute, call :meth:`~MMALPort.commit` to make the
         changes effective.
