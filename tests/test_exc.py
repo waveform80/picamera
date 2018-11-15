@@ -37,8 +37,10 @@ from __future__ import (
 # Make Py2's str equivalent to Py3's
 str = type('')
 
-from picamera import mmal
-from picamera.exc import mmal_check, PiCameraError
+import warnings
+
+from picamera import mmal, PiCamera
+from picamera.exc import mmal_check, PiCameraError, PiCameraDeprecated
 import pytest
 
 def test_mmal_check():
@@ -51,3 +53,12 @@ def test_mmal_check():
         mmal_check(mmal.MMAL_ENOSPC)
     with pytest.raises(PiCameraError):
         mmal_check(mmal.MMAL_EINVAL)
+
+
+def test_posargs_deprecated():
+    with warnings.catch_warnings(record=True) as w:
+        camera = PiCamera(0, 'none', False, '720p')
+        assert len(w) == 4
+        for warning in w:
+            assert issubclass(warning.category, PiCameraDeprecated)
+            assert 'non-keyword argument is deprecated' in str(warning.message)

@@ -574,6 +574,32 @@ This should simply be re-written as::
             print('Array shape:', array.shape)
 
 
+Positional args for PiCamera
+----------------------------
+
+The :class:`PiCamera` class was adjusted in 1.14 to expect keyword arguments on
+construction. The following used to be accepted (although it was still rather
+bad practice)::
+
+    import picamera
+
+    camera = picamera.PiCamera(0, 'none', False, '720p')
+
+This should now be re-written as::
+
+    import picamera
+
+    camera = picamera.PiCamera(camera_num=0, stereo_mode='none',
+                               stereo_decimate=False, resolution='720p')
+
+Although if you only wanted to set ``resolution`` you could simply write this
+as::
+
+    import picamera
+
+    camera = picamera.PiCamera(resolution='720p')
+
+
 .. _semantic versioning: http://semver.org/
 .. _PEP-8: http://legacy.python.org/dev/peps/pep-0008/
 

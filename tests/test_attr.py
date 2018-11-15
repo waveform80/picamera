@@ -429,6 +429,19 @@ def test_sensor_mode(camera, previewing):
     finally:
         camera.sensor_mode = save_mode
 
+def test_isp_blocks(camera, previewing):
+    save_blocks = camera.isp_blocks
+    try:
+        all_blocks = set(camera.ISP_BLOCKS.keys())
+        camera.isp_blocks == all_blocks
+        assert camera.isp_blocks == all_blocks
+        camera.isp_blocks -= {'white-balance'}
+        assert camera.isp_blocks == all_blocks - {'white-balance'}
+        camera.isp_blocks |= {'white-balance'}
+        assert camera.isp_blocks == all_blocks
+    finally:
+        camera.isp_blocks = save_blocks
+
 def test_framerate_delta(camera, previewing):
     for num in range(-10, 11):
         camera.framerate_delta = num / 10
@@ -539,4 +552,3 @@ def test_resolution(camera, previewing):
             camera.resolution = (15, 15)
     finally:
         camera.resolution = save_resolution
-
