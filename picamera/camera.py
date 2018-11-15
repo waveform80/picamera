@@ -1131,7 +1131,7 @@ class PiCamera(object):
         additional options:
 
         * *profile* - The H.264 profile to use for encoding. Defaults to
-          'high', but can be one of 'baseline', 'main', 'extended', 'high', or
+          'high', but can be one of 'baseline', 'main', 'high', or
           'constrained'.
 
         * *level* - The `H.264 level`_ to use for encoding. Defaults to '4',

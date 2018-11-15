@@ -630,7 +630,7 @@ class PiVideoEncoder(PiEncoder):
                 profile = {
                     'baseline':    mmal.MMAL_VIDEO_PROFILE_H264_BASELINE,
                     'main':        mmal.MMAL_VIDEO_PROFILE_H264_MAIN,
-                    'extended':    mmal.MMAL_VIDEO_PROFILE_H264_EXTENDED,
+                    #'extended':    mmal.MMAL_VIDEO_PROFILE_H264_EXTENDED,
                     'high':        mmal.MMAL_VIDEO_PROFILE_H264_HIGH,
                     'constrained': mmal.MMAL_VIDEO_PROFILE_H264_CONSTRAINED_BASELINE,
                     }[profile]
