@@ -113,6 +113,7 @@ PiCameraConfig = namedtuple('PiCameraConfig', (
     'resolution',
     'framerate',
     'isp_blocks',
+    'colorspace',
 ))
 
 
@@ -341,6 +342,13 @@ class PiCamera(object):
         'sharpening':    1 << 22,
         }
 
+    COLORSPACES = {
+        'auto':   mmal.MMAL_COLOR_SPACE_UNKNOWN,
+        'jfif':   mmal.MMAL_COLOR_SPACE_JPEG_JFIF,
+        'bt601':  mmal.MMAL_COLOR_SPACE_ITUR_BT601,
+        'bt709':  mmal.MMAL_COLOR_SPACE_ITUR_BT709,
+        }
+
     _METER_MODES_R    = {v: k for (k, v) in METER_MODES.items()}
     _EXPOSURE_MODES_R = {v: k for (k, v) in EXPOSURE_MODES.items()}
     _FLASH_MODES_R    = {v: k for (k, v) in FLASH_MODES.items()}
@@ -350,6 +358,7 @@ class PiCamera(object):
     _STEREO_MODES_R   = {v: k for (k, v) in STEREO_MODES.items()}
     _CLOCK_MODES_R    = {v: k for (k, v) in CLOCK_MODES.items()}
     _ISP_BLOCKS_R     = {v: k for (k, v) in ISP_BLOCKS.items()}
+    _COLORSPACES_R    = {v: k for (k, v) in COLORSPACES.items()}
 
     __slots__ = (
         '_used_led',
@@ -432,6 +441,7 @@ class PiCamera(object):
             'clock_mode': 'reset',
             'framerate_range': None,
             'isp_blocks': None,
+            'colorspace': 'auto',
             }
         arg_names = (
             'camera_num',
@@ -536,6 +546,12 @@ class PiCamera(object):
             raise PiCameraValueError(
                 'Invalid clock mode: %s' % options['clock_mode'])
 
+        try:
+            colorspace = cls.COLORSPACES[options['colorspace']]
+        except KeyError:
+            raise PiCameraValueError(
+                'Invalid colorspace: %s' % options['colorspace'])
+
         all_blocks = set(cls.ISP_BLOCKS.keys())
         if options['isp_blocks'] is None:
             isp_blocks = 0
@@ -553,13 +569,15 @@ class PiCamera(object):
             clock_mode=clock_mode,
             resolution=cls.MAX_RESOLUTION,
             framerate=30,
-            isp_blocks=0)
+            isp_blocks=0,
+            colorspace=mmal.MMAL_COLOR_SPACE_UNKNOWN)
         new_config = PiCameraConfig(
             sensor_mode=options['sensor_mode'],
             clock_mode=clock_mode,
             resolution=resolution,
             framerate=framerate,
-            isp_blocks=isp_blocks)
+            isp_blocks=isp_blocks,
+            colorspace=colorspace)
         return old_config, new_config
 
     def _init_led(self, options):
@@ -2159,8 +2177,8 @@ class PiCamera(object):
 
     def _configure_splitter(self):
         """
-        Ensures all splitter output ports have a sensible format (I420) and
-        buffer sizes.
+        Ensures the splitter has the same format as the attached camera
+        output port (the video port).
 
         This method is used to ensure the splitter configuration is sane,
         typically after :meth:`_configure_camera` is called.
@@ -2210,7 +2228,8 @@ class PiCamera(object):
                 ),
             framerate=framerate,
             isp_blocks=self._camera.control.params[
-                mmal.MMAL_PARAMETER_CAMERA_ISP_BLOCK_OVERRIDE]
+                mmal.MMAL_PARAMETER_CAMERA_ISP_BLOCK_OVERRIDE],
+            colorspace=self._camera.outputs[0].colorspace
         )
 
     def _configure_camera(self, old, new):
@@ -2306,6 +2325,7 @@ class PiCamera(object):
                 else:
                     port.framesize = new.resolution
                 port.framerate = new.framerate
+                port.colorspace = new.colorspace
                 port.commit()
         except:
             # If anything goes wrong, restore original resolution and
@@ -2529,8 +2549,52 @@ class PiCamera(object):
 
             camera.isp_blocks |= {{'white-balance'}}
 
+        The camera must not be closed, and no recording must be active when the
+        property is set.
+
         .. versionadded:: 1.14
         """.format(values=docstring_values(ISP_BLOCKS)))
+
+    def _get_colorspace(self):
+        return self._COLORSPACES_R[self._camera.outputs[0].colorspace]
+    def _set_colorspace(self, value):
+        self._check_camera_open()
+        self._check_recording_stopped()
+        try:
+            colorspace = self.COLORSPACES[value]
+        except KeyError:
+            raise PiCameraValueError("Invalid colorspace %s" % value)
+        config = self._get_config()
+        self._disable_camera()
+        self._configure_camera(config, config._replace(colorspace=colorspace))
+        self._configure_splitter()
+        self._enable_camera()
+    colorspace = property(_get_colorspace, _set_colorspace, doc="""\
+        Retrieves or sets the `color space`_ that the camera uses for
+        conversion between the `YUV`_ and RGB systems.
+
+        The value is a string that represents which of a series of fixed
+        conversion tables are used by the camera firmware (the firmware works
+        largely in the YUV color system internally). The following strings are
+        the valid values:
+
+        {values}
+
+        The "bt601" and "bt709" values correspond to the standard `SDTV and
+        HDTV tables`_. The "auto" value is the default and corresponds to
+        "bt601" in practice. One of these values is likely what you want when
+        recording H.264 video. However, when recording MJPEG video, you may
+        want to use the "jfif" table instead as it produces luma values in the
+        0-255 range, rather than the 16-235 range produced by the standard
+        tables.
+
+        The camera must not be closed, and no recording must be active when the
+        property is set.
+
+        .. _color space: https://en.wikipedia.org/wiki/Color_space
+        .. _YUV: https://en.wikipedia.org/wiki/YUV
+        .. _SDTV and HDTV tables: https://en.wikipedia.org/wiki/YUV#Conversion_to/from_RGB
+        """.format(values=docstring_values(COLORSPACES)))
 
     def _get_resolution(self):
         self._check_camera_open()

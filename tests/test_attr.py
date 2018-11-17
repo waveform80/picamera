@@ -442,6 +442,16 @@ def test_isp_blocks(camera, previewing):
     finally:
         camera.isp_blocks = save_blocks
 
+def test_colorspace(camera, previewing):
+    save_colorspace = camera.colorspace
+    try:
+        camera.colorspace = 'jfif'
+        assert camera.colorspace == 'jfif'
+        camera.colorspace = 'bt709'
+        assert camera.colorspace == 'bt709'
+    finally:
+        camera.colorspace = save_colorspace
+
 def test_framerate_delta(camera, previewing):
     for num in range(-10, 11):
         camera.framerate_delta = num / 10
