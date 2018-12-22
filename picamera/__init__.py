@@ -112,4 +112,3 @@ from picamera.renderers import (
     )
 from picamera.streams import PiCameraCircularIO, CircularIO, BufferIO
 from picamera.color import Color, Red, Green, Blue, Hue, Lightness, Saturation
-
