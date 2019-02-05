@@ -2791,6 +2791,10 @@ class PiCamera(object):
             a PiCameraMMALError if your userland libraries do not support setting
             the analog gain.
             
+            Also, it may be necessary to set the camera's ``iso`` property to 0
+            in order for setting the analog gain to work properly, due to the way
+            it is implemented in the GPU firmware.
+            
         .. versionadded:: 1.6
         """)
 
