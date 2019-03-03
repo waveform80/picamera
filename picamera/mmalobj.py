@@ -1559,6 +1559,7 @@ class MMALPortParams(object):
             mmal.MMAL_PARAMETER_RATIONAL_T: lambda v: to_rational(v),
             mmal.MMAL_PARAMETER_BOOLEAN_T:  lambda v: mmal.MMAL_TRUE if v else mmal.MMAL_FALSE,
             mmal.MMAL_PARAMETER_STRING_T:   lambda v: v.encode('ascii'),
+            mmal.MMAL_PARAMETER_UINT32_T:   lambda v: int(v),
             }.get(dtype, lambda v: v)
         if func == mmal.mmal_port_parameter_set:
             mp = conv(value)
