@@ -337,6 +337,7 @@ class PiCamera(object):
         'white-balance': 1 << 5,
         'bad-pixel':     1 << 7,
         'crosstalk':     1 << 9,
+        'bayer_denoise': 1 << 10,
         'demosaic':      1 << 11,
         'gamma':         1 << 18,
         'sharpening':    1 << 22,
