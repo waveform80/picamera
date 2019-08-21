@@ -1208,6 +1208,36 @@ class MMAL_PARAMETER_CAMERA_ANNOTATE_V3_T(ct.Structure):
         ('text',                    ct.c_char * MMAL_CAMERA_ANNOTATE_MAX_TEXT_LEN_V3),
         ]
 
+MMAL_CAMERA_ANNOTATE_MAX_TEXT_LEN_V4 = 256
+
+class MMAL_PARAMETER_CAMERA_ANNOTATE_V4_T(ct.Structure):
+    _fields_ = [
+        ('hdr',                     MMAL_PARAMETER_HEADER_T),
+        ('enable',                  MMAL_BOOL_T),
+        ('show_shutter',            MMAL_BOOL_T),
+        ('show_analog_gain',        MMAL_BOOL_T),
+        ('show_lens',               MMAL_BOOL_T),
+        ('show_caf',                MMAL_BOOL_T),
+        ('show_motion',             MMAL_BOOL_T),
+        ('show_frame_num',          MMAL_BOOL_T),
+        ('enable_text_background',  MMAL_BOOL_T),
+        ('custom_background_color', MMAL_BOOL_T),
+        ('custom_background_Y',     ct.c_uint8),
+        ('custom_background_U',     ct.c_uint8),
+        ('custom_background_V',     ct.c_uint8),
+        ('dummy1',                  ct.c_uint8),
+        ('custom_text_color',       MMAL_BOOL_T),
+        ('custom_text_Y',           ct.c_uint8),
+        ('custom_text_U',           ct.c_uint8),
+        ('custom_text_V',           ct.c_uint8),
+        ('text_size',               ct.c_uint8),
+        ('text',                    ct.c_char * MMAL_CAMERA_ANNOTATE_MAX_TEXT_LEN_V4),
+        ('justify',                 ct.c_uint32), # 0=centre, 1=left, 2=right
+        ('x_offset',                ct.c_uint32), # Offset from the justification edge
+        ('y_offset',                ct.c_uint32),
+        ]
+
+
 MMAL_STEREOSCOPIC_MODE_T = ct.c_uint32 # enum
 (
     MMAL_STEREOSCOPIC_MODE_NONE,
