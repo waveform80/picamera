@@ -1579,7 +1579,7 @@ class PiCamera(object):
         .. versionchanged:: 1.11
             Support for buffer outputs was added.
 
-        .. _definitions of quality: http://photo.net/learn/jpeg/#qual
+        .. _definitions of quality: https://web.archive.org/web/20161221193944/http://photo.net/learn/jpeg//#qual
         """
         if format == 'raw':
             warnings.warn(
