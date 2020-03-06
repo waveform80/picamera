@@ -492,6 +492,18 @@ web-browser to view the video stream.
     ``SimpleHTTPServer`` in Python 2.x)
 
 
+.. _web_streaming_opencv:
+
+Web streaming and OpenCV
+=============
+
+Similar to the previous example, but this time frames are processed and
+encoded by OpenCV. So frames are captured as unencoded bgr instead of mjpeg.
+This example will display current time at the top left corner:
+
+.. literalinclude:: examples/web_streaming_opencv.py
+
+
 .. _record_and_capture:
 
 Capturing images whilst recording
