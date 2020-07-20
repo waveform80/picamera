@@ -425,6 +425,21 @@ class PiBayerArray(PiArrayOutput):
         array_3d[by::2, bx::2, 2] = array[by::2, bx::2] # Blue
         return array_3d
 
+    def _unpack_data(self, data, b, n):
+        N = n - 1
+        B = b - 8
+        # Every <n> bytes contains the high 8-bits of <N>
+        # values followed by the low <B>-bits of <N>
+        # values packed into the <n>th byte.
+        data = data.astype(np.uint16) << B
+        for byte in range(N):
+            data[:, byte::n] |= ((data[:, N::n] >> ((byte + 1) * B)) & (B**2 - 1))
+            unpacked_array = np.zeros(
+                (data.shape[0], data.shape[1] * 8 // b), dtype=np.uint16)
+        for i in range(N):
+            unpacked_array[:, i::N] = data[:, i::n]
+        return unpacked_array
+        
     def flush(self):
         super(PiBayerArray, self).flush()
         self._demo = None
@@ -449,6 +464,13 @@ class PiBayerArray(PiArrayOutput):
                 6: 1233920,
                 7: 445440,
                 },
+            'IMX477': {
+                0: 18711040,
+                1: 3375104,
+                2: 4751360,
+                3: 18711040,
+                4: 1015808,
+            },
             }[self.camera.revision.upper()][self.camera.sensor_mode]
         data = self.getvalue()[-offset:]
         if data[:4] != b'BRCM':
@@ -462,25 +484,21 @@ class PiBayerArray(PiArrayOutput):
         # Reshape and crop the data. The crop's width is multiplied by 5/4 to
         # deal with the packed 10-bit format; the shape's width is calculated
         # in a similar fashion but with padding included (which involves
-        # several additional padding steps)
+        # several additional padding steps). Since the HQ Camera uses 12-bit
+        # color, we need to multiply the crop's width by 6/4 instead.
+        expansion = 5 if self.camera.revision.upper() != "IMX477" else 6
         crop = mo.PiResolution(
-            self._header.width * 5 // 4,
+            self._header.width * expansion // 4,
             self._header.height)
         shape = mo.PiResolution(
-            (((self._header.width + self._header.padding_right) * 5) + 3) // 4,
+            (((self._header.width + self._header.padding_right) * expansion) + 3) // 4,
             (self._header.height + self._header.padding_down)
             ).pad()
         data = data.reshape((shape.height, shape.width))[:crop.height, :crop.width]
-        # Unpack 10-bit values; every 5 bytes contains the high 8-bits of 4
-        # values followed by the low 2-bits of 4 values packed into the fifth
-        # byte
-        data = data.astype(np.uint16) << 2
-        for byte in range(4):
-            data[:, byte::5] |= ((data[:, 4::5] >> (byte * 2)) & 3)
-        self.array = np.zeros(
-            (data.shape[0], data.shape[1] * 4 // 5), dtype=np.uint16)
-        for i in range(4):
-            self.array[:, i::4] = data[:, i::5]
+        if self.camera.revision.upper() != "IMX477":
+            self.array = self._unpack_data(data, 10, 5)
+        else: # self.camera.revision.upper() == "IMX477"
+            self.array = self._unpack_data(data, 12, 3)
         if self.output_dims == 3:
             self.array = self._to_3d(self.array)
 
