@@ -2974,8 +2974,17 @@ class PiCamera(object):
     def _get_analog_gain(self):
         self._check_camera_open()
         return mo.to_fraction(
-            self._camera.control.params[mmal.MMAL_PARAMETER_CAMERA_SETTINGS].analog_gain)
-    analog_gain = property(_get_analog_gain, doc="""\
+            self._camera.control.params[mmal.MMAL_PARAMETER_ANALOG_GAIN])
+    def _set_analog_gain(self, value):
+        self._check_camera_open()
+        try:
+            if not (0 <= value <= 16):
+                raise PiCameraValueError(
+                    "Invalid analog gain value: %d (valid range 0..16)" % value)
+        except TypeError:
+            raise PiCameraValueError("Invalid analog gain value: %s" % value)
+        self._camera.control.params[mmal.MMAL_PARAMETER_ANALOG_GAIN] = mo.to_rational(value)
+    analog_gain = property(_get_analog_gain, _set_analog_gain, doc="""\
         Retrieves the current analog gain of the camera.
 
         When queried, this property returns the analog gain currently being
@@ -2989,8 +2998,17 @@ class PiCamera(object):
     def _get_digital_gain(self):
         self._check_camera_open()
         return mo.to_fraction(
-            self._camera.control.params[mmal.MMAL_PARAMETER_CAMERA_SETTINGS].digital_gain)
-    digital_gain = property(_get_digital_gain, doc="""\
+            self._camera.control.params[mmal.MMAL_PARAMETER_DIGITAL_GAIN])
+    def _set_digital_gain(self, value):
+        self._check_camera_open()
+        try:
+            if not (0 <= value <= 64):
+                raise PiCameraValueError(
+                    "Invalid digital gain value: %d (valid range 0..64)" % value)
+        except TypeError:
+            raise PiCameraValueError("Invalid digital gain value: %s" % value)
+        self._camera.control.params[mmal.MMAL_PARAMETER_DIGITAL_GAIN] = mo.to_rational(value)
+    digital_gain = property(_get_digital_gain, _set_digital_gain, doc="""\
         Retrieves the current digital gain of the camera.
 
         When queried, this property returns the digital gain currently being
