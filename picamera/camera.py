@@ -274,6 +274,7 @@ class PiCamera(object):
         'incandescent':  mmal.MMAL_PARAM_AWBMODE_INCANDESCENT,
         'flash':         mmal.MMAL_PARAM_AWBMODE_FLASH,
         'horizon':       mmal.MMAL_PARAM_AWBMODE_HORIZON,
+        'greyworld':     mmal.MMAL_PARAM_AWBMODE_GREYWORLD,
         }
 
     IMAGE_EFFECTS = {
