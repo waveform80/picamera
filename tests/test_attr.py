@@ -81,10 +81,15 @@ def boolean_attr(camera, attr):
     finally:
         setattr(camera, attr, save_value)
 
-
 def test_analog_gain(camera, previewing):
-    # Just test the read-only property returns something sensible
-    assert 0.0 <= camera.analog_gain <= 8.0
+    camera.analog_gain = 1.0
+    assert camera.analog_gain == 1.0
+    camera.analog_gain = 16.0
+    assert camera.analog_gain == 16.0
+    with pytest.raises(picamera.PiCameraValueError):
+        camera.analog_gain = 17.0
+    with pytest.raises(picamera.PiCameraValueError):
+        camera.analog_gain = -1.0
 
 def test_annotate_text(camera, previewing):
     save_value = camera.annotate_text
@@ -194,8 +199,14 @@ def test_contrast(camera, previewing):
     numeric_attr(camera, 'contrast', -100, 100)
 
 def test_digital_gain(camera, previewing):
-    # Just test the read-only property returns something sensible
-    assert 0.0 <= camera.digital_gain <= 8.0
+    camera.digital_gain = 1.0
+    assert camera.digital_gain == 1.0
+    camera.digital_gain = 64.0
+    assert camera.digital_gain == 64.0
+    with pytest.raises(picamera.PiCameraValueError):
+        camera.digital_gain = 65.0
+    with pytest.raises(picamera.PiCameraValueError):
+        camera.digital_gain = -1.0
 
 def test_exposure_compensation(camera, previewing):
     numeric_attr(camera, 'exposure_compensation', -25, 25)
