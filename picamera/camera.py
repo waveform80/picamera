@@ -2305,8 +2305,8 @@ class PiCamera(object):
             cc.stills_yuv422 = 0
             cc.one_shot_stills = 1
             if small_preview:
-                cc.max_preview_video_w = 320
-                cc.max_preview_video_h = 240
+                cc.max_preview_video_w = 1920
+                cc.max_preview_video_h = 1080
             else:
                 cc.max_preview_video_w = new.resolution.width
                 cc.max_preview_video_h = new.resolution.height
@@ -2316,7 +2316,7 @@ class PiCamera(object):
             cc.use_stc_timestamp = new.clock_mode
             self._camera.control.params[mmal.MMAL_PARAMETER_CAMERA_CONFIG] = cc
             if small_preview:
-                preview_resolution = mo.to_resolution((320,240))
+                preview_resolution = mo.to_resolution((1920,1080))
 
             # Clamp preview resolution to camera's resolution
             if (
