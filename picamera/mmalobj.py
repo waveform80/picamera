@@ -2671,6 +2671,8 @@ class MMALPythonPort(MMALObject):
 
     _FORMAT_BPP = {
         'I420': 1.5,
+        'H264': 2,
+        'MJPEG': 2,
         'RGB3': 3,
         'RGBA': 4,
         'BGR3': 3,
@@ -2688,6 +2690,8 @@ class MMALPythonPort(MMALObject):
         self._type = port_type
         self._index = index
         self._supported_formats = {
+            mmal.MMAL_ENCODING_H264,
+            mmal.MMAL_ENCODING_MJPEG,
             mmal.MMAL_ENCODING_I420,
             mmal.MMAL_ENCODING_RGB24,
             mmal.MMAL_ENCODING_BGR24,
@@ -2841,7 +2845,7 @@ class MMALPythonPort(MMALObject):
         video = self._format[0].es[0].video
         try:
             self._buffer_size = int(
-                MMALPythonPort._FORMAT_BPP[str(self.format)]
+                MMALPythonPort._FORMAT_BPP[mmal.FOURCC_str(self.format)]
                 * video.width
                 * video.height)
         except KeyError:
@@ -3246,7 +3250,7 @@ class MMALPythonSource(MMALPythonBaseComponent):
         video = self._outputs[0]._format[0].es[0].video
         try:
             framesize = (
-                MMALPythonPort._FORMAT_BPP[str(self._outputs[0].format)]
+                MMALPythonPort._FORMAT_BPP[mmal.FOURCC_str(self._outputs[0].format)]
                 * video.width
                 * video.height)
         except KeyError:
@@ -3270,11 +3274,13 @@ class MMALPythonSource(MMALPythonBaseComponent):
                                 # if there's no readinto() method, fallback on
                                 # read() and the data setter (memmove)
                                 buf.data = self._stream.read(buf.size)
+                                buf.length = len(buf.data)
                         else:
                             buf.data = self._stream.read(send)
+                            buf.length = len(buf.data)
                     if frameleft is not None:
                         frameleft -= buf.length
-                        if not frameleft:
+                        if frameleft <= 0:
                             buf.flags |= mmal.MMAL_BUFFER_HEADER_FLAG_FRAME_END
                             frameleft = framesize
                     if not buf.length:
