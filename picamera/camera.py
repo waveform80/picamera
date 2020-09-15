@@ -209,6 +209,7 @@ class PiCamera(object):
     MAX_FRAMERATE = PiCameraMaxFramerate # modified by PiCamera.__init__
     DEFAULT_ANNOTATE_SIZE = 32
     CAPTURE_TIMEOUT = 60
+    DEFAULT_JUSTIFY = 0
 
     SENSOR_MODES = {
         'ov5647': {
@@ -3991,7 +3992,7 @@ class PiCamera(object):
 
     def _get_annotate_text_size(self):
         self._check_camera_open()
-        if self._camera.annotate_rev == 3:
+        if self._camera.annotate_rev >= 3:
             mp = self._camera.control.params[mmal.MMAL_PARAMETER_ANNOTATE]
             return mp.text_size or self.DEFAULT_ANNOTATE_SIZE
         else:
@@ -4001,7 +4002,7 @@ class PiCamera(object):
         if not (6 <= value <= 160):
             raise PiCameraValueError(
                 "Invalid annotation text size: %d (valid range 6-160)" % value)
-        if self._camera.annotate_rev == 3:
+        if self._camera.annotate_rev >= 3:
             mp = self._camera.control.params[mmal.MMAL_PARAMETER_ANNOTATE]
             mp.text_size = value
             self._camera.control.params[mmal.MMAL_PARAMETER_ANNOTATE] = mp
@@ -4020,6 +4021,94 @@ class PiCamera(object):
 
         .. versionadded:: 1.10
         """.format(size=DEFAULT_ANNOTATE_SIZE))
+
+    def _get_annotate_justify(self):
+        self._check_camera_open()
+        if self._camera.annotate_rev >= 4:
+            mp = self._camera.control.params[mmal.MMAL_PARAMETER_ANNOTATE]
+            return mp.justify or self.DEFAULT_ANNOTATE_SIZE
+        else:
+            return self.DEFAULT_JUSTIFY
+    def _set_annotate_justify(self, value):
+        self._check_camera_open()
+        if not (0 <= value <= 2):
+            raise PiCameraValueError(
+                "Invalid annotation justify value: %d (valid range 0-2)" % value)
+        if self._camera.annotate_rev >= 4:
+            mp = self._camera.control.params[mmal.MMAL_PARAMETER_ANNOTATE]
+            mp.justify = value
+            self._camera.control.params[mmal.MMAL_PARAMETER_ANNOTATE] = mp
+        elif value != self.DEFAULT_JUSTIFY:
+            warnings.warn(
+                PiCameraFallback(
+                    "Firmware does not support setting text justify; "
+                    "using default (%d) instead" % self.DEFAULT_JUSTIFY))
+    annotate_justify = property(
+        _get_annotate_justify, _set_annotate_justify, doc="""\
+        Controls the location of the annotation text.
+
+        The :attr:`annotate_justify` attribute is an int which determines how
+        the annotation text will aligned on the display. Valid values are
+        in the range 0 to 2, inclusive. The default is {size}.
+
+        .. versionadded:: 1.10
+        """.format(size=DEFAULT_JUSTIFY))
+
+    def _get_annotate_x_offset(self):
+        self._check_camera_open()
+        if self._camera.annotate_rev >= 4:
+            mp = self._camera.control.params[mmal.MMAL_PARAMETER_ANNOTATE]
+            return mp.x_offset or 0
+        else:
+            return 0
+    def _set_annotate_x_offset(self, value):
+        self._check_camera_open()
+        if self._camera.annotate_rev >= 4:
+            mp = self._camera.control.params[mmal.MMAL_PARAMETER_ANNOTATE]
+            mp.x_offset = value
+            self._camera.control.params[mmal.MMAL_PARAMETER_ANNOTATE] = mp
+        elif value != 0:
+            warnings.warn(
+                PiCameraFallback(
+                    "Firmware does not support setting text x_offset; "
+                    "using default (0) instead"))
+    annotate_x_offset = property(
+        _get_annotate_x_offset, _set_annotate_x_offset, doc="""\
+        Controls the location of the annotation text.
+
+        The :attr:`annotate_x_offset` attribute is an int which determines
+        the location of the annotation text on the display.
+
+        .. versionadded:: 1.10
+        """)
+
+    def _get_annotate_y_offset(self):
+        self._check_camera_open()
+        if self._camera.annotate_rev >= 4:
+            mp = self._camera.control.params[mmal.MMAL_PARAMETER_ANNOTATE]
+            return mp.y_offset or 0
+        else:
+            return 0
+    def _set_annotate_y_offset(self, value):
+        self._check_camera_open()
+        if self._camera.annotate_rev >= 4:
+            mp = self._camera.control.params[mmal.MMAL_PARAMETER_ANNOTATE]
+            mp.y_offset = value
+            self._camera.control.params[mmal.MMAL_PARAMETER_ANNOTATE] = mp
+        elif value != 0:
+            warnings.warn(
+                PiCameraFallback(
+                    "Firmware does not support setting text y_offset; "
+                    "using default (0) instead"))
+    annotate_y_offset = property(
+        _get_annotate_y_offset, _set_annotate_y_offset, doc="""\
+        Controls the location of the annotation text.
+
+        The :attr:`annotate_y_offset` attribute is an int which determines
+        the location of the annotation text on the display.
+
+        .. versionadded:: 1.10
+        """)
 
     def _get_annotate_foreground(self):
         self._check_camera_open()

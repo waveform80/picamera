@@ -2351,6 +2351,7 @@ class MMALCamera(MMALBaseComponent):
         mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_T,
         mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V2_T,
         mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V3_T,
+        mmal.MMAL_PARAMETER_CAMERA_ANNOTATE_V4_T,
         )
 
     def __init__(self):
