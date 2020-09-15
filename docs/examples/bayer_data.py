@@ -66,7 +66,7 @@ data = data.reshape(reshape)[:crop[0], :crop[1]]
 
 data = data.astype(np.uint16) << 2
 for byte in range(4):
-    data[:, byte::5] |= ((data[:, 4::5] >> (byte * 2)) & 0b11)
+    data[:, byte::5] |= ((data[:, 4::5] >> ((byte + 1) * 2)) & 0b11)
 data = np.delete(data, np.s_[4::5], 1)
 
 # Now to split the data up into its red, green, and blue components. The
