@@ -202,6 +202,8 @@ PARAM_TYPES = {
     mmal.MMAL_PARAMETER_ZERO_COPY:                      mmal.MMAL_PARAMETER_BOOLEAN_T,
     mmal.MMAL_PARAMETER_ZERO_SHUTTER_LAG:               mmal.MMAL_PARAMETER_ZEROSHUTTERLAG_T,
     mmal.MMAL_PARAMETER_ZOOM:                           mmal.MMAL_PARAMETER_SCALEFACTOR_T,
+    mmal.MMAL_PARAMETER_ANALOG_GAIN:                    mmal.MMAL_PARAMETER_RATIONAL_T,
+    mmal.MMAL_PARAMETER_DIGITAL_GAIN:                   mmal.MMAL_PARAMETER_RATIONAL_T,
     }
 
 
