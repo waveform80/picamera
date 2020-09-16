@@ -1289,7 +1289,11 @@ class MMALPort(MMALControlPort):
             finally:
                 buf.release()
                 try:
-                    self._pool.send_buffer(block=False)
+                    # Only try to send buffer if the port type is output
+                    # or else we will suffer a MMAL no buffers available
+                    # error.
+                    if self._port[0].type == mmal.MMAL_PORT_TYPE_OUTPUT:
+                        self._pool.send_buffer(block=False)
                 except PiCameraPortDisabled:
                     # The port was disabled, no point trying again
                     pass
