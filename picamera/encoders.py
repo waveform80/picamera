@@ -656,6 +656,9 @@ class PiVideoEncoder(PiEncoder):
                     '4.0': mmal.MMAL_VIDEO_LEVEL_H264_4,
                     '4.1': mmal.MMAL_VIDEO_LEVEL_H264_41,
                     '4.2': mmal.MMAL_VIDEO_LEVEL_H264_42,
+                    '5':   mmal.MMAL_VIDEO_LEVEL_H264_5,
+                    '5.0': mmal.MMAL_VIDEO_LEVEL_H264_5,
+                    '5.1': mmal.MMAL_VIDEO_LEVEL_H264_51,
                     }[level]
             except KeyError:
                 raise PiCameraValueError("Invalid H.264 level %s" % level)
@@ -677,6 +680,8 @@ class PiVideoEncoder(PiEncoder):
                 (mmal.MMAL_VIDEO_LEVEL_H264_4,  False): 20000000,
                 (mmal.MMAL_VIDEO_LEVEL_H264_41, False): 50000000,
                 (mmal.MMAL_VIDEO_LEVEL_H264_42, False): 50000000,
+                (mmal.MMAL_VIDEO_LEVEL_H264_5,  False): 135000000,
+                (mmal.MMAL_VIDEO_LEVEL_H264_51, False): 240000000,
                 (mmal.MMAL_VIDEO_LEVEL_H264_1,  True):  80000,
                 (mmal.MMAL_VIDEO_LEVEL_H264_1b, True):  160000,
                 (mmal.MMAL_VIDEO_LEVEL_H264_11, True):  240000,
@@ -691,6 +696,8 @@ class PiVideoEncoder(PiEncoder):
                 (mmal.MMAL_VIDEO_LEVEL_H264_4,  True):  25000000,
                 (mmal.MMAL_VIDEO_LEVEL_H264_41, True):  62500000,
                 (mmal.MMAL_VIDEO_LEVEL_H264_42, True):  62500000,
+                (mmal.MMAL_VIDEO_LEVEL_H264_5, True):  135000000,
+                (mmal.MMAL_VIDEO_LEVEL_H264_51, True):  240000000,
                 }[level, profile == mmal.MMAL_VIDEO_PROFILE_H264_HIGH]
             if bitrate > bitrate_limit:
                 raise PiCameraValueError(
@@ -717,6 +724,8 @@ class PiVideoEncoder(PiEncoder):
                 mmal.MMAL_VIDEO_LEVEL_H264_4:  (245760, 8192),
                 mmal.MMAL_VIDEO_LEVEL_H264_41: (245760, 8192),
                 mmal.MMAL_VIDEO_LEVEL_H264_42: (522240, 8704),
+                mmal.MMAL_VIDEO_LEVEL_H264_5:  (589824, 22080),
+                mmal.MMAL_VIDEO_LEVEL_H264_51: (983040, 36864),
                 }[level]
             w, h = self.output_port.framesize
             w = bcm_host.VCOS_ALIGN_UP(w, 16) >> 4
