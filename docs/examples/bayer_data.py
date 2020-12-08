@@ -21,6 +21,7 @@ with picamera.PiCamera() as camera:
     ver = {
         'RP_ov5647': 1,
         'RP_imx219': 2,
+        'RP_imx477': 3,
         }[camera.exif_tags['IFD0.Model']]
 
 # Extract the raw Bayer data from the end of the stream, check the
@@ -29,11 +30,12 @@ with picamera.PiCamera() as camera:
 offset = {
     1: 6404096,
     2: 10270208,
+    3: 18711040,
     }[ver]
 data = stream.getvalue()[-offset:]
-assert data[:4] == 'BRCM'
+assert data[:4] == b'BRCM'
 data = data[32768:]
-data = np.fromstring(data, dtype=np.uint8)
+data = np.frombuffer(data, dtype=np.uint8)
 
 # For the V1 module, the data consists of 1952 rows of 3264 bytes of data.
 # The last 8 rows of data are unused (they only exist because the maximum
@@ -43,12 +45,17 @@ data = np.fromstring(data, dtype=np.uint8)
 # There's actually 2464 rows of data, but the sensor's raw size is 2466
 # rows, rounded up to the nearest multiple of 16: 2480.
 #
+# For the HQ module, the data consists of 3056 rows of 6112 bytes of data.
+# There's actually 3040 rows of data, but the sensor's raw size is 3046
+# rows, rounded up to the nearest multiple of 16: 3056.
+#
 # Likewise, the last few bytes of each row are unused (why?). Here we
 # reshape the data and strip off the unused bytes.
 
 reshape, crop = {
     1: ((1952, 3264), (1944, 3240)),
     2: ((2480, 4128), (2464, 4100)),
+    3: ((3056, 6112), (3040, 6084)),
     }[ver]
 data = data.reshape(reshape)[:crop[0], :crop[1]]
 
@@ -64,10 +71,26 @@ data = data.reshape(reshape)[:crop[0], :crop[1]]
 # 2-bits and unpack the low-order bits from every 5th byte in each row,
 # then remove the columns containing the packed bits
 
-data = data.astype(np.uint16) << 2
-for byte in range(4):
-    data[:, byte::5] |= ((data[:, 4::5] >> (byte * 2)) & 0b11)
-data = np.delete(data, np.s_[4::5], 1)
+def _unpack_data(data, b, n):
+    N = n - 1
+    B = b - 8
+    BS = 2**B - 1
+    # Every <n> bytes contains the high 8-bits of <N>
+    # values followed by the low <B>-bits of <N>
+    # values packed into the <n>th byte.
+    data = data.astype(np.uint16) << B
+    for byte in range(N):
+        data[:, byte::n] |= ((data[:, N::n] >> ((byte + 1) * B)) & BS)
+    unpacked_array = np.zeros(
+        (data.shape[0], data.shape[1] * N // n), dtype=np.uint16)
+    for i in range(N):
+        unpacked_array[:, i::N] = data[:, i::n]
+    return unpacked_array
+    
+if ver != 3:
+    data = _unpack_data(data, 10, 5)
+else: # self.camera.revision.upper() == "IMX477"
+    data = _unpack_data(data, 12, 3)
 
 # Now to split the data up into its red, green, and blue components. The
 # Bayer pattern of the OV5647 sensor is BGGR. In other words the first
