@@ -140,6 +140,9 @@ def test_bayer_array(camera, mode):
         if camera.exif_tags['IFD0.Model'].upper() == 'RP_OV5647':
             assert stream.array.shape == (1944, 2592, 3)
             assert stream.demosaic().shape == (1944, 2592, 3)
+        elif camera.exif_tags['IDF0.Model'].upper() == 'RP_IMX477':
+            assert stream.array.shape == (3040, 4056, 3)
+            assert stream.demosaic().shape == (3040, 4056, 3)
         else:
             assert stream.array.shape == (2464, 3280, 3)
             assert stream.demosaic().shape == (2464, 3280, 3)
