@@ -428,14 +428,15 @@ class PiBayerArray(PiArrayOutput):
     def _unpack_data(self, data, b, n):
         N = n - 1
         B = b - 8
+        BS = 2**B - 1
         # Every <n> bytes contains the high 8-bits of <N>
         # values followed by the low <B>-bits of <N>
         # values packed into the <n>th byte.
         data = data.astype(np.uint16) << B
         for byte in range(N):
-            data[:, byte::n] |= ((data[:, N::n] >> ((byte + 1) * B)) & (B**2 - 1))
-            unpacked_array = np.zeros(
-                (data.shape[0], data.shape[1] * 8 // b), dtype=np.uint16)
+            data[:, byte::n] |= ((data[:, N::n] >> ((byte + 1) * B)) & BS)
+        unpacked_array = np.zeros(
+            (data.shape[0], data.shape[1] * 8 // b), dtype=np.uint16)
         for i in range(N):
             unpacked_array[:, i::N] = data[:, i::n]
         return unpacked_array
