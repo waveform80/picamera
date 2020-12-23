@@ -2619,7 +2619,7 @@ class MMALVideoDecoder(MMALDecoder):
 
 class MMALImageDecoder(MMALDecoder):
     """
-    Represents the MMAL iamge decoder component. This component has 1 input
+    Represents the MMAL image decoder component. This component has 1 input
     port and 1 output port. The input port is usually configured with
     ``MMAL_ENCODING_JPEG``.
     """
