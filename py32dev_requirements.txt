@@ -1,4 +1,4 @@
-Jinja2==2.6
+Jinja2==2.11.3
 MarkupSafe==0.15
 Pillow==3.4.2
 Pygments==1.6
