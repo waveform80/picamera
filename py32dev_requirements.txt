@@ -8,6 +8,6 @@ distribute==0.6.24
 docutils==0.13.1
 mock==1.0.1
 numpy==1.11.0
-py==1.4.31
+py==1.10.0
 pytest==2.8.7
 wsgiref==0.1.2
