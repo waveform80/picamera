@@ -866,7 +866,7 @@ class PiArrayTransform(mo.MMALPythonComponent):
         self.inputs[0].supported_formats = formats
         self.outputs[0].supported_formats = formats
 
-    def _callback(self, port, source_buf):
+    def _handle_frame(self, port, source_buf):
         try:
             target_buf = self.outputs[0].get_buffer(False)
         except PiCameraPortDisabled:
