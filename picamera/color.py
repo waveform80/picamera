@@ -28,6 +28,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 import colorzero as c0
+import warnings
 
 from .exc import PiCameraDeprecated
 
