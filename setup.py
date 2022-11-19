@@ -32,6 +32,7 @@
 
 import os
 import sys
+import platform
 from setuptools import setup, find_packages
 
 if sys.version_info[0] == 2:
@@ -42,6 +43,9 @@ elif sys.version_info[0] == 3:
         raise ValueError('This package requires Python 3.2 or above')
 else:
     raise ValueError('Unrecognized major version of Python')
+    
+if platform.node() != 'raspberrypi':
+    raise ValueError('This package runs only on Raspberry Pi')
 
 HERE = os.path.abspath(os.path.dirname(__file__))
 
