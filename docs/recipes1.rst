@@ -306,12 +306,12 @@ and the size of the ring buffer underlying the stream).
 A typical use-case for this sort of storage is security applications where one
 wishes to detect motion and only record to disk the video where motion was
 detected. This example keeps 20 seconds of video in memory until the
-``write_now`` function returns ``True`` (in this implementation this is random
-but one could, for example, replace this with some sort of motion detection
-algorithm). Once ``write_now`` returns ``True``, the script waits 10 more
-seconds (so that the buffer contains 10 seconds of video from before the event,
-and 10 seconds after) and writes the resulting video to disk before going back
-to waiting:
+``motion_detected`` function returns ``True`` (in this implementation this is
+random but one could, for example, replace this with some sort of motion
+detection algorithm). Once ``motion_detected`` returns ``True``, the script waits
+10 more seconds (so that the buffer contains 10 seconds of video from before the
+event, and 10 seconds after) and writes the resulting video to disk before going
+back to waiting:
 
 .. literalinclude:: examples/circular_record1.py
 
