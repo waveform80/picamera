@@ -1,7 +1,15 @@
+
+# this can run either as http or https
+#  to run as https using self signed certificates:
+#   create keyfile and certfile from command line using openssl:
+#   openssl req  -nodes -new -x509  -keyout mykey.pem -out mycert.pem
+#   run this program with '--ssl' command line argument
+
 import io
 import picamera
 import logging
 import socketserver
+import ssl,sys
 from threading import Condition
 from http import server
 
@@ -83,6 +91,15 @@ with picamera.PiCamera(resolution='640x480', framerate=24) as camera:
     try:
         address = ('', 8000)
         server = StreamingServer(address, StreamingHandler)
+        if '--ssl' in ' '.join(sys.argv):
+            server.socket = ssl.wrap_socket(
+                server.socket,
+                keyfile='mykey.pem',
+                certfile = 'mycert.pem',
+                server_side=True)
+            print('starting https')
+        else:
+            print('starting http')
         server.serve_forever()
     finally:
         camera.stop_recording()
