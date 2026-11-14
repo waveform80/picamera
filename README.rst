@@ -20,7 +20,6 @@ Links
 
 
 .. _Raspberry Pi: https://www.raspberrypi.org/
-.. _camera: https://www.raspberrypi.org/learning/getting-started-with-picamera/
 .. _PyPI: https://pypi.python.org/pypi/picamera/
 .. _documentation: https://picamera.readthedocs.io/
 .. _source code: https://github.com/waveform80/picamera
